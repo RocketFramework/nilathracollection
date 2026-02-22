@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, Star, Gem, LayoutMix, ArrowRight } from "lucide-react";
+import { Check, Star, Gem, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 const packages = [
