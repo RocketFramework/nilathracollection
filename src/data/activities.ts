@@ -23,9 +23,9 @@ export const activities: Activity[] = [
         "lat": 7.957,
         "lng": 80.7603,
         "description": "Take a sunrise hot air balloon ride over the ancient capitals of the Cultural Triangle for a breathtaking aerial view of Sigiriya and the surrounding jungle. Includes pre-flight briefing, 1-hour flight, and post-flight breakfast.",
-        "duration_hours": 4,
+        "duration_hours": 3,
         "optimal_start_time": "05:00",
-        "optimal_end_time": "09:00",
+        "optimal_end_time": "16:00",
         "time_flexible": false
     },
     {
@@ -37,9 +37,9 @@ export const activities: Activity[] = [
         "lat": 7.006,
         "lng": 80.427,
         "description": "Experience the thrill of canyoning by abseiling down waterfalls and jumping into natural pools in the adventure capital of Sri Lanka. Includes safety briefing, equipment fitting, and multiple waterfall descents.",
-        "duration_hours": 6,
-        "optimal_start_time": "08:30",
-        "optimal_end_time": "14:30",
+        "duration_hours": 2,
+        "optimal_start_time": "07:30",
+        "optimal_end_time": "18:30",
         "time_flexible": false
     },
     {
@@ -51,9 +51,9 @@ export const activities: Activity[] = [
         "lat": 7.006,
         "lng": 80.427,
         "description": "Navigate the rapids of the Kelani River in Kitulgala, a popular spot for adrenaline seekers, especially during the rainy season. Includes safety briefing, equipment, and approximately 2 hours on the river.",
-        "duration_hours": 4,
-        "optimal_start_time": "09:30",
-        "optimal_end_time": "13:30",
+        "duration_hours": 2,
+        "optimal_start_time": "07:30",
+        "optimal_end_time": "18:30",
         "time_flexible": false
     },
     {
@@ -65,9 +65,9 @@ export const activities: Activity[] = [
         "lat": 6.9497,
         "lng": 80.7891,
         "description": "Explore the backroads and tea trails of the Hill Country on a guided mountain biking tour. Includes bike fitting, multiple stops, and rest breaks.",
-        "duration_hours": 5,
+        "duration_hours": 3,
         "optimal_start_time": "07:30",
-        "optimal_end_time": "12:30",
+        "optimal_end_time": "17:30",
         "time_flexible": false
     },
     {
@@ -79,23 +79,23 @@ export const activities: Activity[] = [
         "lat": 7.957,
         "lng": 80.7603,
         "description": "Explore the rural villages of the Cultural Triangle on a guided mountain biking tour. Includes bike fitting, multiple stops, and rest breaks.",
-        "duration_hours": 5,
+        "duration_hours": 3,
         "optimal_start_time": "07:30",
-        "optimal_end_time": "12:30",
+        "optimal_end_time": "17:30",
         "time_flexible": false
     },
     {
-        "id": 6,
+        "id": 104,
         "category": "Adventure",
-        "activity_name": "Scenic Train Ride (Kandy to Ella)",
-        "location_name": "Kandy to Ella",
+        "activity_name": "Scenic Train Ride - Kandy to Ella",
+        "location_name": "Kandy",
         "district": "Kandy to Badulla",
         "lat": 7.2906,
         "lng": 80.6337,
-        "description": "Embark on what is often called the world's most beautiful train journey from Kandy to Ella, passing through misty mountains, lush tea plantations, and tunnels. Note: trains often run 30-60 mins late.",
-        "duration_hours": 9,
-        "optimal_start_time": "08:47",
-        "optimal_end_time": "17:47",
+        "description": "Take the train from Kandy to Ella. Scenic Train Ride (Badulla to Ella),Experience the final and arguably most scenic leg of the hill country railway, winding through lush greenery and mountains.",
+        "duration_hours": 6,
+        "optimal_start_time": "04:00",
+        "optimal_end_time": "18:00",
         "time_flexible": false
     },
     {
@@ -109,7 +109,7 @@ export const activities: Activity[] = [
         "description": "Embark on a challenging overnight hike to the sacred 7,243 ft peak to witness a breathtaking sunrise from a site holy to multiple religions. Includes 5-6 hour climb, sunrise viewing (30-45 mins), 3-4 hour descent, and rest stops.",
         "duration_hours": 11,
         "optimal_start_time": "01:30",
-        "optimal_end_time": "12:30",
+        "optimal_end_time": "24:00",
         "time_flexible": false
     },
     {
@@ -123,7 +123,7 @@ export const activities: Activity[] = [
         "description": "Trek through the misty mountains and cloud forests of the Knuckles Mountain Range, a UNESCO heritage site, discovering unique flora and waterfalls. Includes guide, packed lunch, and multiple scenic viewpoints.",
         "duration_hours": 7,
         "optimal_start_time": "06:30",
-        "optimal_end_time": "13:30",
+        "optimal_end_time": "16:30",
         "time_flexible": false
     },
     {
@@ -136,8 +136,8 @@ export const activities: Activity[] = [
         "lng": 81.0465,
         "description": "Enjoy a relatively easy and short hike near Ella with stunning panoramic views of the Ella Gap and surrounding tea-covered hills. Perfect for sunset viewing.",
         "duration_hours": 2.5,
-        "optimal_start_time": "15:30",
-        "optimal_end_time": "18:00",
+        "optimal_start_time": "06:30",
+        "optimal_end_time": "24:00",
         "time_flexible": false
     },
     {
@@ -151,7 +151,7 @@ export const activities: Activity[] = [
         "description": "Embark on a rewarding half-day hike through tea plantations and jungle to reach the summit of Ella Rock for spectacular views. Allow time for photos and enjoying the panorama.",
         "duration_hours": 5,
         "optimal_start_time": "05:30",
-        "optimal_end_time": "10:30",
+        "optimal_end_time": "18:30",
         "time_flexible": false
     },
     {
@@ -179,7 +179,7 @@ export const activities: Activity[] = [
         "description": "Challenge yourself with rock climbing on the granite outcrops near Sigiriya, suitable for both beginners and experienced climbers. Includes equipment, certified instructor, and multiple routes.",
         "duration_hours": 5,
         "optimal_start_time": "07:30",
-        "optimal_end_time": "12:30",
+        "optimal_end_time": "16:30",
         "time_flexible": false
     },
     {
@@ -193,7 +193,7 @@ export const activities: Activity[] = [
         "description": "Soar through the treetops on a zip-line course near Dambulla, offering an adrenaline rush and a unique perspective of the jungle and village landscape. Includes safety briefing and multiple zip lines.",
         "duration_hours": 2.5,
         "optimal_start_time": "08:30",
-        "optimal_end_time": "11:00",
+        "optimal_end_time": "18:00",
         "time_flexible": false
     },
     {
@@ -220,8 +220,8 @@ export const activities: Activity[] = [
         "lng": 81.056,
         "description": "Experience the final and arguably most scenic leg of the hill country railway from Badulla to Ella, winding through lush greenery and mountains. The famous Nine Arches Bridge view is along this route.",
         "duration_hours": 3.5,
-        "optimal_start_time": "09:30",
-        "optimal_end_time": "13:00",
+        "optimal_start_time": "04:00",
+        "optimal_end_time": "20:00",
         "time_flexible": false
     },
     {
@@ -235,7 +235,7 @@ export const activities: Activity[] = [
         "description": "Trek to the top of Sri Lanka's second-highest waterfall for breathtaking views and the reward of natural infinity pools. Includes guide, swimming time, and packed lunch.",
         "duration_hours": 5.5,
         "optimal_start_time": "07:30",
-        "optimal_end_time": "13:00",
+        "optimal_end_time": "15:00",
         "time_flexible": false
     },
     {
@@ -249,7 +249,7 @@ export const activities: Activity[] = [
         "description": "Learn to surf or hone your skills on the long, gentle waves of Weligama Bay, a hub for surf schools and backpackers. Includes 1.5-2 hour lesson plus practice time.",
         "duration_hours": 4,
         "optimal_start_time": "07:00",
-        "optimal_end_time": "11:00",
+        "optimal_end_time": "17:00",
         "time_flexible": false
     },
     {
@@ -263,7 +263,7 @@ export const activities: Activity[] = [
         "description": "Test your skills on the point breaks of Arugam Bay, one of the world's top surf destinations, with a laid-back vibe and consistent swells. Best at low to mid tide.",
         "duration_hours": 5,
         "optimal_start_time": "06:00",
-        "optimal_end_time": "11:00",
+        "optimal_end_time": "17:00",
         "time_flexible": false
     },
     {
@@ -291,7 +291,7 @@ export const activities: Activity[] = [
         "description": "Enjoy the crescent-shaped beach of Unawatuna, with its calm, protected waters perfect for swimming and snorkeling, located near Galle. Best before the afternoon crowds arrive.",
         "duration_hours": 3,
         "optimal_start_time": "08:30",
-        "optimal_end_time": "11:30",
+        "optimal_end_time": "18:30",
         "time_flexible": false
     },
     {
@@ -304,9 +304,9 @@ export const activities: Activity[] = [
         "lng": 81.205,
         "description": "Take a boat trip from Nilaveli to Pigeon Island National Park, a marine protected area with vibrant coral reefs and tropical fish. Includes boat ride, snorkeling gear, and guide.",
         "duration_hours": 5,
-        "optimal_start_time": "07:30",
-        "optimal_end_time": "12:30",
-        "time_flexible": false
+        "optimal_start_time": null,
+        "optimal_end_time": null,
+        "time_flexible": true
     },
     {
         "id": 22,
@@ -318,9 +318,9 @@ export const activities: Activity[] = [
         "lng": 81.5667,
         "description": "Discover the pristine, white-sand beaches and clear blue waters of Sri Lanka's east coast, such as Passikudah and Kalkudah. Includes travel between beaches and lunch stop.",
         "duration_hours": 8,
-        "optimal_start_time": "08:30",
-        "optimal_end_time": "16:30",
-        "time_flexible": false
+        "optimal_start_time": null,
+        "optimal_end_time": null,
+        "time_flexible": true
     },
     {
         "id": 23,

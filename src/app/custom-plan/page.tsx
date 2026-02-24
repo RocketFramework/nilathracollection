@@ -3,24 +3,32 @@
 import MainLayout from "@/components/layout/MainLayout";
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, MapPin, Check, Sparkles, Navigation, CalendarDays, Compass, Utensils, BedDouble, Sun, Clock, Plus } from "lucide-react";
+import {
+    MapPin, Check, Sparkles, Navigation, CalendarDays,
+    Compass, Utensils, BedDouble, Sun, Clock, Plus, AlertCircle,
+    Train, Info, AlertTriangle, ChevronDown, ChevronUp, BrainCircuit
+} from "lucide-react";
 import { activities, Activity } from "@/data/activities";
-
-import { generateRoutePlan, ItineraryDay, Location } from "@/lib/route-engine";
+// Updated Import: Ensure this matches your export name from the engine
+import { generateRoutePlan, ItineraryEvent, RoutePlan, GeoLocation } from "@/lib/route-engine";
 
 export default function CustomPlanPage() {
     const [step, setStep] = useState(1);
     const [selectedCategory, setSelectedCategory] = useState<string>("Adventure");
     const [selectedActivities, setSelectedActivities] = useState<number[]>([]);
     const [selectedOptionalLocations, setSelectedOptionalLocations] = useState<string[]>([]);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationError, setGenerationError] = useState<string | null>(null);
+    const [showAllConflicts, setShowAllConflicts] = useState(false);
 
-    // For final step
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [travelers, setTravelers] = useState("2");
 
-    const categories = useMemo(() => Array.from(new Set(activities.map(a => a.category))), []);
+    const [routeResult, setRouteResult] = useState<RoutePlan | null>(null);
 
+    // ... (toggleActivity and locations logic remains the same) ...
+    const categories = useMemo(() => Array.from(new Set(activities.map(a => a.category))), []);
     const toggleActivity = (id: number) => {
         setSelectedActivities(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -28,13 +36,17 @@ export default function CustomPlanPage() {
     };
 
     const mandatoryLocationsMap = useMemo(() => {
-        const locations = new Map<string, Location>();
+        const locations = new Map<string, GeoLocation>(); // Use GeoLocation here
         selectedActivities.forEach(id => {
             const act = activities.find(a => a.id === id);
             if (act && act.lat && act.lng) {
                 const key = `${act.lat.toFixed(3)},${act.lng.toFixed(3)}`;
                 if (!locations.has(key)) {
-                    locations.set(key, { lat: act.lat, lng: act.lng, name: `${act.location_name}, ${act.district}` });
+                    locations.set(key, {
+                        lat: act.lat,
+                        lng: act.lng,
+                        name: `${act.location_name}, ${act.district}`
+                    });
                 }
             }
         });
@@ -44,11 +56,15 @@ export default function CustomPlanPage() {
     const mandatoryLocations = Array.from(mandatoryLocationsMap.values());
 
     const allLocationsMap = useMemo(() => {
-        const locations = new Map<string, Location>();
+        const locations = new Map<string, GeoLocation>(); // Use GeoLocation here
         activities.forEach(act => {
             if (act.lat && act.lng) {
                 const key = `${act.lat.toFixed(3)},${act.lng.toFixed(3)}`;
-                locations.set(key, { lat: act.lat, lng: act.lng, name: `${act.location_name}, ${act.district}` });
+                locations.set(key, {
+                    lat: act.lat,
+                    lng: act.lng,
+                    name: `${act.location_name}, ${act.district}`
+                });
             }
         });
         return locations;
@@ -67,26 +83,52 @@ export default function CustomPlanPage() {
         );
     };
 
-    const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
     const [totalDays, setTotalDays] = useState(0);
+    /**
+     * UPDATED: Asynchronous Generation Logic
+     * Support for the new AI-based routing engine
+     */
+    const generatePlan = async () => {
+        setIsGenerating(true);
+        setGenerationError(null);
+        setShowAllConflicts(false);
 
-    const generatePlan = () => {
-        const chosenActivities = activities.filter(a => selectedActivities.includes(a.id));
-        const optionalLocationsList = optionalLocations.filter(loc =>
-            selectedOptionalLocations.includes(`${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}`)
-        );
+        try {
+            const chosenActivities = activities.filter(a => selectedActivities.includes(a.id));
+            const optionalLocationsList = optionalLocations.filter(loc =>
+                selectedOptionalLocations.includes(`${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}`)
+            );
 
-        const { plan, totalDays: finalDays } = generateRoutePlan(chosenActivities, optionalLocationsList);
+            // AWAIT the engine: The new engine is asynchronous
+            const result = await generateRoutePlan(chosenActivities, optionalLocationsList);
 
-        setItinerary(plan);
-        setTotalDays(finalDays);
-        setStep(3);
+            setRouteResult(result);
+            setStep(3);
+        } catch (error) {
+            setGenerationError(error instanceof Error ? error.message : "Failed to generate optimized plan");
+            console.error("Route generation error:", error);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    // Helper for icons based on event types in the new engine
+    const getEventIcon = (type: string) => {
+        switch (type) {
+            case 'activity': return <Sun size={18} />;
+            case 'train': return <Train size={18} />;
+            case 'meal': return <Utensils size={18} />;
+            case 'travel': return <Navigation size={18} />;
+            case 'sleep': return <BedDouble size={18} />;
+            default: return <Info size={18} />;
+        }
     };
 
     return (
         <MainLayout>
             <section className="pt-32 pb-24 px-6 md:px-12 bg-neutral-50 min-h-screen">
                 <div className="max-w-6xl mx-auto">
+                    {/* ... (Header logic) ... */}
                     <div className="text-center mb-16 space-y-4">
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-3 py-1 bg-brand-gold/10 text-brand-gold rounded-full text-xs uppercase tracking-widest font-semibold border border-brand-gold/20">
                             <Sparkles size={14} /> AI Trip Planner
@@ -96,9 +138,8 @@ export default function CustomPlanPage() {
                             Discover Sri Lanka your way. Select what you love to do, and our intelligent planner will craft the ultimate itinerary, balancing mandatory highlights with seamless logistics.
                         </p>
                     </div>
-
-                    <div className="bg-white p-8 md:p-12 rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-neutral-100">
-                        {/* Steps UI */}
+                    <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-neutral-100">
+                        {/* Steps UI (Same as before) */}
                         <div className="flex justify-between items-center mb-12 relative w-full h-8 px-4">
                             <div className="absolute top-1/2 left-0 w-full h-[2px] bg-neutral-100 -z-10 rounded-full overflow-hidden">
                                 <motion.div
@@ -121,7 +162,6 @@ export default function CustomPlanPage() {
                                 );
                             })}
                         </div>
-
                         <AnimatePresence mode="wait">
                             {step === 1 && (
                                 <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-10">
@@ -227,70 +267,95 @@ export default function CustomPlanPage() {
                                     </div>
 
                                     <div className="flex justify-between pt-8 border-t border-neutral-100">
-                                        <button
-                                            onClick={() => setStep(1)}
-                                            className="px-6 py-3 text-sm font-medium text-neutral-500 hover:text-brand-green transition-colors"
-                                        >
-                                            Back
-                                        </button>
+                                        <button onClick={() => setStep(1)} className="...">Back</button>
                                         <button
                                             onClick={generatePlan}
-                                            className="bg-brand-gold text-white px-8 py-3 rounded-full text-sm uppercase tracking-wider font-semibold shadow-[0_4px_20px_rgba(212,175,55,0.4)] hover:bg-[#c6a333] transition-all flex items-center gap-2"
+                                            disabled={isGenerating}
+                                            className="bg-brand-gold text-white px-8 py-3 rounded-full flex items-center gap-2"
                                         >
-                                            <Sparkles size={16} /> Generate Plan
+                                            {isGenerating ? (
+                                                <>
+                                                    <BrainCircuit className="animate-pulse" size={18} />
+                                                    AI Optimizing...
+                                                </>
+                                            ) : (
+                                                <><Sparkles size={16} /> Generate AI Plan</>
+                                            )}
                                         </button>
                                     </div>
                                 </motion.div>
                             )}
 
-                            {step === 3 && (
-                                <motion.div key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-12">
-                                    <div className="text-center">
-                                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-green/10 text-brand-green mb-6">
-                                            <CalendarDays size={32} />
+                            {step === 3 && routeResult && (
+                                <motion.div key="step3" className="space-y-12">
+                                    {/* Optimization Score Badge */}
+                                    <div className="flex justify-center">
+                                        <div className="px-4 py-2 bg-brand-green/10 text-brand-green rounded-full text-sm font-semibold flex items-center gap-2">
+                                            <BrainCircuit size={16} />
+                                            Optimization Score: {routeResult.optimizationScore}%
                                         </div>
-                                        <h3 className="text-3xl font-serif text-brand-green mb-2">Your Bespoke {totalDays}-Day Itinerary</h3>
-                                        <p className="text-sm text-neutral-500">Carefully curated based on your preferences and logistical flow.</p>
                                     </div>
 
-                                    <div className="space-y-8">
-                                        {itinerary.map(day => (
+                                    <div className="text-center">
+                                        <h3 className="text-3xl font-serif text-brand-green">
+                                            Your Bespoke {routeResult.totalDays}-Day Itinerary
+                                        </h3>
+                                        <p className="text-sm text-neutral-500 mt-2">
+                                            Total travel: {routeResult.totalDistance}km |
+                                            Est. Cost: Rs. {routeResult.totalCost.toLocaleString()}
+                                        </p>
+                                    </div>
+
+                                    {/* Itinerary Display */}
+                                    <div className="space-y-8 max-h-[700px] overflow-y-auto pr-2">
+                                        {routeResult.plan.map(day => (
                                             <div key={day.day} className="border border-neutral-200 rounded-3xl overflow-hidden bg-white shadow-sm">
-                                                <div className="bg-neutral-50 px-6 py-4 border-b border-neutral-200 flex justify-between items-center">
-                                                    <h4 className="font-serif text-xl text-brand-charcoal">Day {day.day}</h4>
+                                                <div className="bg-neutral-50 px-6 py-4 flex justify-between items-center border-b border-neutral-200">
+                                                    <div>
+                                                        <h4 className="font-serif text-xl">Day {day.day}</h4>
+                                                        <p className="text-xs text-neutral-400">{day.weather || "Clear skies"}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-xs font-medium text-brand-gold bg-brand-gold/10 px-2 py-1 rounded">
+                                                            {day.utilization * 100}% Day Efficiency
+                                                        </span>
+                                                    </div>
                                                 </div>
+
                                                 <div className="divide-y divide-neutral-100">
                                                     {day.events.map((ev, i) => (
-                                                        <div key={i} className={`p-6 flex flex-col md:flex-row gap-4 md:items-center transition-colors hover:bg-neutral-50/50 ${ev.type === 'activity' ? 'bg-white' : 'bg-neutral-50/30'}`}>
-                                                            <div className="w-32 flex-shrink-0 text-sm font-medium text-neutral-400 flex flex-col">
-                                                                <span>{ev.startTime}</span>
-                                                                <span className="text-xs text-neutral-300">to {ev.endTime}</span>
+                                                        <div key={i} className="p-6 flex flex-col md:flex-row gap-4 hover:bg-neutral-50/50 transition-colors">
+                                                            <div className="w-32 flex-shrink-0 text-sm font-medium text-neutral-400">
+                                                                {ev.startTime} - {ev.endTime}
                                                             </div>
                                                             <div className="flex items-center gap-4 flex-1">
-                                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${ev.type === 'activity' ? 'bg-brand-gold/10 text-brand-gold' :
-                                                                    ev.type === 'meal' ? 'bg-orange-100 text-orange-500' :
-                                                                        ev.type === 'travel' ? 'bg-blue-100 text-blue-500' :
-                                                                            'bg-indigo-100 text-indigo-500'
-                                                                    }`}>
-                                                                    {ev.type === 'activity' && <Sun size={18} />}
-                                                                    {ev.type === 'meal' && <Utensils size={18} />}
-                                                                    {ev.type === 'travel' && <Navigation size={18} />}
-                                                                    {ev.type === 'sleep' && <BedDouble size={18} />}
+                                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${ev.type === 'activity' ? 'bg-brand-gold/10 text-brand-gold' : 'bg-neutral-100'}`}>
+                                                                    {getEventIcon(ev.type)}
                                                                 </div>
                                                                 <div>
-                                                                    <p className={`font-medium ${ev.type === 'activity' ? 'text-lg text-brand-charcoal' : 'text-neutral-600'}`}>{ev.name}</p>
+                                                                    <p className="font-medium text-brand-charcoal">{ev.name}</p>
                                                                     {ev.locationName && (
-                                                                        <p className="text-xs text-neutral-400 mt-1 flex items-center gap-1"><MapPin size={12} /> {ev.locationName}</p>
+                                                                        <p className="text-xs text-neutral-400 flex items-center gap-1">
+                                                                            <MapPin size={12} /> {ev.locationName}
+                                                                        </p>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
+
+                                                {/* AI Recommendation Box */}
+                                                {day.recommendation && (
+                                                    <div className="p-4 bg-blue-50/50 border-t border-blue-100 text-blue-700 text-sm italic">
+                                                        " {day.recommendation} "
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
 
+                                    {/* ... (Final Approval inputs name/email) ... */}
                                     <div className="p-8 bg-brand-green/5 rounded-3xl border border-brand-green/10 space-y-6">
                                         <h4 className="font-serif text-xl text-brand-green text-center">Ready to Make It Reality?</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

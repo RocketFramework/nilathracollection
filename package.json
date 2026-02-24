@@ -9,13 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@geoapify/route-planner-sdk": "^1.1.7",
+    "@turf/turf": "^7.3.4",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
+    "openai": "^6.24.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "traffic-traversal": "^1.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
