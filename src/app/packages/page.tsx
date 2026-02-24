@@ -20,6 +20,7 @@ const tiers = [
             "In-room wellness & curated spa journeys",
         ],
         cta: "Request VIP Consultation",
+        href: "/plans/super-luxury-vip",
         color: "brand-green",
     },
     {
@@ -38,6 +39,7 @@ const tiers = [
             "Standard airport fast-track handling",
         ],
         cta: "Explore Deluxe Options",
+        href: "/plans/deluxe-collection",
         color: "brand-charcoal",
     },
     {
@@ -56,6 +58,7 @@ const tiers = [
             "Standard high-quality dining options",
         ],
         cta: "View Standard Plans",
+        href: "/plans/standard-premium",
         color: "brand-charcoal/80",
     },
     {
@@ -74,6 +77,7 @@ const tiers = [
             "Personalized final proposal and pricing",
         ],
         cta: "Design Your Mix",
+        href: "/custom-plan",
         color: "brand-gold",
     },
 ];
@@ -128,7 +132,7 @@ export default function PackagesPage() {
                                     </ul>
 
                                     <Link
-                                        href="/custom-plan"
+                                        href={tier.href}
                                         className="luxury-button inline-block !px-10"
                                     >
                                         {tier.cta}

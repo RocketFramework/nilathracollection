@@ -3,8 +3,8 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { 
-    Crown, Plane, Shield, Star, Heart, Sparkles, 
+import {
+    Crown, Plane, Shield, Star, Heart, Sparkles,
     Wine, Car, Users, Phone, Clock, MapPin, Hotel,
     Utensils, Wifi, Lock, Check, X, Info
 } from "lucide-react";
@@ -22,60 +22,80 @@ interface PricingBreakdown {
 
 export default function SuperLuxuryVIPPlan() {
     const [showBreakdown, setShowBreakdown] = useState(false);
-    
-    // Sample 7-night itinerary pricing
+    const [nights, setNights] = useState(7);
+    const [travelers, setTravelers] = useState(2);
+
+    const nightRatePerPerson = 1250;
+    const total = nightRatePerPerson * nights * travelers;
+
     const pricing = {
-        total: 17500, // $17,500 for 7 nights
-        perNight: 2500,
+        total: total,
+        perNight: nightRatePerPerson * 2, // Base for 2
         breakdown: {
-            accommodation: 14000, // $2,000/night average
-            meals: 1750, // $250/day all-inclusive
-            transport: 1050, // $150/day helicopter/SUV
-            guide: 700, // $100/day personal guide
-            activities: 700, // $100/day exclusive access
-            entrance_fees: 350, // $50/day VIP entry
-            taxes: 950 // Service charges & VAT
+            accommodation: 2000 * nights * Math.ceil(travelers / 2),
+            meals: 125 * travelers * nights,
+            transport: 150 * nights * Math.ceil(travelers / 4),
+            guide: 100 * nights,
+            activities: 50 * travelers * nights,
+            entrance_fees: 25 * travelers * nights,
+            taxes: 0 // Will calculate as remainder
         }
     };
 
+    // Adjust taxes to match total
+    const subtotal = pricing.breakdown.accommodation + pricing.breakdown.meals + pricing.breakdown.transport + pricing.breakdown.guide + pricing.breakdown.activities + pricing.breakdown.entrance_fees;
+    pricing.breakdown.taxes = total - subtotal;
+
     const inclusions = [
-        { category: "Accommodation", items: [
-            "Amanwella - 3 nights (Ocean View Suite) - $2,200/night",
-            "Ceylon Tea Trails - 2 nights (Castlereagh Bungalow) - $1,800/night",
-            "Cape Weligama - 2 nights (Villa with Private Pool) - $2,500/night"
-        ]},
-        { category: "Meals & Beverages", items: [
-            "All meals (breakfast, lunch, dinner) at resort restaurants",
-            "Premium beverages including fine wines and spirits",
-            "Private dining experiences (beach dinner, tea plantation picnic)",
-            "In-villa dining with personal chef"
-        ]},
-        { category: "Transportation", items: [
-            "Private helicopter transfers between all destinations",
-            "Luxury SUV (Mercedes S-Class or BMW 7 Series) with driver",
-            "Airport VIP meet & greet with personal concierge",
-            "All airport taxes and fuel surcharges"
-        ]},
-        { category: "Guide Services", items: [
-            "Dedicated professional guide (24/7 availability)",
-            "Licensed expert in history, wildlife, and culture",
-            "Fluent in English (other languages available on request)",
-            "All guide accommodation and meals included"
-        ]},
-        { category: "Activities & Experiences", items: [
-            "Private guided tours of all UNESCO sites",
-            "Exclusive after-hours access to Temple of the Tooth",
-            "Private wildlife safari in Yala with naturalist",
-            "Helicopter tour of Sigiriya from above",
-            "Private cooking class with master chef",
-            "Sunset private yacht cruise (seasonal)"
-        ]},
-        { category: "Entrance Fees", items: [
-            "All monument entrance fees (VIP fast-track)",
-            "National park entry fees with private vehicles",
-            "Cultural show private performances",
-            "Museum private guided tours"
-        ]}
+        {
+            category: "Accommodation", items: [
+                "Amanwella - 3 nights (Ocean View Suite) - $2,200/night",
+                "Ceylon Tea Trails - 2 nights (Castlereagh Bungalow) - $1,800/night",
+                "Cape Weligama - 2 nights (Villa with Private Pool) - $2,500/night"
+            ]
+        },
+        {
+            category: "Meals & Beverages", items: [
+                "All meals (breakfast, lunch, dinner) at resort restaurants",
+                "Premium beverages including fine wines and spirits",
+                "Private dining experiences (beach dinner, tea plantation picnic)",
+                "In-villa dining with personal chef"
+            ]
+        },
+        {
+            category: "Transportation", items: [
+                "Private helicopter transfers between all destinations",
+                "Luxury SUV (Mercedes S-Class or BMW 7 Series) with driver",
+                "Airport VIP meet & greet with personal concierge",
+                "All airport taxes and fuel surcharges"
+            ]
+        },
+        {
+            category: "Guide Services", items: [
+                "Dedicated professional guide (24/7 availability)",
+                "Licensed expert in history, wildlife, and culture",
+                "Fluent in English (other languages available on request)",
+                "All guide accommodation and meals included"
+            ]
+        },
+        {
+            category: "Activities & Experiences", items: [
+                "Private guided tours of all UNESCO sites",
+                "Exclusive after-hours access to Temple of the Tooth",
+                "Private wildlife safari in Yala with naturalist",
+                "Helicopter tour of Sigiriya from above",
+                "Private cooking class with master chef",
+                "Sunset private yacht cruise (seasonal)"
+            ]
+        },
+        {
+            category: "Entrance Fees", items: [
+                "All monument entrance fees (VIP fast-track)",
+                "National park entry fees with private vehicles",
+                "Cultural show private performances",
+                "Museum private guided tours"
+            ]
+        }
     ];
 
     const exclusions = [
@@ -88,7 +108,7 @@ export default function SuperLuxuryVIPPlan() {
     ];
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-gradient-to-br from-amber-50 to-white rounded-3xl overflow-hidden shadow-2xl border border-amber-200"
@@ -107,10 +127,10 @@ export default function SuperLuxuryVIPPlan() {
                         </p>
                     </div>
                     <div className="text-right bg-white/10 p-6 rounded-2xl backdrop-blur-sm">
-                        <div className="text-5xl font-light mb-1">$17,500</div>
-                        <p className="text-amber-200 text-sm">for 7 nights / 8 days</p>
-                        <p className="text-amber-200 text-xs mt-1">($2,500 per person per night)</p>
-                        <button 
+                        <div className="text-5xl font-light mb-1">${total.toLocaleString()}</div>
+                        <p className="text-amber-200 text-sm">for {nights} nights / {travelers} travelers</p>
+                        <p className="text-amber-200 text-xs mt-1">(${nightRatePerPerson.toLocaleString()} per person per night)</p>
+                        <button
                             onClick={() => setShowBreakdown(!showBreakdown)}
                             className="mt-3 text-xs text-amber-200 hover:text-white flex items-center gap-1 mx-auto"
                         >
@@ -130,42 +150,42 @@ export default function SuperLuxuryVIPPlan() {
                         className="bg-amber-100/50 px-8 overflow-hidden"
                     >
                         <div className="py-6 border-b border-amber-200">
-                            <h4 className="font-medium text-amber-900 mb-4">What's Included in Your $17,500</h4>
+                            <h4 className="font-medium text-amber-900 mb-4">What's Included in Your ${total.toLocaleString()}</h4>
                             <div className="grid md:grid-cols-2 gap-4 text-sm">
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
-                                        <span>Accommodation (7 nights)</span>
-                                        <span className="font-medium">$14,000</span>
+                                        <span>Accommodation ({nights} nights)</span>
+                                        <span className="font-medium">${pricing.breakdown.accommodation.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>All meals & premium beverages</span>
-                                        <span className="font-medium">$1,750</span>
+                                        <span className="font-medium">${pricing.breakdown.meals.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Helicopter & luxury transport</span>
-                                        <span className="font-medium">$1,050</span>
+                                        <span className="font-medium">${pricing.breakdown.transport.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>24/7 personal guide</span>
-                                        <span className="font-medium">$700</span>
+                                        <span className="font-medium">${pricing.breakdown.guide.toLocaleString()}</span>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
                                         <span>Curated activities</span>
-                                        <span className="font-medium">$700</span>
+                                        <span className="font-medium">${pricing.breakdown.activities.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>VIP entrance fees</span>
-                                        <span className="font-medium">$350</span>
+                                        <span className="font-medium">${pricing.breakdown.entrance_fees.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Taxes & service charges</span>
-                                        <span className="font-medium">$950</span>
+                                        <span className="font-medium">${pricing.breakdown.taxes.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between font-semibold text-amber-900 pt-2 border-t border-amber-200">
                                         <span>TOTAL</span>
-                                        <span>$17,500</span>
+                                        <span>${total.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>
@@ -183,7 +203,7 @@ export default function SuperLuxuryVIPPlan() {
                             <Check size={20} className="text-green-600" />
                             Everything Included in Your Package
                         </h3>
-                        
+
                         <div className="space-y-6">
                             {inclusions.map((section, idx) => (
                                 <div key={idx} className="border-b border-amber-100 pb-4 last:border-0">
@@ -216,7 +236,7 @@ export default function SuperLuxuryVIPPlan() {
                                     </li>
                                 ))}
                             </ul>
-                            
+
                             <div className="mt-6 pt-4 border-t border-amber-200">
                                 <h4 className="font-medium text-amber-900 mb-3">Optional Add-ons</h4>
                                 <div className="space-y-2 text-sm">
@@ -242,19 +262,27 @@ export default function SuperLuxuryVIPPlan() {
                             <div className="space-y-3">
                                 <div>
                                     <label className="text-xs text-amber-200">Number of nights</label>
-                                    <select className="w-full bg-amber-800 text-white border border-amber-700 rounded-lg px-3 py-2 text-sm">
-                                        <option>5 nights ($12,500)</option>
-                                        <option selected>7 nights ($17,500)</option>
-                                        <option>10 nights ($25,000)</option>
-                                        <option>14 nights ($35,000)</option>
+                                    <select
+                                        className="w-full bg-amber-800 text-white border border-amber-700 rounded-lg px-3 py-2 text-sm"
+                                        value={nights}
+                                        onChange={(e) => setNights(Number(e.target.value))}
+                                    >
+                                        <option value={5}>5 nights</option>
+                                        <option value={7}>7 nights</option>
+                                        <option value={10}>10 nights</option>
+                                        <option value={14}>14 nights</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="text-xs text-amber-200">Travelers</label>
-                                    <select className="w-full bg-amber-800 text-white border border-amber-700 rounded-lg px-3 py-2 text-sm">
-                                        <option>2 travelers (base price)</option>
-                                        <option>4 travelers (+$4,500)</option>
-                                        <option>6 travelers (+$8,000)</option>
+                                    <select
+                                        className="w-full bg-amber-800 text-white border border-amber-700 rounded-lg px-3 py-2 text-sm"
+                                        value={travelers}
+                                        onChange={(e) => setTravelers(Number(e.target.value))}
+                                    >
+                                        <option value={2}>2 travelers</option>
+                                        <option value={4}>4 travelers</option>
+                                        <option value={6}>6 travelers</option>
                                     </select>
                                 </div>
                                 <button className="w-full bg-amber-500 hover:bg-amber-400 text-amber-900 font-medium py-3 rounded-lg transition-colors mt-2">
