@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { 
-    Gem, 
-    Compass, 
-    Coffee, 
-    Camera, 
-    Map, 
+import {
+    Gem,
+    Compass,
+    Coffee,
+    Camera,
+    Map,
     Calendar,
     Check,
     Hotel,
@@ -19,13 +19,16 @@ import {
     Shield
 } from "lucide-react";
 // components/plans/StandardPremiumPlan.tsx (Revised)
+import PlanRequestFormModal from "./PlanRequestFormModal";
+
 export default function StandardPremiumPlan() {
     const [selectedNights, setSelectedNights] = useState(5);
     const [travelers, setTravelers] = useState(2);
-    
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
     const basePrice = 400; // per person per night
     const totalPrice = basePrice * travelers * selectedNights;
-    
+
     const inclusions = [
         { icon: Hotel, text: "Accommodation at 5-star hotels", details: "Premium rooms with breakfast" },
         { icon: Car, text: "Private vehicle with chauffeur", details: "Toyota Prius or similar (8am-6pm daily)" },
@@ -92,14 +95,14 @@ export default function StandardPremiumPlan() {
                     <div className="space-y-4">
                         <div className="bg-green-50 p-6 rounded-2xl">
                             <h4 className="font-medium text-green-900 mb-4">Customize Your Package</h4>
-                            
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="text-xs text-green-700 block mb-1">Nights</label>
-                                    <input 
-                                        type="range" 
-                                        min="2" 
-                                        max="14" 
+                                    <input
+                                        type="range"
+                                        min="2"
+                                        max="14"
                                         value={selectedNights}
                                         onChange={(e) => setSelectedNights(Number(e.target.value))}
                                         className="w-full"
@@ -113,7 +116,7 @@ export default function StandardPremiumPlan() {
 
                                 <div>
                                     <label className="text-xs text-green-700 block mb-1">Travelers</label>
-                                    <select 
+                                    <select
                                         value={travelers}
                                         onChange={(e) => setTravelers(Number(e.target.value))}
                                         className="w-full border border-green-200 rounded-lg px-3 py-2"
@@ -135,9 +138,21 @@ export default function StandardPremiumPlan() {
                                     </p>
                                 </div>
 
-                                <button className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg transition-colors">
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg transition-colors"
+                                >
                                     Book This Package
                                 </button>
+                                <PlanRequestFormModal
+                                    isOpen={isModalOpen}
+                                    onClose={() => setIsModalOpen(false)}
+                                    packageName="Standard Premium"
+                                    nights={selectedNights}
+                                    travelers={travelers}
+                                    totalPrice={totalPrice}
+                                    ctaText="Book This Package"
+                                />
                             </div>
                         </div>
 

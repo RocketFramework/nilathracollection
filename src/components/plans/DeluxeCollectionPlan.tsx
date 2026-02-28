@@ -19,9 +19,12 @@ import {
     Shield
 } from "lucide-react";
 
+import PlanRequestFormModal from "./PlanRequestFormModal";
+
 export default function DeluxeCollectionPlan() {
     const [nights, setNights] = useState(5);
     const [travelers, setTravelers] = useState(2);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const basePrice = 400; // per person per night
     const total = basePrice * travelers * nights;
@@ -166,9 +169,21 @@ export default function DeluxeCollectionPlan() {
                             </li>
                         </ul>
 
-                        <button className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-3 rounded-xl font-medium transition-colors">
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-3 rounded-xl font-medium transition-colors"
+                        >
                             Check Availability
                         </button>
+                        <PlanRequestFormModal
+                            isOpen={isModalOpen}
+                            onClose={() => setIsModalOpen(false)}
+                            packageName="Deluxe Collection"
+                            nights={nights}
+                            travelers={travelers}
+                            totalPrice={total}
+                            ctaText="Check Availability"
+                        />
                     </div>
                 </div>
 

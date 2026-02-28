@@ -1,7 +1,7 @@
 "use client";
 
 import MainLayout from "@/components/layout/MainLayout";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ActivityCard from "@/components/ActivityCard";
 import {
@@ -9,16 +9,31 @@ import {
     Compass, Utensils, BedDouble, Sun, Clock, Plus, AlertCircle,
     Train, Info, AlertTriangle, ChevronDown, ChevronUp, BrainCircuit
 } from "lucide-react";
-import { activities, Activity } from "@/data/activities";
+import { fetchActivities, Activity } from "@/data/activities";
 // Updated Import: Ensure this matches your export name from the engine
 import { generateRoutePlan, ItineraryEvent, RoutePlan, GeoLocation } from "@/lib/route-engine";
+import { AuthService } from "@/services/auth.service";
+import { RequestService } from "@/services/request.service";
 
 export default function CustomPlanPage() {
     const [step, setStep] = useState(1);
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [isLoadingActivities, setIsLoadingActivities] = useState(true);
+
+    useEffect(() => {
+        async function load() {
+            const data = await fetchActivities();
+            setActivities(data);
+            setIsLoadingActivities(false);
+        }
+        load();
+    }, []);
+
     const [selectedCategory, setSelectedCategory] = useState<string>("Adventure");
     const [selectedActivities, setSelectedActivities] = useState<number[]>([]);
     const [selectedOptionalLocations, setSelectedOptionalLocations] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [showAllConflicts, setShowAllConflicts] = useState(false);
 
@@ -29,7 +44,7 @@ export default function CustomPlanPage() {
     const [routeResult, setRouteResult] = useState<RoutePlan | null>(null);
 
     // ... (toggleActivity and locations logic remains the same) ...
-    const categories = useMemo(() => Array.from(new Set(activities.map(a => a.category))), []);
+    const categories = useMemo(() => Array.from(new Set(activities.map(a => a.category))), [activities]);
     const toggleActivity = (id: number) => {
         setSelectedActivities(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -69,7 +84,7 @@ export default function CustomPlanPage() {
             }
         });
         return locations;
-    }, []);
+    }, [activities]);
 
     const optionalLocations = useMemo(() => {
         return Array.from(allLocationsMap.entries())
@@ -100,8 +115,11 @@ export default function CustomPlanPage() {
                 selectedOptionalLocations.includes(`${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}`)
             );
 
+            // Determine realistic duration based on selected activities
+            const durationDays = Math.max(3, Math.ceil(chosenActivities.length / 2));
+
             // AWAIT the engine: The new engine is asynchronous
-            const result = await generateRoutePlan(chosenActivities, optionalLocationsList);
+            const result = await generateRoutePlan(chosenActivities, optionalLocationsList, durationDays);
 
             setRouteResult(result);
             setStep(3);
@@ -122,6 +140,43 @@ export default function CustomPlanPage() {
             case 'travel': return <Navigation size={18} />;
             case 'sleep': return <BedDouble size={18} />;
             default: return <Info size={18} />;
+        }
+    };
+
+    const handleSubmitPlan = async () => {
+        if (!email) {
+            alert("Please enter a valid email address.");
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            // Lazy authentication - creates user if they don't exist
+            const authResult = await AuthService.registerTouristByEmail(email);
+
+            // Extract all selected destinations
+            const destinations = [
+                ...mandatoryLocations.map(l => l.name),
+                ...selectedOptionalLocations.map(locString => {
+                    const [lat, lng] = locString.split(',');
+                    const loc = optionalLocations.find(ol => ol.lat.toFixed(3) === lat && ol.lng.toFixed(3) === lng);
+                    return loc ? loc.name : '';
+                }).filter(Boolean)
+            ];
+
+            // Submit Request
+            await RequestService.createRequest({
+                email,
+                request_type: 'custom-plan',
+                destinations,
+                adults: parseInt(travelers) || 2,
+            }, (authResult as any)?.user?.id);
+
+            alert("Plan Approved! Our specialists will contact you shortly to finalize details.");
+        } catch (error) {
+            console.error("Error submitting request:", error);
+            alert("An error occurred while submitting your plan. Please try again.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -164,7 +219,12 @@ export default function CustomPlanPage() {
                             })}
                         </div>
                         <AnimatePresence mode="wait">
-                            {step === 1 && (
+                            {isLoadingActivities ? (
+                                <motion.div key="loading" className="py-24 flex flex-col items-center justify-center">
+                                    <div className="w-12 h-12 border-4 border-brand-green/20 border-t-brand-green rounded-full animate-spin mb-4" />
+                                    <p className="text-neutral-500 font-medium tracking-wide">Loading experiences from the collection...</p>
+                                </motion.div>
+                            ) : step === 1 && (
                                 <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-10">
                                     <div className="text-center">
                                         <h3 className="text-2xl font-serif text-brand-green mb-2">What do you love to do?</h3>
@@ -379,10 +439,11 @@ export default function CustomPlanPage() {
                                             Adjust Locations
                                         </button>
                                         <button
-                                            className="bg-brand-green text-white px-8 py-3 rounded-full text-sm uppercase tracking-wider font-semibold shadow-xl hover:bg-brand-charcoal transition-all flex items-center gap-2"
-                                            onClick={() => alert('Plan Approved! Our specialists will contact you shortly to finalize details.')}
+                                            className="bg-brand-green text-white px-8 py-3 rounded-full text-sm uppercase tracking-wider font-semibold shadow-xl hover:bg-brand-charcoal transition-all flex items-center gap-2 disabled:opacity-50"
+                                            onClick={handleSubmitPlan}
+                                            disabled={isSubmitting}
                                         >
-                                            Approve Plan <Check size={16} />
+                                            {isSubmitting ? 'Submitting...' : 'Approve Plan'} {isSubmitting ? null : <Check size={16} />}
                                         </button>
                                     </div>
                                 </motion.div>

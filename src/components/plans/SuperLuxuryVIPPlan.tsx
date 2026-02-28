@@ -20,8 +20,11 @@ interface PricingBreakdown {
     taxes: number;
 }
 
+import PlanRequestFormModal from "./PlanRequestFormModal";
+
 export default function SuperLuxuryVIPPlan() {
     const [showBreakdown, setShowBreakdown] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [nights, setNights] = useState(7);
     const [travelers, setTravelers] = useState(2);
 
@@ -285,9 +288,21 @@ export default function SuperLuxuryVIPPlan() {
                                         <option value={6}>6 travelers</option>
                                     </select>
                                 </div>
-                                <button className="w-full bg-amber-500 hover:bg-amber-400 text-amber-900 font-medium py-3 rounded-lg transition-colors mt-2">
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="w-full bg-amber-500 hover:bg-amber-400 text-amber-900 font-medium py-3 rounded-lg transition-colors mt-2"
+                                >
                                     Get Personalized Quote
                                 </button>
+                                <PlanRequestFormModal
+                                    isOpen={isModalOpen}
+                                    onClose={() => setIsModalOpen(false)}
+                                    packageName="Super Luxury VIP"
+                                    nights={nights}
+                                    travelers={travelers}
+                                    totalPrice={total}
+                                    ctaText="Get Personalized Quote"
+                                />
                             </div>
                         </div>
                     </div>
