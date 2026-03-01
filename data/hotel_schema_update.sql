@@ -14,7 +14,7 @@ ALTER TABLE hotels ADD COLUMN business_facility BOOLEAN DEFAULT FALSE;
 ALTER TABLE hotels ADD COLUMN parking BOOLEAN DEFAULT FALSE;
 ALTER TABLE hotels ADD COLUMN internet BOOLEAN DEFAULT FALSE;
 ALTER TABLE hotels ADD COLUMN airport_shuttle BOOLEAN DEFAULT FALSE;
-ALTER TABLE hotels ADD COLUMN free_cancellation_before DATE;
+ALTER TABLE hotels ADD COLUMN free_cancellation_weeks INTEGER;
 ALTER TABLE hotels ADD COLUMN admin_approved BOOLEAN DEFAULT FALSE;
 ALTER TABLE hotels ADD COLUMN vat_registered BOOLEAN DEFAULT FALSE;
 
@@ -66,10 +66,14 @@ CREATE TABLE hotel_rooms (
     breakfast_included BOOLEAN DEFAULT FALSE,
     summer_start_date DATE,
     summer_end_date DATE,
-    summer_rate NUMERIC(10, 2),
+    summer_bb_rate NUMERIC(10, 2),
+    summer_hb_rate NUMERIC(10, 2),
+    summer_fb_rate NUMERIC(10, 2),
     winter_start_date DATE,
     winter_end_date DATE,
-    winter_rate NUMERIC(10, 2),
+    winter_bb_rate NUMERIC(10, 2),
+    winter_hb_rate NUMERIC(10, 2),
+    winter_fb_rate NUMERIC(10, 2),
     rate_received_date DATE,
     rate_years_applicable INTEGER DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

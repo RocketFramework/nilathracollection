@@ -1,8 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createSupabaseClient();
 
 export interface HotelRoom {
     id?: string;
@@ -12,10 +10,14 @@ export interface HotelRoom {
     breakfast_included: boolean;
     summer_start_date?: string;
     summer_end_date?: string;
-    summer_rate?: number;
+    summer_bb_rate?: number;
+    summer_hb_rate?: number;
+    summer_fb_rate?: number;
     winter_start_date?: string;
     winter_end_date?: string;
-    winter_rate?: number;
+    winter_bb_rate?: number;
+    winter_hb_rate?: number;
+    winter_fb_rate?: number;
     rate_received_date?: string;
     rate_years_applicable?: number;
 }
@@ -48,7 +50,7 @@ export interface Hotel {
     parking?: boolean;
     internet?: boolean;
     airport_shuttle?: boolean;
-    free_cancellation_before?: string;
+    free_cancellation_weeks?: number;
     admin_approved?: boolean;
     vat_registered?: boolean;
     is_suspended?: boolean;

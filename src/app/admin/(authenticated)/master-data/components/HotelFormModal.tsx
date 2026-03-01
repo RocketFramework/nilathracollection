@@ -23,7 +23,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
         description: "",
         hotel_class: "",
         number_of_rooms: 0,
-        free_cancellation_before: "",
+        free_cancellation_weeks: undefined,
         admin_approved: false,
         vat_registered: false,
         is_suspended: false,
@@ -52,7 +52,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
             } else {
                 setFormData({
                     name: "", location: "", description: "", hotel_class: "", number_of_rooms: 0,
-                    free_cancellation_before: "", admin_approved: false, vat_registered: false, is_suspended: false,
+                    free_cancellation_weeks: undefined, admin_approved: false, vat_registered: false, is_suspended: false,
                     sales_agent_name: "", sales_agent_contact: "", reservation_agent_name: "", reservation_agent_contact: "",
                     gm_name: "", gm_contact: "", disable_support: "none", outdoor_pool: false, wellness: false,
                     business_facility: false, parking: false, internet: false, airport_shuttle: false,
@@ -84,7 +84,10 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
 
     const addRoom = () => {
         const newRoom: HotelRoom = {
-            room_name: "", max_guests: 1, breakfast_included: false, summer_rate: 0, winter_rate: 0, rate_years_applicable: 1
+            room_name: "", max_guests: 1, breakfast_included: false,
+            summer_bb_rate: 0, summer_hb_rate: 0, summer_fb_rate: 0,
+            winter_bb_rate: 0, winter_hb_rate: 0, winter_fb_rate: 0,
+            rate_years_applicable: 1
         };
         setFormData(prev => ({ ...prev, rooms: [...(prev.rooms || []), newRoom] }));
     };
@@ -188,8 +191,8 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                                 <input type="number" className="w-full outline-none text-brand-charcoal font-medium" value={formData.number_of_rooms || 0} onChange={e => handleChange('number_of_rooms', parseInt(e.target.value) || 0)} />
                             </div>
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Free Cancellation Before</label>
-                                <input type="date" className="w-full outline-none text-brand-charcoal font-medium" value={formData.free_cancellation_before || ''} onChange={e => handleChange('free_cancellation_before', e.target.value)} />
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Free Cancellation Before (Weeks)</label>
+                                <input type="number" min="0" className="w-full outline-none text-brand-charcoal font-medium" value={formData.free_cancellation_weeks || ''} onChange={e => handleChange('free_cancellation_weeks', parseInt(e.target.value))} />
                             </div>
 
                             <div className="col-span-2 flex flex-wrap gap-6 mt-4">
@@ -347,11 +350,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                                         </div>
 
                                         {/* Rates Summer */}
-                                        <div className="col-span-1 border border-amber-200/50 bg-amber-50/30 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-amber-600 uppercase">Summer Rate (USD)</label>
-                                            <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.summer_rate || ''} onChange={e => handleRoomChange(index, 'summer_rate', parseFloat(e.target.value))} />
-                                        </div>
-                                        <div className="col-span-1 border border-amber-200/50 bg-amber-50/30 rounded-xl px-3 py-2">
+                                        <div className="col-span-2 border border-amber-200/50 bg-amber-50/30 rounded-xl px-3 py-2">
                                             <label className="text-[10px] font-bold text-amber-600 uppercase">Summer Start</label>
                                             <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.summer_start_date || ''} onChange={e => handleRoomChange(index, 'summer_start_date', e.target.value)} />
                                         </div>
@@ -359,19 +358,43 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                                             <label className="text-[10px] font-bold text-amber-600 uppercase">Summer End</label>
                                             <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.summer_end_date || ''} onChange={e => handleRoomChange(index, 'summer_end_date', e.target.value)} />
                                         </div>
+                                        <div className="col-span-4 grid grid-cols-3 gap-2 border border-amber-200/50 bg-amber-50/30 rounded-xl p-3">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">Summer BB (USD)</label>
+                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-amber-200/50" value={room.summer_bb_rate || ''} onChange={e => handleRoomChange(index, 'summer_bb_rate', parseFloat(e.target.value))} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">Summer HB (USD)</label>
+                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-amber-200/50" value={room.summer_hb_rate || ''} onChange={e => handleRoomChange(index, 'summer_hb_rate', parseFloat(e.target.value))} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">Summer FB (USD)</label>
+                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-amber-200/50" value={room.summer_fb_rate || ''} onChange={e => handleRoomChange(index, 'summer_fb_rate', parseFloat(e.target.value))} />
+                                            </div>
+                                        </div>
 
                                         {/* Rates Winter */}
-                                        <div className="col-span-1 border border-blue-200/50 bg-blue-50/30 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-blue-600 uppercase">Winter Rate (USD)</label>
-                                            <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.winter_rate || ''} onChange={e => handleRoomChange(index, 'winter_rate', parseFloat(e.target.value))} />
-                                        </div>
-                                        <div className="col-span-1 border border-blue-200/50 bg-blue-50/30 rounded-xl px-3 py-2">
+                                        <div className="col-span-2 border border-blue-200/50 bg-blue-50/30 rounded-xl px-3 py-2">
                                             <label className="text-[10px] font-bold text-blue-600 uppercase">Winter Start</label>
                                             <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.winter_start_date || ''} onChange={e => handleRoomChange(index, 'winter_start_date', e.target.value)} />
                                         </div>
                                         <div className="col-span-2 border border-blue-200/50 bg-blue-50/30 rounded-xl px-3 py-2">
                                             <label className="text-[10px] font-bold text-blue-600 uppercase">Winter End</label>
                                             <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.winter_end_date || ''} onChange={e => handleRoomChange(index, 'winter_end_date', e.target.value)} />
+                                        </div>
+                                        <div className="col-span-4 grid grid-cols-3 gap-2 border border-blue-200/50 bg-blue-50/30 rounded-xl p-3">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-blue-600 uppercase block mb-1">Winter BB (USD)</label>
+                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-blue-200/50" value={room.winter_bb_rate || ''} onChange={e => handleRoomChange(index, 'winter_bb_rate', parseFloat(e.target.value))} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-blue-600 uppercase block mb-1">Winter HB (USD)</label>
+                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-blue-200/50" value={room.winter_hb_rate || ''} onChange={e => handleRoomChange(index, 'winter_hb_rate', parseFloat(e.target.value))} />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-blue-600 uppercase block mb-1">Winter FB (USD)</label>
+                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-blue-200/50" value={room.winter_fb_rate || ''} onChange={e => handleRoomChange(index, 'winter_fb_rate', parseFloat(e.target.value))} />
+                                            </div>
                                         </div>
 
                                         {/* Rate details */}
