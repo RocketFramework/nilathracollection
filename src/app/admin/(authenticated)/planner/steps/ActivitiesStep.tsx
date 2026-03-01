@@ -5,6 +5,7 @@ import { Compass, Search, MapPin, Clock, Plus, Trash2, Check, AlertTriangle } fr
 import { useState, useEffect } from "react";
 import { Activity, fetchActivities } from "@/data/activities";
 import { MasterDataService, Vendor } from "@/services/master-data.service";
+import VendorLookupModal from "../components/VendorLookupModal";
 
 export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripData, updateActivities: (acts: ActivityBooking[]) => void }) {
 
@@ -12,6 +13,9 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
     const [allVendors, setAllVendors] = useState<Vendor[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+
+    const [lookupBookingId, setLookupBookingId] = useState<string | null>(null);
+    const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
 
     if (!tripData.serviceScopes.includes('Plan Activities & Experiences')) {
         return (
@@ -89,11 +93,18 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
         updateActivities(activities.map(a => a.id === bookingId ? { ...a, vendorId, vendorPrice: price } : a));
     };
 
+    const openVendorLookup = (bookingId: string) => {
+        setLookupBookingId(bookingId);
+        setIsVendorModalOpen(true);
+    };
+
     const filteredCatalog = allActivities.filter(a =>
         a.activity_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.location_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const activeLookupBooking = lookupBookingId ? activities.find(a => a.id === lookupBookingId) : null;
 
     return (
         <div className="space-y-8">
@@ -214,21 +225,20 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
                                         </div>
                                         <div className="col-span-2 mt-1">
                                             <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide block mb-1">Preferred Vendor</label>
-                                            <select
-                                                value={booking.vendorId || ''}
-                                                onChange={e => handleVendorSelect(booking.id, e.target.value)}
-                                                className="w-full text-xs font-medium cursor-pointer rounded-lg px-3 py-2 border border-neutral-200 focus:outline-none focus:border-brand-gold bg-neutral-50"
+                                            <button
+                                                onClick={() => openVendorLookup(booking.id)}
+                                                className="w-full text-left text-xs font-medium cursor-pointer rounded-lg px-3 py-2 border border-neutral-200 focus:outline-none focus:border-brand-gold bg-neutral-50 hover:bg-neutral-100 transition-colors flex justify-between items-center"
                                             >
-                                                <option value="">No vendor assigned (Internal/Direct)</option>
-                                                {allVendors.filter(v => v.vendor_activities?.some(va => va.activity_id === booking.activityId)).map(v => {
-                                                    const price = v.vendor_activities?.find(va => va.activity_id === booking.activityId)?.vendor_price;
-                                                    return (
-                                                        <option key={v.id!} value={v.id!}>
-                                                            {v.name} {price ? `($${price})` : ''}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
+                                                <span className="truncate pr-2">
+                                                    {booking.vendorId
+                                                        ? (() => {
+                                                            const tv = allVendors.find(v => v.id === booking.vendorId);
+                                                            return tv ? `${tv.name} ${booking.vendorPrice ? `($${booking.vendorPrice})` : ''}` : "Select Preferred Vendor";
+                                                        })()
+                                                        : "No vendor assigned (Internal/Direct)"}
+                                                </span>
+                                                <Search size={14} className="text-neutral-400 shrink-0" />
+                                            </button>
                                         </div>
                                     </div>
 
@@ -266,6 +276,17 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
                     </div>
                 </div>
             </div>
+
+            {activeLookupBooking && (
+                <VendorLookupModal
+                    isOpen={isVendorModalOpen}
+                    onClose={() => { setIsVendorModalOpen(false); setLookupBookingId(null); }}
+                    vendors={allVendors}
+                    activityId={activeLookupBooking.activityId}
+                    selectedVendorId={activeLookupBooking.vendorId}
+                    onSelect={(vendorId) => handleVendorSelect(activeLookupBooking.id, vendorId)}
+                />
+            )}
         </div>
     );
 }

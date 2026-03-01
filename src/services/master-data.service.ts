@@ -136,7 +136,7 @@ export class MasterDataService {
     // Vendors CRUD
     // ==========================================
     static async getVendors() {
-        const { data, error } = await supabase.from('vendors').select('*, payment_details(*)').order('name');
+        const { data, error } = await supabase.from('vendors').select('*, payment_details(*), vendor_activities(*)').order('name');
         if (error) throw error;
         return data as Vendor[];
     }
