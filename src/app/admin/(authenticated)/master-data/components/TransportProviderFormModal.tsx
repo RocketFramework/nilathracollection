@@ -16,21 +16,24 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState<Partial<TransportProvider>>({
-        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, is_suspended: false,
+        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false,
         payment_details: {},
         transport_vehicles: []
     });
+    const [coordinateInput, setCoordinateInput] = useState("");
 
     useEffect(() => {
         if (isOpen) {
             if (provider) {
                 setFormData({ ...provider, payment_details: provider.payment_details || {}, transport_vehicles: provider.transport_vehicles || [] });
+                setCoordinateInput((provider.lat && provider.lng) ? `${provider.lat}, ${provider.lng}` : "");
             } else {
                 setFormData({
-                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, is_suspended: false,
+                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false,
                     payment_details: {},
                     transport_vehicles: []
                 });
+                setCoordinateInput("");
             }
             setActiveTab(TABS[0]);
         }
@@ -38,6 +41,24 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
 
     const handleChange = (field: keyof TransportProvider, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleCoordinateChange = (value: string) => {
+        setCoordinateInput(value);
+        if (!value.trim()) {
+            setFormData(prev => ({ ...prev, lat: undefined, lng: undefined }));
+            return;
+        }
+        const parts = value.split(',');
+        if (parts.length >= 2) {
+            const parsedLat = parseFloat(parts[0].trim());
+            const parsedLng = parseFloat(parts[1].trim());
+            setFormData(prev => ({
+                ...prev,
+                lat: isNaN(parsedLat) ? undefined : parsedLat,
+                lng: isNaN(parsedLng) ? undefined : parsedLng
+            }));
+        }
     };
 
     const addVehicle = () => {
@@ -133,13 +154,13 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Address</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.address || ''} onChange={e => handleChange('address', e.target.value)} />
                             </div>
-                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Latitude</label>
-                                <input type="number" step="any" className="w-full outline-none text-brand-charcoal font-medium" value={formData.lat || ''} onChange={e => handleChange('lat', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Location Coordinates (Lat, Lng)</label>
+                                <input type="text" placeholder="e.g. 6.9271, 79.8612" className="w-full outline-none text-brand-charcoal font-medium" value={coordinateInput} onChange={e => handleCoordinateChange(e.target.value)} />
                             </div>
-                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Longitude</label>
-                                <input type="number" step="any" className="w-full outline-none text-brand-charcoal font-medium" value={formData.lng || ''} onChange={e => handleChange('lng', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">NIC Number</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.nic_number || ''} onChange={e => handleChange('nic_number', e.target.value)} />
                             </div>
                             <div className="col-span-2 mt-2">
                                 <label className="flex items-center gap-2 cursor-pointer group">

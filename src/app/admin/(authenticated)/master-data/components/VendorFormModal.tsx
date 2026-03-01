@@ -20,17 +20,20 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave }: Ven
         name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, description: "", is_suspended: false,
         payment_details: {}, vendor_activities: []
     });
+    const [coordinateInput, setCoordinateInput] = useState("");
 
     useEffect(() => {
         if (isOpen) {
             loadMasterData();
             if (vendor) {
                 setFormData({ ...vendor, vendor_activities: vendor.vendor_activities || [], payment_details: vendor.payment_details || {} });
+                setCoordinateInput((vendor.lat && vendor.lng) ? `${vendor.lat}, ${vendor.lng}` : "");
             } else {
                 setFormData({
                     name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, description: "", is_suspended: false,
                     payment_details: {}, vendor_activities: []
                 });
+                setCoordinateInput("");
             }
             setActiveTab(TABS[0]);
         }
@@ -47,6 +50,24 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave }: Ven
 
     const handleChange = (field: keyof Vendor, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleCoordinateChange = (value: string) => {
+        setCoordinateInput(value);
+        if (!value.trim()) {
+            setFormData(prev => ({ ...prev, lat: undefined, lng: undefined }));
+            return;
+        }
+        const parts = value.split(',');
+        if (parts.length >= 2) {
+            const parsedLat = parseFloat(parts[0].trim());
+            const parsedLng = parseFloat(parts[1].trim());
+            setFormData(prev => ({
+                ...prev,
+                lat: isNaN(parsedLat) ? undefined : parsedLat,
+                lng: isNaN(parsedLng) ? undefined : parsedLng
+            }));
+        }
     };
 
     const handlePaymentChange = (field: string, value: string) => {
@@ -137,13 +158,9 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave }: Ven
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Vendor Address</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.address || ''} onChange={e => handleChange('address', e.target.value)} />
                             </div>
-                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Latitude</label>
-                                <input type="number" step="any" className="w-full outline-none text-brand-charcoal font-medium" value={formData.lat || ''} onChange={e => handleChange('lat', e.target.value ? parseFloat(e.target.value) : undefined)} />
-                            </div>
-                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Longitude</label>
-                                <input type="number" step="any" className="w-full outline-none text-brand-charcoal font-medium" value={formData.lng || ''} onChange={e => handleChange('lng', e.target.value ? parseFloat(e.target.value) : undefined)} />
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Location Coordinates (Lat, Lng)</label>
+                                <input type="text" placeholder="e.g. 6.9271, 79.8612" className="w-full outline-none text-brand-charcoal font-medium" value={coordinateInput} onChange={e => handleCoordinateChange(e.target.value)} />
                             </div>
                             <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Description</label>
