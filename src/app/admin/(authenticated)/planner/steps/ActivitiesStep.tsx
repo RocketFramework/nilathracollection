@@ -4,10 +4,12 @@ import { TripData, ActivityBooking } from "../types";
 import { Compass, Search, MapPin, Clock, Plus, Trash2, Check, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Activity, fetchActivities } from "@/data/activities";
+import { MasterDataService, Vendor } from "@/services/master-data.service";
 
 export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripData, updateActivities: (acts: ActivityBooking[]) => void }) {
 
     const [allActivities, setAllActivities] = useState<Activity[]>([]);
+    const [allVendors, setAllVendors] = useState<Vendor[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
 
@@ -25,10 +27,14 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
     useEffect(() => {
         async function load() {
             try {
-                const data = await fetchActivities();
+                const [data, vendorData] = await Promise.all([
+                    fetchActivities(),
+                    MasterDataService.getVendors()
+                ]);
                 setAllActivities(data);
+                setAllVendors(vendorData);
             } catch (error) {
-                console.error("Failed to load activities", error);
+                console.error("Failed to load activities and vendors", error);
             } finally {
                 setIsLoading(false);
             }
@@ -62,6 +68,25 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
 
     const updateBookingField = (id: string, field: keyof ActivityBooking, value: any) => {
         updateActivities(activities.map(a => a.id === id ? { ...a, [field]: value } : a));
+    };
+
+    const handleVendorSelect = (bookingId: string, vendorId: string) => {
+        const booking = activities.find(a => a.id === bookingId);
+        if (!booking) return;
+
+        if (!vendorId) {
+            updateActivities(activities.map(a => a.id === bookingId ? { ...a, vendorId: undefined, vendorPrice: undefined } : a));
+            return;
+        }
+
+        const vendor = allVendors.find(v => v.id === vendorId);
+        let price = undefined;
+        if (vendor && vendor.vendor_activities) {
+            const va = vendor.vendor_activities.find(v => v.activity_id === booking.activityId);
+            if (va && va.vendor_price) price = va.vendor_price;
+        }
+
+        updateActivities(activities.map(a => a.id === bookingId ? { ...a, vendorId, vendorPrice: price } : a));
     };
 
     const filteredCatalog = allActivities.filter(a =>
@@ -187,6 +212,24 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
                                                 <option value="Voucher Issued">🟢 Final Voucher Issued</option>
                                             </select>
                                         </div>
+                                        <div className="col-span-2 mt-1">
+                                            <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide block mb-1">Preferred Vendor</label>
+                                            <select
+                                                value={booking.vendorId || ''}
+                                                onChange={e => handleVendorSelect(booking.id, e.target.value)}
+                                                className="w-full text-xs font-medium cursor-pointer rounded-lg px-3 py-2 border border-neutral-200 focus:outline-none focus:border-brand-gold bg-neutral-50"
+                                            >
+                                                <option value="">No vendor assigned (Internal/Direct)</option>
+                                                {allVendors.filter(v => v.vendor_activities?.some(va => va.activity_id === booking.activityId)).map(v => {
+                                                    const price = v.vendor_activities?.find(va => va.activity_id === booking.activityId)?.vendor_price;
+                                                    return (
+                                                        <option key={v.id!} value={v.id!}>
+                                                            {v.name} {price ? `($${price})` : ''}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                        </div>
                                     </div>
 
                                     {booking.status !== 'Random / Walk-in' && (
@@ -200,10 +243,19 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
                                                 <input type="date" value={booking.cutOffDate} onChange={e => updateBookingField(booking.id, 'cutOffDate', e.target.value)} className="w-full text-xs box-border rounded-md px-2 py-1.5 border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />
                                             </div>
                                             <div className="col-span-2">
-                                                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide block mb-1 flex items-center gap-1">Supplier <AlertTriangle size={10} className="text-yellow-500" /></label>
+                                                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide block mb-1 flex items-center gap-1">Booking Value & References <AlertTriangle size={10} className="text-yellow-500" /></label>
                                                 <div className="flex gap-2">
-                                                    <input type="text" placeholder="Contact Person" value={booking.supplierContactPerson} onChange={e => updateBookingField(booking.id, 'supplierContactPerson', e.target.value)} className="flex-1 text-xs box-border rounded-md px-2 py-1.5 border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />
-                                                    <input type="text" placeholder="Pay Terms (e.g. Net30)" value={booking.paymentTerms} onChange={e => updateBookingField(booking.id, 'paymentTerms', e.target.value)} className="w-1/3 text-xs box-border rounded-md px-2 py-1.5 border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />
+                                                    <div className="w-1/3 flex items-center border border-neutral-200 bg-neutral-50 rounded-md focus-within:border-brand-gold focus-within:ring-1 focus-within:ring-brand-gold px-2 transition-all">
+                                                        <span className="text-xs text-neutral-400">$</span>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Amount"
+                                                            value={booking.vendorPrice || ''}
+                                                            onChange={e => updateBookingField(booking.id, 'vendorPrice', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                            className="w-full text-xs box-border outline-none py-1.5 bg-transparent ml-1"
+                                                        />
+                                                    </div>
+                                                    <input type="text" placeholder="Contact Person" value={booking.supplierContactPerson || ''} onChange={e => updateBookingField(booking.id, 'supplierContactPerson', e.target.value)} className="flex-1 text-xs box-border rounded-md px-2 py-1.5 border border-neutral-200 bg-neutral-50 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />
                                                 </div>
                                             </div>
                                         </div>

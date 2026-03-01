@@ -68,6 +68,16 @@ CREATE TABLE admin_profiles (
 -------------------------------------------------------------------------------
 -- 2. Vendors & Resources
 -------------------------------------------------------------------------------
+CREATE TABLE payment_details (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bank_name VARCHAR(255),
+    branch_name VARCHAR(255),
+    account_name VARCHAR(255),
+    account_number VARCHAR(255),
+    swift_code VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 CREATE TABLE hotels (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -94,6 +104,7 @@ CREATE TABLE hotels (
     admin_approved BOOLEAN DEFAULT FALSE,
     vat_registered BOOLEAN DEFAULT FALSE,
     is_suspended BOOLEAN DEFAULT FALSE,
+    payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -135,15 +146,45 @@ CREATE TABLE hotel_rooms (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE activity_vendors (
+CREATE TABLE vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
-    activity_type VARCHAR(100),
-    location VARCHAR(255),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    address TEXT,
+    lat NUMERIC(10, 8),
+    lng NUMERIC(11, 8),
     description TEXT,
+    payment_detail_id UUID REFERENCES payment_details(id),
     is_suspended BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE activities (
+  id BIGSERIAL PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE NULL DEFAULT NOW(),
+  category TEXT NOT NULL,
+  activity_name TEXT NOT NULL,
+  location_name TEXT NOT NULL,
+  district TEXT NOT NULL,
+  lat NUMERIC(10, 8) NULL,
+  lng NUMERIC(11, 8) NULL,
+  description TEXT NOT NULL,
+  duration_hours NUMERIC(5, 2) NOT NULL,
+  optimal_start_time TIME WITHOUT TIME ZONE NULL,
+  optimal_end_time TIME WITHOUT TIME ZONE NULL,
+  time_flexible BOOLEAN NOT NULL DEFAULT FALSE,
+  price NUMERIC(10, 2)
+);
+
+CREATE TABLE vendor_activities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE NOT NULL,
+    activity_id BIGINT REFERENCES activities(id) ON DELETE CASCADE NOT NULL,
+    vendor_price NUMERIC(10, 2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(vendor_id, activity_id)
 );
 
 CREATE TABLE transport_providers (
@@ -151,6 +192,7 @@ CREATE TABLE transport_providers (
     name VARCHAR(255) NOT NULL,
     vehicle_types TEXT[],
     is_suspended BOOLEAN DEFAULT FALSE,
+    payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -162,6 +204,7 @@ CREATE TABLE drivers (
     phone VARCHAR(50),
     license_number VARCHAR(100),
     is_suspended BOOLEAN DEFAULT FALSE,
+    payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -173,6 +216,7 @@ CREATE TABLE tour_guides (
     phone VARCHAR(50),
     languages TEXT[],
     is_suspended BOOLEAN DEFAULT FALSE,
+    payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -251,7 +295,8 @@ CREATE TABLE daily_activities (
     description TEXT,
     time_start TIME,
     time_end TIME,
-    vendor_id UUID REFERENCES activity_vendors(id),
+    activity_id BIGINT REFERENCES activities(id),
+    vendor_id UUID REFERENCES vendors(id),
     transport_id UUID REFERENCES transport_providers(id),
     driver_id UUID REFERENCES drivers(id),
     guide_id UUID REFERENCES tour_guides(id),
@@ -361,11 +406,14 @@ ALTER TABLE tourist_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_profiles ENABLE ROW LEVEL SECURITY;
 
+ALTER TABLE payment_details ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hotels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recreations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hotel_recreations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hotel_rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE activity_vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vendor_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transport_providers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tour_guides ENABLE ROW LEVEL SECURITY;
@@ -503,7 +551,7 @@ CREATE POLICY chat_insert_messages ON messages FOR INSERT TO authenticated WITH 
 
 -- 5. Vendor & Suspensions
 CREATE POLICY public_read_vendors ON hotels FOR SELECT TO authenticated USING (is_suspended = FALSE OR get_user_role(auth.uid()) IN ('admin', 'agent'));
-CREATE POLICY public_read_activities ON activity_vendors FOR SELECT TO authenticated USING (is_suspended = FALSE OR get_user_role(auth.uid()) IN ('admin', 'agent'));
+CREATE POLICY public_read_activities_v ON vendors FOR SELECT TO authenticated USING (is_suspended = FALSE OR get_user_role(auth.uid()) IN ('admin', 'agent'));
 CREATE POLICY public_read_transports ON transport_providers FOR SELECT TO authenticated USING (is_suspended = FALSE OR get_user_role(auth.uid()) IN ('admin', 'agent'));
 CREATE POLICY public_read_drivers ON drivers FOR SELECT TO authenticated USING (is_suspended = FALSE OR get_user_role(auth.uid()) IN ('admin', 'agent'));
 CREATE POLICY public_read_guides ON tour_guides FOR SELECT TO authenticated USING (is_suspended = FALSE OR get_user_role(auth.uid()) IN ('admin', 'agent'));
@@ -520,7 +568,11 @@ CREATE POLICY public_read_hotel_rooms ON hotel_rooms FOR SELECT TO authenticated
 CREATE POLICY admin_manage_hotel_rooms ON hotel_rooms FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
 CREATE POLICY agent_manage_hotel_rooms ON hotel_rooms FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'agent');
 
-CREATE POLICY admin_manage_acts ON activity_vendors FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY admin_manage_acts ON vendors FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY public_read_core_acts ON activities FOR SELECT USING (true);
+CREATE POLICY admin_manage_core_acts ON activities FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY public_read_vend_acts ON vendor_activities FOR SELECT USING (true);
+CREATE POLICY admin_manage_vend_acts ON vendor_activities FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
 CREATE POLICY admin_manage_trans ON transport_providers FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
 CREATE POLICY admin_manage_drivers ON drivers FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
 CREATE POLICY admin_manage_guides ON tour_guides FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');

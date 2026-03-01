@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from '@/utils/supabase/client';
+import { PaymentDetails } from './master-data.service';
 
 const supabase = createSupabaseClient();
 
@@ -56,6 +57,8 @@ export interface Hotel {
     admin_approved?: boolean;
     vat_registered?: boolean;
     is_suspended?: boolean;
+    payment_detail_id?: string;
+    payment_details?: PaymentDetails;
     rooms?: HotelRoom[];
     recreations?: HotelRecreation[];
 }
@@ -67,7 +70,7 @@ export class HotelService {
     static async getHotels() {
         const { data, error } = await supabase
             .from('hotels')
-            .select('*')
+            .select('*, payment_details(*)')
             .order('name');
 
         if (error) throw error;
@@ -81,7 +84,7 @@ export class HotelService {
         // Fetch Hotel
         const { data: hotelData, error: hotelError } = await supabase
             .from('hotels')
-            .select('*')
+            .select('*, payment_details(*)')
             .eq('id', id)
             .single();
 
@@ -144,11 +147,21 @@ export class HotelService {
      */
     static async createHotel(hotel: Hotel) {
         // 1. Insert Hotel
-        const { rooms, recreations, id, ...hotelData } = hotel;
+        const { rooms, recreations, id, payment_details, payment_detail_id, ...hotelData } = hotel;
+
+        // Handle Payment Details
+        let activePaymentId = payment_detail_id;
+        if (payment_details && (payment_details.bank_name || payment_details.account_number)) {
+            const { data: pdData, error: pdError } = await supabase.from('payment_details').insert([payment_details]).select().single();
+            if (pdError) throw pdError;
+            activePaymentId = pdData.id;
+        }
+
+        const payload = { ...hotelData, payment_detail_id: activePaymentId };
 
         const { data: newHotel, error: hotelError } = await supabase
             .from('hotels')
-            .insert([hotelData])
+            .insert([payload])
             .select()
             .single();
 
@@ -189,13 +202,28 @@ export class HotelService {
     static async updateHotel(hotel: Hotel) {
         if (!hotel.id) throw new Error("Hotel ID is required for update");
 
-        const { rooms, recreations, id, ...hotelData } = hotel;
+        const { rooms, recreations, id, payment_details, payment_detail_id, ...hotelData } = hotel;
         const hotelId = id;
+
+        // Handle Payment Details
+        let activePaymentId = payment_detail_id;
+        if (payment_details && (payment_details.bank_name || payment_details.account_number)) {
+            if (payment_details.id) {
+                const { error: pdError } = await supabase.from('payment_details').update(payment_details).eq('id', payment_details.id);
+                if (pdError) throw pdError;
+            } else {
+                const { data: pdData, error: pdError } = await supabase.from('payment_details').insert([payment_details]).select().single();
+                if (pdError) throw pdError;
+                activePaymentId = pdData.id;
+            }
+        }
+
+        const payload = { ...hotelData, payment_detail_id: activePaymentId };
 
         // 1. Update Hotel record
         const { error: hotelError } = await supabase
             .from('hotels')
-            .update(hotelData)
+            .update(payload)
             .eq('id', hotelId);
 
         if (hotelError) throw hotelError;

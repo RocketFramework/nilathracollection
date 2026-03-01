@@ -9,7 +9,7 @@ interface HotelFormModalProps {
     onSave: () => void;
 }
 
-const TABS = ["Basic Info", "Contacts", "Amenities", "Recreations", "Rooms"];
+const TABS = ["Basic Info", "Contacts", "Amenities", "Recreations", "Rooms", "Payment Details"];
 
 export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: HotelFormModalProps) {
     const [activeTab, setActiveTab] = useState(TABS[0]);
@@ -43,7 +43,8 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
         internet: false,
         airport_shuttle: false,
         rooms: [],
-        recreations: []
+        recreations: [],
+        payment_details: {}
     });
 
     useEffect(() => {
@@ -58,7 +59,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                     sales_agent_name: "", sales_agent_contact: "", reservation_agent_name: "", reservation_agent_contact: "",
                     gm_name: "", gm_contact: "", disable_support: "none", outdoor_pool: false, wellness: false,
                     business_facility: false, parking: false, internet: false, airport_shuttle: false,
-                    rooms: [], recreations: []
+                    rooms: [], recreations: [], payment_details: {}
                 });
             }
             setActiveTab(TABS[0]);
@@ -82,6 +83,16 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
         const updatedRooms = [...(formData.rooms || [])];
         updatedRooms[index] = { ...updatedRooms[index], [field]: value };
         setFormData(prev => ({ ...prev, rooms: updatedRooms }));
+    };
+
+    const handlePaymentChange = (field: string, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            payment_details: {
+                ...(prev.payment_details || {}),
+                [field]: value
+            }
+        }));
     };
 
     const addRoom = () => {
@@ -435,6 +446,37 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                             >
                                 <Plus size={18} /> Add Room Strategy
                             </button>
+                        </div>
+                    )}
+
+                    {activeTab === "Payment Details" && (
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="col-span-2 text-sm font-bold text-[#2B2B2B] bg-neutral-100 p-3 rounded-lg">Bank Information</div>
+
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Bank Name</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.payment_details?.bank_name || ''} onChange={e => handlePaymentChange('bank_name', e.target.value)} />
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Branch Name</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.payment_details?.branch_name || ''} onChange={e => handlePaymentChange('branch_name', e.target.value)} />
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Account Name</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.payment_details?.account_name || ''} onChange={e => handlePaymentChange('account_name', e.target.value)} />
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Account Number</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.payment_details?.account_number || ''} onChange={e => handlePaymentChange('account_number', e.target.value)} />
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">SWIFT Code</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.payment_details?.swift_code || ''} onChange={e => handlePaymentChange('swift_code', e.target.value)} />
+                            </div>
                         </div>
                     )}
                 </div>

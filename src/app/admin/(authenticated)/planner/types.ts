@@ -110,6 +110,8 @@ export interface ActivityBooking {
     activityId: number;
     activityData: Activity;
     status: 'Random / Walk-in' | 'Tentative Booking' | 'Confirmed' | 'Paid' | 'Voucher Issued';
+    vendorId?: string;
+    vendorPrice?: number;
     supplierContactPerson: string;
     paymentTerms: string;
     bookingReference: string;
