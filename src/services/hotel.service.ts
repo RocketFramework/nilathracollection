@@ -35,6 +35,7 @@ export interface Hotel {
     name: string;
     location_address?: string;
     closest_city?: string;
+    location_coordinates?: string;
     description?: string;
     sales_agent_name?: string;
     sales_agent_contact?: string;

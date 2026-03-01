@@ -21,6 +21,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
         name: "",
         location_address: "",
         closest_city: "",
+        location_coordinates: "",
         description: "",
         hotel_class: "",
         number_of_rooms: 0,
@@ -52,7 +53,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                 setFormData({ ...hotel });
             } else {
                 setFormData({
-                    name: "", location_address: "", closest_city: "", description: "", hotel_class: "", number_of_rooms: 0,
+                    name: "", location_address: "", closest_city: "", location_coordinates: "", description: "", hotel_class: "", number_of_rooms: 0,
                     free_cancellation_weeks: undefined, admin_approved: false, vat_registered: false, is_suspended: false,
                     sales_agent_name: "", sales_agent_contact: "", reservation_agent_name: "", reservation_agent_contact: "",
                     gm_name: "", gm_contact: "", disable_support: "none", outdoor_pool: false, wellness: false,
@@ -84,11 +85,19 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
     };
 
     const addRoom = () => {
+        const currentRooms = formData.rooms || [];
+        const lastRoom = currentRooms.length > 0 ? currentRooms[currentRooms.length - 1] : null;
+
         const newRoom: HotelRoom = {
             room_name: "", max_guests: 1, breakfast_included: false,
             summer_bb_rate: 0, summer_hb_rate: 0, summer_fb_rate: 0,
             winter_bb_rate: 0, winter_hb_rate: 0, winter_fb_rate: 0,
-            rate_years_applicable: 1
+            summer_start_date: lastRoom?.summer_start_date || "",
+            summer_end_date: lastRoom?.summer_end_date || "",
+            winter_start_date: lastRoom?.winter_start_date || "",
+            winter_end_date: lastRoom?.winter_end_date || "",
+            rate_received_date: lastRoom?.rate_received_date || "",
+            rate_years_applicable: lastRoom?.rate_years_applicable || 1
         };
         setFormData(prev => ({ ...prev, rooms: [...(prev.rooms || []), newRoom] }));
     };
@@ -122,6 +131,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
 
     const handleSubmit = async () => {
         if (!formData.name) return alert("Hotel name is required");
+        if (!formData.location_coordinates) return alert("Location coordinates are required");
         setLoading(true);
         try {
             if (formData.id) {
@@ -182,6 +192,10 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Closest City</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.closest_city || ''} onChange={e => handleChange('closest_city', e.target.value)} />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Location Coordinates *</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" placeholder="E.g. 6.9271, 79.8612 or Map URL" value={formData.location_coordinates || ''} onChange={e => handleChange('location_coordinates', e.target.value)} />
                             </div>
                             <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Description</label>

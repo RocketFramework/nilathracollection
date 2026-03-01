@@ -73,6 +73,7 @@ CREATE TABLE hotels (
     name VARCHAR(255) NOT NULL,
     location_address VARCHAR(255),
     closest_city VARCHAR(255),
+    location_coordinates VARCHAR(255),
     description TEXT,
     sales_agent_name VARCHAR(255),
     sales_agent_contact VARCHAR(255),
