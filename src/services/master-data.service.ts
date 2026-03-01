@@ -141,6 +141,41 @@ export class MasterDataService {
         return data as Vendor[];
     }
 
+    static async getVendorsForActivity(activityId: number | string) {
+        // 1. Go to vendor_activities table to filter by activity to select vendor id
+        const { data: vaData, error: vaError } = await supabase
+            .from('vendor_activities')
+            .select('vendor_id, vendor_price')
+            .eq('activity_id', Number(activityId));
+
+        if (vaError) throw vaError;
+        if (!vaData || vaData.length === 0) return [];
+
+        const vendorIds = vaData.map(va => va.vendor_id);
+
+        // 2. Go to vendors table to select all the vendors who support this activity
+        const { data: vendorsData, error: vError } = await supabase
+            .from('vendors')
+            .select('*, payment_details(*)')
+            .in('id', vendorIds)
+            .eq('is_suspended', false);
+
+        if (vError) throw vError;
+
+        // 3. Re-attach the specific vendor activity price so the UI has it readily available
+        return vendorsData.map(v => {
+            const mappedVa = vaData.find(va => va.vendor_id === v.id);
+            return {
+                ...v,
+                vendor_activities: mappedVa ? [{
+                    activity_id: Number(activityId),
+                    vendor_price: mappedVa.vendor_price,
+                    vendor_id: v.id
+                }] : []
+            };
+        }) as Vendor[];
+    }
+
     static async getVendor(id: string) {
         const { data, error } = await supabase.from('vendors').select('*, payment_details(*)').eq('id', id).single();
         if (error) throw error;

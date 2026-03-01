@@ -74,7 +74,7 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
         updateActivities(activities.map(a => a.id === id ? { ...a, [field]: value } : a));
     };
 
-    const handleVendorSelect = (bookingId: string, vendorId: string) => {
+    const handleVendorSelect = (bookingId: string, vendorId: string, providedPrice?: number) => {
         const booking = activities.find(a => a.id === bookingId);
         if (!booking) return;
 
@@ -83,11 +83,15 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
             return;
         }
 
-        const vendor = allVendors.find(v => v.id === vendorId);
-        let price = undefined;
-        if (vendor && vendor.vendor_activities) {
-            const va = vendor.vendor_activities.find(v => v.activity_id === booking.activityId);
-            if (va && va.vendor_price) price = va.vendor_price;
+        let price = providedPrice;
+
+        // Fallback just in case our parent still has the vendor_activities mapping
+        if (price === undefined) {
+            const vendor = allVendors.find(v => v.id === vendorId);
+            if (vendor && vendor.vendor_activities) {
+                const va = vendor.vendor_activities.find(v => Number(v.activity_id) === Number(booking.activityId));
+                if (va && va.vendor_price) price = va.vendor_price;
+            }
         }
 
         updateActivities(activities.map(a => a.id === bookingId ? { ...a, vendorId, vendorPrice: price } : a));
@@ -281,10 +285,9 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
                 <VendorLookupModal
                     isOpen={isVendorModalOpen}
                     onClose={() => { setIsVendorModalOpen(false); setLookupBookingId(null); }}
-                    vendors={allVendors}
                     activityId={activeLookupBooking.activityId}
                     selectedVendorId={activeLookupBooking.vendorId}
-                    onSelect={(vendorId) => handleVendorSelect(activeLookupBooking.id, vendorId)}
+                    onSelect={(vendorId, price) => handleVendorSelect(activeLookupBooking.id, vendorId, price)}
                 />
             )}
         </div>

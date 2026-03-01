@@ -1,30 +1,44 @@
-import React, { useState, useMemo } from "react";
-import { X, Search, MapPin, DollarSign, CheckCircle2 } from "lucide-react";
-import { Vendor } from "@/services/master-data.service";
+import React, { useState, useMemo, useEffect } from "react";
+import { X, Search, MapPin, DollarSign, CheckCircle2, Loader2 } from "lucide-react";
+import { MasterDataService, Vendor } from "@/services/master-data.service";
 
 interface VendorLookupModalProps {
     isOpen: boolean;
     onClose: () => void;
-    vendors: Vendor[];
     activityId: number;
     selectedVendorId?: string;
-    onSelect: (vendorId: string) => void;
+    onSelect: (vendorId: string, price?: number) => void;
 }
 
-export default function VendorLookupModal({ isOpen, onClose, vendors, activityId, selectedVendorId, onSelect }: VendorLookupModalProps) {
+export default function VendorLookupModal({ isOpen, onClose, activityId, selectedVendorId, onSelect }: VendorLookupModalProps) {
     const [nameSearch, setNameSearch] = useState("");
     const [locationSearch, setLocationSearch] = useState("");
     const [maxPrice, setMaxPrice] = useState<number | "">("");
 
-    // Filter vendors who provide this specific activity
-    const eligibleVendors = useMemo(() => {
-        return vendors.filter(v =>
-            v.vendor_activities?.some(va => va.activity_id === activityId)
-        ).map(v => {
-            const price = v.vendor_activities?.find(va => va.activity_id === activityId)?.vendor_price || 0;
-            return { ...v, currentActivityPrice: price };
-        });
-    }, [vendors, activityId]);
+    const [eligibleVendors, setEligibleVendors] = useState<(Vendor & { currentActivityPrice: number })[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen || !activityId) return;
+
+        const loadVendors = async () => {
+            setIsLoading(true);
+            try {
+                const fetchedVendors = await MasterDataService.getVendorsForActivity(activityId);
+                const mapped = fetchedVendors.map(v => {
+                    const price = v.vendor_activities?.[0]?.vendor_price || 0;
+                    return { ...v, currentActivityPrice: price };
+                });
+                setEligibleVendors(mapped);
+            } catch (err) {
+                console.error("Failed to load vendors for activity:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadVendors();
+    }, [isOpen, activityId]);
 
     // Apply search filters
     const filteredVendors = useMemo(() => {
@@ -96,75 +110,123 @@ export default function VendorLookupModal({ isOpen, onClose, vendors, activityId
                     </div>
                 </div>
 
-                {/* Vendor Grid */}
-                <div className="flex-1 overflow-y-auto p-6 bg-neutral-50/30">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Direct/Internal Option */}
-                        <div
-                            onClick={() => { onSelect(""); onClose(); }}
-                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between group
-                                ${!selectedVendorId ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-200 bg-white hover:border-brand-green/40 hover:shadow-md'}`}
-                        >
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h4 className="font-bold text-brand-charcoal text-lg">Direct / Internal</h4>
-                                    <p className="text-xs text-neutral-500 mt-1">Manage this activity booking internally without assigning a 3rd party vendor.</p>
-                                </div>
-                                {!selectedVendorId && <CheckCircle2 className="text-brand-green h-6 w-6 shrink-0" />}
-                            </div>
-                            <div className="mt-auto">
-                                <span className={`text-sm font-bold px-4 py-1.5 rounded-lg transition-colors
-                                    ${!selectedVendorId ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-500 group-hover:bg-brand-green/10 group-hover:text-brand-green'}`}>
-                                    {!selectedVendorId ? 'Selected' : 'Select'}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Mapped Vendors */}
-                        {filteredVendors.map(vendor => {
-                            const isSelected = selectedVendorId === vendor.id;
-
-                            return (
-                                <div
-                                    key={vendor.id}
-                                    onClick={() => { onSelect(vendor.id!); onClose(); }}
-                                    className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col group
-                                        ${isSelected ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-200 bg-white hover:border-brand-green/40 hover:shadow-md'}`}
-                                >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex-1 pr-4 title-wrap">
-                                            <h4 className="font-bold text-brand-charcoal text-lg truncate" title={vendor.name}>{vendor.name}</h4>
-
-                                            {vendor.address && (
-                                                <p className="text-xs text-neutral-500 flex items-center gap-1 mt-1.5 truncate" title={vendor.address}>
-                                                    <MapPin size={12} className="shrink-0" /> <span className="truncate">{vendor.address}</span>
-                                                </p>
-                                            )}
-                                        </div>
-                                        {isSelected && <CheckCircle2 className="text-brand-green h-6 w-6 shrink-0" />}
+                {/* Vendor Table View */}
+                <div className="flex-1 overflow-y-auto p-0 bg-white">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-neutral-50 sticky top-0 z-10 border-b border-neutral-200">
+                            <tr>
+                                <th className="py-3 px-6 text-xs font-bold text-neutral-500 uppercase tracking-wider">Vendor Name</th>
+                                <th className="py-3 px-6 text-xs font-bold text-neutral-500 uppercase tracking-wider">Location</th>
+                                <th className="py-3 px-6 text-xs font-bold text-neutral-500 uppercase tracking-wider text-right">Price (USD)</th>
+                                <th className="py-3 px-6 text-xs font-bold text-neutral-500 uppercase tracking-wider text-center">Status</th>
+                                <th className="py-3 px-6 text-xs font-bold text-neutral-500 uppercase tracking-wider text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                            {/* Direct/Internal Option */}
+                            <tr
+                                onClick={() => { onSelect(""); onClose(); }}
+                                className={`cursor-pointer transition-colors hover:bg-neutral-50 group
+                                    ${!selectedVendorId ? 'bg-brand-green/5' : ''}`}
+                            >
+                                <td className="py-4 px-6">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-brand-charcoal text-sm">Direct / Internal</h4>
                                     </div>
-
-                                    <div className="mt-auto pt-4 border-t border-neutral-100 flex items-center justify-between">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-xs font-bold text-neutral-400">Price:</span>
-                                            <span className="text-lg font-bold text-brand-charcoal">${vendor.currentActivityPrice}</span>
+                                    <p className="text-[11px] text-neutral-500 mt-0.5">Manage internally (no 3rd party)</p>
+                                </td>
+                                <td className="py-4 px-6 text-sm text-neutral-500">-</td>
+                                <td className="py-4 px-6 text-sm font-bold text-brand-charcoal text-right">-</td>
+                                <td className="py-4 px-6 text-center">
+                                    {!selectedVendorId ? (
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-green/10 text-brand-green text-xs font-bold">
+                                            <CheckCircle2 size={14} />
+                                            Selected
                                         </div>
-                                        <span className={`text-sm font-bold px-4 py-1.5 rounded-lg transition-colors
-                                            ${isSelected ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-500 group-hover:bg-brand-green/10 group-hover:text-brand-green'}`}>
-                                            {isSelected ? 'Selected' : 'Select'}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                    ) : (
+                                        <span className="text-xs text-neutral-400">Not Selected</span>
+                                    )}
+                                </td>
+                                <td className="py-4 px-6 text-right">
+                                    <span className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors inline-block
+                                        ${!selectedVendorId ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-500 group-hover:bg-brand-green/10 group-hover:text-brand-green'}`}>
+                                        {!selectedVendorId ? 'Selected' : 'Select'}
+                                    </span>
+                                </td>
+                            </tr>
 
-                        {filteredVendors.length === 0 && (
-                            <div className="col-span-1 lg:col-span-2 p-12 text-center text-neutral-400 italic bg-white rounded-2xl border border-neutral-200 shadow-sm">
-                                <Search className="h-8 w-8 mx-auto text-neutral-300 mb-3" />
-                                No vendors match your search criteria.
-                            </div>
-                        )}
-                    </div>
+                            {/* Mapped Vendors */}
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={5} className="py-12 text-center text-neutral-400">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <Loader2 className="h-8 w-8 text-brand-gold animate-spin mb-3" />
+                                            Loading eligible vendors...
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                <>
+                                    {filteredVendors.map(vendor => {
+                                        const isSelected = selectedVendorId === vendor.id;
+
+                                        return (
+                                            <tr
+                                                key={vendor.id}
+                                                onClick={() => { onSelect(vendor.id!, vendor.currentActivityPrice); onClose(); }}
+                                                className={`cursor-pointer transition-colors hover:bg-neutral-50 group
+                                                    ${isSelected ? 'bg-brand-green/5' : ''}`}
+                                            >
+                                                <td className="py-4 px-6">
+                                                    <h4 className="font-bold text-brand-charcoal text-sm truncate max-w-[250px]" title={vendor.name}>
+                                                        {vendor.name}
+                                                    </h4>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    {vendor.address ? (
+                                                        <div className="flex items-center gap-1.5 text-sm text-neutral-500" title={vendor.address}>
+                                                            <MapPin size={14} className="shrink-0 text-neutral-400" />
+                                                            <span className="truncate max-w-[200px]">{vendor.address}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-neutral-400 italic">No address</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 text-sm font-bold text-brand-charcoal text-right">
+                                                    ${vendor.currentActivityPrice.toFixed(2)}
+                                                </td>
+                                                <td className="py-4 px-6 text-center">
+                                                    {isSelected ? (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-green/10 text-brand-green text-xs font-bold">
+                                                            <CheckCircle2 size={14} />
+                                                            Selected
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-neutral-400">Not Selected</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 text-right">
+                                                    <span className={`text-xs font-bold px-4 py-2 rounded-lg transition-colors inline-block
+                                                        ${isSelected ? 'bg-brand-green text-white' : 'bg-neutral-100 text-neutral-500 group-hover:bg-brand-green/10 group-hover:text-brand-green'}`}>
+                                                        {isSelected ? 'Selected' : 'Select'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+
+                                    {filteredVendors.length === 0 && !isLoading && (
+                                        <tr>
+                                            <td colSpan={5} className="py-16 text-center text-neutral-400 italic">
+                                                <Search className="h-8 w-8 mx-auto text-neutral-300 mb-3" />
+                                                No vendors match your search criteria.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
