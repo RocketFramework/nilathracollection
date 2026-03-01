@@ -69,7 +69,8 @@ export default function MasterDataPage() {
 
     const filteredHotels = hotels.filter(h =>
         h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (h.location && h.location.toLowerCase().includes(searchQuery.toLowerCase()))
+        (h.location_address && h.location_address.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (h.closest_city && h.closest_city.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
     return (
@@ -143,7 +144,7 @@ export default function MasterDataPage() {
                                         <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
                                             <td className="p-4 pl-6 font-bold">{row.name}</td>
                                             <td className="p-4 text-neutral-500">{row.hotel_class || 'Not Specified'}</td>
-                                            <td className="p-4 text-neutral-500">{row.location || 'Not Specified'}</td>
+                                            <td className="p-4 text-neutral-500">{row.location_address}{row.closest_city ? `, ${row.closest_city}` : ''}</td>
                                             <td className="p-4 text-center">
                                                 <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                     {!row.is_suspended ? 'Active' : 'Suspended'}

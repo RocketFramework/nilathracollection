@@ -33,7 +33,8 @@ export interface HotelRecreation {
 export interface Hotel {
     id?: string;
     name: string;
-    location?: string;
+    location_address?: string;
+    closest_city?: string;
     description?: string;
     sales_agent_name?: string;
     sales_agent_contact?: string;

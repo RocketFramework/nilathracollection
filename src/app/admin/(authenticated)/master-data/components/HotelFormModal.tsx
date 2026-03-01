@@ -19,7 +19,8 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
     // Form State
     const [formData, setFormData] = useState<Partial<Hotel>>({
         name: "",
-        location: "",
+        location_address: "",
+        closest_city: "",
         description: "",
         hotel_class: "",
         number_of_rooms: 0,
@@ -51,7 +52,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                 setFormData({ ...hotel });
             } else {
                 setFormData({
-                    name: "", location: "", description: "", hotel_class: "", number_of_rooms: 0,
+                    name: "", location_address: "", closest_city: "", description: "", hotel_class: "", number_of_rooms: 0,
                     free_cancellation_weeks: undefined, admin_approved: false, vat_registered: false, is_suspended: false,
                     sales_agent_name: "", sales_agent_contact: "", reservation_agent_name: "", reservation_agent_contact: "",
                     gm_name: "", gm_contact: "", disable_support: "none", outdoor_pool: false, wellness: false,
@@ -175,8 +176,12 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.name || ''} onChange={e => handleChange('name', e.target.value)} />
                             </div>
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Location</label>
-                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.location || ''} onChange={e => handleChange('location', e.target.value)} />
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Location Address</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.location_address || ''} onChange={e => handleChange('location_address', e.target.value)} />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Closest City</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.closest_city || ''} onChange={e => handleChange('closest_city', e.target.value)} />
                             </div>
                             <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Description</label>

@@ -1,4 +1,6 @@
 -- Update existing hotels table with new fields
+ALTER TABLE hotels RENAME COLUMN location TO location_address;
+ALTER TABLE hotels ADD COLUMN closest_city VARCHAR(255);
 ALTER TABLE hotels ADD COLUMN sales_agent_name VARCHAR(255);
 ALTER TABLE hotels ADD COLUMN sales_agent_contact VARCHAR(255);
 ALTER TABLE hotels ADD COLUMN reservation_agent_name VARCHAR(255);

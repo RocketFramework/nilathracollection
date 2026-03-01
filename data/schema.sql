@@ -71,7 +71,8 @@ CREATE TABLE admin_profiles (
 CREATE TABLE hotels (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
-    location VARCHAR(255),
+    location_address VARCHAR(255),
+    closest_city VARCHAR(255),
     description TEXT,
     sales_agent_name VARCHAR(255),
     sales_agent_contact VARCHAR(255),
