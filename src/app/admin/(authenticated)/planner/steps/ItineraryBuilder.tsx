@@ -252,10 +252,11 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
         // Current block costs (Activities & Restaurants)
         tripData.itinerary.forEach(b => {
-            if (b.type === 'activity' && b.vendorId) {
+            if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
                 const vendor = masterData.vendors.find(v => v.id === b.vendorId);
-                const actLink = vendor?.vendor_activities?.find(va => va.activity_id === b.activityId);
-                acts += actLink?.vendor_price || 0;
+                const va = vendor?.vendor_activities?.find(va => va.id === b.vendorActivityId);
+                const fallbackVa = vendor?.vendor_activities?.find(va => va.activity_id === b.activityId);
+                acts += (va?.vendor_price || fallbackVa?.vendor_price || 0);
             }
             if (b.type === 'meal' && b.restaurantId) {
                 const rest = masterData.restaurants.find(r => r.id === b.restaurantId);
@@ -415,8 +416,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
         updateData(updates);
 
-        // Only close if not transport (transport needs vehicle/driver selection)
-        if (field !== 'transportId') {
+        // Only close if not transport or vendor (needs vehicle/activity selection)
+        if (field !== 'transportId' && field !== 'vendorId') {
             setActiveAssignment(null);
             setSearchTerm("");
         }
@@ -448,9 +449,16 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             const h = masterData.hotels.find(x => x.id === block.hotelId);
             return { name: h?.name || 'Linked Hotel', icon: <BedDouble size={12} className="text-indigo-500" /> };
         }
-        if (block.type === 'activity' && block.vendorId) {
+        if (block.type === 'activity' && (block.vendorId || block.vendorActivityId)) {
             const v = masterData.vendors.find(x => x.id === block.vendorId);
-            return { name: v?.name || 'Linked Vendor', icon: <UserCheck size={12} className="text-orange-500" /> };
+            const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId);
+
+            let label = 'Linked Vendor';
+            if (v && va) label = `${v.name} - ${va.activity_name}`;
+            else if (va) label = va.activity_name || 'Specific Activity';
+            else if (v) label = v.name;
+
+            return { name: label, icon: <ActivityIcon size={12} className="text-orange-500" /> };
         }
         if (block.type === 'travel' && (block.driverId || block.transportId || block.vehicleId)) {
             const d = masterData.drivers.find(x => x.id === block.driverId);
@@ -460,7 +468,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                 .find(vh => vh.id === block.vehicleId);
 
             let label = 'Linked Transport';
-            if (v) label = `${v.make_and_model || v.vehicle_type} (${v.vehicle_number})`;
+            if (p && v) label = `${p.name} - ${v.make_and_model || v.vehicle_type} (${v.vehicle_number})`;
+            else if (v) label = `${v.make_and_model || v.vehicle_type} (${v.vehicle_number})`;
             else if (d) label = `${d.first_name} (Driver)`;
             else if (p) label = p.name;
 
@@ -723,15 +732,68 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                         <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
                                     </button>
                                 ))}
-                                {activeAssignment.type === 'activity' && (filteredMasterData as any[]).map(v => (
-                                    <button key={v.id} onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)} className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group">
-                                        <div>
-                                            <p className="font-bold text-sm text-neutral-800">{v.name}</p>
-                                            <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">{v.email || 'Verified Partner'}</p>
+                                {activeAssignment.type === 'activity' && (
+                                    <>
+                                        {(filteredMasterData as any[]).map(v => (
+                                            <div key={v.id} className="border-b last:border-0">
+                                                <button onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)} className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group">
+                                                    <div>
+                                                        <p className="font-bold text-sm text-neutral-800">{v.name}</p>
+                                                        <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">{v.vendor_activities?.length || 0} Activities Offered</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.vendorId === v.id && <div className="w-2 h-2 bg-brand-gold rounded-full" />}
+                                                        <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
+                                                    </div>
+                                                </button>
+
+                                                {/* Activity Selection if vendor is selected for this block */}
+                                                {tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.vendorId === v.id && v.vendor_activities && v.vendor_activities.length > 0 && (
+                                                    <div className="bg-neutral-50/50 p-2 space-y-1 pb-4 px-4 border-t border-neutral-100">
+                                                        <p className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-2">Select Specific Activity</p>
+                                                        {v.vendor_activities.map((va: any) => (
+                                                            <button
+                                                                key={va.id}
+                                                                onClick={() => {
+                                                                    updateBlock(activeAssignment.blockId, {
+                                                                        vendorActivityId: va.id,
+                                                                        vendorId: v.id
+                                                                    });
+                                                                }}
+                                                                className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between ${tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.vendorActivityId === va.id
+                                                                    ? 'bg-white border-brand-gold shadow-sm'
+                                                                    : 'bg-white/50 border-neutral-100 hover:border-neutral-200'
+                                                                    }`}
+                                                            >
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-neutral-800">{va.activity_name}</p>
+                                                                    <div className="flex gap-2 mt-1">
+                                                                        <span className="text-[9px] bg-brand-gold/10 px-1.5 py-0.5 rounded text-brand-gold font-bold">LKR {va.vendor_price?.toLocaleString()}</span>
+                                                                    </div>
+                                                                </div>
+                                                                {tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.vendorActivityId === va.id && (
+                                                                    <div className="w-5 h-5 bg-brand-gold rounded-full flex items-center justify-center">
+                                                                        <Check size={12} className="text-white" />
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+
+                                        <div className="p-6 sticky bottom-0 bg-white border-t mt-4">
+                                            <button
+                                                onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                                                className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <CheckCircle2 size={18} />
+                                                Finish Assignment
+                                            </button>
                                         </div>
-                                        <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
-                                    </button>
-                                ))}
+                                    </>
+                                )}
                                 {activeAssignment.type === 'travel' && (
                                     <>
                                         <div className="p-3 bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-widest border-b">Transport Providers</div>

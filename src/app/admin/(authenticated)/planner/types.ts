@@ -161,6 +161,7 @@ export interface InternalItineraryBlock {
     hotelId?: string;
     vendorId?: string;
     activityId?: number;
+    vendorActivityId?: string;
     transportId?: string;
     vehicleId?: string;
     driverId?: string;
