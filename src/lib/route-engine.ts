@@ -59,8 +59,8 @@ const CONSTANTS = {
 
   MEAL_TIMES: {
     breakfast: { duration: 45 },
-    lunch:     { duration: 60 },
-    dinner:    { duration: 60 }
+    lunch: { duration: 60 },
+    dinner: { duration: 60 }
   },
 
   TRANSIT: {
@@ -140,12 +140,12 @@ export class AdvancedRouteEngine {
     return `${a.lat.toFixed(5)},${a.lng.toFixed(5)}→${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
   }
 
-  private calculateRoadDistance(lat1: number|0, lon1: number, lat2: number, lon2: number): number {
+  private calculateRoadDistance(lat1: number | 0, lon1: number, lat2: number, lon2: number): number {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2)**2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c * CONSTANTS.ROAD_FACTOR;
   }
 
@@ -202,14 +202,15 @@ export class AdvancedRouteEngine {
       }
 
       let bestDayIdx = -1;
-      let bestDist = Infinity;
+      let bestScore = Infinity;
 
       centers.forEach((center, idx) => {
         if (days[idx].length >= CONSTANTS.MAX_ACTIVITIES_PER_DAY) return;
         const dist = this.calculateRoadDistance(activity.lat, activity.lng, center.lat, center.lng);
-        const score = dist * (center.district === activity.district ? 0.6 : 1.0);
-        if (score < bestDist) {
-          bestDist = score;
+        const tieBreaker = days[idx].length * 0.001;
+        const score = dist * (center.district === activity.district ? 0.6 : 1.0) + tieBreaker;
+        if (score < bestScore) {
+          bestScore = score;
           bestDayIdx = idx;
         }
       });
@@ -257,7 +258,10 @@ export class AdvancedRouteEngine {
 
     const centers: { lat: number; lng: number; district: string }[] = [];
 
-    districtGroups.forEach((group, district) => {
+    const sortedDistricts = Array.from(districtGroups.entries())
+      .sort((a, b) => b[1].length - a[1].length);
+
+    sortedDistricts.forEach(([district, group]) => {
       if (centers.length >= needed) return;
       const sumLat = group.reduce((s, a) => s + a.lat, 0);
       const sumLng = group.reduce((s, a) => s + a.lng, 0);
@@ -268,8 +272,15 @@ export class AdvancedRouteEngine {
       });
     });
 
-    while (centers.length < needed) {
+    if (centers.length === 0) {
       centers.push({ ...CONSTANTS.COLOMBO, district: 'Colombo' });
+    }
+
+    const baseCount = centers.length;
+    let idx = 0;
+    while (centers.length < needed) {
+      centers.push({ ...centers[idx % baseCount] });
+      idx++;
     }
 
     return centers;
@@ -333,7 +344,12 @@ export class AdvancedRouteEngine {
   private orderDaysGeographically(days: Activity[][]): Activity[][] {
     if (days.length <= 1) return days;
 
-    const dayCenters = days.map(day => {
+    const nonEmptyDays = days.filter(d => d.length > 0);
+    const emptyDays = days.filter(d => d.length === 0);
+
+    if (nonEmptyDays.length === 0) return days;
+
+    const dayCenters = nonEmptyDays.map(day => {
       const locs = day.filter(hasLocation) as Locatable<Activity>[];
       if (locs.length === 0) return CONSTANTS.COLOMBO;
       const lat = locs.reduce((s, a) => s + a.lat, 0) / locs.length;
@@ -342,7 +358,7 @@ export class AdvancedRouteEngine {
     });
 
     const path: Activity[][] = [];
-    const remaining = [...days];
+    const remaining = [...nonEmptyDays];
     let current = this.startLocation;
 
     while (remaining.length > 0) {
@@ -350,7 +366,7 @@ export class AdvancedRouteEngine {
       let minDist = Infinity;
 
       remaining.forEach((day, idx) => {
-        const center = dayCenters[days.indexOf(day)];
+        const center = dayCenters[nonEmptyDays.indexOf(day)];
         const dist = this.calculateRoadDistance(current.lat, current.lng, center.lat, center.lng);
         if (dist < minDist) {
           minDist = dist;
@@ -359,10 +375,10 @@ export class AdvancedRouteEngine {
       });
 
       path.push(remaining.splice(closestIdx, 1)[0]);
-      current = dayCenters[days.indexOf(path[path.length - 1])];
+      current = dayCenters[nonEmptyDays.indexOf(path[path.length - 1])];
     }
 
-    return path;
+    return [...path, ...emptyDays];
   }
 
   // ────────────────────────────────────────────────
@@ -383,7 +399,7 @@ export class AdvancedRouteEngine {
 
       const districts = dayActs.map(a => a.district).filter((d): d is string => !!d);
       const topDistrict = districts.length > 0
-        ? districts.sort((a,b) => districts.filter(v => v === a).length - districts.filter(v => v === b).length)[0]
+        ? districts.sort((a, b) => districts.filter(v => v === a).length - districts.filter(v => v === b).length)[0]
         : undefined;
 
       result.push({
@@ -624,7 +640,7 @@ export class AdvancedRouteEngine {
       let dayKm = 0;
       for (let i = 0; i < day.length - 1; i++) {
         if (hasLocation(day[i]) && hasLocation(day[i + 1])) {
-          dayKm += this.calculateRoadDistance(day[i].lat??0 , day[i].lng??0, day[i + 1].lat??0, day[i + 1].lng??0);
+          dayKm += this.calculateRoadDistance(day[i].lat ?? 0, day[i].lng ?? 0, day[i + 1].lat ?? 0, day[i + 1].lng ?? 0);
         }
       }
       totalKm += dayKm;

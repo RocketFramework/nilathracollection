@@ -100,8 +100,17 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
         totalDistanceInfo += calculateRoadDistance(currentLoc.lat, currentLoc.lng, katunayake.lat, katunayake.lng);
     }
 
+    // Assuming average speed of 35 km/h for Sri Lanka roads as defined in route-engine CONSTANTS.AVG_SPEED
+    const totalTravelHours = totalDistanceInfo > 0 ? totalDistanceInfo / 35 : 0;
+    const totalRequiredHours = totalHours + totalTravelHours;
+
+    // Estimate 8 active hours per day for activities + travel
+    const daysNeeded = Math.ceil(totalRequiredHours / 8);
+
     const travelers = (tripData.profile.adults || 0) + (tripData.profile.children || 0) + (tripData.profile.infants || 0);
     const durationDays = tripData.profile.durationDays || 0;
+
+    const daysAvailable = durationDays > 0 ? Math.max(0, durationDays - daysNeeded) : 0;
 
     return (
         <div className="space-y-8">
@@ -115,50 +124,69 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
             </div>
 
             {/* Trip Metrics Dashboard */}
-            <div className="bg-white rounded-2xl p-5 border border-neutral-200 flex flex-wrap gap-8 items-center justify-between shadow-sm">
+            <div className="bg-white rounded-2xl p-5 border border-neutral-200 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 items-center shadow-sm">
+
                 <div className="flex items-center gap-3">
-                    <div className="bg-blue-50 p-2.5 rounded-xl">
+                    <div className="bg-blue-50 p-2.5 rounded-xl shrink-0">
                         <Calendar size={20} className="text-blue-500" />
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide">Trip Duration</span>
-                        <span className="text-lg font-bold text-brand-charcoal leading-none mt-0.5">{durationDays} <span className="text-xs font-medium text-neutral-500">Days</span></span>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wide truncate">Trip Duration</span>
+                        <span className="text-sm sm:text-lg font-bold text-brand-charcoal leading-none mt-0.5">{durationDays} <span className="text-xs font-medium text-neutral-500">Days</span></span>
                     </div>
                 </div>
 
-                <div className="w-px h-10 bg-neutral-200 hidden sm:block"></div>
-
-                <div className="flex items-center gap-3">
-                    <div className="bg-purple-50 p-2.5 rounded-xl">
-                        <Users size={20} className="text-purple-500" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide">Travelers</span>
-                        <span className="text-lg font-bold text-brand-charcoal leading-none mt-0.5">{travelers} <span className="text-xs font-medium text-neutral-500">Pax</span></span>
-                    </div>
-                </div>
-
-                <div className="w-px h-10 bg-neutral-200 hidden lg:block"></div>
-
-                <div className="flex items-center gap-3">
-                    <div className="bg-orange-50 p-2.5 rounded-xl">
+                <div className="flex items-center gap-3 relative before:content-[''] before:absolute before:-left-3 before:top-1 before:bottom-1 before:w-px before:bg-neutral-200 hidden md:flex">
+                    <div className="bg-orange-50 p-2.5 rounded-xl shrink-0">
                         <ActivityIcon size={20} className="text-orange-500" />
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide">Est. Activity Time</span>
-                        <span className="text-lg font-bold text-brand-charcoal leading-none mt-0.5">{totalHours.toFixed(1)} <span className="text-xs font-medium text-neutral-500">Hours</span></span>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wide truncate">Activity Time</span>
+                        <span className="text-sm sm:text-lg font-bold text-brand-charcoal leading-none mt-0.5">{totalHours.toFixed(1)} <span className="text-xs font-medium text-neutral-500">hrs</span></span>
                     </div>
                 </div>
 
-                <div className="w-px h-10 bg-neutral-200 hidden sm:block"></div>
-
-                <div className="flex items-center gap-3">
-                    <div className="bg-brand-green/10 p-2.5 rounded-xl">
+                <div className="flex items-center gap-3 relative before:content-[''] before:absolute before:-left-3 before:top-1 before:bottom-1 before:w-px before:bg-neutral-200 hidden lg:flex">
+                    <div className="bg-brand-green/10 p-2.5 rounded-xl shrink-0">
                         <Map size={20} className="text-brand-green" />
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wide">Approx. Distance</span>
-                        <span className="text-lg font-bold text-brand-charcoal leading-none mt-0.5">{Math.round(totalDistanceInfo)} <span className="text-xs font-medium text-neutral-500">km</span></span>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wide truncate">Distance & Travel</span>
+                        <span className="text-sm sm:text-lg font-bold text-brand-charcoal leading-none mt-0.5" title={`${Math.round(totalDistanceInfo)} km`}>
+                            {totalTravelHours.toFixed(1)} <span className="text-xs font-medium text-neutral-500">hrs</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 relative before:content-[''] before:absolute before:-left-3 before:top-1 before:bottom-1 before:w-px before:bg-neutral-200 hidden sm:flex">
+                    <div className="bg-indigo-50 p-2.5 rounded-xl shrink-0">
+                        <Clock size={20} className="text-indigo-500" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wide truncate">Days Needed (8h/d)</span>
+                        <span className="text-sm sm:text-lg font-bold text-indigo-700 leading-none mt-0.5">{daysNeeded} <span className="text-xs font-medium text-neutral-500">Days</span></span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 relative before:content-[''] before:absolute before:-left-3 before:top-1 before:bottom-1 before:w-px before:bg-neutral-200 hidden lg:flex">
+                    <div className={`p-2.5 rounded-xl shrink-0 ${daysAvailable > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                        <AlertTriangle size={20} className={daysAvailable > 0 ? 'text-green-500' : 'text-red-500'} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wide truncate">Days Available</span>
+                        <span className={`text-sm sm:text-lg font-bold leading-none mt-0.5 ${daysAvailable > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                            {daysAvailable} <span className="text-xs font-medium opacity-70">Days</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 relative lg:before:content-[''] lg:before:absolute lg:before:-left-3 lg:before:top-1 lg:before:bottom-1 lg:before:w-px lg:before:bg-neutral-200">
+                    <div className="bg-purple-50 p-2.5 rounded-xl shrink-0">
+                        <Users size={20} className="text-purple-500" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wide truncate">Travelers</span>
+                        <span className="text-sm sm:text-lg font-bold text-brand-charcoal leading-none mt-0.5">{travelers} <span className="text-xs font-medium text-neutral-500">Pax</span></span>
                     </div>
                 </div>
             </div>

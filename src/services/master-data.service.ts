@@ -102,7 +102,27 @@ export interface TourGuide {
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
 }
-
+export interface Restaurant {
+    id?: string;
+    name: string;
+    address?: string;
+    contact_name?: string;
+    contact_number?: string;
+    email?: string;
+    lat?: number;
+    lng?: number;
+    total_capacity?: number;
+    has_breakfast: boolean;
+    has_lunch: boolean;
+    has_dinner: boolean;
+    is_buffet: boolean;
+    breakfast_rate_per_head?: number;
+    lunch_rate_per_head?: number;
+    dinner_rate_per_head?: number;
+    is_suspended?: boolean;
+    payment_detail_id?: string;
+    payment_details?: PaymentDetails;
+}
 
 // --- Helper to save Payment Details ---
 async function savePaymentDetails(details: PaymentDetails): Promise<string | undefined> {
@@ -389,6 +409,47 @@ export class MasterDataService {
 
     static async deleteTourGuide(id: string) {
         const { error } = await supabase.from('tour_guides').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+    }
+
+    // ==========================================
+    // Restaurants CRUD
+    // ==========================================
+    static async getRestaurants() {
+        const { data, error } = await supabase.from('restaurants').select('*, payment_details(*)').order('name');
+        if (error) throw error;
+        return data as Restaurant[];
+    }
+
+    static async getRestaurant(id: string) {
+        const { data, error } = await supabase.from('restaurants').select('*, payment_details(*)').eq('id', id).single();
+        if (error) throw error;
+        return data as Restaurant;
+    }
+
+    static async saveRestaurant(restaurant: Restaurant) {
+        const { payment_details, id, payment_detail_id, ...restaurantData } = restaurant;
+
+        let activePaymentId = payment_detail_id;
+        if (payment_details) {
+            activePaymentId = await savePaymentDetails(payment_details);
+        }
+
+        const payload = { ...restaurantData, payment_detail_id: activePaymentId };
+
+        if (id) {
+            const { error } = await supabase.from('restaurants').update(payload).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('restaurants').insert([payload]);
+            if (error) throw error;
+        }
+        return true;
+    }
+
+    static async deleteRestaurant(id: string) {
+        const { error } = await supabase.from('restaurants').delete().eq('id', id);
         if (error) throw error;
         return true;
     }

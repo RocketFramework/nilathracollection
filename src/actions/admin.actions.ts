@@ -5,6 +5,7 @@ import { AdminService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateAgentDTO } from "@/dtos/user-vendor.dto";
+import { MasterDataService, Restaurant } from "@/services/master-data.service";
 
 export async function createAgentAction(formData: FormData) {
     try {
@@ -101,5 +102,36 @@ export async function getHotelsListAction() {
     } catch (error: any) {
         console.error("Error fetching hotels list:", error);
         return { error: error.message || "Failed to load hotels." };
+    }
+}
+export async function getRestaurantsAction() {
+    try {
+        const restaurants = await MasterDataService.getRestaurants();
+        return { success: true, restaurants };
+    } catch (error: any) {
+        console.error("Error fetching restaurants:", error);
+        return { error: error.message || "Failed to load restaurants." };
+    }
+}
+
+export async function saveRestaurantAction(restaurant: Restaurant) {
+    try {
+        await MasterDataService.saveRestaurant(restaurant);
+        revalidatePath("/admin/master-data/restaurants");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving restaurant:", error);
+        return { error: error.message || "Failed to save restaurant." };
+    }
+}
+
+export async function deleteRestaurantAction(id: string) {
+    try {
+        await MasterDataService.deleteRestaurant(id);
+        revalidatePath("/admin/master-data/restaurants");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting restaurant:", error);
+        return { error: error.message || "Failed to delete restaurant." };
     }
 }

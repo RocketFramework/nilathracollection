@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, Building2, Car, Compass, UserCircle } from "lucide-react";
-import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider } from "@/services/master-data.service";
+import { Search, Plus, Edit2, Trash2, Building2, Car, Compass, UserCircle, Utensils } from "lucide-react";
+import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
 import TourGuideFormModal from "./components/TourGuideFormModal";
 import TransportProviderFormModal from "./components/TransportProviderFormModal";
+import RestaurantFormModal from "./components/RestaurantFormModal";
 
 const DATABASES = [
     { id: 'hotels', label: 'Hotels & Resorts', icon: Building2 },
     { id: 'vendors', label: 'Activity Vendors', icon: Compass },
+    { id: 'restaurants', label: 'Restaurants', icon: Utensils },
     { id: 'transports', label: 'Transport Providers', icon: Car },
     { id: 'drivers', label: 'Drivers', icon: UserCircle },
     { id: 'guides', label: 'Tour Guides', icon: UserCircle },
@@ -24,6 +26,7 @@ export default function MasterDataPage() {
 
     const [hotels, setHotels] = useState<Hotel[]>([]);
     const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [guides, setGuides] = useState<TourGuide[]>([]);
     const [transports, setTransports] = useState<TransportProvider[]>([]);
@@ -46,6 +49,9 @@ export default function MasterDataPage() {
     const [isTransportModalOpen, setIsTransportModalOpen] = useState(false);
     const [selectedTransport, setSelectedTransport] = useState<TransportProvider | null>(null);
 
+    const [isRestaurantModalOpen, setIsRestaurantModalOpen] = useState(false);
+    const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+
     useEffect(() => {
         loadData();
     }, [activeTab]);
@@ -59,6 +65,9 @@ export default function MasterDataPage() {
             } else if (activeTab === 'vendors') {
                 const data = await MasterDataService.getVendors();
                 setVendors(data);
+            } else if (activeTab === 'restaurants') {
+                const data = await MasterDataService.getRestaurants();
+                setRestaurants(data);
             } else if (activeTab === 'transports') {
                 const data = await MasterDataService.getTransportProviders();
                 setTransports(data);
@@ -83,6 +92,9 @@ export default function MasterDataPage() {
         } else if (activeTab === 'vendors') {
             setSelectedVendor(null);
             setIsVendorModalOpen(true);
+        } else if (activeTab === 'restaurants') {
+            setSelectedRestaurant(null);
+            setIsRestaurantModalOpen(true);
         } else if (activeTab === 'transports') {
             setSelectedTransport(null);
             setIsTransportModalOpen(true);
@@ -105,6 +117,10 @@ export default function MasterDataPage() {
                 const fullItem = await MasterDataService.getVendor(id);
                 setSelectedVendor(fullItem);
                 setIsVendorModalOpen(true);
+            } else if (activeTab === 'restaurants') {
+                const fullItem = await MasterDataService.getRestaurant(id);
+                setSelectedRestaurant(fullItem);
+                setIsRestaurantModalOpen(true);
             } else if (activeTab === 'transports') {
                 const fullItem = await MasterDataService.getTransportProvider(id);
                 setSelectedTransport(fullItem);
@@ -128,6 +144,7 @@ export default function MasterDataPage() {
             try {
                 if (activeTab === 'hotels') await HotelService.deleteHotel(id);
                 else if (activeTab === 'vendors') await MasterDataService.deleteVendor(id);
+                else if (activeTab === 'restaurants') await MasterDataService.deleteRestaurant(id);
                 else if (activeTab === 'transports') await MasterDataService.deleteTransportProvider(id);
                 else if (activeTab === 'drivers') await MasterDataService.deleteDriver(id);
                 else if (activeTab === 'guides') await MasterDataService.deleteTourGuide(id);
@@ -147,6 +164,12 @@ export default function MasterDataPage() {
     const filteredVendors = vendors.filter(v =>
         v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (v.phone && v.phone.includes(searchQuery))
+    );
+
+    const filteredRestaurants = restaurants.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (r.contact_number && r.contact_number.includes(searchQuery)) ||
+        (r.address && r.address.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
     const filteredTransports = transports.filter(t =>
@@ -278,6 +301,31 @@ export default function MasterDataPage() {
                                         </tr>
                                     ))
                                 )
+                            ) : activeTab === 'restaurants' ? (
+                                loading ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">Loading records...</td></tr>
+                                ) : filteredRestaurants.length === 0 ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">No records found.</td></tr>
+                                ) : (
+                                    filteredRestaurants.map(row => (
+                                        <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
+                                            <td className="p-4 pl-6 font-bold">{row.name}</td>
+                                            <td className="p-4 text-neutral-500">Restaurant</td>
+                                            <td className="p-4 text-neutral-500">{row.address || 'No Address'}</td>
+                                            <td className="p-4 text-center">
+                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 pr-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                    <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )
                             ) : activeTab === 'drivers' ? (
                                 loading ? (
                                     <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">Loading records...</td></tr>
@@ -389,6 +437,12 @@ export default function MasterDataPage() {
                 isOpen={isTransportModalOpen}
                 onClose={() => setIsTransportModalOpen(false)}
                 provider={selectedTransport}
+                onSave={loadData}
+            />
+            <RestaurantFormModal
+                isOpen={isRestaurantModalOpen}
+                onClose={() => setIsRestaurantModalOpen(false)}
+                restaurant={selectedRestaurant}
                 onSave={loadData}
             />
         </div>

@@ -3,9 +3,39 @@
 import { TripData, InternalItineraryBlock, AccommodationBooking, TransportBooking } from "../types";
 import { ListTree, MapPin, CalendarDays, Navigation, Utensils, BedDouble, AlertCircle, GripVertical, Rocket, RefreshCcw, ArrowUp, ArrowDown, Activity as ActivityIcon, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { generateRoutePlan, GeoLocation } from "@/lib/route-engine";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Activity } from "@/data/activities";
 import { fetchHotelInventory } from "@/data/hotels";
+
+// Local component for time input to prevent jumping while typing
+function TimeInput({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+    const [localVal, setLocalVal] = useState(value);
+
+    // Sync from parent if changed externally
+    useEffect(() => {
+        setLocalVal(value);
+    }, [value]);
+
+    const handleCommit = () => {
+        if (localVal !== value) {
+            onChange(localVal);
+        }
+    };
+
+    return (
+        <input
+            value={localVal}
+            onChange={e => setLocalVal(e.target.value)}
+            onBlur={handleCommit}
+            onKeyDown={e => {
+                if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                }
+            }}
+            className="w-16 text-xs font-mono font-bold text-center border-b border-dashed border-neutral-300 bg-transparent focus:outline-none focus:border-brand-gold"
+        />
+    );
+}
 
 export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
 
@@ -167,10 +197,19 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
     const timeToMins = (timeStr: string) => {
         if (!timeStr || !timeStr.includes(':')) return 0;
-        const [hStr, mStr] = timeStr.split(':');
-        const h = parseInt(hStr, 10);
-        const m = parseInt(mStr, 10);
+
+        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (!match) return 0;
+
+        let h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+
         if (isNaN(h) || isNaN(m)) return 0;
+
+        const period = match[3]?.toUpperCase();
+        if (period === 'PM' && h < 12) h += 12;
+        if (period === 'AM' && h === 12) h = 0;
+
         return h * 60 + m;
     };
 
@@ -256,12 +295,17 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         }
     };
 
-    // Group blocks by day
+    // Group blocks by day and sort them by start time
     const days = tripData.itinerary.reduce((acc, block) => {
         if (!acc[block.dayNumber]) acc[block.dayNumber] = [];
         acc[block.dayNumber].push(block);
         return acc;
     }, {} as Record<number, InternalItineraryBlock[]>);
+
+    // Apply sorting
+    Object.keys(days).forEach(dayNum => {
+        days[Number(dayNum)].sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
+    });
 
     return (
         <div className="space-y-6">
@@ -328,9 +372,15 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                             </div>
                                             {iconType(block.type)}
                                             <div>
-                                                <input value={block.startTime} onChange={e => updateBlock(block.id, 'startTime', e.target.value)} className="w-16 text-xs font-mono font-bold text-center border-b border-dashed border-neutral-300 bg-transparent focus:outline-none focus:border-brand-gold" />
+                                                <TimeInput
+                                                    value={block.startTime}
+                                                    onChange={newVal => updateBlock(block.id, 'startTime', newVal)}
+                                                />
                                                 <span className="text-neutral-400 mx-1">-</span>
-                                                <input value={block.endTime} onChange={e => updateBlock(block.id, 'endTime', e.target.value)} className="w-16 text-xs font-mono font-bold text-center border-b border-dashed border-neutral-300 bg-transparent focus:outline-none focus:border-brand-gold" />
+                                                <TimeInput
+                                                    value={block.endTime}
+                                                    onChange={newVal => updateBlock(block.id, 'endTime', newVal)}
+                                                />
                                             </div>
                                         </div>
 
