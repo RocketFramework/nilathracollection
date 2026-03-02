@@ -332,7 +332,7 @@ export class TourService {
                     time_end: b.endTime,
                     vendor_id: vendorId, // Map to the resolved UUID
                     activity_id: b.activityId,
-                    transport_id: b.transportId,
+                    transport_id: b.transportId || tripData.defaultTransportId || null,
                     vehicle_id: b.vehicleId || tripData.defaultVehicleId || null,
                     driver_id: b.driverId || tripData.defaultDriverId || null,
                     guide_id: b.guideId || tripData.defaultGuideId || null,

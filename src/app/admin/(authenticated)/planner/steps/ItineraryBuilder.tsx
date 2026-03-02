@@ -756,7 +756,10 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                             <button
                                                                 key={v.id}
                                                                 onClick={() => {
-                                                                    const updates: Partial<InternalItineraryBlock> = { vehicleId: v.id };
+                                                                    const updates: Partial<InternalItineraryBlock> = {
+                                                                        vehicleId: v.id,
+                                                                        transportId: tp.id
+                                                                    };
                                                                     if (v.with_driver) {
                                                                         updates.driverId = undefined;
                                                                     }
