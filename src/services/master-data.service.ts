@@ -115,10 +115,16 @@ export interface Restaurant {
     has_breakfast: boolean;
     has_lunch: boolean;
     has_dinner: boolean;
+    has_tea_cafe?: boolean;
+    has_coffee_cafe?: boolean;
+    has_juice_bar?: boolean;
     is_buffet: boolean;
     breakfast_rate_per_head?: number;
     lunch_rate_per_head?: number;
     dinner_rate_per_head?: number;
+    tea_cafe_rate_per_head?: number;
+    coffee_cafe_rate_per_head?: number;
+    juice_bar_rate_per_head?: number;
     is_suspended?: boolean;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;

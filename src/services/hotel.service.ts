@@ -7,6 +7,7 @@ export interface HotelRoom {
     id?: string;
     hotel_id?: string;
     room_name: string;
+    room_standard?: string;
     max_guests: number;
     breakfast_included: boolean;
     summer_start_date?: string;

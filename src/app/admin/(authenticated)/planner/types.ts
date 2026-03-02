@@ -77,7 +77,7 @@ export interface AccommodationBooking {
     contactNumber: string;
     email: string;
     rateCardUrl: string;
-    roomType: string;
+    roomStandard: string;
     numberOfRooms: number;
     numberOfGuests?: number;
     pricePerNight: number;

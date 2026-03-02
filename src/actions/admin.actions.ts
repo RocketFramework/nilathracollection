@@ -93,7 +93,7 @@ export async function getHotelsListAction() {
         const supabase = createAdminClient();
         const { data, error } = await supabase
             .from('hotels')
-            .select('id, name, location, description')
+            .select('*, hotel_rooms(*)')
             .eq('is_suspended', false)
             .order('name');
 

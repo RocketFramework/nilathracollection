@@ -18,8 +18,11 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
     const [formData, setFormData] = useState<Partial<Restaurant>>({
         name: "", address: "", contact_name: "", contact_number: "", email: "",
         lat: undefined, lng: undefined, total_capacity: undefined,
-        has_breakfast: false, has_lunch: false, has_dinner: false, is_buffet: false,
+        has_breakfast: false, has_lunch: false, has_dinner: false,
+        has_tea_cafe: false, has_coffee_cafe: false, has_juice_bar: false,
+        is_buffet: false,
         breakfast_rate_per_head: undefined, lunch_rate_per_head: undefined, dinner_rate_per_head: undefined,
+        tea_cafe_rate_per_head: undefined, coffee_cafe_rate_per_head: undefined, juice_bar_rate_per_head: undefined,
         is_suspended: false, payment_details: {}
     });
     const [coordinateInput, setCoordinateInput] = useState("");
@@ -33,8 +36,11 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                 setFormData({
                     name: "", address: "", contact_name: "", contact_number: "", email: "",
                     lat: undefined, lng: undefined, total_capacity: undefined,
-                    has_breakfast: false, has_lunch: false, has_dinner: false, is_buffet: false,
+                    has_breakfast: false, has_lunch: false, has_dinner: false,
+                    has_tea_cafe: false, has_coffee_cafe: false, has_juice_bar: false,
+                    is_buffet: false,
                     breakfast_rate_per_head: undefined, lunch_rate_per_head: undefined, dinner_rate_per_head: undefined,
+                    tea_cafe_rate_per_head: undefined, coffee_cafe_rate_per_head: undefined, juice_bar_rate_per_head: undefined,
                     is_suspended: false, payment_details: {}
                 });
                 setCoordinateInput("");
@@ -257,6 +263,93 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                                                     className="w-full outline-none text-brand-charcoal font-bold text-sm bg-transparent"
                                                     value={formData.dinner_rate_per_head || ''}
                                                     onChange={e => handleChange('dinner_rate_per_head', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Tea Cafe */}
+                                <div className={`p-6 rounded-2xl border transition-all ${formData.has_tea_cafe ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-200 bg-white'}`}>
+                                    <label className="flex items-center gap-3 cursor-pointer group mb-4">
+                                        <input
+                                            type="checkbox"
+                                            className="w-5 h-5 accent-brand-green rounded border-neutral-300"
+                                            checked={formData.has_tea_cafe || false}
+                                            onChange={e => handleChange('has_tea_cafe', e.target.checked)}
+                                        />
+                                        <span className="font-bold text-brand-charcoal group-hover:text-brand-green transition-colors">Tea Cafe</span>
+                                    </label>
+
+                                    {formData.has_tea_cafe && (
+                                        <div className="border border-neutral-200 rounded-xl px-4 py-2 bg-white focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all animate-in slide-in-from-top-2 duration-300">
+                                            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Rate Per Head (USD)</label>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-sm font-bold text-neutral-400">$</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-full outline-none text-brand-charcoal font-bold text-sm bg-transparent"
+                                                    value={formData.tea_cafe_rate_per_head || ''}
+                                                    onChange={e => handleChange('tea_cafe_rate_per_head', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Coffee Cafe */}
+                                <div className={`p-6 rounded-2xl border transition-all ${formData.has_coffee_cafe ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-200 bg-white'}`}>
+                                    <label className="flex items-center gap-3 cursor-pointer group mb-4">
+                                        <input
+                                            type="checkbox"
+                                            className="w-5 h-5 accent-brand-green rounded border-neutral-300"
+                                            checked={formData.has_coffee_cafe || false}
+                                            onChange={e => handleChange('has_coffee_cafe', e.target.checked)}
+                                        />
+                                        <span className="font-bold text-brand-charcoal group-hover:text-brand-green transition-colors">Coffee Cafe</span>
+                                    </label>
+
+                                    {formData.has_coffee_cafe && (
+                                        <div className="border border-neutral-200 rounded-xl px-4 py-2 bg-white focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all animate-in slide-in-from-top-2 duration-300">
+                                            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Rate Per Head (USD)</label>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-sm font-bold text-neutral-400">$</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-full outline-none text-brand-charcoal font-bold text-sm bg-transparent"
+                                                    value={formData.coffee_cafe_rate_per_head || ''}
+                                                    onChange={e => handleChange('coffee_cafe_rate_per_head', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Juice Bar */}
+                                <div className={`p-6 rounded-2xl border transition-all ${formData.has_juice_bar ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-200 bg-white'}`}>
+                                    <label className="flex items-center gap-3 cursor-pointer group mb-4">
+                                        <input
+                                            type="checkbox"
+                                            className="w-5 h-5 accent-brand-green rounded border-neutral-300"
+                                            checked={formData.has_juice_bar || false}
+                                            onChange={e => handleChange('has_juice_bar', e.target.checked)}
+                                        />
+                                        <span className="font-bold text-brand-charcoal group-hover:text-brand-green transition-colors">Juice Bar</span>
+                                    </label>
+
+                                    {formData.has_juice_bar && (
+                                        <div className="border border-neutral-200 rounded-xl px-4 py-2 bg-white focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all animate-in slide-in-from-top-2 duration-300">
+                                            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">Rate Per Head (USD)</label>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-sm font-bold text-neutral-400">$</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-full outline-none text-brand-charcoal font-bold text-sm bg-transparent"
+                                                    value={formData.juice_bar_rate_per_head || ''}
+                                                    onChange={e => handleChange('juice_bar_rate_per_head', e.target.value ? parseFloat(e.target.value) : undefined)}
                                                     placeholder="0.00"
                                                 />
                                             </div>

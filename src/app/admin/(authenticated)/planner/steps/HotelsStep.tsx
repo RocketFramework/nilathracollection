@@ -34,6 +34,44 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
 
     const { accommodations } = tripData;
 
+    // Helper to calculate the exact stay date for a specific night index
+    const getStayDate = (nightIndex: number): string => {
+        const arrival = new Date(tripData.profile.arrivalDate);
+        arrival.setDate(arrival.getDate() + (nightIndex - 1));
+        return arrival.toISOString().split('T')[0];
+    };
+
+    // Helper to calculate rate based on season and meal plan
+    const calculateStayRate = (room: any, mealPlan: string, stayDate: string): number => {
+        if (!room) return 0;
+
+        const d = new Date(stayDate);
+
+        // Define seasons
+        const isSummer = (room.summer_start_date && room.summer_end_date &&
+            d >= new Date(room.summer_start_date) && d <= new Date(room.summer_end_date));
+
+        const isWinter = (room.winter_start_date && room.winter_end_date &&
+            d >= new Date(room.winter_start_date) && d <= new Date(room.winter_end_date));
+
+        let rate = 0;
+        if (isSummer) {
+            if (mealPlan === 'BB') rate = room.summer_bb_rate || 0;
+            else if (mealPlan === 'HB') rate = room.summer_hb_rate || 0;
+            else if (mealPlan === 'FB') rate = room.summer_fb_rate || 0;
+            else if (mealPlan === 'AI') rate = room.summer_fb_rate || 0;
+        } else if (isWinter) {
+            if (mealPlan === 'BB') rate = room.winter_bb_rate || 0;
+            else if (mealPlan === 'HB') rate = room.winter_hb_rate || 0;
+            else if (mealPlan === 'FB') rate = room.winter_fb_rate || 0;
+            else if (mealPlan === 'AI') rate = room.winter_fb_rate || 0;
+        } else {
+            rate = room.summer_bb_rate || room.winter_bb_rate || 0;
+        }
+
+        return rate;
+    };
+
     const addHotel = () => {
         const newHotel: AccommodationBooking = {
             id: crypto.randomUUID(),
@@ -46,16 +84,16 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
             contactNumber: '',
             email: '',
             rateCardUrl: '',
-            roomType: 'Standard Double',
+            roomStandard: '',
             numberOfRooms: Math.ceil((tripData.profile.adults + tripData.profile.children) / 2) || 1,
             numberOfGuests: tripData.profile.adults + tripData.profile.children + tripData.profile.infants,
-            pricePerNight: 100,
+            pricePerNight: 0,
             mealPlan: 'BB',
             status: 'Tentative',
             confirmationReference: '',
             paymentStatus: 'Pending',
             cancellationDeadline: '',
-            beddingConfiguration: '1 King Bed',
+            beddingConfiguration: '',
             specialRequests: ''
         };
         updateHotels([...accommodations, newHotel].sort((a, b) => a.nightIndex - b.nightIndex));
@@ -70,15 +108,36 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
             if (h.id === id) {
                 const newData = { ...h, [field]: value };
 
-                // If they changed the hotelName via dropdown or typing, try to find a match to auto-fill ID and Address
                 if (field === 'hotelName') {
                     const match = availableHotels.find(db => db.name === value);
                     if (match) {
                         newData.hotelId = match.id;
-                        if (!h.address) newData.address = match.location || '';
+                        newData.address = match.location_address || '';
+                        newData.stayClass = match.hotel_class || 'Standard 3*';
+                        if (match.location_coordinates) {
+                            newData.mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.location_coordinates)}`;
+                        }
+                        newData.roomStandard = '';
+                        newData.pricePerNight = 0;
+                        newData.beddingConfiguration = '';
                     } else {
-                        // User typed something custom that doesn't match the DB
                         newData.hotelId = undefined;
+                    }
+                }
+
+                if (field === 'roomStandard' || field === 'mealPlan' || field === 'nightIndex') {
+                    if (newData.hotelId) {
+                        const hotel = availableHotels.find(db => db.id === newData.hotelId);
+                        const rooms = hotel?.hotel_rooms || [];
+                        if (field === 'roomStandard') {
+                            const roomMatch = rooms.find((r: any) => r.room_standard === value);
+                            if (roomMatch) newData.beddingConfiguration = roomMatch.room_name;
+                        }
+                        const currentRoom = rooms.find((r: any) => r.room_standard === newData.roomStandard);
+                        if (currentRoom) {
+                            const stayDate = getStayDate(newData.nightIndex);
+                            newData.pricePerNight = calculateStayRate(currentRoom, newData.mealPlan, stayDate);
+                        }
                     }
                 }
 
@@ -151,21 +210,18 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
                                                     Property Name / Resort
                                                     {isLoading && <Loader2 size={10} className="animate-spin text-brand-gold" />}
                                                 </label>
-                                                <input
-                                                    type="text"
-                                                    list={`hotels-list-${hotel.id}`}
+                                                <select
                                                     value={hotel.hotelName}
                                                     onChange={e => updateHotelField(hotel.id, 'hotelName', e.target.value)}
                                                     className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 focus:bg-white border-brand-gold/50 font-semibold focus:ring-1 focus:ring-brand-gold"
-                                                    placeholder="Search DB or type custom name..."
-                                                />
-                                                <datalist id={`hotels-list-${hotel.id}`}>
+                                                >
+                                                    <option value="" disabled>Select Property / Resort</option>
                                                     {availableHotels.map(dbH => (
-                                                        <option key={dbH.id} value={dbH.name}>{dbH.location || 'No Location'}</option>
+                                                        <option key={dbH.id} value={dbH.name}>{dbH.name} ({dbH.closest_city || 'No Location'})</option>
                                                     ))}
-                                                </datalist>
+                                                </select>
                                                 {hotel.hotelId && (
-                                                    <span className="absolute right-2 top-8 text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 border border-green-200 rounded">Linked</span>
+                                                    <span className="absolute right-8 top-1.5 text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 border border-green-200 rounded">Linked</span>
                                                 )}
                                             </div>
                                             <div>
@@ -209,8 +265,23 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="col-span-2">
-                                            <label className="text-xs text-neutral-500 mb-1 block">Room Category</label>
-                                            <input type="text" value={hotel.roomType} onChange={e => updateHotelField(hotel.id, 'roomType', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 border-neutral-300 focus:bg-white" placeholder="Ocean View Suite..." />
+                                            <label className="text-xs text-neutral-500 mb-1 block">Room Standard</label>
+                                            <select
+                                                value={hotel.roomStandard}
+                                                onChange={e => updateHotelField(hotel.id, 'roomStandard', e.target.value)}
+                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 border-neutral-300 focus:bg-white"
+                                            >
+                                                <option value="" disabled>Select Room Standard</option>
+                                                {hotel.hotelId ? (
+                                                    Array.from(new Set(availableHotels.find(h => h.id === hotel.hotelId)?.hotel_rooms?.map((r: any) => r.room_standard) || []))
+                                                        .filter(Boolean)
+                                                        .map((standard: any) => (
+                                                            <option key={standard} value={standard}>{standard}</option>
+                                                        ))
+                                                ) : (
+                                                    <option value="" disabled>Select Property First</option>
+                                                )}
+                                            </select>
                                         </div>
                                         <div>
                                             <label className="text-xs font-bold text-neutral-600 block mb-1">Total Rooms</label>
@@ -234,8 +305,8 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
                                             </select>
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="text-xs text-neutral-500 mb-1 block">Bedding Setup (Inc Extras)</label>
-                                            <input type="text" value={hotel.beddingConfiguration} onChange={e => updateHotelField(hotel.id, 'beddingConfiguration', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-xs bg-neutral-50 border-neutral-300 focus:bg-white" placeholder="1 King + 1 Extra rollaway bed..." />
+                                            <label className="text-xs text-neutral-500 mb-1 block">Bedding Setup / Room Name</label>
+                                            <input type="text" value={hotel.beddingConfiguration} onChange={e => updateHotelField(hotel.id, 'beddingConfiguration', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-xs bg-neutral-50 border-neutral-300 focus:bg-white font-medium" placeholder="E.g. Deluxe Double Room..." />
                                         </div>
                                     </div>
                                 </div>

@@ -11,6 +11,16 @@ interface HotelFormModalProps {
 
 const TABS = ["Basic Info", "Contacts", "Amenities", "Recreations", "Rooms", "Payment Details"];
 
+const ROOM_STANDARDS = [
+    "Budget - 3 Star",
+    "Premium - 4 Star",
+    "Premium - Boutique",
+    "Luxury - 5 Star",
+    "Luxury - Resort",
+    "VIP - Ultra-Luxury Villa with butler",
+    "VIP - Presidential Suites with butler"
+];
+
 export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: HotelFormModalProps) {
     const [activeTab, setActiveTab] = useState(TABS[0]);
     const [loading, setLoading] = useState(false);
@@ -100,7 +110,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
         const lastRoom = currentRooms.length > 0 ? currentRooms[currentRooms.length - 1] : null;
 
         const newRoom: HotelRoom = {
-            room_name: "", max_guests: 1, breakfast_included: false,
+            room_name: "", room_standard: ROOM_STANDARDS[0], max_guests: 1, breakfast_included: false,
             summer_bb_rate: 0, summer_hb_rate: 0, summer_fb_rate: 0,
             winter_bb_rate: 0, winter_hb_rate: 0, winter_fb_rate: 0,
             summer_start_date: lastRoom?.summer_start_date || "",
@@ -373,9 +383,22 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave }: Hotel
                                     </button>
 
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        <div className="col-span-2 md:col-span-2 border border-neutral-200 rounded-xl px-3 py-2">
+                                        <div className="col-span-2 md:col-span-1 border border-neutral-200 rounded-xl px-3 py-2">
                                             <label className="text-[10px] font-bold text-neutral-500 uppercase">Room Name</label>
                                             <input type="text" className="w-full text-sm outline-none text-brand-charcoal font-medium" value={room.room_name} onChange={e => handleRoomChange(index, 'room_name', e.target.value)} />
+                                        </div>
+                                        <div className="col-span-2 md:col-span-1 border border-neutral-200 rounded-xl px-3 py-2">
+                                            <label className="text-[10px] font-bold text-neutral-500 uppercase">Room Standard</label>
+                                            <select
+                                                className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent"
+                                                value={room.room_standard || ""}
+                                                onChange={e => handleRoomChange(index, 'room_standard', e.target.value)}
+                                            >
+                                                <option value="" disabled>Select Standard</option>
+                                                {ROOM_STANDARDS.map(s => (
+                                                    <option key={s} value={s}>{s}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <div className="col-span-1 border border-neutral-200 rounded-xl px-3 py-2">
                                             <label className="text-[10px] font-bold text-neutral-500 uppercase">Max Guests</label>
