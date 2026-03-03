@@ -785,7 +785,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
