@@ -178,6 +178,7 @@ export interface InternalItineraryBlock {
     lat?: number;
     lng?: number;
     serviceProvider?: string;
+    mealType?: string;
 }
 
 export interface DBPurchaseOrderItem {

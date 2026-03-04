@@ -456,8 +456,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
         updateData(updates);
 
-        // Only close if not transport or vendor (needs vehicle/activity selection)
-        if (field !== 'transportId' && field !== 'vendorId') {
+        // Only close if not transport, vendor, or restaurant (needs vehicle/activity/meal selection)
+        if (field !== 'transportId' && field !== 'vendorId' && field !== 'restaurantId') {
             setActiveAssignment(null);
             setSearchTerm("");
         }
@@ -479,6 +479,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                     providers: masterData.transportProviders.filter(p => p.name.toLowerCase().includes(term)),
                     drivers: masterData.drivers.filter(d => d.first_name.toLowerCase().includes(term) || (d.last_name || '').toLowerCase().includes(term))
                 };
+            case 'guide':
+                return masterData.guides.filter(g => g.first_name.toLowerCase().includes(term) || (g.last_name || '').toLowerCase().includes(term));
             default:
                 return [];
         }
@@ -815,15 +817,28 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                             </div>
 
                             <div className="divide-y border rounded-2xl overflow-hidden shadow-sm bg-white">
-                                {activeAssignment.type === 'sleep' && (filteredMasterData as any[]).map(h => (
-                                    <button key={h.id} onClick={() => bindProvider(activeAssignment.blockId, 'hotelId', h.id)} className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group">
-                                        <div>
-                                            <p className="font-bold text-sm text-neutral-800 truncate max-w-[280px]" title={h.name}>{h.name}</p>
-                                            <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">{h.closest_city} • {h.hotel_class}</p>
+                                {activeAssignment.type === 'sleep' && (
+                                    <>
+                                        {(filteredMasterData as any[]).map(h => (
+                                            <button key={h.id} onClick={() => bindProvider(activeAssignment.blockId, 'hotelId', h.id)} className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group">
+                                                <div>
+                                                    <p className="font-bold text-sm text-neutral-800 truncate max-w-[280px]" title={h.name}>{h.name}</p>
+                                                    <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">{h.closest_city} • {h.hotel_class}</p>
+                                                </div>
+                                                <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
+                                            </button>
+                                        ))}
+                                        <div className="p-6 sticky bottom-0 bg-white border-t mt-4">
+                                            <button
+                                                onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                                                className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <CheckCircle2 size={18} />
+                                                Finish Assignment
+                                            </button>
                                         </div>
-                                        <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
-                                    </button>
-                                ))}
+                                    </>
+                                )}
                                 {activeAssignment.type === 'activity' && (
                                     <>
                                         <div className="p-3 bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-widest border-b">Activity Vendors</div>
@@ -893,8 +908,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                 onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
                                                 className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2"
                                             >
-                                                <XCircle size={18} />
-                                                Cancel Selection
+                                                <CheckCircle2 size={18} />
+                                                Finish Assignment
                                             </button>
                                         </div>
                                     </>
@@ -990,15 +1005,89 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                         </div>
                                     </>
                                 )}
-                                {activeAssignment.type === 'meal' && (filteredMasterData as any[]).map(r => (
-                                    <button key={r.id} onClick={() => bindProvider(activeAssignment.blockId, 'restaurantId', r.id)} className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group">
-                                        <div>
-                                            <p className="font-bold text-sm text-neutral-800">{r.name}</p>
-                                            <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">{r.is_buffet ? 'Buffet' : 'Set Menu'} specialist</p>
+                                {activeAssignment.type === 'meal' && (filteredMasterData as any[]).map(r => {
+                                    const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
+                                    const isSelected = block?.restaurantId === r.id;
+
+                                    return (
+                                        <div key={r.id} className="border-b border-neutral-100 last:border-0">
+                                            <button
+                                                onClick={() => bindProvider(activeAssignment.blockId!, 'restaurantId', r.id)}
+                                                className={`w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group ${isSelected ? 'bg-brand-gold/5' : ''}`}
+                                            >
+                                                <div>
+                                                    <p className="font-bold text-sm text-neutral-800">{r.name}</p>
+                                                    <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">{r.is_buffet ? 'Buffet' : 'Set Menu'} specialist</p>
+                                                </div>
+                                                {isSelected ? <div className="w-2 h-2 bg-brand-gold rounded-full" /> : <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />}
+                                            </button>
+
+                                            {isSelected && (
+                                                <div className="bg-neutral-50/50 p-2 space-y-1">
+                                                    {[
+                                                        { id: 'breakfast', label: 'Breakfast', active: r.has_breakfast, price: r.breakfast_rate_per_head },
+                                                        { id: 'lunch', label: 'Lunch', active: r.has_lunch, price: r.lunch_rate_per_head },
+                                                        { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head },
+                                                        { id: 'tea', label: 'Tea/Cafe', active: r.has_tea_cafe, price: r.tea_cafe_rate_per_head },
+                                                        { id: 'coffee', label: 'Coffee', active: r.has_coffee_cafe, price: r.coffee_cafe_rate_per_head },
+                                                        { id: 'juice', label: 'Juice Bar', active: r.has_juice_bar, price: r.juice_bar_rate_per_head },
+                                                    ].filter(m => m.active).map(meal => (
+                                                        <button
+                                                            key={meal.id}
+                                                            onClick={() => updateBlock(activeAssignment.blockId!, {
+                                                                mealType: meal.label,
+                                                                agreedPrice: meal.price || 0
+                                                            })}
+                                                            className={`w-full p-3 rounded-xl flex items-center justify-between transition-all ${block?.mealType === meal.label ? 'bg-white shadow-sm border border-brand-gold/20' : 'hover:bg-white/50'}`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${block?.mealType === meal.label ? 'bg-brand-gold' : 'bg-neutral-300'}`} />
+                                                                <span className="text-xs font-bold text-neutral-700">{meal.label}</span>
+                                                            </div>
+                                                            <span className="text-xs font-mono font-bold text-brand-green">LKR {(meal.price || 0).toLocaleString()}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                        <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
-                                    </button>
-                                ))}
+                                    );
+                                })}
+                                {activeAssignment.type === 'meal' && (
+                                    <div className="p-6 sticky bottom-0 bg-white border-t mt-4">
+                                        <button
+                                            onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                                            className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <CheckCircle2 size={18} />
+                                            Finish Assignment
+                                        </button>
+                                    </div>
+                                )}
+                                {activeAssignment.type === 'guide' && (
+                                    <>
+                                        {(filteredMasterData as any[]).map(g => (
+                                            <button key={g.id} onClick={() => bindProvider(activeAssignment.blockId, 'guideId', g.id)} className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors text-left group">
+                                                <div>
+                                                    <p className="font-bold text-sm text-neutral-800">{g.first_name} {g.last_name}</p>
+                                                    <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-tight">Professional Tour Guide</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.guideId === g.id && <div className="w-2 h-2 bg-brand-gold rounded-full" />}
+                                                    <ChevronRight size={16} className="text-neutral-200 group-hover:text-brand-gold transform group-hover:translate-x-1 transition-all" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                        <div className="p-6 sticky bottom-0 bg-white border-t mt-4">
+                                            <button
+                                                onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                                                className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <CheckCircle2 size={18} />
+                                                Finish Assignment
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                                 {filteredMasterData && (Array.isArray(filteredMasterData) ? filteredMasterData.length === 0 : (filteredMasterData.providers.length === 0 && filteredMasterData.drivers.length === 0)) && (
                                     <div className="p-12 text-center text-neutral-400 italic text-sm">
                                         No providers found matching &quot;{searchTerm}&quot;

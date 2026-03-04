@@ -222,8 +222,11 @@ export function FinanceAndBookingStep({
                     vendorRef = { restaurant_id: block.restaurantId };
                     vendorName = rest ? rest.name : (block.serviceProvider || block.name);
                     vendorAddress = rest?.address || '';
-                    price = rest?.lunch_rate_per_head || 0;
-                    qty = (tripData.profile.adults || 0) + (tripData.profile.children || 0);
+
+                    // Use the specifically selected meal price, or fallback to lunch rate
+                    price = block.agreedPrice || rest?.lunch_rate_per_head || 0;
+                    qty = totalPax;
+
                     vendorPhone = rest?.contact_number || '';
                     vendorEmail = rest?.email || '';
                     vendorType = 'vendor';
@@ -240,7 +243,7 @@ export function FinanceAndBookingStep({
 
                 const item: Partial<DBPurchaseOrderItem> = {
                     id: crypto.randomUUID(),
-                    description: block.name,
+                    description: block.mealType ? `${block.name} - ${block.mealType}` : block.name,
                     service_date: calculatedDate, // Must be YYYY-MM-DD
                     quantity: qty,
                     total_price: (price * exchangeRate) * qty,
