@@ -174,7 +174,7 @@ export class TourService {
 
         // If the planner data has already been saved before, return it perfectly mapped
         if (plannerData && Object.keys(plannerData).length > 0) {
-            return { tripData: plannerData as TripData, tourMsg };
+            return { tripData: { ...plannerData, id: tourId } as TripData, tourMsg };
         }
 
         // Otherwise seed it from the request_details
@@ -211,6 +211,8 @@ export class TourService {
             flights: [], accommodations: [], transports: [], activities: [], itinerary: [],
             financials: {
                 costs: { flights: 0, hotels: 0, transport: 0, activities: 0, guide: 0, misc: 0, commission: 0, tax: 0 },
+                purchaseOrders: [],
+                supplierInvoices: [],
                 sellingPrice: details.estimated_price || 0
             }
         };
@@ -230,7 +232,7 @@ export class TourService {
         const { error: tourErr } = await supabaseAdmin
             .from('tours')
             .update({
-                planner_data: tripData,
+                planner_data: { ...tripData, id: tourId },
                 title: tripData.clientName,
                 status: tripData.status,
                 start_date: tripData.profile?.arrivalDate || null,

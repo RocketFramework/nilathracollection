@@ -23,7 +23,7 @@ export default function ContactPage() {
                                     </div>
                                     <div>
                                         <p className="text-xs uppercase tracking-widest text-brand-charcoal/50 font-bold mb-1">Direct Line</p>
-                                        <p className="text-xl font-serif">+94 77 123 4567</p>
+                                        <p className="text-xl font-serif">+94 77 727 8282</p>
                                     </div>
                                 </div>
 

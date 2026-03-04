@@ -3,14 +3,12 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getTourDataAction, saveTourAction } from "@/actions/admin.actions";
-import { TripData } from "./types";
+import { TripData, Financials } from "./types";
 import { ScopeAndProfileStep } from "./steps/ScopeAndProfileStep";
 import { FlightsStep } from "./steps/FlightsStep";
 import { ActivitiesStep } from "./steps/ActivitiesStep";
-import { HotelsStep } from "./steps/HotelsStep";
-import { TransportStep } from "./steps/TransportStep";
 import { ItineraryBuilder } from "./steps/ItineraryBuilder";
-import { FinancialSummaryPanel } from "./components/FinancialSummaryPanel";
+import { FinanceAndBookingStep } from "./steps/FinanceAndBookingStep";
 import { OperationalReadiness } from "./components/OperationalReadiness";
 import { Save, FileCheck, CheckSquare, Users, Plane, Compass, BedDouble, CarFront, CalendarDays, Calculator, Activity, Loader2 } from "lucide-react";
 const initialData: TripData = {
@@ -43,6 +41,8 @@ const initialData: TripData = {
     itinerary: [],
     financials: {
         costs: { flights: 0, hotels: 0, transport: 0, activities: 0, guide: 0, misc: 0, commission: 0, tax: 0 },
+        purchaseOrders: [],
+        supplierInvoices: [],
         sellingPrice: 0
     }
 };
@@ -53,9 +53,7 @@ const STEPS = [
     { id: 'flights', label: 'Flights', icon: Plane },
     { id: 'activities', label: 'Activities', icon: Compass },
     { id: 'itinerary', label: 'Builder Engine', icon: CalendarDays },
-    { id: 'hotels', label: 'Hotels', icon: BedDouble },
-    { id: 'transport', label: 'Transport', icon: CarFront },
-    { id: 'finance', label: 'Financials', icon: Calculator }
+    { id: 'finance', label: 'Bookings & Finance', icon: Calculator }
 ];
 
 function PlannerWorkspace() {
@@ -164,8 +162,6 @@ function PlannerWorkspace() {
 
                         let disabled = false;
                         if (step.id === 'flights' && !tripData.serviceScopes.includes('Book International Flights')) disabled = true;
-                        if (step.id === 'hotels' && !tripData.serviceScopes.includes('Book Accommodation')) disabled = true;
-                        if (step.id === 'transport' && !tripData.serviceScopes.includes('Arrange Transport')) disabled = true;
                         if (step.id === 'activities' && !tripData.serviceScopes.includes('Plan Activities & Experiences')) disabled = true;
 
                         return (
@@ -214,14 +210,8 @@ function PlannerWorkspace() {
                             <ItineraryBuilder tripData={tripData} updateData={(d) => setTripData({ ...tripData, ...d })} />
                         </div>
                     )}
-                    {activeTab === 'hotels' && (
-                        <HotelsStep tripData={tripData} updateHotels={(h) => setTripData({ ...tripData, accommodations: h })} />
-                    )}
-                    {activeTab === 'transport' && (
-                        <TransportStep tripData={tripData} updateTransport={(t) => setTripData({ ...tripData, transports: t })} />
-                    )}
                     {activeTab === 'finance' && (
-                        <FinancialSummaryPanel tripData={tripData} updateFinancials={(f) => setTripData({ ...tripData, financials: f })} />
+                        <FinanceAndBookingStep tripData={tripData} updateFinancials={(f: Financials) => setTripData({ ...tripData, financials: f })} />
                     )}
                 </div>
             </main>

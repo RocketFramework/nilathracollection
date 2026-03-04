@@ -6,6 +6,8 @@ import { TourService } from "@/services/tour.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateAgentDTO } from "@/dtos/user-vendor.dto";
 import { MasterDataService, Restaurant } from "@/services/master-data.service";
+import { FinanceService } from "@/services/finance.service";
+import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
 
 export async function createAgentAction(formData: FormData) {
     try {
@@ -192,5 +194,55 @@ export async function getTourGuidesAction() {
     } catch (error: any) {
         console.error("Error fetching tour guides:", error);
         return { error: error.message || "Failed to load tour guides." };
+    }
+}
+export async function getPurchaseOrdersAction(tourId: string) {
+    try {
+        const pos = await FinanceService.getPurchaseOrdersForTour(tourId);
+        return { success: true, pos };
+    } catch (error: any) {
+        console.error("Error fetching purchase orders:", error);
+        return { error: error.message || "Failed to load purchase orders." };
+    }
+}
+
+export async function savePurchaseOrderAction(po: Partial<DBPurchaseOrder>, items: Partial<DBPurchaseOrderItem>[]) {
+    try {
+        const id = await FinanceService.savePurchaseOrder(po, items);
+        // revalidatePath(`/admin/planner`); 
+        return { success: true, id };
+    } catch (error: any) {
+        console.error("Error saving purchase order:", error);
+        return { error: error.message || "Failed to save purchase order." };
+    }
+}
+
+export async function deletePurchaseOrderAction(id: string) {
+    try {
+        await FinanceService.deletePurchaseOrder(id);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting purchase order:", error);
+        return { error: error.message || "Failed to delete purchase order." };
+    }
+}
+
+export async function saveVendorInvoiceAction(invoice: Partial<DBVendorInvoice>) {
+    try {
+        const id = await FinanceService.saveVendorInvoice(invoice);
+        return { success: true, id };
+    } catch (error: any) {
+        console.error("Error saving vendor invoice:", error);
+        return { error: error.message || "Failed to save vendor invoice." };
+    }
+}
+
+export async function saveVendorPaymentAction(payment: Partial<DBVendorPayment>) {
+    try {
+        const id = await FinanceService.saveVendorPayment(payment);
+        return { success: true, id };
+    } catch (error: any) {
+        console.error("Error saving vendor payment:", error);
+        return { error: error.message || "Failed to save vendor payment." };
     }
 }

@@ -1,6 +1,22 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
+import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, Youtube, Linkedin, X } from "lucide-react";
+import { TikTok_Sans } from "next/font/google";
+
+const Tiktok = ({ size = 24 }: { size?: number }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+    </svg>
+);
 
 export default function Footer() {
     return (
@@ -23,10 +39,70 @@ export default function Footer() {
                     <p className="text-white/70 text-sm leading-relaxed max-w-xs">
                         Curating the finest luxury travel experiences in Sri Lanka. From VIP handling to bespoke itineraries, we bring you the heart of the island in absolute comfort.
                     </p>
-                    <div className="flex gap-4">
-                        <a href="#" className="hover:text-brand-gold transition-colors"><Facebook size={20} /></a>
-                        <a href="#" className="hover:text-brand-gold transition-colors"><Instagram size={20} /></a>
-                        <a href="#" className="hover:text-brand-gold transition-colors"><Twitter size={20} /></a>
+                    <div className="flex items-center gap-5">
+                        <a
+                            href="https://www.facebook.com/profile.php?id=61588628732263"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Facebook"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <Facebook size={20} />
+                        </a>
+                        <a
+                            href="https://www.instagram.com/nilathra/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Instagram"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <Instagram size={20} />
+                        </a>
+                        <a
+                            href="https://twitter.com/NilathraTravels"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Twitter"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <Twitter size={20} />
+                        </a>
+                        <a
+                            href="https://www.youtube.com/@nilathratravels"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="YouTube"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <Youtube size={20} />
+                        </a>
+                        <a
+                            href="https://www.linkedin.com/company/nilathra-travels/?viewAsMember=true"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="LinkedIn"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <Linkedin size={20} />
+                        </a>
+                        <a
+                            href="https://x.com/nilathraC"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="X"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <X size={20} />
+                        </a>
+                        <a
+                            href="https://www.tiktok.com/@nilathratravel"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="TikTok"
+                            className="transition-all duration-300 hover:text-brand-gold hover:scale-110"
+                        >
+                            <Tiktok size={20} />
+                        </a>
                     </div>
                 </div>
 
@@ -59,7 +135,7 @@ export default function Footer() {
                         </li>
                         <li className="flex items-center gap-3">
                             <Phone className="text-brand-gold shrink-0" size={18} />
-                            <span className="text-white/70 text-sm">+94 77 123 4567</span>
+                            <span className="text-white/70 text-sm">+94 77 727 8282</span>
                         </li>
                         <li className="flex items-center gap-3">
                             <Mail className="text-brand-gold shrink-0" size={18} />
