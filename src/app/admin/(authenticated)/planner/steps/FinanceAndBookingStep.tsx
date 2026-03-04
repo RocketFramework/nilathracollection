@@ -3,6 +3,7 @@
 import { TripData, DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, Financials, POStatus } from "../types";
 import { Calculator, Receipt, Send, CheckCircle2, AlertTriangle, RefreshCw, Plus, FileText, ChevronRight, Check, X, ShieldCheck, Trash2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
     getHotelsListAction,
     getVendorsAction,
@@ -32,6 +33,7 @@ export function FinanceAndBookingStep({
     const [isLoadingPOs, setIsLoadingPOs] = useState(false);
     const [exchangeRate, setExchangeRate] = useState(300);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
+    const [previewPO, setPreviewPO] = useState<DBPurchaseOrder | null>(null);
 
     const tourId = tripData.id;
 
@@ -125,6 +127,7 @@ export function FinanceAndBookingStep({
             });
 
             const newPOs: Partial<DBPurchaseOrder>[] = [];
+            const dayServiceMap = new Map<number, Set<string>>();
 
             // We process EVERYTHING from Itinerary now, grouping by vendorId or generic type
             const vendorMap = new Map<string, {
@@ -185,9 +188,9 @@ export function FinanceAndBookingStep({
                             qty = suggestedRooms;
                         }
                     }
-                } else if (block.type === 'activity' && block.vendorId) {
+                } else if (block.type === 'activity' && (block.vendorId || block.vendorActivityId)) {
                     const vendor = vendors.find((v: any) => v.id === block.vendorId);
-                    vendorId = block.vendorId;
+                    vendorId = block.vendorId || '';
                     vendorRef = { activity_vendor_id: block.vendorId };
                     vendorName = vendor ? vendor.name : (block.serviceProvider || block.name);
                     vendorAddress = vendor?.address || '';
@@ -196,26 +199,46 @@ export function FinanceAndBookingStep({
                     vendorType = 'vendor';
                     qty = totalPax;
                     price = block.agreedPrice || 0;
-                } else if (block.type === 'travel' && block.transportId) {
-                    const provider = transports.find((t: any) => t.id === block.transportId);
-                    vendorId = block.transportId;
-                    vendorRef = { transport_provider_id: block.transportId };
-                    vendorName = provider ? provider.name : (block.serviceProvider || 'Transport Provider');
-                    vendorAddress = provider?.address || '';
-                    vendorPhone = provider?.phone || '';
-                    vendorEmail = provider?.email || '';
-                    vendorType = 'transport';
-                    const vehicleMatch = provider?.transport_vehicles?.find((v: any) => v.id === block.vehicleId);
-                    vhType = vehicleMatch ? (vehicleMatch.make_and_model || vehicleMatch.vehicle_type) : (tripData.transports?.[0]?.mode || 'Standard Vehicle');
-                    price = vehicleMatch?.day_rate || 0;
-                } else if (block.type === 'guide' && block.guideId) {
-                    const guide = guides.find((g: any) => g.id === block.guideId);
-                    vendorId = block.guideId;
-                    vendorRef = { guide_id: block.guideId };
-                    vendorName = guide ? `${guide.first_name} ${guide.last_name || ''}`.trim() : (block.serviceProvider || block.name);
-                    vendorPhone = guide?.phone || '';
-                    vendorType = 'guide';
-                    price = guide?.per_day_rate || 0;
+
+                    // If we have a guide assigned to an activity, track it
+                    if (block.guideId || tripData.defaultGuideId) {
+                        if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
+                        dayServiceMap.get(block.dayNumber)!.add('guide');
+                    }
+                } else if (block.type === 'travel') {
+                    const effectiveTransportId = block.transportId || tripData.defaultTransportId;
+                    if (effectiveTransportId) {
+                        const provider = transports.find((t: any) => t.id === effectiveTransportId);
+                        vendorId = effectiveTransportId;
+                        vendorRef = { transport_provider_id: effectiveTransportId };
+                        vendorName = provider ? provider.name : (block.serviceProvider || 'Transport Provider');
+                        vendorAddress = provider?.address || '';
+                        vendorPhone = provider?.phone || '';
+                        vendorEmail = provider?.email || '';
+                        vendorType = 'transport';
+
+                        const effectiveVehicleId = block.vehicleId || tripData.defaultVehicleId;
+                        const vehicleMatch = provider?.transport_vehicles?.find((v: any) => v.id === effectiveVehicleId);
+                        vhType = vehicleMatch ? (vehicleMatch.make_and_model || vehicleMatch.vehicle_type) : (tripData.transports?.[0]?.mode || 'Standard Vehicle');
+                        price = vehicleMatch?.day_rate || 0;
+
+                        if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
+                        dayServiceMap.get(block.dayNumber)!.add('transport');
+                    }
+                } else if (block.type === 'guide') {
+                    const effectiveGuideId = block.guideId || tripData.defaultGuideId;
+                    if (effectiveGuideId) {
+                        const guide = guides.find((g: any) => g.id === effectiveGuideId);
+                        vendorId = effectiveGuideId;
+                        vendorRef = { guide_id: effectiveGuideId };
+                        vendorName = guide ? `${guide.first_name} ${guide.last_name || ''}`.trim() : (block.serviceProvider || block.name);
+                        vendorPhone = guide?.phone || '';
+                        vendorType = 'guide';
+                        price = guide?.per_day_rate || 0;
+
+                        if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
+                        dayServiceMap.get(block.dayNumber)!.add('guide');
+                    }
                 } else if (block.type === 'meal' && block.restaurantId) {
                     const rest = restaurants.find((r: any) => r.id === block.restaurantId);
                     vendorId = block.restaurantId;
@@ -278,6 +301,81 @@ export function FinanceAndBookingStep({
                 }
                 vendorMap.get(vendorId)!.items.push(item);
             });
+
+            // 2. Global Assignment Injector: Catch days where no blocks triggered a PO for global services
+            for (let day = 1; day <= (tripData.profile.durationDays || 1); day++) {
+                const totalPax = (tripData.profile.adults || 0) + (tripData.profile.children || 0);
+
+                let calculatedDate = '';
+                if (tripData.profile.arrivalDate) {
+                    const dateObj = new Date(tripData.profile.arrivalDate);
+                    dateObj.setDate(dateObj.getDate() + (day - 1));
+                    calculatedDate = dateObj.toISOString().split('T')[0];
+                }
+
+                // Global Guide Synthesis
+                if (tripData.defaultGuideId && !dayServiceMap.get(day)?.has('guide')) {
+                    const guide = guides.find((g: any) => g.id === tripData.defaultGuideId);
+                    if (guide) {
+                        const price = guide.per_day_rate || 0;
+                        const item: Partial<DBPurchaseOrderItem> = {
+                            id: crypto.randomUUID(),
+                            description: `Guide Service - Day ${day}`,
+                            service_date: calculatedDate,
+                            quantity: 1,
+                            unit_price: price * exchangeRate,
+                            total_price: price * exchangeRate,
+                            day_number: day,
+                            number_of_guests: totalPax
+                        };
+
+                        if (!vendorMap.has(tripData.defaultGuideId)) {
+                            vendorMap.set(tripData.defaultGuideId, {
+                                name: `${guide.first_name} ${guide.last_name || ''}`.trim(),
+                                type: 'guide',
+                                phone: guide.phone || '',
+                                vendorRef: { guide_id: tripData.defaultGuideId },
+                                items: []
+                            });
+                        }
+                        vendorMap.get(tripData.defaultGuideId)!.items.push(item);
+                    }
+                }
+
+                // Global Transport Synthesis
+                if (tripData.defaultTransportId && !dayServiceMap.get(day)?.has('transport')) {
+                    const provider = transports.find((t: any) => t.id === tripData.defaultTransportId);
+                    if (provider) {
+                        const effectiveVehicleId = tripData.defaultVehicleId;
+                        const vehicleMatch = provider.transport_vehicles?.find((v: any) => v.id === effectiveVehicleId);
+                        const price = vehicleMatch?.day_rate || 0;
+                        const item: Partial<DBPurchaseOrderItem> = {
+                            id: crypto.randomUUID(),
+                            description: `Transport Service - Day ${day}`,
+                            service_date: calculatedDate,
+                            quantity: 1,
+                            unit_price: price * exchangeRate,
+                            total_price: price * exchangeRate,
+                            day_number: day,
+                            vehicle_type: vehicleMatch ? (vehicleMatch.make_and_model || vehicleMatch.vehicle_type) : 'Standard Vehicle',
+                            number_of_guests: totalPax
+                        };
+
+                        if (!vendorMap.has(tripData.defaultTransportId)) {
+                            vendorMap.set(tripData.defaultTransportId, {
+                                name: provider.name,
+                                type: 'transport',
+                                address: provider.address || '',
+                                phone: provider.phone || '',
+                                email: provider.email || '',
+                                vendorRef: { transport_provider_id: tripData.defaultTransportId },
+                                items: []
+                            });
+                        }
+                        vendorMap.get(tripData.defaultTransportId)!.items.push(item);
+                    }
+                }
+            }
 
             const syncPromises: Promise<any>[] = [];
 
@@ -510,15 +608,16 @@ export function FinanceAndBookingStep({
                                                     <h5 className="font-bold text-neutral-800 line-clamp-1">{po.vendor_name || 'Generic Vendor'}</h5>
                                                     <div className="flex flex-col gap-0.5 mt-1">
                                                         <p className="text-[10px] text-brand-gold font-bold uppercase">{po.vendor_type}</p>
-                                                        <p className="text-[10px] text-neutral-400 font-mono">{po.po_number}</p>
-                                                        {(po.vendor_email || po.vendor_phone) && (
-                                                            <p className="text-[9px] text-neutral-400 mt-1 italic">
-                                                                {po.vendor_email} {po.vendor_phone && `| ${po.vendor_phone}`}
-                                                            </p>
-                                                        )}
+                                                        <p className="text-[10px] text-neutral-400 font-mono italic">{po.po_number}</p>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
+                                                <div className="text-right flex flex-col items-end gap-1">
+                                                    <button
+                                                        onClick={() => setPreviewPO(po)}
+                                                        className="p-1.5 bg-brand-gold/10 text-brand-gold rounded-lg hover:bg-brand-gold hover:text-white transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tight"
+                                                    >
+                                                        <FileText size={12} /> View PO
+                                                    </button>
                                                     <p className="text-sm font-bold text-brand-green">Rs. {po.total_amount.toLocaleString()}</p>
                                                     <p className="text-[9px] text-neutral-400">{po.po_date}</p>
                                                 </div>
@@ -726,6 +825,258 @@ export function FinanceAndBookingStep({
                     </div>
                 </div>
             </div>
+
+            {/* Professional PO Preview Modal */}
+            {previewPO && (
+                <div id="po-modal-overlay" className="fixed inset-0 z-[100] bg-neutral-900/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
+                    <div id="po-modal-content" className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[40px] shadow-2xl relative flex flex-col">
+                        <button
+                            onClick={() => setPreviewPO(null)}
+                            className="absolute top-6 right-8 p-3 bg-neutral-100 text-neutral-500 rounded-full hover:bg-red-50 hover:text-red-500 transition-all z-20 no-print"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        <div className="p-12 md:p-16 space-y-12">
+                            {renderPOContent(previewPO as DBPurchaseOrder & { items: DBPurchaseOrderItem[] })}
+                        </div>
+
+                        {/* Sticky Action Footer */}
+                        <div className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-neutral-100 p-8 flex items-center justify-center gap-4 no-print">
+                            <button
+                                onClick={() => window.print()}
+                                className="px-8 py-3 bg-brand-charcoal text-white font-bold rounded-2xl hover:bg-black transition-all shadow-xl flex items-center gap-3"
+                            >
+                                <Send size={18} /> Download / Print PDF
+                            </button>
+                            <button
+                                onClick={() => setPreviewPO(null)}
+                                className="px-8 py-3 bg-neutral-100 text-neutral-500 font-bold rounded-2xl hover:bg-neutral-200 transition-all font-mono text-sm uppercase tracking-widest"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Print Injections Section: This is rendered OUTSIDE all modals and overlays for 100% clean PDF generation */}
+            {(previewPO && typeof document !== 'undefined') && createPortal(
+                <div id="po-print-only">
+                    <div className="p-12 md:p-16 space-y-12 bg-white">
+                        {renderPOContent(previewPO as DBPurchaseOrder & { items: DBPurchaseOrderItem[] })}
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @media print {
+                    /* Hide everything that is a direct child of body except our print section */
+                    body > *:not(#po-print-only) { display: none !important; }
+                    
+                    /* Show ONLY the dedicated print section */
+                    #po-print-only { 
+                        display: block !important; 
+                        visibility: visible !important;
+                        position: absolute !important; 
+                        top: 0 !important; 
+                        left: 0 !important; 
+                        width: 100% !important; 
+                        height: auto !important;
+                        background: white !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        overflow: visible !important;
+                        font-size: 9pt !important;
+                        line-height: 1.2 !important;
+                    }
+
+                    /* Shrink specific elements for print */
+                    #po-print-only h1 { font-size: 24pt !important; }
+                    #po-print-only h2 { font-size: 18pt !important; }
+                    #po-print-only h3 { font-size: 9pt !important; margin-bottom: 0.5rem !important; }
+                    #po-print-only .p-12, #po-print-only .p-16 { padding: 1.5rem !important; }
+                    #po-print-only .gap-12 { gap: 1.5rem !important; }
+                    #po-print-only .gap-8 { gap: 1rem !important; }
+                    #po-print-only .py-12 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+                    #po-print-only .pt-16 { padding-top: 1rem !important; }
+                    #po-print-only .py-6 { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
+                    #po-print-only .space-y-12 > * + * { margin-top: 1.5rem !important; }
+                    #po-print-only .space-y-6 > * + * { margin-top: 0.5rem !important; }
+                    #po-print-only .space-y-4 > * + * { margin-top: 0.3rem !important; }
+                    #po-print-only .rounded-[32px], #po-print-only .rounded-[40px] { border-radius: 12px !important; }
+                    #po-print-only table { font-size: 8.5pt !important; }
+                    #po-print-only .w-20 { width: 3.5rem !important; height: 3.5rem !important; }
+                    
+                    /* Force color printing and clean layout */
+                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    tr { page-break-inside: avoid !important; }
+                    @page { margin: 0.5cm; size: auto; }
+                }
+
+                @media screen {
+                    #po-print-only { display: none !important; }
+                }
+            `}} />
         </div>
+    );
+}
+
+// Helper: Common PO Content Renderer
+function renderPOContent(po: DBPurchaseOrder & { items: DBPurchaseOrderItem[] }) {
+    return (
+        <>
+            {/* Document Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+                <div className="flex items-start gap-6">
+                    <img src="/images/nilathra_travels_logo.jpeg" alt="Nilathra Travels" className="w-20 h-20 object-contain rounded-2xl border border-neutral-100 shadow-sm" />
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <h1 className="text-4xl font-serif font-black text-brand-charcoal tracking-tight">Nilathra Travels</h1>
+                            <p className="text-xs font-bold text-brand-gold uppercase tracking-[0.3em]">By Nilathra Hotel Management (Pvt) Ltd</p>
+                        </div>
+                        <div className="text-sm text-neutral-500 leading-relaxed font-medium">
+                            <p>145, Wajira Road, Colombo 05,</p>
+                            <p>Sri Lanka.</p>
+                            <p className="mt-2 text-brand-charcoal font-bold">T: +94 77 123 4567 | E: bookings@nilathra.com</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-neutral-50 p-6 md:p-8 rounded-[32px] border border-neutral-100 min-w-[280px]">
+                    <h2 className="text-2xl font-serif font-bold text-brand-charcoal mb-4">Purchase Order</h2>
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-neutral-400 font-bold uppercase tracking-widest">PO Number</span>
+                            <span className="font-mono font-bold text-brand-charcoal">{po.po_number}</span>
+                        </div>
+                        <div className="flex justify-between text-xs border-t border-neutral-200 pt-3">
+                            <span className="text-neutral-400 font-bold uppercase tracking-widest">Issue Date</span>
+                            <span className="font-bold text-brand-charcoal">{po.po_date}</span>
+                        </div>
+                        <div className="flex justify-between text-xs border-t border-neutral-200 pt-3">
+                            <span className="text-neutral-400 font-bold uppercase tracking-widest">Status</span>
+                            <span className={`px-2 py-0.5 rounded-full font-black uppercase text-[8px] tracking-tighter
+                                ${po.status === 'Draft' ? 'bg-neutral-100 text-neutral-500' :
+                                    po.status === 'Sent' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                                {po.status}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Vendor & Trip Reference */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 border-t border-b border-neutral-100 py-12">
+                <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Supplier Information</h3>
+                    <div className="space-y-1">
+                        <p className="text-xl font-bold text-brand-charcoal">{po.vendor_name}</p>
+                        <div className="text-sm text-neutral-500 space-y-1">
+                            {po.vendor_address && <p>{po.vendor_address}</p>}
+                            {po.vendor_phone && <p>T: {po.vendor_phone}</p>}
+                            {po.vendor_email && <p>E: {po.vendor_email}</p>}
+                        </div>
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Trip Information</h3>
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-neutral-50 rounded-full flex items-center justify-center text-brand-gold">
+                                <Calculator size={14} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-brand-charcoal">Reference Booking</p>
+                                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-tighter">Please quote PO with Invoice</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-neutral-50 rounded-full flex items-center justify-center text-brand-gold">
+                                <RefreshCw size={14} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-brand-charcoal">{po.items?.[0]?.service_date} Start</p>
+                                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-tighter">Tour Schedule Reference</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Itemized Table */}
+            <div className="space-y-6">
+                <h3 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Service Details</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-neutral-100 text-left">
+                                <th className="py-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest pl-2">Date</th>
+                                <th className="py-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest pl-2">Description</th>
+                                <th className="py-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-center">Qty</th>
+                                <th className="py-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-right whitespace-nowrap">Unit Price (LKR)</th>
+                                <th className="py-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-right pr-2">Total (LKR)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-50">
+                            {(po.items || []).map((item: DBPurchaseOrderItem, idx: number) => (
+                                <tr key={item.id} className="text-sm">
+                                    <td className="py-6 text-neutral-500 pl-2 align-top">{item.service_date}</td>
+                                    <td className="py-6 pr-4 align-top">
+                                        <div className="space-y-1">
+                                            <p className="font-bold text-brand-charcoal">{item.description}</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {item.room_type && <span className="text-[9px] bg-neutral-50 text-neutral-500 font-bold uppercase px-1.5 py-0.5 rounded tracking-tighter">Room: {item.room_type}</span>}
+                                                {item.meal_plan && <span className="text-[9px] bg-neutral-50 text-neutral-500 font-bold uppercase px-1.5 py-0.5 rounded tracking-tighter">Meal: {item.meal_plan}</span>}
+                                                {item.vehicle_type && <span className="text-[9px] bg-neutral-50 text-neutral-500 font-bold uppercase px-1.5 py-0.5 rounded tracking-tighter">Vehicle: {item.vehicle_type}</span>}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="py-6 text-center text-brand-charcoal font-bold align-top">{item.quantity}</td>
+                                    <td className="py-6 text-right text-neutral-500 align-top">{(item.unit_price || 0).toLocaleString()}</td>
+                                    <td className="py-6 text-right text-brand-charcoal font-bold pr-2 align-top">{(item.total_price || 0).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Summary & Totals */}
+            <div className="flex flex-col md:flex-row justify-between gap-12 pt-8 border-t border-neutral-100">
+                <div className="flex-1 space-y-6">
+                    <div className="p-8 bg-neutral-50 rounded-[32px] border border-neutral-100">
+                        <h4 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em] mb-4">Notes & Remarks</h4>
+                        <p className="text-xs text-neutral-500 leading-relaxed italic">
+                            {po.vendor_notes || "All bookings are subject to our standard terms and conditions. Please confirm acceptance of this purchase order within 48 hours of issuance."}
+                        </p>
+                    </div>
+                </div>
+                <div className="w-full md:w-80 space-y-4">
+                    <div className="flex justify-between text-sm py-2">
+                        <span className="text-neutral-400 font-bold uppercase tracking-widest">Subtotal</span>
+                        <span className="font-bold text-brand-charcoal">LKR {po.subtotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-sm py-2 border-t border-neutral-50">
+                        <span className="text-neutral-400 font-bold uppercase tracking-widest">Tax (VAT)</span>
+                        <span className="font-bold text-brand-charcoal">LKR {(po.tax || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-6 bg-brand-charcoal text-white rounded-3xl mt-4">
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Total Amount</span>
+                        <span className="text-2xl font-serif font-black">LKR {po.total_amount.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footnote */}
+            <div className="text-center pt-16">
+                <p className="text-[10px] text-neutral-300 font-bold uppercase tracking-[0.4em] mb-4">Digitally Generated Document • Nilathra Travels Official PO</p>
+                <div className="flex justify-center flex-wrap gap-8 grayscale opacity-30">
+                    <div className="text-[10px] font-black p-2 border border-neutral-200 uppercase tracking-widest">Confirmed Excellence</div>
+                    <div className="text-[10px] font-black p-2 border border-neutral-200 uppercase tracking-widest">Sustainable Sri Lanka</div>
+                </div>
+            </div>
+        </>
     );
 }

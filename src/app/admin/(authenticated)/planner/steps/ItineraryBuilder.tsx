@@ -455,12 +455,6 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         }
 
         updateData(updates);
-
-        // Only close if not transport, vendor, or restaurant (needs vehicle/activity/meal selection)
-        if (field !== 'transportId' && field !== 'vendorId' && field !== 'restaurantId') {
-            setActiveAssignment(null);
-            setSearchTerm("");
-        }
     };
 
     const filteredMasterData = useMemo(() => {
@@ -532,7 +526,10 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         }
         if (block.type === 'meal' && block.restaurantId) {
             const r = masterData.restaurants.find(x => x.id === block.restaurantId);
-            return { name: r?.name || 'Linked Restaurant', icon: <Utensils size={12} className="text-green-500" /> };
+            let label = r?.name || 'Linked Restaurant';
+            if (block.mealType) label += ` - ${block.mealType}`;
+            if (block.agreedPrice) label += ` (LKR ${block.agreedPrice.toLocaleString()})`;
+            return { name: label, icon: <Utensils size={12} className="text-green-500" /> };
         }
         return null;
     };
