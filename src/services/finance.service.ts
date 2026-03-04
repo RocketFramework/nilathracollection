@@ -31,13 +31,7 @@ export class FinanceService {
     static async savePurchaseOrder(po: Partial<DBPurchaseOrder>, items: Partial<DBPurchaseOrderItem>[]) {
         const supabase = createAdminClient();
 
-        const { id, items: _, invoices: __, vendor_name: ___, ...poData } = po as any;
-
-        // Ensure we only send valid db columns if more virtual fields are added
-        delete poData.vendor_name;
-        delete poData.vendorAddress;
-        delete poData.vendorPhone;
-        delete poData.vendorEmail;
+        const { id, items: _, invoices: __, ...poData } = po as any;
 
         // Strip generated columns that PostgreSQL refuses to accept in INSERT/UPDATE
         delete poData.balance_payable;

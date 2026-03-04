@@ -7,6 +7,7 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateAgentDTO } from "@/dtos/user-vendor.dto";
 import { MasterDataService, Restaurant } from "@/services/master-data.service";
 import { FinanceService } from "@/services/finance.service";
+import { CurrencyService } from "@/services/currency.service";
 import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
 
 export async function createAgentAction(formData: FormData) {
@@ -244,5 +245,13 @@ export async function saveVendorPaymentAction(payment: Partial<DBVendorPayment>)
     } catch (error: any) {
         console.error("Error saving vendor payment:", error);
         return { error: error.message || "Failed to save vendor payment." };
+    }
+}
+export async function getExchangeRateAction() {
+    try {
+        const rate = await CurrencyService.getUSDTOLKR();
+        return { success: true, rate };
+    } catch (error: any) {
+        return { success: false, error: error.message };
     }
 }

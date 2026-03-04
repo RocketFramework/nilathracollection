@@ -184,6 +184,7 @@ export interface DBPurchaseOrderItem {
     id: string;
     purchase_order_id: string;
     tour_itinerary_id?: string;
+    day_number?: number | null;
     description: string;
     service_date?: string;
     quantity: number;
@@ -227,7 +228,10 @@ export interface DBPurchaseOrder {
     restaurant_id?: string;
 
     vendor_type: 'hotel' | 'vendor' | 'transport' | 'guide' | 'restaurant' | 'other';
-    vendor_name?: string; // Virtual field for UI
+    vendor_name?: string;
+    vendor_address?: string;
+    vendor_phone?: string;
+    vendor_email?: string;
 
     currency: string;
     payment_terms?: string;

@@ -27,6 +27,10 @@ CREATE TABLE purchase_orders (
     restaurant_id UUID REFERENCES restaurants(id),
     
     vendor_type VARCHAR(50), -- 'hotel', 'vendor', 'transport', 'guide', 'restaurant', 'other'
+    vendor_name VARCHAR(255),
+    vendor_address TEXT,
+    vendor_phone VARCHAR(50),
+    vendor_email VARCHAR(255),
     
     currency VARCHAR(10) DEFAULT 'LKR',
     payment_terms TEXT,
@@ -52,7 +56,8 @@ CREATE TABLE purchase_orders (
 CREATE TABLE purchase_order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE NOT NULL,
-    tour_itinerary_id UUID REFERENCES tour_itineraries(id) ON DELETE SET NULL, -- Links line item to Itinerary Block
+    tour_itinerary_id UUID REFERENCES daily_activities(id) ON DELETE SET NULL, -- Links line item to Itinerary Block (Activity)
+    day_number INTEGER, -- The day of the itinerary (Day 1, Day 2, etc)
     
     -- Generic Fields
     description TEXT NOT NULL,

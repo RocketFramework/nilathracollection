@@ -9,11 +9,13 @@ import {
     getTransportProvidersAction,
     getTourGuidesAction,
     getRestaurantsAction,
+    saveTourAction,
     getPurchaseOrdersAction,
     savePurchaseOrderAction,
     deletePurchaseOrderAction,
     saveVendorInvoiceAction,
-    saveVendorPaymentAction
+    saveVendorPaymentAction,
+    getExchangeRateAction
 } from "@/actions/admin.actions";
 
 export function FinanceAndBookingStep({
@@ -28,6 +30,8 @@ export function FinanceAndBookingStep({
     const [isSyncing, setIsSyncing] = useState(false);
     const [dbPOs, setDbPOs] = useState<DBPurchaseOrder[]>([]);
     const [isLoadingPOs, setIsLoadingPOs] = useState(false);
+    const [exchangeRate, setExchangeRate] = useState(300);
+    const [isLoadingRate, setIsLoadingRate] = useState(false);
 
     const tourId = tripData.id;
 
@@ -55,6 +59,20 @@ export function FinanceAndBookingStep({
 
     useEffect(() => {
         loadPOs();
+        const fetchRate = async () => {
+            setIsLoadingRate(true);
+            try {
+                const res = await getExchangeRateAction();
+                if (res.success && res.rate) {
+                    setExchangeRate(res.rate);
+                }
+            } catch (err) {
+                console.error("Failed to fetch exchange rate", err);
+            } finally {
+                setIsLoadingRate(false);
+            }
+        };
+        fetchRate();
     }, [tourId]);
 
     // AGGREGATION ENGINE: Scans trip data to build recommended POs
@@ -65,6 +83,12 @@ export function FinanceAndBookingStep({
         }
         setIsSyncing(true);
         try {
+            // 0. Automatically save the workflow first to ensure itinerary blocks exist in DB with stable IDs
+            const saveRes = await saveTourAction(tourId, tripData);
+            if (!saveRes.success) {
+                throw new Error("Failed to save itinerary before sync: " + saveRes.error);
+            }
+
             const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes] = await Promise.all([
                 getHotelsListAction(),
                 getVendorsAction(),
@@ -79,17 +103,25 @@ export function FinanceAndBookingStep({
             const guides = guidesRes.success ? (guidesRes.guides || []) : [];
             const restaurants = restRes.success ? (restRes.restaurants || []) : [];
 
-            // Identify POs that should not be touched
-            const preservedPOs = dbPOs.filter(po => po.status !== 'Pending Confirmation' && po.status !== 'Draft');
+            // Identify blocks that are already in a confirmed/sent PO to avoid duplicate generated items
             const preservedLinkedBlockIds = new Set<string>();
-            preservedPOs.forEach(po => {
-                po.items?.forEach(item => {
-                    if (item.tour_itinerary_id) {
-                        // In DB it might be numeric ID, in JSONB it's usually block.id
-                        // We'll need to be careful with comparison. 
-                        // For now we assume block.id exists in the context of it being a string.
-                    }
-                });
+            dbPOs.forEach(po => {
+                if (po.status !== 'Draft' && po.status !== 'Pending Confirmation') {
+                    po.items?.forEach(item => {
+                        if (item.tour_itinerary_id) {
+                            preservedLinkedBlockIds.add(item.tour_itinerary_id);
+                        }
+                    });
+                }
+            });
+
+            // Map existing POs by their vendor reference to allow reuse (Drafts only)
+            const existingPOByVendor = new Map<string, string>(); // vendorRef string -> PO ID
+            dbPOs.forEach(po => {
+                if (po.status === 'Draft' || po.status === 'Pending Confirmation') {
+                    const key = po.hotel_id || po.activity_vendor_id || po.transport_provider_id || po.guide_id || po.restaurant_id;
+                    if (key) existingPOByVendor.set(key, po.id);
+                }
             });
 
             const newPOs: Partial<DBPurchaseOrder>[] = [];
@@ -116,6 +148,7 @@ export function FinanceAndBookingStep({
                 let vendorRef: any = {};
 
                 let price = block.agreedPrice || 0;
+                let qty = 1;
                 let roomConfig = '';
                 let mlPlan = '';
                 let vhType = '';
@@ -129,8 +162,11 @@ export function FinanceAndBookingStep({
                     vendorPhone = hotel?.reservation_agent_contact || hotel?.gm_contact || '';
                     vendorEmail = hotel?.sales_agent_name || '';
                     vendorType = 'hotel';
-                    roomConfig = 'Standard Room';
-                    mlPlan = 'BB';
+                    const acc = tripData.accommodations?.find(a => a.nightIndex === block.dayNumber && (a.hotelId === block.hotelId || a.hotelName === hotel?.name));
+                    roomConfig = acc?.beddingConfiguration || acc?.roomStandard || 'Standard Room';
+                    mlPlan = acc?.mealPlan || 'BB';
+                    price = acc?.pricePerNight || 0;
+                    qty = acc?.numberOfRooms || 1;
                 } else if (block.type === 'activity' && block.vendorId) {
                     const vendor = vendors.find((v: any) => v.id === block.vendorId);
                     vendorId = block.vendorId;
@@ -149,7 +185,9 @@ export function FinanceAndBookingStep({
                     vendorPhone = provider?.phone || '';
                     vendorEmail = provider?.email || '';
                     vendorType = 'transport';
-                    vhType = 'Standard Vehicle';
+                    const vehicleMatch = provider?.transport_vehicles?.find((v: any) => v.id === block.vehicleId);
+                    vhType = vehicleMatch ? (vehicleMatch.make_and_model || vehicleMatch.vehicle_type) : (tripData.transports?.[0]?.mode || 'Standard Vehicle');
+                    price = vehicleMatch?.day_rate || 0;
                 } else if (block.type === 'guide' && block.guideId) {
                     const guide = guides.find((g: any) => g.id === block.guideId);
                     vendorId = block.guideId;
@@ -157,12 +195,15 @@ export function FinanceAndBookingStep({
                     vendorName = guide ? `${guide.first_name} ${guide.last_name || ''}`.trim() : (block.serviceProvider || block.name);
                     vendorPhone = guide?.phone || '';
                     vendorType = 'guide';
+                    price = guide?.per_day_rate || 0;
                 } else if (block.type === 'meal' && block.restaurantId) {
                     const rest = restaurants.find((r: any) => r.id === block.restaurantId);
                     vendorId = block.restaurantId;
                     vendorRef = { restaurant_id: block.restaurantId };
                     vendorName = rest ? rest.name : (block.serviceProvider || block.name);
                     vendorAddress = rest?.address || '';
+                    price = rest?.lunch_rate_per_head || 0;
+                    qty = (tripData.profile.adults || 0) + (tripData.profile.children || 0);
                     vendorPhone = rest?.contact_number || '';
                     vendorEmail = rest?.email || '';
                     vendorType = 'vendor';
@@ -170,18 +211,35 @@ export function FinanceAndBookingStep({
 
                 if (!vendorId) return;
 
+                let calculatedDate = '';
+                if (tripData.profile.arrivalDate) {
+                    const dateObj = new Date(tripData.profile.arrivalDate);
+                    dateObj.setDate(dateObj.getDate() + (block.dayNumber - 1));
+                    calculatedDate = dateObj.toISOString().split('T')[0];
+                }
+
                 const item: Partial<DBPurchaseOrderItem> = {
                     id: crypto.randomUUID(),
                     description: block.name,
-                    service_date: block.type === 'sleep' ? `Night ${block.dayNumber}` : `Day ${block.dayNumber}`,
-                    quantity: 1,
-                    unit_price: price,
-                    total_price: price,
+                    service_date: calculatedDate, // Must be YYYY-MM-DD
+                    quantity: qty,
+                    total_price: (price * exchangeRate) * qty,
                     tour_itinerary_id: block.id,
+                    day_number: block.dayNumber,
                     room_type: roomConfig,
                     meal_plan: mlPlan,
+                    unit_price: price * exchangeRate,
                     vehicle_type: vhType
                 };
+
+                // Add hotel specific dates if applicable
+                if (block.type === 'sleep' && calculatedDate) {
+                    item.check_in_date = calculatedDate;
+                    const outDate = new Date(calculatedDate);
+                    outDate.setDate(outDate.getDate() + 1);
+                    item.check_out_date = outDate.toISOString().split('T')[0];
+                    item.number_of_nights = 1;
+                }
 
                 if (!vendorMap.has(vendorId)) {
                     vendorMap.set(vendorId, {
@@ -199,14 +257,21 @@ export function FinanceAndBookingStep({
 
             const syncPromises: Promise<any>[] = [];
 
-            vendorMap.forEach((data, _vendorId) => {
+            vendorMap.forEach((data, vendorId) => {
                 const total = data.items.reduce((sum: number, item: any) => sum + (item.total_price || 0), 0);
+                const existingId = existingPOByVendor.get(vendorId);
+
                 const poData: Partial<DBPurchaseOrder> = {
+                    id: existingId, // Reuse existing ID if found
                     tour_id: tourId,
                     vendor_type: data.type,
-                    vendor_name: data.name, // virtual for UI
+                    vendor_name: data.name,
+                    vendor_address: data.address,
+                    vendor_phone: data.phone,
+                    vendor_email: data.email,
                     currency: 'LKR',
-                    status: 'Draft',
+                    po_date: new Date().toISOString().split('T')[0],
+                    status: existingId ? undefined : 'Draft', // Don't overwrite status if updating
                     subtotal: total,
                     total_amount: total,
                     internal_notes: `Synced from Itinerary on ${new Date().toLocaleDateString()}`,
@@ -342,7 +407,19 @@ export function FinanceAndBookingStep({
                     </h3>
                     <p className="text-sm text-neutral-500 mt-1">Manage vendor payments, reconcile POs, and verify supplier invoices.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end">
+                        <label className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight">Exchange Rate (USD → LKR)</label>
+                        <div className="flex items-center gap-2">
+                            {isLoadingRate && <RefreshCw size={12} className="animate-spin text-brand-gold" />}
+                            <input
+                                type="number"
+                                value={exchangeRate}
+                                onChange={(e) => setExchangeRate(Number(e.target.value))}
+                                className="w-20 text-right bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1 text-sm font-bold focus:ring-1 focus:ring-brand-gold outline-none"
+                            />
+                        </div>
+                    </div>
                     <button
                         onClick={syncWithItinerary}
                         disabled={isSyncing}
@@ -410,6 +487,11 @@ export function FinanceAndBookingStep({
                                                     <div className="flex flex-col gap-0.5 mt-1">
                                                         <p className="text-[10px] text-brand-gold font-bold uppercase">{po.vendor_type}</p>
                                                         <p className="text-[10px] text-neutral-400 font-mono">{po.po_number}</p>
+                                                        {(po.vendor_email || po.vendor_phone) && (
+                                                            <p className="text-[9px] text-neutral-400 mt-1 italic">
+                                                                {po.vendor_email} {po.vendor_phone && `| ${po.vendor_phone}`}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
@@ -428,7 +510,12 @@ export function FinanceAndBookingStep({
                                                             <Trash2 size={10} />
                                                         </button>
                                                         <div className="flex justify-between items-center">
-                                                            <span className="text-xs font-bold text-neutral-700">{item.description}</span>
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                {item.day_number && (
+                                                                    <span className="shrink-0 text-[8px] bg-neutral-200 text-neutral-600 px-1.5 py-0.5 rounded font-black uppercase">Day {item.day_number}</span>
+                                                                )}
+                                                                <span className="text-xs font-bold text-neutral-700 truncate">{item.description}</span>
+                                                            </div>
                                                             <span className="text-xs font-bold text-brand-green whitespace-nowrap">Rs. {item.total_price.toLocaleString()}</span>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-2">

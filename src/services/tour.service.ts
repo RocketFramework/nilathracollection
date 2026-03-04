@@ -331,6 +331,7 @@ export class TourService {
                 }
 
                 activitiesToInsert.push({
+                    id: b.id, // Use the stable UUID from the frontend/itinerary block
                     itinerary_id: dbItin.id,
                     title: b.name,
                     description: b.clientVisibleNotes || b.internalNotes || '',
