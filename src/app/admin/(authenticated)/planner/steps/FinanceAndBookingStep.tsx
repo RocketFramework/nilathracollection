@@ -1,7 +1,7 @@
 "use client";
 
 import { TripData, DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, Financials, POStatus } from "../types";
-import { Calculator, Receipt, Send, CheckCircle2, AlertTriangle, RefreshCw, Plus, FileText, ChevronRight, Check, X, ShieldCheck, Trash2 } from "lucide-react";
+import { Calculator, Receipt, Send, CheckCircle2, AlertTriangle, RefreshCw, Plus, FileText, ChevronRight, Check, X, ShieldCheck, Trash2, Search, Settings } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -34,6 +34,22 @@ export function FinanceAndBookingStep({
     const [exchangeRate, setExchangeRate] = useState(300);
     const [isLoadingRate, setIsLoadingRate] = useState(false);
     const [previewPO, setPreviewPO] = useState<DBPurchaseOrder | null>(null);
+    const [activeStatusTab, setActiveStatusTab] = useState<'All' | POStatus>('All');
+    const [poSearchTerm, setPoSearchTerm] = useState("");
+    const [selectedPOIds, setSelectedPOIds] = useState<string[]>([]);
+    const [isCreatingManual, setIsCreatingManual] = useState(false);
+
+    const manualPOTypes: { label: string, type: string, vendorType: DBPurchaseOrder['vendor_type'] }[] = [
+        { label: 'Activity', type: 'activity', vendorType: 'vendor' },
+        { label: 'Travel', type: 'travel', vendorType: 'transport' },
+        { label: 'Meal', type: 'meal', vendorType: 'restaurant' },
+        { label: 'Sleep', type: 'sleep', vendorType: 'hotel' },
+        { label: 'Train', type: 'train', vendorType: 'transport' },
+        { label: 'Buffer', type: 'buffer', vendorType: 'other' },
+        { label: 'Wait', type: 'wait', vendorType: 'other' },
+        { label: 'Guide', type: 'guide', vendorType: 'guide' },
+        { label: 'Custom', type: 'custom', vendorType: 'other' },
+    ];
 
     const tourId = tripData.id;
 
@@ -430,6 +446,36 @@ export function FinanceAndBookingStep({
         }
     };
 
+    const createManualPO = async (typeInfo: typeof manualPOTypes[0]) => {
+        if (!tourId) {
+            alert("Tour must be saved before creating POs.");
+            return;
+        }
+        setIsCreatingManual(true);
+        try {
+            const nextNum = dbPOs.length + 1;
+            const newPO: any = {
+                id: crypto.randomUUID(),
+                tour_id: tourId,
+                po_number: `PO-MAN-${nextNum}-${Date.now().toString().slice(-3)}`,
+                po_date: new Date().toISOString().split('T')[0],
+                status: 'Draft',
+                total_amount: 0,
+                subtotal: 0,
+                vendor_name: `Manual ${typeInfo.label} Vendor`,
+                vendor_type: typeInfo.vendorType,
+                items: []
+            };
+            await savePurchaseOrderAction(newPO, []);
+            await loadPOs();
+            setActivePOId(newPO.id);
+            setIsCreatingManual(false);
+        } catch (error) {
+            console.error("Failed to create manual PO", error);
+            setIsCreatingManual(false);
+        }
+    };
+
     const deletePO = async (id: string) => {
         if (!confirm("Delete this PO permanently?")) return;
         try {
@@ -482,6 +528,29 @@ export function FinanceAndBookingStep({
         const totalPending = dbPOs.filter(p => p.status === 'Draft' || p.status === 'Pending Confirmation').reduce((sum, p) => sum + p.total_amount, 0);
         return { totalSent, totalPending, count: dbPOs.length };
     }, [dbPOs]);
+
+    const filteredPOs = useMemo(() => {
+        return dbPOs.filter(po => {
+            const matchesStatus = activeStatusTab === 'All' || po.status === activeStatusTab;
+            const matchesSearch = po.vendor_name?.toLowerCase().includes(poSearchTerm.toLowerCase()) ||
+                po.po_number?.toLowerCase().includes(poSearchTerm.toLowerCase());
+            return matchesStatus && matchesSearch;
+        });
+    }, [dbPOs, activeStatusTab, poSearchTerm]);
+
+    const togglePOSelection = (id: string) => {
+        setSelectedPOIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleAllSelection = () => {
+        if (selectedPOIds.length === filteredPOs.length) {
+            setSelectedPOIds([]);
+        } else {
+            setSelectedPOIds(filteredPOs.map(po => po.id));
+        }
+    };
 
     const generateInvoice = async (po: DBPurchaseOrder) => {
         // Check if invoice already exists
@@ -542,6 +611,27 @@ export function FinanceAndBookingStep({
                             />
                         </div>
                     </div>
+                    <div className="relative group">
+                        <button
+                            disabled={isCreatingManual}
+                            className={`flex items-center gap-2 bg-white text-brand-gold border border-brand-gold/20 px-5 py-2.5 rounded-2xl hover:bg-neutral-50 transition-all font-bold text-sm ${isCreatingManual ? 'opacity-50' : ''}`}
+                        >
+                            {isCreatingManual ? <RefreshCw size={16} className="animate-spin" /> : <Plus size={16} />}
+                            Manual PO
+                            <ChevronRight size={14} className="rotate-90 text-brand-gold/40" />
+                        </button>
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-neutral-100 rounded-2xl shadow-xl py-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                            {manualPOTypes.map(t => (
+                                <button
+                                    key={t.type}
+                                    onClick={() => createManualPO(t)}
+                                    className="w-full text-left px-4 py-2 text-xs font-bold text-neutral-600 hover:bg-brand-gold/5 hover:text-brand-gold transition-colors"
+                                >
+                                    {t.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <button
                         onClick={syncWithItinerary}
                         disabled={isSyncing}
@@ -578,6 +668,33 @@ export function FinanceAndBookingStep({
 
                 {/* Purchase Orders List */}
                 <div className="lg:col-span-12 space-y-4">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-neutral-200 shadow-sm overflow-x-auto max-w-full">
+                            {['All', 'Draft', 'Sent', 'Accepted', 'Completed'].map((tab) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveStatusTab(tab as any)}
+                                    className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${activeStatusTab === tab
+                                        ? 'bg-brand-gold text-white shadow-md'
+                                        : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50'
+                                        }`}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative w-full md:w-64">
+                            <Search className="absolute left-3 top-2.5 text-neutral-300" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search by Vendor or PO #"
+                                value={poSearchTerm}
+                                onChange={(e) => setPoSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-neutral-200 rounded-2xl text-xs focus:ring-1 focus:ring-brand-gold outline-none shadow-sm transition-all"
+                            />
+                        </div>
+                    </div>
+
                     <div className="flex items-center gap-2 mb-2">
                         <FileText className="text-brand-gold" size={20} />
                         <h4 className="text-lg font-serif font-bold text-brand-charcoal">Supplier Purchase Orders</h4>
@@ -592,180 +709,333 @@ export function FinanceAndBookingStep({
                             <p className="text-neutral-400 italic">No POs generated yet. Click "Sync with Itinerary" to aggregate costs.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {dbPOs.map(po => {
-                                const invoice = po.invoices?.[0]; // Show first invoice for summary
-                                return (
-                                    <div key={po.id} className="bg-white rounded-[32px] border border-neutral-200 overflow-hidden shadow-sm hover:shadow-md transition-all group">
-                                        <div className="p-6">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full tracking-tighter mb-1 inline-block
+                        <div className="bg-white rounded-[40px] border border-neutral-200 shadow-sm overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-neutral-50 border-b border-neutral-200">
+                                        <th className="p-4 pl-6 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedPOIds.length === filteredPOs.length && filteredPOs.length > 0}
+                                                onChange={toggleAllSelection}
+                                                className="w-4 h-4 rounded border-neutral-300 text-brand-gold focus:ring-brand-gold"
+                                            />
+                                        </th>
+                                        <th className="p-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest">PO Details</th>
+                                        <th className="p-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest hidden md:table-cell">Vendor</th>
+                                        <th className="p-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Service Dates</th>
+                                        <th className="p-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest">Status</th>
+                                        <th className="p-4 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-right">Amount</th>
+                                        <th className="p-4 pr-6 text-[10px] font-black text-neutral-400 uppercase tracking-widest text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100">
+                                    {filteredPOs.map((po) => {
+                                        const invoice = po.invoices?.[0];
+                                        return (
+                                            <tr key={po.id} className={`hover:bg-neutral-50 transition-colors group ${activePOId === po.id ? 'bg-brand-gold/5' : ''}`}>
+                                                <td className="p-4 pl-6">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedPOIds.includes(po.id)}
+                                                        onChange={() => togglePOSelection(po.id)}
+                                                        className="w-4 h-4 rounded border-neutral-300 text-brand-gold focus:ring-brand-gold"
+                                                    />
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-mono font-bold text-neutral-800">{po.po_number}</span>
+                                                        <span className="text-[10px] text-neutral-400">{po.po_date}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 hidden md:table-cell">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-neutral-700">{po.vendor_name || 'Generic Vendor'}</span>
+                                                        <span className="text-[10px] text-brand-gold font-bold uppercase">{po.vendor_type}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        {(() => {
+                                                            const items = po.items || [];
+                                                            const days = items.map(i => i.day_number).filter((d): d is number => d != null);
+                                                            const dates = items.map(i => i.service_date).filter((d): d is string => !!d);
+
+                                                            if (days.length === 0 && dates.length === 0) return <span className="text-[10px] text-neutral-300 italic">No schedules</span>;
+
+                                                            const minDay = days.length > 0 ? Math.min(...days) : null;
+                                                            const maxDay = days.length > 0 ? Math.max(...days) : null;
+                                                            const sortedDates = [...new Set(dates)].sort();
+                                                            const minDate = sortedDates[0];
+                                                            const maxDate = sortedDates[sortedDates.length - 1];
+
+                                                            const dateTooltip = sortedDates.join('\n');
+
+                                                            return (
+                                                                <div title={sortedDates.length > 1 ? `Service Dates:\n${dateTooltip}` : undefined}>
+                                                                    <span className="text-[10px] font-black text-neutral-700">
+                                                                        {minDay != null ? (minDay === maxDay ? `Day ${minDay}` : `Day ${minDay}-${maxDay}`) : 'Manual Entry'}
+                                                                    </span>
+                                                                    <span className="text-[9px] text-neutral-400 font-medium block">
+                                                                        {minDate ? (minDate === maxDate ? minDate : `${minDate} ... ${maxDate}`) : 'Dates TBD'}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full tracking-tighter inline-block
                                                         ${po.status === 'Draft' ? 'bg-neutral-100 text-neutral-500' :
-                                                            po.status === 'Sent' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                                                            po.status === 'Sent' ? 'bg-blue-100 text-blue-600' :
+                                                                po.status === 'Accepted' ? 'bg-green-100 text-green-600' : 'bg-brand-gold/20 text-brand-gold'}`}>
                                                         {po.status}
                                                     </span>
-                                                    <h5 className="font-bold text-neutral-800 line-clamp-1">{po.vendor_name || 'Generic Vendor'}</h5>
-                                                    <div className="flex flex-col gap-0.5 mt-1">
-                                                        <p className="text-[10px] text-brand-gold font-bold uppercase">{po.vendor_type}</p>
-                                                        <p className="text-[10px] text-neutral-400 font-mono italic">{po.po_number}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right flex flex-col items-end gap-1">
-                                                    <button
-                                                        onClick={() => setPreviewPO(po)}
-                                                        className="p-1.5 bg-brand-gold/10 text-brand-gold rounded-lg hover:bg-brand-gold hover:text-white transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tight"
-                                                    >
-                                                        <FileText size={12} /> View PO
-                                                    </button>
+                                                </td>
+                                                <td className="p-4 text-right">
                                                     <p className="text-sm font-bold text-brand-green">Rs. {po.total_amount.toLocaleString()}</p>
-                                                    <p className="text-[9px] text-neutral-400">{po.po_date}</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-3 mb-6">
-                                                {(po.items || []).map(item => (
-                                                    <div key={item.id} className="flex flex-col gap-2 p-3 bg-neutral-50 rounded-xl border border-neutral-100 relative">
+                                                </td>
+                                                <td className="p-4 pr-6 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
                                                         <button
-                                                            onClick={() => deletePOItem(po, item.id)}
-                                                            className="absolute -top-1 -right-1 p-1 bg-white border border-neutral-200 rounded-full text-neutral-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={(e) => { e.stopPropagation(); setPreviewPO(po); }}
+                                                            className="p-2 hover:bg-brand-gold/10 text-brand-gold rounded-lg transition-all"
+                                                            title="Preview & Print"
                                                         >
-                                                            <Trash2 size={10} />
+                                                            <FileText size={16} />
                                                         </button>
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                {item.day_number && (
-                                                                    <span className="shrink-0 text-[8px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded font-black uppercase">Day {item.day_number}</span>
-                                                                )}
-                                                                {item.service_date && (
-                                                                    <span className="shrink-0 text-[8px] text-brand-gold font-bold font-mono">{item.service_date}</span>
-                                                                )}
-                                                                <span className="text-xs font-bold text-neutral-700 truncate">{item.description}</span>
-                                                            </div>
-                                                            <span className="text-xs font-bold text-brand-green whitespace-nowrap">Rs. {item.total_price.toLocaleString()}</span>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-2">
-                                                            {po.vendor_type === 'hotel' && (
-                                                                <>
-                                                                    <div>
-                                                                        <label className="text-[9px] text-neutral-400 uppercase font-bold">Room</label>
-                                                                        <input type="text" value={item.room_type || ''} onChange={(e) => updatePOItem(po, item.id, { room_type: e.target.value })} className="w-full bg-white border border-neutral-200 rounded px-2 py-1 text-[10px]" placeholder="e.g. Twin Room" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <label className="text-[9px] text-neutral-400 uppercase font-bold">Meal Plan</label>
-                                                                        <select value={item.meal_plan || 'BB'} onChange={(e) => updatePOItem(po, item.id, { meal_plan: e.target.value })} className="w-full bg-white border border-neutral-200 rounded px-2 py-1 text-[10px]">
-                                                                            <option value="BB">BB</option>
-                                                                            <option value="HB">HB</option>
-                                                                            <option value="FB">FB</option>
-                                                                            <option value="AI">AI</option>
-                                                                        </select>
-                                                                    </div>
-                                                                </>
-                                                            )}
-                                                            {po.vendor_type === 'transport' && (
-                                                                <div className="col-span-2">
-                                                                    <label className="text-[9px] text-neutral-400 uppercase font-bold">Vehicle Type</label>
-                                                                    <input type="text" value={item.vehicle_type || ''} onChange={(e) => updatePOItem(po, item.id, { vehicle_type: e.target.value })} className="w-full bg-white border border-neutral-200 rounded px-2 py-1 text-[10px]" placeholder="e.g. Standard SUV" />
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <label className="text-[9px] text-neutral-400 uppercase font-bold">Qty / Rms</label>
-                                                                <input type="number" min="1" value={item.quantity} onChange={(e) => updatePOItem(po, item.id, { quantity: Number(e.target.value) })} className="w-full bg-white border border-neutral-200 rounded px-2 py-1 text-[10px] text-center" />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[9px] text-neutral-400 uppercase font-bold">Unit Price</label>
-                                                                <input type="number" min="0" value={item.unit_price} onChange={(e) => updatePOItem(po, item.id, { unit_price: Number(e.target.value) })} className="w-full bg-white border border-neutral-200 rounded px-2 py-1 text-[10px] text-center" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                <button onClick={() => addPOItem(po)} className="w-full py-2 border border-dashed border-neutral-300 rounded-xl text-[10px] font-bold text-neutral-400 hover:text-brand-gold hover:border-brand-gold transition-all flex items-center justify-center gap-1">
-                                                    <Plus size={12} /> Add Line Item
-                                                </button>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                {po.status === 'Draft' && (
-                                                    <>
                                                         <button
-                                                            onClick={() => updatePOStatus(po, 'Sent')}
-                                                            className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold uppercase hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                                                            onClick={(e) => { e.stopPropagation(); setActivePOId(activePOId === po.id ? null : po.id); }}
+                                                            className={`p-2 rounded-lg transition-all ${activePOId === po.id ? 'bg-brand-gold text-white shadow-md' : 'hover:bg-neutral-100 text-neutral-400'}`}
+                                                            title="Manage Details"
                                                         >
-                                                            <Send size={12} /> Send PO
-                                                        </button>
-                                                        <button onClick={() => deletePO(po.id)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100">
-                                                            <Trash2 size={12} />
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {po.status === 'Sent' && (
-                                                    <button
-                                                        onClick={() => updatePOStatus(po, 'Accepted')}
-                                                        className="flex-1 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-bold uppercase hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
-                                                    >
-                                                        <Check size={12} /> Confirm Accepted
-                                                    </button>
-                                                )}
-                                                {po.status === 'Accepted' && !invoice && (
-                                                    <button
-                                                        onClick={() => generateInvoice(po)}
-                                                        className="flex-1 py-2 bg-brand-gold text-white rounded-xl text-[10px] font-bold uppercase hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
-                                                    >
-                                                        <Receipt size={12} /> Generate Invoice
-                                                    </button>
-                                                )}
-                                                {invoice && (
-                                                    <div className="flex-1 p-2 bg-neutral-50 rounded-xl border border-neutral-100 flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full ${invoice.status === 'Paid' || invoice.status === 'Confirmed' ? 'bg-green-500' :
-                                                                invoice.status === 'Received' ? 'bg-blue-500' : 'bg-yellow-500'
-                                                                }`}></div>
-                                                            <span className="text-[10px] font-bold text-neutral-700">{invoice.status}</span>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => setActivePOId(activePOId === po.id ? null : po.id)}
-                                                            className="text-neutral-400 hover:text-brand-gold"
-                                                        >
-                                                            <ChevronRight size={14} className={activePOId === po.id ? 'rotate-90' : ''} />
+                                                            <Settings size={16} />
                                                         </button>
                                                     </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                            {filteredPOs.length === 0 && (
+                                <div className="p-12 text-center text-neutral-400 italic">
+                                    No POs found matching your filters.
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                                        {/* Status Detail Drawer (Inline) */}
-                                        {activePOId === po.id && invoice && (
-                                            <div className="bg-neutral-50 border-t p-6 space-y-4 animate-in slide-in-from-top duration-300">
-                                                <h6 className="text-xs font-bold text-neutral-500 uppercase flex items-center gap-2">
-                                                    <Receipt size={12} /> Supplier Invoice: {invoice.invoice_number}
-                                                </h6>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="p-3 bg-white rounded-2xl border border-neutral-100">
-                                                        <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight mb-1">Invoice Status</p>
-                                                        <select
-                                                            value={invoice.status}
-                                                            onChange={(e) => updateInvoiceStatus(invoice, e.target.value as any)}
-                                                            className="w-full bg-transparent border-none p-0 text-xs font-bold focus:ring-0"
-                                                        >
-                                                            <option value="Pending">Pending</option>
-                                                            <option value="Received">Received</option>
-                                                            <option value="Paid">Processed Payment</option>
-                                                            <option value="Confirmed">Supplier Confirmed Paid</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="p-3 bg-white rounded-2xl border border-neutral-100">
-                                                        <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight mb-1">Due Date</p>
-                                                        <p className="text-xs font-bold text-red-500">{invoice.due_date}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                    {/* Bulk Selection Action Bar */}
+                    {selectedPOIds.length > 0 && (
+                        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-brand-charcoal text-white px-8 py-4 rounded-[32px] shadow-2xl flex items-center gap-8 animate-in slide-in-from-bottom duration-500">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] uppercase font-black text-brand-gold tracking-widest leading-none mb-1">Bulk Actions</span>
+                                <span className="text-sm font-bold">{selectedPOIds.length} POs Selected</span>
+                            </div>
+                            <div className="h-8 w-[1px] bg-white/10"></div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        if (confirm(`Confirm status update for ${selectedPOIds.length} POs?`)) {
+                                            selectedPOIds.forEach(id => {
+                                                const po = dbPOs.find(p => p.id === id);
+                                                if (po && po.status === 'Draft') updatePOStatus(po, 'Sent');
+                                            });
+                                            setSelectedPOIds([]);
+                                        }
+                                    }}
+                                    className="px-6 py-2 bg-brand-gold text-white rounded-xl text-xs font-bold uppercase transition-all hover:bg-yellow-600 flex items-center gap-2"
+                                >
+                                    <Send size={14} /> Issue Selected
+                                </button>
+                                <button
+                                    onClick={() => setSelectedPOIds([])}
+                                    className="text-xs font-bold text-white/60 hover:text-white transition-colors"
+                                >
+                                    Clear Selection
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
+
+                {/* PO Detail Side Drawer */}
+                {activePOId && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-end bg-brand-charcoal/20 backdrop-blur-sm no-print">
+                        <div className="w-full max-w-2xl h-full bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
+                            <div className="p-8 border-b flex items-center justify-between bg-neutral-50">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-brand-gold/10 text-brand-gold rounded-2xl">
+                                        <Settings size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xl font-serif font-bold text-brand-green">{activePO?.vendor_name}</h4>
+                                        <p className="text-xs text-neutral-400 font-mono font-bold uppercase tracking-widest">{activePO?.po_number}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setActivePOId(null)} className="p-3 hover:bg-white rounded-full transition-colors border border-transparent hover:border-neutral-200">
+                                    <X size={24} className="text-neutral-400" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-8 space-y-10">
+                                {/* Status Control */}
+                                <div className="space-y-4">
+                                    <h5 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Management Actions</h5>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-neutral-50 rounded-[24px] border border-neutral-100">
+                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight mb-2">PO Status</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {activePO?.status === 'Draft' && (
+                                                    <button onClick={() => activePO && updatePOStatus(activePO, 'Sent')} className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold uppercase hover:bg-blue-100 transition-colors flex items-center justify-center gap-2">
+                                                        <Send size={12} /> Issue PO
+                                                    </button>
+                                                )}
+                                                {activePO?.status === 'Sent' && (
+                                                    <button onClick={() => activePO && updatePOStatus(activePO, 'Accepted')} className="flex-1 py-2 bg-green-50 text-green-600 rounded-xl text-[10px] font-bold uppercase hover:bg-green-100 transition-colors flex items-center justify-center gap-2">
+                                                        <Check size={12} /> Confirm Accept
+                                                    </button>
+                                                )}
+                                                {activePO?.status === 'Accepted' && !activePO.invoices?.length && (
+                                                    <button onClick={() => activePO && generateInvoice(activePO)} className="flex-1 py-2 bg-brand-gold text-white rounded-xl text-[10px] font-bold uppercase hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2">
+                                                        <Receipt size={12} /> Generate INV
+                                                    </button>
+                                                )}
+                                                {activePO?.status !== 'Draft' && (
+                                                    <p className="text-xs font-bold text-neutral-700 w-full text-center py-2">{activePO?.status}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="p-4 bg-neutral-50 rounded-[24px] border border-neutral-100 flex items-center justify-center">
+                                            <button onClick={() => activePO && setPreviewPO(activePO)} className="w-full h-full flex flex-col items-center justify-center gap-2 text-brand-gold hover:text-yellow-600 transition-colors">
+                                                <FileText size={20} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Main Preview</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Line Items */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h5 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Purchase Order Items</h5>
+                                        <button onClick={() => activePO && addPOItem(activePO)} className="px-4 py-1.5 bg-brand-gold/10 text-brand-gold rounded-full text-[10px] font-bold uppercase transition-all hover:bg-brand-gold hover:text-white flex items-center gap-1.5">
+                                            <Plus size={12} /> Add Item
+                                        </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {(activePO?.items || []).map(item => (
+                                            <div key={item.id} className="p-5 bg-white rounded-[24px] border border-neutral-100 shadow-sm relative group/item">
+                                                <button
+                                                    onClick={() => activePO && deletePOItem(activePO, item.id)}
+                                                    className="absolute -top-2 -right-2 p-1.5 bg-red-50 text-red-500 border border-red-100 rounded-full hover:bg-red-100 transition-all opacity-0 group-hover/item:opacity-100"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                                <div className="grid grid-cols-12 gap-4">
+                                                    <div className="col-span-12 md:col-span-8">
+                                                        <label className="text-[9px] text-neutral-400 uppercase font-black mb-1 block">Description</label>
+                                                        <input
+                                                            value={item.description}
+                                                            onChange={(e) => activePO && updatePOItem(activePO, item.id, { description: e.target.value })}
+                                                            className="w-full text-sm font-bold bg-neutral-50 border-none rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-12 md:col-span-4">
+                                                        <label className="text-[9px] text-neutral-400 uppercase font-black mb-1 block">Service Date</label>
+                                                        <input
+                                                            type="date"
+                                                            value={item.service_date || ""}
+                                                            onChange={(e) => activePO && updatePOItem(activePO, item.id, { service_date: e.target.value })}
+                                                            className="w-full text-sm font-bold bg-neutral-50 border-none rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-4">
+                                                        <label className="text-[9px] text-neutral-400 uppercase font-black mb-1 block">Qty</label>
+                                                        <input
+                                                            type="number"
+                                                            value={item.quantity}
+                                                            onChange={(e) => activePO && updatePOItem(activePO, item.id, { quantity: Number(e.target.value) })}
+                                                            className="w-full text-sm font-bold bg-neutral-50 border-none rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold text-center"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-8">
+                                                        <label className="text-[9px] text-neutral-400 uppercase font-black mb-1 block">Unit Price (LKR)</label>
+                                                        <input
+                                                            type="number"
+                                                            value={item.unit_price}
+                                                            onChange={(e) => activePO && updatePOItem(activePO, item.id, { unit_price: Number(e.target.value) })}
+                                                            className="w-full text-sm font-bold bg-neutral-50 border-none rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold text-right"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Invoice Section */}
+                                {activePO?.invoices?.map(inv => (
+                                    <div key={inv.id} className="space-y-4">
+                                        <h5 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Supplier Invoice Control</h5>
+                                        <div className="p-6 bg-brand-green/5 rounded-[32px] border border-brand-green/10 space-y-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-brand-green/10 text-brand-green rounded-xl">
+                                                        <Receipt size={18} />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-brand-charcoal">{inv.invoice_number}</span>
+                                                </div>
+                                                <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${inv.status === 'Paid' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
+                                                    }`}>
+                                                    {inv.status}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] text-neutral-400 uppercase font-black">Payment Status</label>
+                                                    <select
+                                                        value={inv.status}
+                                                        onChange={(e) => updateInvoiceStatus(inv, e.target.value as any)}
+                                                        className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-1 focus:ring-brand-gold"
+                                                    >
+                                                        <option value="Pending">Pending Audit</option>
+                                                        <option value="Received">Invoice Received</option>
+                                                        <option value="Paid">Processed (Bank Wire)</option>
+                                                        <option value="Confirmed">Supplier Confirmed</option>
+                                                    </select>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[9px] text-neutral-400 uppercase font-black">Due Date</label>
+                                                    <p className="px-4 py-2.5 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">
+                                                        {inv.due_date}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="p-8 border-t bg-neutral-50 flex items-center justify-between">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">Total Commitment</span>
+                                    <span className="text-2xl font-serif font-black text-brand-green">Rs. {activePO?.total_amount.toLocaleString()}</span>
+                                </div>
+                                <button onClick={() => {
+                                    if (activePO && confirm("Delete this PO?")) {
+                                        deletePO(activePO.id);
+                                        setActivePOId(null);
+                                    }
+                                }} className="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Legacy Cost Breakdown (Optional - and Selling Price Control) */}
                 <div className="lg:col-span-12 mt-8">
@@ -947,7 +1217,7 @@ function renderPOContent(po: DBPurchaseOrder & { items: DBPurchaseOrderItem[] })
                         <div className="text-sm text-neutral-500 leading-relaxed font-medium">
                             <p>145, Wajira Road, Colombo 05,</p>
                             <p>Sri Lanka.</p>
-                            <p className="mt-2 text-brand-charcoal font-bold">T: +94 77 123 4567 | E: bookings@nilathra.com</p>
+                            <p className="mt-2 text-brand-charcoal font-bold">T: +94 77 727 8282 | E: bookings@nilathra.com</p>
                         </div>
                     </div>
                 </div>

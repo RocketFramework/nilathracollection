@@ -100,6 +100,7 @@ export interface TourGuide {
     languages?: string[];
     license_id?: string;
     is_suspended?: boolean;
+    daily_rate?: number;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
 }

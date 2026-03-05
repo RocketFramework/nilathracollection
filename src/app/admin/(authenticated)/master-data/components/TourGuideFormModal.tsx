@@ -29,6 +29,7 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave }: T
             } else {
                 setFormData({
                     first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false,
+                    daily_rate: 20,
                     payment_details: {}
                 });
             }
@@ -126,11 +127,16 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave }: T
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">License ID</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.license_id || ''} onChange={e => handleChange('license_id', e.target.value)} />
                             </div>
-                            <div className="col-span-2 mt-2">
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Daily Rate ($)</label>
+                                <input type="number" className="w-full outline-none text-brand-charcoal font-medium" value={formData.daily_rate ?? 20} onChange={e => handleChange('daily_rate', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                            </div>
+                            <div className="col-span-2 mt-2 flex items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Guide Suspended</span>
                                 </label>
+                                {formData.daily_rate === undefined && <span className="text-[10px] text-neutral-400 font-bold uppercase">Default: $20.00</span>}
                             </div>
                         </div>
                     )}
