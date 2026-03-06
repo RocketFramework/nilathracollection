@@ -175,6 +175,7 @@ export interface InternalItineraryBlock {
     internalNotes: string;
     clientVisibleNotes: string;
     locationName?: string;
+    distance?: string;
     lat?: number;
     lng?: number;
     serviceProvider?: string;

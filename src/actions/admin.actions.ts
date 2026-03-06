@@ -139,6 +139,15 @@ export async function deleteRestaurantAction(id: string) {
         return { error: error.message || "Failed to delete restaurant." };
     }
 }
+export async function getActivitiesAction() {
+    try {
+        const activities = await MasterDataService.getActivities();
+        return { success: true, activities };
+    } catch (error: any) {
+        console.error("Error fetching activities:", error);
+        return { error: error.message || "Failed to load activities." };
+    }
+}
 export async function getVendorsAction() {
     try {
         const supabase = createAdminClient();
