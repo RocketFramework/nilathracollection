@@ -334,6 +334,8 @@ export class TourService {
                     id: b.id, // Use the stable UUID from the frontend/itinerary block
                     itinerary_id: dbItin.id,
                     title: b.name,
+                    location_name: b.locationName || null,
+                    distance: b.distance || null,
                     description: b.clientVisibleNotes || b.internalNotes || '',
                     time_start: b.startTime,
                     time_end: b.endTime,

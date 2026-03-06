@@ -18,6 +18,7 @@ export interface ItineraryEvent {
   endTime: string;
   duration: number;
   locationName?: string;
+  distance?: string;
   location?: { lat: number; lng: number };
   carbon?: number;
 }
@@ -446,7 +447,8 @@ export class AdvancedRouteEngine {
             startTime: this.minutesToTime(currentMinutes),
             endTime: this.minutesToTime(currentMinutes + travelTime),
             duration: travelTime / 60,
-            locationName: `${Math.round(this.calculateRoadDistance(currentPos.lat, currentPos.lng, firstAct.lat, firstAct.lng))} km`
+            locationName: firstAct.location_name,
+            distance: `${Math.round(this.calculateRoadDistance(currentPos.lat, currentPos.lng, firstAct.lat, firstAct.lng))} km`
           });
           currentMinutes += travelTime;
           currentPos = getSafeLocation(firstAct);
@@ -474,7 +476,8 @@ export class AdvancedRouteEngine {
             startTime: this.minutesToTime(currentMinutes),
             endTime: this.minutesToTime(currentMinutes + travelMin),
             duration: travelMin / 60,
-            locationName: `${Math.round(this.calculateRoadDistance(prev.lat, prev.lng, activity.lat, activity.lng))} km`
+            locationName: activity.location_name,
+            distance: `${Math.round(this.calculateRoadDistance(prev.lat, prev.lng, activity.lat, activity.lng))} km`
           });
           currentMinutes += travelMin;
         }

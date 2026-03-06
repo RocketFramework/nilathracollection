@@ -154,6 +154,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                         internalNotes: '',
                         clientVisibleNotes: '',
                         locationName: event.locationName,
+                        distance: event.distance,
                         lat: event.location?.lat,
                         lng: event.location?.lng
                     };
