@@ -270,7 +270,21 @@ export class TourService {
 
             // Look up the matching hotel for this day (nightIndex === day)
             const matchingHotel = tripData.accommodations?.find(h => h.nightIndex === day);
-            let dbHotelId = matchingHotel?.hotelId || null;
+            let dbHotelId = (matchingHotel?.hotelId && matchingHotel.hotelId.includes('-')) ? matchingHotel.hotelId : null;
+
+            // If a UUID was provided, double check it actually exists in the 'hotels' table to prevent ghost ID key errors
+            if (dbHotelId) {
+                const { data: exists } = await supabaseAdmin
+                    .from('hotels')
+                    .select('id')
+                    .eq('id', dbHotelId)
+                    .single();
+
+                if (!exists) {
+                    console.warn(`Hotel ID ${dbHotelId} not found in 'hotels' table. Falling back to name resolution for ${matchingHotel?.hotelName}`);
+                    dbHotelId = null;
+                }
+            }
 
             if (!dbHotelId && matchingHotel && matchingHotel.hotelName) {
                 // Try to resolve the text-based hotelName to a real UUID in the 'hotels' table as fallback
@@ -298,9 +312,10 @@ export class TourService {
                 .select('id')
                 .single();
 
-            if (itinErr || !dbItin) {
-                console.error("Failed to map day", day, itinErr);
-                continue;
+            if (!dbItin) {
+                const err = itinErr || new Error("Unknown error creating tour_itineraries");
+                console.error("Failed to map day", day, err);
+                throw new Error(`Failed to save itinerary day ${day}: ${err.message}`);
             }
 
             const blocks = blocksByDay[day];
@@ -310,8 +325,19 @@ export class TourService {
             const activitiesToInsert = [];
 
             for (const b of blocks) {
+                // Safeguard: Ensure block ID is a valid UUID
+                if (!b.id || !b.id.includes('-')) {
+                    console.warn("Skipping invalid block ID during relational save:", b.id, b.name);
+                    continue;
+                }
+
                 // Prioritize the new vendorId field, fallback to linkedSupplierId for legacy or name-based resolution
                 let vendorId = b.vendorId || null;
+
+                // UUID Validation for vendorId
+                if (vendorId && !vendorId.includes('-')) {
+                    vendorId = null; // Prevent DB error if it's a legacy name string instead of UUID
+                }
 
                 if (!vendorId && b.linkedSupplierId && typeof b.linkedSupplierId === 'string') {
                     if (!b.linkedSupplierId.includes('-')) {
@@ -337,23 +363,26 @@ export class TourService {
                     location_name: b.locationName || null,
                     distance: b.distance || null,
                     description: b.clientVisibleNotes || b.internalNotes || '',
-                    time_start: b.startTime,
-                    time_end: b.endTime,
+                    time_start: b.startTime || null,
+                    time_end: b.endTime || null,
                     vendor_id: vendorId, // Map to the resolved UUID
                     activity_id: b.activityId,
                     vendor_activity_id: b.vendorActivityId,
                     agreed_price: b.agreedPrice,
-                    transport_id: b.transportId || tripData.defaultTransportId || null,
-                    vehicle_id: b.vehicleId || tripData.defaultVehicleId || null,
-                    driver_id: b.driverId || tripData.defaultDriverId || null,
-                    guide_id: b.guideId || tripData.defaultGuideId || null,
-                    restaurant_id: b.restaurantId
+                    transport_id: (b.transportId && b.transportId.includes('-')) ? b.transportId : (tripData.defaultTransportId || null),
+                    vehicle_id: (b.vehicleId && b.vehicleId.includes('-')) ? b.vehicleId : (tripData.defaultVehicleId || null),
+                    driver_id: (b.driverId && b.driverId.includes('-')) ? b.driverId : (tripData.defaultDriverId || null),
+                    guide_id: (b.guideId && b.guideId.includes('-')) ? b.guideId : (tripData.defaultGuideId || null),
+                    restaurant_id: (b.restaurantId && b.restaurantId.includes('-')) ? b.restaurantId : null
                 });
             }
 
             if (activitiesToInsert.length > 0) {
                 const { error: actErr } = await supabaseAdmin.from('daily_activities').insert(activitiesToInsert);
-                if (actErr) console.error("Failed to insert activities for day", day, actErr);
+                if (actErr) {
+                    console.error("Failed to insert activities for day", day, actErr);
+                    throw new Error(`Failed to save activities for Day ${day}: ${actErr.message}`);
+                }
             }
         }
     }

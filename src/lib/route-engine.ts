@@ -53,8 +53,8 @@ const CONSTANTS = {
   AVG_SPEED: 35,
   ROAD_FACTOR: 1.3,
 
-  DAY_START: 480,   // 08:00
-  DAY_END: 1200,    // 20:00
+  DAY_START: 420,   // 07:00
+  DAY_END: 1260,    // 21:00
 
   MAX_ACTIVITIES_PER_DAY: 5,
 
@@ -581,7 +581,7 @@ export class AdvancedRouteEngine {
       type: 'sleep',
       name: 'Overnight',
       startTime: this.minutesToTime(t),
-      endTime: '8:00 AM',
+      endTime: '7:00 AM',
       duration: (24 * 60 - t + CONSTANTS.DAY_START) / 60
     });
   }
@@ -685,9 +685,9 @@ export class AdvancedRouteEngine {
       events: [{
         type: 'buffer',
         name: 'No activities scheduled',
-        startTime: '8:00 AM',
-        endTime: '8:00 PM',
-        duration: 12
+        startTime: '7:00 AM',
+        endTime: '9:00 PM',
+        duration: 14
       }],
       utilization: 0
     };

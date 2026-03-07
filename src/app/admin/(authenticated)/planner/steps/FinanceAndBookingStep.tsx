@@ -14,6 +14,7 @@ import {
     getPurchaseOrdersAction,
     savePurchaseOrderAction,
     deletePurchaseOrderAction,
+    deleteDraftPurchaseOrdersAction,
     saveVendorInvoiceAction,
     saveVendorPaymentAction,
     getExchangeRateAction
@@ -128,6 +129,15 @@ export function FinanceAndBookingStep({
                 throw new Error("Failed to save itinerary before sync: " + saveRes.error);
             }
 
+            // 1. Delete all existing Draft and Pending Confirmation POs for a fresh start
+            const delRes = await deleteDraftPurchaseOrdersAction(tourId);
+            if (!delRes.success) {
+                throw new Error("Failed to clear existing draft POs: " + delRes.error);
+            }
+
+            // Immediately clear local PO state to avoid stale references in preservedLinkedBlockIds
+            setDbPOs(prev => prev.filter(po => po.status !== 'Draft' && po.status !== 'Pending Confirmation'));
+
             const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes] = await Promise.all([
                 getHotelsListAction(),
                 getVendorsAction(),
@@ -145,21 +155,13 @@ export function FinanceAndBookingStep({
             // Identify blocks that are already in a confirmed/sent PO to avoid duplicate generated items
             const preservedLinkedBlockIds = new Set<string>();
             dbPOs.forEach(po => {
+                // Only preserve IDs from POs that are NOT the ones we just deleted
                 if (po.status !== 'Draft' && po.status !== 'Pending Confirmation') {
                     po.items?.forEach(item => {
                         if (item.tour_itinerary_id) {
                             preservedLinkedBlockIds.add(item.tour_itinerary_id);
                         }
                     });
-                }
-            });
-
-            // Map existing POs by their vendor reference to allow reuse (Drafts only)
-            const existingPOByVendor = new Map<string, string>(); // vendorRef string -> PO ID
-            dbPOs.forEach(po => {
-                if (po.status === 'Draft' || po.status === 'Pending Confirmation') {
-                    const key = po.hotel_id || po.activity_vendor_id || po.transport_provider_id || po.guide_id || po.restaurant_id;
-                    if (key) existingPOByVendor.set(key, po.id);
                 }
             });
 
@@ -178,7 +180,14 @@ export function FinanceAndBookingStep({
             }>();
 
             tripData.itinerary.forEach(block => {
-                if (preservedLinkedBlockIds.has(block.id)) return; // Skip items already in a confirmed or sent PO
+                // Safeguard: Ensure block has a valid ID and isn't already preserved
+                if (!block.id || preservedLinkedBlockIds.has(block.id)) return;
+
+                // Ensure it's a UUID to prevent foreign key errors if any legacy bad data exists
+                if (typeof block.id !== 'string' || !block.id.includes('-')) {
+                    console.warn("Skipping itinerary block with invalid ID:", block.id, block.name);
+                    return;
+                }
 
                 const totalPax = (tripData.profile.adults || 0) + (tripData.profile.children || 0);
 
@@ -418,10 +427,8 @@ export function FinanceAndBookingStep({
 
             vendorMap.forEach((data, vendorId) => {
                 const total = data.items.reduce((sum: number, item: any) => sum + (item.total_price || 0), 0);
-                const existingId = existingPOByVendor.get(vendorId);
 
                 const poData: Partial<DBPurchaseOrder> = {
-                    id: existingId, // Reuse existing ID if found
                     tour_id: tourId,
                     vendor_type: data.type,
                     vendor_name: data.name,
@@ -430,7 +437,7 @@ export function FinanceAndBookingStep({
                     vendor_email: data.email,
                     currency: 'LKR',
                     po_date: new Date().toISOString().split('T')[0],
-                    status: existingId ? undefined : 'Draft', // Don't overwrite status if updating
+                    status: 'Draft',
                     subtotal: total,
                     total_amount: total,
                     internal_notes: `Synced from Itinerary on ${new Date().toLocaleDateString()}`,

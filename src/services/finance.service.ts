@@ -77,7 +77,16 @@ export class FinanceService {
             const { error: itemsError } = await supabase
                 .from('purchase_order_items')
                 .insert(itemsToInsert);
-            if (itemsError) throw itemsError;
+
+            if (itemsError) {
+                console.error("Failed to insert PO items. Data summary:", {
+                    poId: savedPOId,
+                    itemCount: itemsToInsert.length,
+                    firstItemItineraryId: itemsToInsert[0]?.tour_itinerary_id
+                });
+                console.error("Supabase Error Details:", itemsError);
+                throw itemsError;
+            }
         }
 
         return savedPOId;
@@ -92,6 +101,21 @@ export class FinanceService {
             .from('purchase_orders')
             .delete()
             .eq('id', id);
+        if (error) throw error;
+        return true;
+    }
+
+    /**
+     * Deletes all Draft and Pending Confirmation purchase orders for a tour.
+     */
+    static async deleteDraftPurchaseOrdersForTour(tourId: string) {
+        const supabase = createAdminClient();
+        const { error } = await supabase
+            .from('purchase_orders')
+            .delete()
+            .eq('tour_id', tourId)
+            .in('status', ['Draft', 'Pending Confirmation']);
+
         if (error) throw error;
         return true;
     }

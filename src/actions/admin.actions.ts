@@ -237,6 +237,16 @@ export async function deletePurchaseOrderAction(id: string) {
     }
 }
 
+export async function deleteDraftPurchaseOrdersAction(tourId: string) {
+    try {
+        await FinanceService.deleteDraftPurchaseOrdersForTour(tourId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting draft purchase orders:", error);
+        return { error: error.message || "Failed to delete draft purchase orders." };
+    }
+}
+
 export async function saveVendorInvoiceAction(invoice: Partial<DBVendorInvoice>) {
     try {
         const id = await FinanceService.saveVendorInvoice(invoice);
