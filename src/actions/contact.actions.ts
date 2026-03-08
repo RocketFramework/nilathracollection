@@ -7,14 +7,15 @@ import { CreateRequestDTO } from "@/dtos/request.dto";
 export async function submitInquiryAction(formData: {
     name: string;
     email: string;
+    phone?: string;
     inquiryType: string;
     message: string;
 }) {
     try {
-        const { name, email, inquiryType, message } = formData;
+        const { name, email, phone, inquiryType, message } = formData;
 
-        if (!email || !message) {
-            return { error: "Email and message are required." };
+        if (!email || !message || !name) {
+            return { error: "Name, email, and message are required." };
         }
 
         // Lazy register user or get existing
@@ -28,8 +29,10 @@ export async function submitInquiryAction(formData: {
 
         const requestDto: CreateRequestDTO = {
             email,
+            name,
+            phone_number: phone,
             request_type: 'inquiry',
-            special_requirements: `Inquiry Type: ${inquiryType}\n---\nName: ${name}\n\nMessage: ${message}`,
+            special_requirements: `Inquiry Type: ${inquiryType}\n\nMessage: ${message}`,
         };
 
         // Note: RequestService.createRequest might need adjustment for 'inquiry' if it expects details table.

@@ -14,6 +14,8 @@ export class RequestService {
             id: requestId,
             tourist_id: touristId || null, // Handle anonymous initially if needed
             email: dto.email, // Save the email explicitly
+            name: dto.name,
+            phone_number: dto.phone_number ? Number(dto.phone_number) : null,
             request_type: dto.request_type,
         };
 

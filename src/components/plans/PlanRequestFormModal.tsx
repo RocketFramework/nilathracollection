@@ -24,7 +24,9 @@ export default function PlanRequestFormModal({
     totalPrice,
     ctaText = "Get Personalized Quote"
 }: PlanRequestFormModalProps) {
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [startDate, setStartDate] = useState("");
     const [specialRequirements, setSpecialRequirements] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +53,9 @@ export default function PlanRequestFormModal({
             }
 
             await RequestService.createRequest({
+                name,
                 email,
+                phone_number: phone,
                 request_type: 'package',
                 package_name: packageName,
                 nights: nights,
@@ -120,17 +124,45 @@ export default function PlanRequestFormModal({
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-neutral-700 mb-2">Full Name <span className="text-brand-gold">*</span></label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            required
+                                            value={name}
+                                            onChange={e => setName(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
+                                            placeholder="John Doe"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-neutral-700 mb-2">Email Address <span className="text-brand-gold">*</span></label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                                        <input
+                                            type="email"
+                                            required
+                                            value={email}
+                                            onChange={e => setEmail(e.target.value)}
+                                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
+                                            placeholder="your@email.com"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
-                                <label className="block text-sm font-bold text-neutral-700 mb-2">Email Address <span className="text-brand-gold">*</span></label>
+                                <label className="block text-sm font-bold text-neutral-700 mb-2">Phone Number <span className="text-neutral-400 font-normal">(Optional)</span></label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
                                     <input
-                                        type="email"
-                                        required
-                                        value={email}
-                                        onChange={e => setEmail(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
-                                        placeholder="your@email.com"
+                                        type="tel"
+                                        value={phone}
+                                        onChange={e => setPhone(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
+                                        placeholder="+1 234 567 890"
                                     />
                                 </div>
                             </div>

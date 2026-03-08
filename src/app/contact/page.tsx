@@ -15,6 +15,7 @@ export default function ContactPage() {
     const [form, setForm] = useState({
         name: "",
         email: "",
+        phone: "",
         inquiryType: "Super Luxury VIP Experience",
         message: ""
     });
@@ -28,7 +29,7 @@ export default function ContactPage() {
             const result = await submitInquiryAction(form);
             if (result.success) {
                 setIsSuccess(true);
-                setForm({ name: "", email: "", inquiryType: "Super Luxury VIP Experience", message: "" });
+                setForm({ name: "", email: "", phone: "", inquiryType: "Super Luxury VIP Experience", message: "" });
             } else {
                 setError(result.error || "Failed to deliver inquiry.");
             }
@@ -140,6 +141,15 @@ export default function ContactPage() {
                                                     className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 outline-none focus:border-brand-gold transition-colors"
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Phone Number (Optional)</label>
+                                            <input
+                                                type="tel"
+                                                value={form.phone}
+                                                onChange={e => setForm({ ...form, phone: e.target.value })}
+                                                className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 outline-none focus:border-brand-gold transition-colors"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Inquiry Type</label>

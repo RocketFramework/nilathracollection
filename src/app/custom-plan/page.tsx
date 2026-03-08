@@ -39,6 +39,7 @@ export default function CustomPlanPage() {
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [travelers, setTravelers] = useState("2");
 
     const [routeResult, setRouteResult] = useState<RoutePlan | null>(null);
@@ -165,7 +166,9 @@ export default function CustomPlanPage() {
 
             // Submit Request
             await RequestService.createRequest({
+                name,
                 email,
+                phone_number: phone,
                 request_type: 'custom-plan',
                 destinations,
                 adults: parseInt(travelers) || 2,
@@ -420,6 +423,13 @@ export default function CustomPlanPage() {
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
                                                 value={email}
                                                 onChange={e => setEmail(e.target.value)}
+                                            />
+                                            <input
+                                                type="tel"
+                                                placeholder="Phone Number (Optional)"
+                                                className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
+                                                value={phone}
+                                                onChange={e => setPhone(e.target.value)}
                                             />
                                             <input
                                                 type="number"

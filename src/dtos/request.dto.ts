@@ -1,6 +1,8 @@
 export interface CreateRequestDTO {
     email: string;
     request_type: 'package' | 'custom-plan' | 'inquiry';
+    name?: string;
+    phone_number?: string | number;
     package_name?: string;
     nights?: number;
     estimated_price?: number;
