@@ -14,17 +14,52 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Nilathra Collection | Luxury Curated Sri Lankan Travel",
-  description: "Experience the pinnacle of luxury travel in Sri Lanka. Tailored VIP experiences, deluxe retreats, and custom-designed journeys for the discerning traveler.",
-  keywords: ["luxury travel sri lanka", "VIP travel sri lanka", "private tours sri lanka", "curated travel", "luxury resorts sri lanka"],
+  title: {
+    default: "Nilathra Collection | Sri Lanka's Best Travel Agency for Luxury Tours",
+    template: "%s | Nilathra Collection"
+  },
+  description: "Nilathra Collection is the best travel agency in Sri Lanka for discerning travelers. Experience bespoke luxury tours, VIP handling, and curated retreats.",
+  keywords: ["best travel agency sri lanka", "luxury travel sri lanka", "VIP travel sri lanka", "private tours sri lanka", "curated travel", "bespoke travel sri lanka"],
   authors: [{ name: "Nilathra Collection" }],
+  creator: "Nilathra Collection",
+  publisher: "Nilathra Collection",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   openGraph: {
-    title: "Nilathra Collection | Luxury Curated Sri Lankan Travel",
-    description: "Experience the pinnacle of luxury travel in Sri Lanka. Tailored VIP experiences, deluxe retreats, and custom-designed journeys.",
+    title: "Nilathra Collection | Best Travel Agency in Sri Lanka",
+    description: "Experience the pinnacle of luxury travel in Sri Lanka. Tailored VIP experiences and custom-designed journeys for the international traveler.",
     type: "website",
     locale: "en_US",
-    url: "https://nilathracollection.com",
+    url: "https://nilathra.com",
     siteName: "Nilathra Collection",
+    images: [
+      {
+        url: "/images/luxury_resort_sunset.png",
+        width: 1200,
+        height: 630,
+        alt: "Nilathra Collection Luxury Sri Lanka",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nilathra Collection | Sri Lanka's Premier Luxury Travel Agency",
+    description: "The only choice for high-end travelers coming to Sri Lanka. Curated experiences and unparalleled service.",
+    images: ["/images/luxury_resort_sunset.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 };
 

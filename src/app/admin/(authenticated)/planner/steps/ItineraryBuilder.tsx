@@ -1177,21 +1177,75 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
                                                                 {isSelected && (
                                                                     <div className="space-y-4 px-1 pb-2">
+                                                                        {/* Meal Plan Selector */}
+                                                                        <div className="space-y-1.5">
+                                                                            <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider ml-1">Select Meal Plan</label>
+                                                                            <div className="flex bg-neutral-100/80 p-1 rounded-xl gap-1">
+                                                                                {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => {
+                                                                                    const acc = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber);
+                                                                                    const isSelectedMp = (acc?.mealPlan || 'BB') === mp;
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={mp}
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                updateData({
+                                                                                                    accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? { ...a, mealPlan: mp } : a)
+                                                                                                });
+                                                                                            }}
+                                                                                            className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${isSelectedMp ? 'bg-white text-brand-green shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
+                                                                                        >
+                                                                                            {mp}
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+
                                                                         <div className="grid grid-cols-1 gap-2">
                                                                             {h.hotel_rooms?.map((room: any) => {
                                                                                 const currentStay = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber);
                                                                                 const isRoomSelected = currentStay?.roomId === room.id;
 
-                                                                                let roomRate = room.summer_bb_rate || room.winter_bb_rate;
-                                                                                let seasonLabel = "Standard";
+                                                                                const currentAcc = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber);
+                                                                                const currentMealPlan = currentAcc?.mealPlan || 'BB';
 
-                                                                                if (stayDate && room.summer_start_date && room.summer_end_date && stayDate >= room.summer_start_date && stayDate <= room.summer_end_date) {
-                                                                                    roomRate = room.summer_bb_rate;
-                                                                                    seasonLabel = "Summer";
-                                                                                } else if (stayDate && room.winter_start_date && room.winter_end_date && stayDate >= room.winter_start_date && stayDate <= room.winter_end_date) {
-                                                                                    roomRate = room.winter_bb_rate;
-                                                                                    seasonLabel = "Winter";
-                                                                                }
+                                                                                const calculateRoomPrice = (hotel: any, room: any, mealPlan: string) => {
+                                                                                    let baseRate = room.summer_bb_rate || room.winter_bb_rate;
+                                                                                    let seasonLabel = "Standard";
+
+                                                                                    if (stayDate && room.summer_start_date && room.summer_end_date && stayDate >= room.summer_start_date && stayDate <= room.summer_end_date) {
+                                                                                        if (mealPlan === 'HB') baseRate = room.summer_hb_rate || baseRate;
+                                                                                        else if (mealPlan === 'FB') baseRate = room.summer_fb_rate || baseRate;
+                                                                                        else baseRate = room.summer_bb_rate;
+                                                                                        seasonLabel = "Summer";
+                                                                                    } else if (stayDate && room.winter_start_date && room.winter_end_date && stayDate >= room.winter_start_date && stayDate <= room.winter_end_date) {
+                                                                                        if (mealPlan === 'HB') baseRate = room.winter_hb_rate || baseRate;
+                                                                                        else if (mealPlan === 'FB') baseRate = room.winter_fb_rate || baseRate;
+                                                                                        else baseRate = room.winter_bb_rate;
+                                                                                        seasonLabel = "Winter";
+                                                                                    }
+
+                                                                                    const { adults, children } = tripData.profile;
+                                                                                    const perGuestRate = baseRate / (room.max_guests || 1);
+                                                                                    const childHalfPricePercentage = hotel.child_half_price_percentage ?? 50;
+
+                                                                                    const adultTotal = adults * perGuestRate;
+                                                                                    const childTotal = children * perGuestRate * (childHalfPricePercentage / 100);
+
+                                                                                    return {
+                                                                                        total: adultTotal + childTotal,
+                                                                                        adultTotal,
+                                                                                        childTotal,
+                                                                                        perGuestRate,
+                                                                                        halfRate: perGuestRate * (childHalfPricePercentage / 100),
+                                                                                        seasonLabel
+                                                                                    };
+                                                                                };
+
+                                                                                const pricing = calculateRoomPrice(h, room, currentMealPlan);
+                                                                                const roomRate = pricing.total;
+                                                                                const seasonLabel = pricing.seasonLabel;
 
                                                                                 return (
                                                                                     <button
@@ -1203,18 +1257,34 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                                                     roomId: room.id,
                                                                                                     roomName: room.room_name,
                                                                                                     roomStandard: room.room_standard,
-                                                                                                    pricePerNight: roomRate
+                                                                                                    pricePerNight: pricing.total,
+                                                                                                    mealPlan: currentMealPlan
                                                                                                 } : a)
                                                                                             });
                                                                                         }}
                                                                                         className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${isRoomSelected ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-100 hover:border-neutral-200'}`}
                                                                                     >
                                                                                         <div className="flex-1">
-                                                                                            <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
-                                                                                            <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} • {seasonLabel}</span>
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
+                                                                                                <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests}</span>
+                                                                                            </div>
+                                                                                            <div className="flex flex-col mt-1 space-y-0.5">
+                                                                                                <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} • {seasonLabel}</span>
+                                                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] font-bold">
+                                                                                                    <span className="text-neutral-500">Adults: {tripData.profile.adults} x ${pricing.perGuestRate.toFixed(0)}</span>
+                                                                                                    {tripData.profile.children > 0 && (
+                                                                                                        <span className="text-brand-gold">Children: {tripData.profile.children} x ${pricing.halfRate.toFixed(0)}</span>
+                                                                                                    )}
+                                                                                                    {tripData.profile.infants > 0 && (
+                                                                                                        <span className="text-blue-500">Infants: {tripData.profile.infants} x $0</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
                                                                                         </div>
                                                                                         <div className="text-right">
-                                                                                            <p className="text-xs font-black text-brand-charcoal">${roomRate}</p>
+                                                                                            <p className="text-sm font-black text-brand-charcoal">${pricing.total.toFixed(0)}</p>
+                                                                                            <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Total Per Night</p>
                                                                                         </div>
                                                                                     </button>
                                                                                 );

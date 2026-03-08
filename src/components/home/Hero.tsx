@@ -32,8 +32,8 @@ export default function Hero() {
                     transition={{ duration: 1, delay: 0.4 }}
                     className="text-5xl md:text-8xl font-serif text-white mb-8 max-w-5xl leading-tight"
                 >
-                    Curated Journeys for the <br />
-                    <span className="text-gold-gradient italic">Discerning Traveler</span>
+                    Sri Lanka&apos;s Best Travel Agency for <br />
+                    <span className="text-gold-gradient italic">Curated Luxury Journeys</span>
                 </motion.h1>
 
                 <motion.p
