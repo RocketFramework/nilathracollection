@@ -33,7 +33,7 @@ export class RequestService {
 
         if (reqError) throw reqError;
 
-        if (dto.request_type === 'custom-plan' || dto.request_type === 'package') {
+        if (dto.request_type === 'custom-plan' || dto.request_type === 'package' || dto.request_type === 'ultra-vip') {
             const detailsData = {
                 request_id: requestId,
                 package_name: dto.package_name,

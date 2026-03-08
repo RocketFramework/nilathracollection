@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Mail, Calendar, Users, Send, CheckCircle2 } from "lucide-react";
 import { AuthService } from "@/services/auth.service";
 import { RequestService } from "@/services/request.service";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 
 interface PlanRequestFormModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface PlanRequestFormModalProps {
     travelers: number;
     totalPrice: number;
     ctaText?: string;
+    requestType?: 'package' | 'custom-plan' | 'ultra-vip';
 }
 
 export default function PlanRequestFormModal({
@@ -22,7 +24,8 @@ export default function PlanRequestFormModal({
     nights,
     travelers,
     totalPrice,
-    ctaText = "Get Personalized Quote"
+    ctaText = "Get Personalized Quote",
+    requestType = 'package'
 }: PlanRequestFormModalProps) {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -56,7 +59,7 @@ export default function PlanRequestFormModal({
                 name,
                 email,
                 phone_number: phone,
-                request_type: 'package',
+                request_type: requestType,
                 package_name: packageName,
                 nights: nights,
                 estimated_price: totalPrice,
@@ -134,7 +137,7 @@ export default function PlanRequestFormModal({
                                             required
                                             value={name}
                                             onChange={e => setName(e.target.value)}
-                                            className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
+                                            className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-brand-charcoal"
                                             placeholder="John Doe"
                                         />
                                     </div>
@@ -148,7 +151,7 @@ export default function PlanRequestFormModal({
                                             required
                                             value={email}
                                             onChange={e => setEmail(e.target.value)}
-                                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
+                                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-brand-charcoal"
                                             placeholder="your@email.com"
                                         />
                                     </div>
@@ -157,15 +160,12 @@ export default function PlanRequestFormModal({
 
                             <div>
                                 <label className="block text-sm font-bold text-neutral-700 mb-2">Phone Number <span className="text-neutral-400 font-normal">(Optional)</span></label>
-                                <div className="relative">
-                                    <input
-                                        type="tel"
-                                        value={phone}
-                                        onChange={e => setPhone(e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50"
-                                        placeholder="+1 234 567 890"
-                                    />
-                                </div>
+                                <PhoneInput
+                                    value={phone}
+                                    onPhoneChange={setPhone}
+                                    className="w-full px-4 rounded-xl border border-neutral-200 focus-within:ring-1 focus-within:ring-brand-green focus-within:border-brand-green bg-neutral-50/50"
+                                    placeholder="234 567 890"
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -177,7 +177,7 @@ export default function PlanRequestFormModal({
                                             type="date"
                                             value={startDate}
                                             onChange={e => setStartDate(e.target.value)}
-                                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-sm"
+                                            className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-sm text-brand-charcoal"
                                         />
                                     </div>
                                 </div>
@@ -200,7 +200,7 @@ export default function PlanRequestFormModal({
                                 <textarea
                                     value={specialRequirements}
                                     onChange={e => setSpecialRequirements(e.target.value)}
-                                    className="w-full p-4 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-sm min-h-[100px]"
+                                    className="w-full p-4 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-sm min-h-[100px] text-brand-charcoal"
                                     placeholder="Any dietary preferences, accessibility needs, or specific interests?"
                                 />
                             </div>

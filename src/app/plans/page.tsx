@@ -8,8 +8,8 @@ import { motion } from "framer-motion";
 const plans = [
     {
         id: "vip",
-        title: "Super Luxury VIP",
-        description: "Reserved for the world's most discerning travelers. Everything included, nothing overlooked. From private helicopters to personal chefs.",
+        title: "Ultra VIP",
+        description: "The ultimate expression of luxury travel. Reserved for the world's most discerning travelers. Everything included, nothing overlooked.",
         icon: Crown,
         href: "/plans/super-luxury-vip",
         badge: "Ultra-Luxury",

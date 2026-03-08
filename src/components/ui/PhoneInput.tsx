@@ -104,7 +104,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
                     type="tel"
                     value={phoneNumber}
                     onChange={handleNumberChange}
-                    className="flex-1 bg-transparent py-3 px-3 outline-none focus:bg-transparent"
+                    className="flex-1 bg-transparent py-3 px-3 outline-none focus:bg-transparent text-brand-charcoal"
                 />
             </div>
         );

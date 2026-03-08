@@ -124,9 +124,9 @@ export default function SuperLuxuryVIPPlan() {
                             <Crown size={32} className="text-amber-200" />
                             <span className="text-amber-200 text-sm uppercase tracking-widest">Ultra-Luxury All-Inclusive</span>
                         </div>
-                        <h2 className="text-4xl font-serif mb-2">Super Luxury VIP</h2>
+                        <h2 className="text-4xl font-serif mb-2">Ultra VIP</h2>
                         <p className="text-amber-100 max-w-xl">
-                            Reserved for the world's most discerning travelers. Everything included, nothing overlooked.
+                            The ultimate expression of luxury travel. Reserved for the world's most discerning travelers. Everything included, nothing overlooked.
                         </p>
                     </div>
                     <div className="text-right bg-white/10 p-6 rounded-2xl backdrop-blur-sm">
@@ -297,11 +297,12 @@ export default function SuperLuxuryVIPPlan() {
                                 <PlanRequestFormModal
                                     isOpen={isModalOpen}
                                     onClose={() => setIsModalOpen(false)}
-                                    packageName="Super Luxury VIP"
+                                    packageName="Ultra VIP"
                                     nights={nights}
                                     travelers={travelers}
                                     totalPrice={total}
                                     ctaText="Get Personalized Quote"
+                                    requestType="ultra-vip"
                                 />
                             </div>
                         </div>
