@@ -27,12 +27,12 @@ export function ActivitiesStep({ tripData, updateActivities }: { tripData: TripD
     useEffect(() => {
         async function load() {
             try {
-                const [data, vendorData] = await Promise.all([
+                const [data, vendorResult] = await Promise.all([
                     fetchActivities(),
                     MasterDataService.getVendors()
                 ]);
                 setAllActivities(data);
-                setAllVendors(vendorData);
+                setAllVendors(vendorResult.data);
             } catch (error) {
                 console.error("Failed to load activities and vendors", error);
             } finally {

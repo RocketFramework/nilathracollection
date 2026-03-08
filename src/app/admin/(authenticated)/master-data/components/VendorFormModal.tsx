@@ -41,8 +41,8 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave }: Ven
 
     const loadMasterData = async () => {
         try {
-            const acts = await MasterDataService.getActivities();
-            setAllActivities(acts);
+            const { data } = await MasterDataService.getActivities();
+            setAllActivities(data);
         } catch (error) {
             console.error("Failed to load activities", error);
         }
