@@ -15,38 +15,38 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "Nilathra Collection | Sri Lanka's Best Travel Agency for Luxury Tours",
-    template: "%s | Nilathra Collection"
+    default: "Nilathra Travels | Sri Lanka's Best Travel Agency for Luxury Tours",
+    template: "%s | Nilathra Travels"
   },
-  description: "Nilathra Collection is the best travel agency in Sri Lanka for discerning travelers. Experience bespoke luxury tours, VIP handling, and curated retreats.",
+  description: "Nilathra Travels is the best travel agency in Sri Lanka for discerning travelers. Experience bespoke luxury tours, VIP handling, and curated retreats.",
   keywords: ["best travel agency sri lanka", "luxury travel sri lanka", "VIP travel sri lanka", "private tours sri lanka", "curated travel", "bespoke travel sri lanka"],
-  authors: [{ name: "Nilathra Collection" }],
-  creator: "Nilathra Collection",
-  publisher: "Nilathra Collection",
+  authors: [{ name: "Nilathra Travels" }],
+  creator: "Nilathra Travels",
+  publisher: "Nilathra Travels",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
   openGraph: {
-    title: "Nilathra Collection | Best Travel Agency in Sri Lanka",
+    title: "Nilathra Travels | Best Travel Agency in Sri Lanka",
     description: "Experience the pinnacle of luxury travel in Sri Lanka. Tailored VIP experiences and custom-designed journeys for the international traveler.",
     type: "website",
     locale: "en_US",
     url: "https://nilathra.com",
-    siteName: "Nilathra Collection",
+    siteName: "Nilathra Travels",
     images: [
       {
         url: "/images/luxury_resort_sunset.png",
         width: 1200,
         height: 630,
-        alt: "Nilathra Collection Luxury Sri Lanka",
+        alt: "Nilathra Travels Luxury Sri Lanka",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nilathra Collection | Sri Lanka's Premier Luxury Travel Agency",
+    title: "Nilathra Travels | Sri Lanka's Premier Luxury Travel Agency",
     description: "The only choice for high-end travelers coming to Sri Lanka. Curated experiences and unparalleled service.",
     images: ["/images/luxury_resort_sunset.png"],
   },

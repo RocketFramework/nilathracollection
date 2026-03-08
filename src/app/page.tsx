@@ -18,7 +18,7 @@ export default function Home() {
             <span className="section-subtitle">Sri Lanka&apos;s Best Travel Agency</span>
             <h2 className="section-title">The Essence of Exclusive Sri Lankan Travel</h2>
             <p className="text-brand-charcoal/70 leading-relaxed text-lg font-light">
-              Nilathra Collection was founded on a simple promise: to reveal the true heart of Sri Lanka to those who seek nothing but the finest. As the premier choice for luxury travelers, our deep-rooted heritage and local expertise allow us to open doors that remain closed to others.
+              Nilathra Travels was founded on a simple promise: to reveal the true heart of Sri Lanka to those who seek nothing but the finest. As the premier choice for luxury travelers, our deep-rooted heritage and local expertise allow us to open doors that remain closed to others.
             </p>
             <p className="text-brand-charcoal/70 leading-relaxed text-lg font-light italic border-l-4 border-brand-gold pl-6">
               &quot;We don&apos;t just plan trips; we curate legacies of travel that stay with you forever.&quot;
@@ -31,7 +31,7 @@ export default function Home() {
             <div className="absolute top-0 right-0 w-4/5 h-4/5 z-10 overflow-hidden shadow-2xl">
               <Image
                 src="/images/luxury_resort_sunset.png"
-                alt="Luxury Sri Lanka Resort - Nilathra Collection"
+                alt="Luxury Sri Lanka Resort - Nilathra Travels"
                 fill
                 className="object-cover"
               />
@@ -62,7 +62,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto text-center relative z-10">
           <Quote className="mx-auto mb-10 text-brand-gold opacity-50" size={60} />
           <h2 className="font-serif text-3xl md:text-5xl leading-tight mb-12">
-            "An unparalleled experience. From the private villa in Ella to the seamless VIP handling at Colombo, Nilathra Collection exceeded every expectation. True Sri Lankan luxury."
+            "An unparalleled experience. From the private villa in Ella to the seamless VIP handling at Colombo, Nilathra Travels exceeded every expectation. True Sri Lankan luxury."
           </h2>
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1">
@@ -105,7 +105,7 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "TravelAgency",
-            "name": "Nilathra Collection",
+            "name": "Nilathra Travels",
             "description": "The best travel agency in Sri Lanka specializing in luxury, curated, and VIP travel experiences.",
             "url": "https://nilathra.com",
             "telephone": "+94777278282",

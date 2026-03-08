@@ -42,7 +42,7 @@ export default function Hero() {
                     transition={{ duration: 1, delay: 0.8 }}
                     className="text-white/80 text-lg md:text-xl max-w-2xl mb-12 font-light tracking-wide"
                 >
-                    Experience the pinnacle of hospitality in the heart of the Indian Ocean. From private villas to VIP handling, Nilathra Collection defines Sri Lankan luxury.
+                    Experience the pinnacle of hospitality in the heart of the Indian Ocean. From private villas to VIP handling, Nilathra Travels defines Sri Lankan luxury.
                 </motion.p>
 
                 <motion.div

@@ -44,7 +44,7 @@ export default function Navbar() {
                         <div className="relative w-full h-full">
                             <Image
                                 src="/images/nilathra_travels_logo.jpeg"
-                                alt="Nilathra Collection Logo"
+                                alt="Nilathra Travels Logo"
                                 fill
                                 className="object-contain"
                             />
