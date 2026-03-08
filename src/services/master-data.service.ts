@@ -225,7 +225,7 @@ export class MasterDataService {
             if (!vendors) return { data: [], count: 0 };
 
             // 2. Fetch Vendor Activities along with Activity names
-            const vendorIds = vendors.map(v => v.id);
+            const vendorIds = vendors.map((v: any) => v.id);
             const { data: vendorActivities, error: vaError } = await supabaseClient
                 .from('vendor_activities')
                 .select(`
@@ -423,7 +423,7 @@ export class MasterDataService {
             if (!providers) return { data: [], count: 0 };
 
             // 2. Fetch associated vehicles
-            const providerIds = providers.map(p => p.id);
+            const providerIds = providers.map((p: any) => p.id);
             const { data: vehicles, error: vError } = await supabaseClient
                 .from('transport_vehicles')
                 .select('*')
