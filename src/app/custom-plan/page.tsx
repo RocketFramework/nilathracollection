@@ -41,6 +41,7 @@ export default function CustomPlanPage() {
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [travelers, setTravelers] = useState("2");
+    const [note, setNote] = useState("");
 
     const [routeResult, setRouteResult] = useState<RoutePlan | null>(null);
 
@@ -172,6 +173,7 @@ export default function CustomPlanPage() {
                 request_type: 'custom-plan',
                 destinations,
                 adults: parseInt(travelers) || 2,
+                note: note || undefined,
             }, (authResult as any)?.user?.id);
 
             alert("Plan Approved! Our specialists will contact you shortly to finalize details.");
@@ -437,6 +439,12 @@ export default function CustomPlanPage() {
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
                                                 value={travelers}
                                                 onChange={e => setTravelers(e.target.value)}
+                                            />
+                                            <textarea
+                                                placeholder="Any special requirements or notes? (Optional)"
+                                                className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold min-h-[100px] resize-y"
+                                                value={note}
+                                                onChange={e => setNote(e.target.value)}
                                             />
                                         </div>
                                     </div>

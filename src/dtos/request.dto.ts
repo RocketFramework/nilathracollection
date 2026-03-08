@@ -13,6 +13,7 @@ export interface CreateRequestDTO {
     children?: number;
     budget_tier?: string;
     special_requirements?: string;
+    note?: string;
 }
 
 export interface UpdateRequestDTO {

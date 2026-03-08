@@ -63,6 +63,7 @@ export default function PlanRequestFormModal({
                 adults: travelers,
                 start_date: startDate || undefined,
                 special_requirements: specialRequirements || undefined,
+                note: specialRequirements || undefined,
             }, (authResult as any)?.user?.id);
 
             setIsSuccess(true);

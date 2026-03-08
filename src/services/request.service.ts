@@ -16,6 +16,7 @@ export class RequestService {
             email: dto.email, // Save the email explicitly
             name: dto.name,
             phone_number: dto.phone_number ? Number(dto.phone_number) : null,
+            note: dto.note,
             request_type: dto.request_type,
         };
 

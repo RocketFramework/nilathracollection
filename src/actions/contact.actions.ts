@@ -32,7 +32,7 @@ export async function submitInquiryAction(formData: {
             name,
             phone_number: phone,
             request_type: 'inquiry',
-            special_requirements: `Inquiry Type: ${inquiryType}\n\nMessage: ${message}`,
+            note: `Inquiry Type: ${inquiryType}\n\nMessage: ${message}`,
         };
 
         // Note: RequestService.createRequest might need adjustment for 'inquiry' if it expects details table.
