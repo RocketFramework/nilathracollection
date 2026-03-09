@@ -9,8 +9,8 @@ const plans = [
     {
         id: "ultra-vip",
         title: "Ultra VIP",
-        priceRange: "$5,000 - $10,000",
-        description: "Reserved for the world's most discerning travelers. Helicopter transit, elite armed security, and absolute seclusion.",
+        priceRange: "$15,000",
+        description: "The absolute pinnacle of luxury. Private jet-side clearance, 24/7 close protection, and dedicated aviation assets.",
         icon: Crown,
         href: "/plans/ultra-vip",
         badge: "The Pinnacle",
@@ -23,7 +23,7 @@ const plans = [
     {
         id: "luxury",
         title: "Luxury",
-        priceRange: "$500 - $1,000",
+        priceRange: "$500",
         description: "5-star signature resorts, premium SUV transport, and dedicated personalized itinerary management.",
         icon: Gem,
         href: "/plans/luxury",
@@ -37,8 +37,8 @@ const plans = [
     {
         id: "premium",
         title: "Premium",
-        priceRange: "$150 - $400",
-        description: "Boutique collection properties, luxury sedan transport, and curated culinary adventures.",
+        priceRange: "$150",
+        description: "Reputable 3-4 star hotels, reliable sedan or van transport, and essential curated local experiences.",
         icon: Sparkles,
         href: "/plans/premium",
         badge: "Refined Style",
@@ -51,8 +51,8 @@ const plans = [
     {
         id: "regular",
         title: "Regular",
-        priceRange: "$50 - $100",
-        description: "Exceptional 3-star comfort and authentic experiences with 24/7 remote specialist support.",
+        priceRange: "$50",
+        description: "Authentic 3-star guesthouses, homestays, and flexible budget transport for the savvy explorer.",
         icon: Check,
         href: "/plans/regular",
         badge: "Authentic Value",
@@ -157,8 +157,9 @@ export default function PlansPage() {
                                                 <div className="mt-4 pt-4 border-t border-neutral-100 w-full px-2">
                                                     <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">From</p>
                                                     <p className={`text-lg font-black font-mono tracking-tight text-neutral-900`}>
-                                                        {plan.priceRange.split(' ')[0]}
+                                                        {plan.priceRange}
                                                     </p>
+                                                    {!isMixed && <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter mt-1">Per Day</p>}
                                                 </div>
                                             </motion.div>
                                             {/* Ribbon fold shadow effect */}
@@ -234,6 +235,12 @@ export default function PlansPage() {
                                         className="inline-flex items-center gap-3 px-8 py-4 bg-brand-gold text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-brand-gold/90 transition-all hover:scale-[1.05]"
                                     >
                                         Obtain Sri Lanka Visa <ArrowRight size={16} />
+                                    </Link>
+                                    <Link
+                                        href="/reference"
+                                        className="inline-flex items-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-white/20 transition-all"
+                                    >
+                                        Travel Reference Library <ArrowRight size={16} />
                                     </Link>
                                 </div>
                             </div>

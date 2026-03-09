@@ -28,18 +28,18 @@ export default function RegularPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 100; // Flagship Regular rate
+    const nightRatePerPerson = 50; // Flagship Regular rate
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 45 * nights * travelers, // Clean & Authentic Local Stays
-            transport: 25 * nights * travelers, // Reliable AC Sedan & Driver
-            meals: 15 * nights * travelers, // Local Breakfast & Dining Tips
-            support: 5 * nights * travelers, // 24/7 Virtual Concierge
-            experiences: 10 * nights * travelers, // Essential Landmark Access
+            accommodation: 25 * nights * travelers, // Clean & Authentic Local Stays
+            transport: 12 * nights * travelers, // Booked Budget Taxis & Local Transit
+            meals: 8 * nights * travelers, // Daily Breakfast Only (BB) & Dining Tips
+            support: 2 * nights * travelers, // 24/7 Virtual Concierge
+            experiences: 3 * nights * travelers, // Essential Landmark Access
         }
     };
 
@@ -51,28 +51,28 @@ export default function RegularPlan() {
             details: "Arrival Meeting & Assistance"
         },
         {
-            title: "Reliable Transit",
-            description: "Comfortable, air-conditioned compact Sedan or SUV with a professional, safety-vetted local driver.",
-            icon: Car,
-            details: "AC Sedan / Modern Compact"
+            title: "Flexible Transit",
+            description: "Efficient budget travel via booked local taxis or escorted public transport (scenic trains/buses) for an authentic local pulse.",
+            icon: Compass,
+            details: "Booked Taxi / Public Transport"
         },
         {
-            title: "Authentic Comfort",
-            description: "Stays in highly-rated 3-star boutique guesthouses and clean local hotels known for their hospitality and safety.",
-            icon: Hotel,
-            details: "Hand-picked 3-Star Collection"
+            title: "Home Stays & Comfort",
+            description: "Carefully vetted 3-star guest houses, budget hotels, or authentic family-run homestays for a true local experience.",
+            icon: Heart,
+            details: "3-Star / Homestay Collection"
         },
         {
-            title: "Local Flavors",
-            description: "Daily breakfast included at your stays. We provide curated lists of the best safe and authentic local dining spots.",
+            title: "Daily Breakfast (BB)",
+            description: "Daily breakfast included (BB) at your stays. We provide curated lists of the best safe and authentic local dining spots for other meals.",
             icon: Coffee,
-            details: "Daily Authentic Breakfast"
+            details: "Daily Authentic Breakfast (BB)"
         },
         {
-            title: "Guided Walks",
-            description: "Explore major landmarks and hidden alleys. Entrance fees to essential cultural sites are fully integrated into your plan.",
+            title: "Guided Discovery",
+            description: "Explore landmarks and heritage sites with a local specialist. Assistance with public transport navigation and street-food safety.",
             icon: MapPin,
-            details: "Essential Site Entrances"
+            details: "Essential Site Access & Guidance"
         },
         {
             title: "Friendly Departure",
@@ -87,22 +87,22 @@ export default function RegularPlan() {
             category: "Authentic Stays",
             icon: Hotel,
             items: [
-                "Highly-rated 3-Star Local Hotels",
-                "Charming Boutique Guesthouses",
-                "Comfortable AC Double/Twin Rooms",
-                "Daily Local & Continental Breakfast",
-                "Verified Safety & Cleanliness Standards"
+                "Hand-picked 3-Star Budget Hotels",
+                "Warm Family-run Homestay Experiences",
+                "Clean & Vetted Boutique Guesthouses",
+                "Daily Local Sri Lankan Breakfast (BB)",
+                "Verified Convenience & Safety Standards"
             ]
         },
         {
-            category: "Essential Logistics",
-            icon: Car,
+            category: "Flexible Logistics",
+            icon: Compass,
             items: [
-                "Private Air-Conditioned Compact Vehicle",
-                "Professional Vetted Local Driver",
-                "Airport Greeting & Route Guidance",
-                "All Land Transportation Fuel & Tolls",
-                "Dedicated Arrival Logistics Support"
+                "Booked Budget Taxis for Key Segments",
+                "Escorted Public Transport (Train/Bus)",
+                "Local Transport Navigation Assistance",
+                "Pre-planned Route Connections",
+                "Route Planning for Independent Travel"
             ]
         },
         {
@@ -261,7 +261,7 @@ export default function RegularPlan() {
                                         </div>
 
                                         <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
-                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 min-h-[7rem] group-hover:text-neutral-700 transition-colors">
                                             {step.description}
                                         </p>
 
@@ -305,10 +305,10 @@ export default function RegularPlan() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                                 {[
-                                    { title: "Comfortable Stays", desc: "Access to our vetted collection of high-quality 3-star local hotels and guest houses." },
-                                    { title: "Reliable Drivers", desc: "Private transport with experienced local drivers who prioritize your safety and comfort." },
-                                    { title: "Landmark Entry", desc: "Fully included entrance fees to the island's most essential cultural and historic sites." },
-                                    { title: "Safety Focused", desc: "Continuous remote support and local expertise to handle any needs during your trip." }
+                                    { title: "Local Home Stays", desc: "Immersion in the island's culture through vetted 3-star hotels and family-run guest houses." },
+                                    { title: "Flexible Transit", desc: "Cost-effective booked taxis or authentic public transit segments with expert guidance." },
+                                    { title: "Essential Sites", desc: "Integrated access to the most iconic cultural and historical landmarks of Sri Lanka." },
+                                    { title: "Sustained Support", desc: "Continuous remote connection and on-ground safety monitoring for independent spirits." }
                                 ].map((item, i) => (
                                     <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
                                         <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
@@ -343,8 +343,8 @@ export default function RegularPlan() {
                                     >
                                         <div className="grid gap-4">
                                             {[
-                                                { label: "Comfortable Local Stays", value: pricing.breakdown.accommodation },
-                                                { label: "AC Transport & Driver", value: pricing.breakdown.transport },
+                                                { label: "3-Star & Home Stay Stays", value: pricing.breakdown.accommodation },
+                                                { label: "Booked Taxi / Public Transit", value: pricing.breakdown.transport },
                                                 { label: "Authentic Local Breakfast", value: pricing.breakdown.meals },
                                                 { label: "Essential Site Entrances", value: pricing.breakdown.experiences },
                                                 { label: "24/7 Virtual Support", value: pricing.breakdown.support },

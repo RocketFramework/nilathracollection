@@ -30,103 +30,105 @@ export default function UltraVIPPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 7500; // mid range of 5000-10000
+    const nightRatePerPerson = 15000; // Ultimate UHNW flagship rate
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 3500 * nights * travelers, // Buyout Properties & 24/7 Butler
-            transport: 1500 * nights * travelers, // Helicopter Fleet & Elite Security
-            meals: 800 * nights * travelers, // Bespoke Culinary & Farm-to-Table
-            wellness: 700 * nights * travelers, // Daily Ayurveda, Yoga & Medical Care
-            experiences: 600 * nights * travelers, // Bespoke Gems, Spiritual & Private Access
-            logistics: 400 * nights * travelers // VIP Port Handling & NDA Compliance
+            accommodation: 7000 * nights * travelers, // Private Estate Buyout & Full Staff
+            transport: 3500 * nights * travelers, // Private Jet/Heli Fleet & 24/7 Security Detail
+            meals: 1500 * nights * travelers, // Bespoke Culinary, Dedicated 6-Member Chef Team (24/7)
+            wellness: 1200 * nights * travelers, // Dedicated Medical, Spa & Spiritual Team
+            experiences: 1000 * nights * travelers, // Masterclasses, Private Access & Custom Jewelry
+            logistics: 800 * nights * travelers // Jet-side Clearance & Absolute NDA Protocols
         }
     };
 
     const itinerary = [
         {
-            title: "VIP Arrival: The Gold Route",
-            description: "Direct tarmac exit to the exclusive Silk Route VIP Lounge. Fast-track customs and immigration handling while you relax.",
+            title: "Jet-Side Arrival: Elite",
+            description: "Direct jet-side greeting with private concierge and traditional welcome ceremony. Skip the terminal entirely as your security team escorts you.",
             icon: Sparkles,
-            details: "Airport Fast-track + Lounge Access"
+            details: "Jet-Side Tarmac Clearance & Host"
         },
         {
-            title: "Elite Escorted Transfer",
-            description: "Security-escorted Limousine transfer directly to the internal flight terminal or your private property.",
+            title: "Armored Command Transit",
+            description: "24/7 Close Protection Detail (CPD) with armored SUV escort for all ground movements between flight segments.",
             icon: ShieldCheck,
-            details: "Optional Armed Security Escort"
+            details: "Permanent Armed/Unarmed Security Detail"
         },
         {
-            title: "Aerial Transit",
-            description: "Private Helicopter ride directly to your destination's helipad. Skip all traffic and enjoy stunning aerial views.",
+            title: "Total Aerial Domain",
+            description: "A dedicated helicopter and crew remain on standby for the duration of your trip, ensuring travel at the speed of thought.",
             icon: Plane,
-            details: "Helicopter Transfer"
+            details: "Dedicated Standby Helicopter Fleet"
         },
         {
-            title: "Private Paradise",
-            description: "Check-in at your private buyout boutique hotel or villa. Fully staffed with 24/7 Butler and on-call Medical Professional.",
+            title: "Sovereign Sanctuary",
+            description: "Total buyout of a private island or estate. 1:1 staff-to-guest ratio including private physician, chef, and master butler.",
             icon: Crown,
-            details: "Full Property Buyout + 24/7 Butler"
+            details: "Private Estate Buyout"
         },
         {
-            title: "Bespoke Lifestyle",
-            description: "Craft your own jewelry with master goldsmiths, enjoy daily Ayurvedic massages, and organic farm-to-table dining.",
+            title: "Exclusive Masterclasses",
+            description: "Private sessions with world-renowned gemologists, spiritual masters, and culinary legends in absolute seclusion.",
             icon: Heart,
-            details: "Wellness, Gems & Custom Dining"
+            details: "Bespoke Expert Access & Curation"
         },
         {
-            title: "Seamless Departure",
-            description: "Direct helicopter transfer back to the airport tarmac. Exit via the VIP lounge for a stress-free departure.",
+            title: "Zero-Trace Departure",
+            description: "Direct-to-aircraft tarmac departure. Every protocol designed to ensure your transition is unseen and unmatched.",
             icon: Clock,
-            details: "VIP Lounge Exit + Heli-Transfer"
+            details: "Tactical Tarmac-to-Tarmac Exit"
         }
     ];
 
     const inclusions = [
         {
-            category: "Accommodation & Staff",
+            category: "Estates & Sovereign Staff",
             icon: Crown,
             items: [
-                "Full Property Buyout / Private Estates",
-                "24/7 Dedicated Butler & Lifestyle Manager",
-                "On-call Medical Professional (Doctor/Nurse)",
-                "Brand New Premium Linen & Facilities",
-                "Direct Farm-to-Table Fresh Dining"
+                "Exclusive Private Estate Buyouts",
+                "Dedicated English Speaking National Guide & Expert Driver",
+                "1:1 Staff-to-Guest Ratio (Butler/Chef/Concierge/Valet)",
+                "Full-time Dedicated Physician & Trauma Support",
+                "Absolute Privacy: Site-wide Signal Management",
+                "Personalized Gourmet Kitchen (6-Member Elite Chef Team)",
+                "Brand New Bespoke Linen (Destroyed/Gifted After Stay)",
             ]
         },
         {
-            category: "Marine & Aerial",
+            category: "Sovereign Logistics",
             icon: Plane,
             items: [
-                "Helicopter Transfers between all locations",
-                "Private Helicopter ride to any destination",
-                "Luxury Yacht Charter (Private Crewed Experience)",
-                "Security Escorted Limousine Service"
+                "Private Jet-Side Arrival & Tarmac Clearance",
+                "Dedicated Standby Helicopter for Trip Duration",
+                "Permanent 24/7 Close Protection Detail (CPD)",
+                "Armored SUV Fleet (B6/B7 Level Availability)"
             ]
         },
         {
-            category: "Bespoke & Cultural",
+            category: "Impossible Access",
             icon: Gem,
             items: [
-                "Custom Gem & Jewelry Crafting (Master Goldsmiths)",
-                "Personalized Palm & Horoscope Reading",
-                "Buddhist Spiritual & Religious Discussions",
-                "Optional Armed Security Service Escort",
-                "Bespoke After-hours Monument Access"
+                "Private Jewelry Masterclass (Rare Stones)",
+                "Elder Spiritual & Philosophical Counsel",
+                "After-hours Private Opening of National Sites",
+                "Global Identity Protection Protocols"
             ]
         },
         {
-            category: "Holistic Wellness",
+            category: "Regenerative Wellness",
             icon: Heart,
             items: [
-                "Daily In-Suite Ayurvedic Massage",
-                "Daily Guided Meditation & Yoga Sessions",
-                "Traditional Healing & Spiritual Consultations",
-                "Personal Nutritionist & Private Chef",
-                "Total Privacy & NDA Compliance"
+                "Bespoke Anti-Aging & Regenerative Therapies",
+                "Private Ayurvedic Master & Team (Dedicated)",
+                "Advanced Wellness & Medical Diagnostic Suite",
+                "Michelin-Standard Personalized Nutritionist (24/7)",
+                "Anything & Everything On Request (Dedicated Service)",
+                "Zero-Trace Anonymity & Full NDA Ecosystem"
             ]
         }
     ];
@@ -139,7 +141,10 @@ export default function UltraVIPPlan() {
         >
             {/* World-Class Header */}
             <div className="relative h-[700px] overflow-hidden">
-                <div className="absolute inset-0 bg-[url('/images/plans/ultra_vip_sri_lanka.png')] bg-cover bg-center" />
+                <div
+                    className="absolute inset-0 bg-[url('/images/plans/ultra_vip_sri_lanka_v5.png')] bg-cover"
+                    style={{ backgroundPosition: 'center -140px' }}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />
 
                 <div className="relative z-10 h-full flex flex-col items-center justify-center text-center p-10">
@@ -263,7 +268,7 @@ export default function UltraVIPPlan() {
                                         </div>
 
                                         <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
-                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 min-h-[7rem] group-hover:text-neutral-700 transition-colors">
                                             {step.description}
                                         </p>
 
@@ -307,10 +312,10 @@ export default function UltraVIPPlan() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                                 {[
-                                    { title: "Full NDA Compliance", desc: "All staff and partners operate under strict legally binding non-disclosure agreements." },
-                                    { title: "Anonymous Transfers", desc: "No-name tarmac handling and private helipads to ensure zero public exposure." },
-                                    { title: "Secure Communications", desc: "Encrypted concierge channels for all planning and on-ground adjustments." },
-                                    { title: "Zero-Trace Billing", desc: "Discreet financial handling and comprehensive identity protection." }
+                                    { title: "Sovereign NDA Protocols", desc: "All staff and partners operate under multi-jurisdictional, elite-tier non-disclosure agreements." },
+                                    { title: "Invisible Transitions", desc: "Jet-side tarmac handling and private helipads to ensure zero public or digital exposure." },
+                                    { title: "Hardened Communications", desc: "Military-grade encrypted concierge channels for all planning and on-ground adjustments." },
+                                    { title: "Ghost-Protocol Billing", desc: "Total financial invisibility and comprehensive global identity protection." }
                                 ].map((item, i) => (
                                     <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
                                         <div className="mt-1 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />

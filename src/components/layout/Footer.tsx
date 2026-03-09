@@ -110,7 +110,7 @@ export default function Footer() {
                     <h4 className="font-serif text-xl border-b border-brand-gold inline-block mb-6">Quick Links</h4>
                     <ul className="space-y-3">
                         <li><Link href="/destinations" className="text-white/70 hover:text-white transition-colors">Our Destinations</Link></li>
-                        <li><Link href="/packages" className="text-white/70 hover:text-white transition-colors">Travel Packages</Link></li>
+                        <li><Link href="/plans" className="text-white/70 hover:text-white transition-colors">Travel Packages</Link></li>
                         <li><Link href="/custom-plan" className="text-white/70 hover:text-white transition-colors">Tailored Journey</Link></li>
                         <li><Link href="/about" className="text-white/70 hover:text-white transition-colors">The Collection</Link></li>
                         <li><Link href="/reference" className="text-white/70 hover:text-white transition-colors">Travel Reference</Link></li>

@@ -16,59 +16,112 @@ export default function PlanComparison() {
   const features = [
     {
       name: "Property Type",
-      regular: "3-Star / Guest Houses",
-      premium: "4-Star / Boutique",
+      regular: "3-Star / Homestays",
+      premium: "3-4 Star / Comfort",
       luxury: "Signature 5-Star",
-      ultraVip: "Private Estates / Buyouts",
+      ultraVip: "Private Estates",
       mixed: "Flexible Blend"
     },
     {
-      name: "Room Category",
-      regular: "Standard AC",
-      premium: "Deluxe / Heritage",
-      luxury: "Suites / Ocean View",
-      ultraVip: "Presidential / Royal",
-      mixed: "Tailored Selection"
+      name: "Linen & Bedding",
+      regular: "As per Hotel",
+      premium: "As per Hotel",
+      luxury: "As per Hotel",
+      ultraVip: "Brand New / Bespoke",
+      mixed: "Flexible"
     },
     {
-      name: "Guide Service",
-      regular: "Remote Support",
-      premium: "Chauffeur Guide",
-      luxury: "National Guide",
-      ultraVip: "Elite Team 24/7",
-      mixed: "Tier Dependent"
+      name: "Property Privacy",
+      regular: "Shared Hotel",
+      premium: "Shared Hotel",
+      luxury: "Luxury Hotel",
+      ultraVip: "Entire Estate Buyout",
+      mixed: "Flexible"
     },
     {
-      name: "Transport",
-      regular: "Compact Sedan",
-      premium: "Luxury Sedan",
-      luxury: "Premium SUV",
-      ultraVip: "Private Jet / Heli",
-      mixed: "Hybrid Logistics"
-    },
-    {
-      name: "Butler Service",
-      regular: <X size={14} className="text-red-400 mx-auto" />,
-      premium: "On Request",
-      luxury: "Dedicated",
-      ultraVip: <Check size={14} className="text-green-500 mx-auto" />,
+      name: "Security",
+      regular: "None",
+      premium: "None",
+      luxury: "Discreet Support",
+      ultraVip: "Executive Protection Team",
       mixed: "Optional"
     },
     {
-      name: "Airport Handling",
-      regular: "Standard",
-      premium: "Fast-Track",
-      luxury: "VIP Fast-Track",
-      ultraVip: "Private Personal",
-      mixed: "Customizable"
+      name: "Concierge",
+      regular: "Email Support",
+      premium: "Travel Concierge",
+      luxury: "Dedicated Concierge",
+      ultraVip: "24/7 Global Concierge",
+      mixed: "Flexible"
+    },
+    {
+      name: "Cultural Access",
+      regular: "Public Visits",
+      premium: "Guided Visits",
+      luxury: "Premium Access",
+      ultraVip: "Private Heritage Access",
+      mixed: "Custom"
+    },
+    {
+      name: "Dining",
+      regular: "Hotel Dining (BB)",
+      premium: "Hotel + Local (HB)",
+      luxury: "Fine Dining (HB)",
+      ultraVip: "Private Chef Experiences",
+      mixed: "Custom"
+    },
+    {
+      name: "Arrival Experience",
+      regular: "Airport Arrival",
+      premium: "Assisted Arrival",
+      luxury: "VIP Lounge",
+      ultraVip: "Private Terminal + Tarmac",
+      mixed: "Flexible"
+    },
+    {
+      name: "Experiences",
+      regular: "Standard Tours",
+      premium: "Curated Tours",
+      luxury: "Signature Experiences",
+      ultraVip: "Impossible Experiences",
+      mixed: "Custom"
+    },
+    {
+      name: "Wellness",
+      regular: "Spa Access",
+      premium: "Spa Packages",
+      luxury: "Luxury Spa",
+      ultraVip: "Private Doctor / Master",
+      mixed: "Optional"
+    },
+    {
+      name: "Personal Staff",
+      regular: "None",
+      premium: "Driver",
+      luxury: "Driver, Guide & Butler",
+      ultraVip: (
+        <>
+          Driver + Guide + Butler + Valet<br />
+          + Concierge + 6-Chef Team
+        </>
+      ),
+      mixed: "Flexible"
+    },
+    {
+      name: "Travel Flexibility",
+      regular: "Fixed",
+      premium: "Limited Changes",
+      luxury: "Flexible",
+      ultraVip: "On-Demand Aircraft",
+      mixed: "Flexible"
     },
     {
       name: "Price / Day / Pax",
-      regular: "$50 - $100",
-      premium: "$150 - $400",
-      luxury: "$500 - $1,000",
-      ultraVip: "$5,000 - $10,000",
-      mixed: "Variable"
+      regular: "$50",
+      premium: "$150",
+      luxury: "$500",
+      ultraVip: "$15,000",
+      mixed: "Flexible"
     }
   ];
 

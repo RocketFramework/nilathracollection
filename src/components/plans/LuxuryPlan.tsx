@@ -27,28 +27,28 @@ export default function LuxuryPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 1000; // flagship luxury rate
+    const nightRatePerPerson = 500; // flagship luxury rate
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 450 * nights * travelers, // Signature Resorts & Boutique Hotels
-            transport: 150 * nights * travelers, // Premium SUV & Private Transfers
-            meals: 120 * nights * travelers, // Curated Fine Dining & Breakfast
-            wellness: 100 * nights * travelers, // Spa sessions & Wellness access
-            experiences: 130 * nights * travelers, // Expert Guides & Private Tours
-            logistics: 50 * nights * travelers // VIP Fast-track & Concierge
+            accommodation: 220 * nights * travelers, // Signature Resorts & Boutique Hotels
+            transport: 70 * nights * travelers, // Premium SUV & Private Transfers
+            meals: 60 * nights * travelers, // Signature Half-Board (HB): Breakfast & Fine Dining
+            wellness: 50 * nights * travelers, // Spa sessions & Wellness access
+            experiences: 70 * nights * travelers, // Expert Guides & Private Tours
+            logistics: 30 * nights * travelers // Standard Express & Concierge (VIP on Request)
         }
     };
 
     const itinerary = [
         {
-            title: "Private Arrival: Silk Route",
-            description: "Greeting at the aircraft door and fast-track through immigration. Relax in the private VIP lounge while your luggage is handled.",
+            title: "Private Arrival: Express",
+            description: "Personalized greeting at the arrival terminal. Direct assistance with baggage and a smooth transition to your waiting private vehicle.",
             icon: Sparkles,
-            details: "VIP Lounge + Fast-track Immigration"
+            details: "Arrival Greeting + Logistics Support"
         },
         {
             title: "Elite Chauffeur Transit",
@@ -57,16 +57,16 @@ export default function LuxuryPlan() {
             details: "Premium SUV x 24/7 Availability"
         },
         {
-            title: "Signature Retreats",
-            description: "Check-in to the island's most iconic 5-star properties. Signature rooms with ocean or jungle views and personalized welcomes.",
+            title: "5-Star Collection",
+            description: "Check-in to the island's most iconic signature resorts. Reliable 5-star comfort with ocean or jungle views and personalized welcomes.",
             icon: Hotel,
-            details: "Flagship 5-Star Resorts Only"
+            details: "Iconic 5-Star Resorts"
         },
         {
-            title: "Curated Gastronomy",
-            description: "Reservations at the most sought-after signature restaurants. Enjoy private beachfront dinners and local organic delicacies.",
+            title: "Signature Gastronomy (HB)",
+            description: "Half-Board (HB) dining featuring signature breakfasts and sought-after dinner reservations. Enjoy private beachfront dinners and local organic delicacies.",
             icon: Coffee,
-            details: "Bespoke Dining & Private Chefs"
+            details: "Signature Half-Board (HB)"
         },
         {
             title: "Immersive Discovery",
@@ -75,44 +75,45 @@ export default function LuxuryPlan() {
             details: "Expert Guide + Exclusive Access"
         },
         {
-            title: "Serene Departure",
-            description: "Leisurely morning at your resort followed by a direct transfer to the VIP terminal for your stress-free departure.",
+            title: "Elegant Departure",
+            description: "Leisurely morning at your resort followed by a direct premium transfer to the airport for your stress-free departure.",
             icon: Waves,
-            details: "VIP Terminal Exit + Premium Transfer"
+            details: "Premium Transfer + Departure Support"
         }
     ];
 
     const inclusions = [
         {
-            category: "Accommodation & Style",
+            category: "Stay & Style",
             icon: Crown,
             items: [
                 "Hand-picked Signature 5-Star Resorts",
-                "Flagship Room Categories (Ocean/Views)",
+                "Superior or Deluxe Room Categories",
                 "Personalized Welcome Amenities",
                 "Early Check-in & Late Check-out options",
-                "Daily International Breakfast Buffet"
+                "Daily Signature Half-Board (HB) Buffet/Menu"
             ]
         },
         {
             category: "Premium Logistics",
             icon: Car,
             items: [
-                "Private Premium SUV (Land Cruiser/Lux Line)",
-                "English Speaking National Guide (Elite)",
-                "Airport Fast-track Arrival & Departure",
+                "Private Premium SUV & Elastic Driver Support",
+                "Dedicated English Speaking National Guide",
+                "Personalized Butler Service (Per Property)",
+                "Airport Arrival & Departure Greeting",
                 "All Domestic Highway & Parking Fees",
                 "Daily Refreshment Pack (Chilled)"
             ]
         },
         {
-            category: "Bespoke Culture",
+            category: "Curated Culture",
             icon: Gem,
             items: [
                 "Private Curated Cultural Tours",
-                "Exclusive After-hours Monument Access",
+                "Expert Local Guide Insights",
                 "Hand-picked Artisan Workshop visits",
-                "Personalized Shopping Concierge",
+                "Personalized Shopping Support",
                 "Entrance Fees to All Major Sites"
             ]
         },
@@ -123,7 +124,7 @@ export default function LuxuryPlan() {
                 "Daily Ayurvedic or Balinese Spa Session",
                 "Private Yoga or Meditation Sessions",
                 "Access to Luxury Pool & Beach Clubs",
-                "Dedicated On-trip Relationship Manager",
+                "Dedicated On-trip Relationship Manager (24/7)",
                 "All Local Taxes & Service Charges Included"
             ]
         }
@@ -137,7 +138,10 @@ export default function LuxuryPlan() {
         >
             {/* World-Class Header */}
             <div className="relative h-[700px] overflow-hidden">
-                <div className="absolute inset-0 bg-[url('/images/plans/luxury_sri_lanka.png')] bg-cover bg-center" />
+                <div
+                    className="absolute inset-0 bg-[url('/images/plans/luxury_sri_lanka.png')] bg-cover"
+                    style={{ backgroundPosition: 'center -150px' }}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />
 
                 <div className="relative z-10 h-full flex flex-col items-center justify-center text-center p-10">
@@ -162,7 +166,7 @@ export default function LuxuryPlan() {
                         transition={{ delay: 0.3 }}
                         className="text-7xl md:text-9xl font-serif text-logo-blue mb-6 tracking-tight drop-shadow-sm"
                     >
-                        Luxury Tier
+                        Luxury Collection
                     </motion.h1>
 
                     <motion.p
@@ -171,8 +175,8 @@ export default function LuxuryPlan() {
                         transition={{ delay: 0.4 }}
                         className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
                     >
-                        An elevated journey defined by iconic destinations,
-                        impeccable 5-star service, and deep cultural immersion.
+                        An elevated journey through Sri Lanka's most iconic destinations,
+                        featuring 5-star comfort and professional local expertise.
                     </motion.p>
 
                     <motion.div
@@ -222,7 +226,7 @@ export default function LuxuryPlan() {
                         <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Epicurean Journey</h2>
                         <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
                             A curated sequence of discovery and comfort.
-                            From VIP tarmac clearance to final sunset, every moment is hand-crafted for excellence.
+                            From standard express handling to final sunset, every moment is hand-crafted for excellence.
                         </p>
                     </div>
 
@@ -261,7 +265,7 @@ export default function LuxuryPlan() {
                                         </div>
 
                                         <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
-                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 min-h-[7rem] group-hover:text-neutral-700 transition-colors">
                                             {step.description}
                                         </p>
 
@@ -308,7 +312,7 @@ export default function LuxuryPlan() {
                                     { title: "Signature Resorts", desc: "Exclusive access to the most iconic room categories in 5-star properties." },
                                     { title: "Premium SUV", desc: "Luxurious, late-model SUV transport for all land-based movements." },
                                     { title: "National Guides", desc: "Elite English-speaking guides with deep knowledge of history and culture." },
-                                    { title: "VIP Fast-track", desc: "Seamless airport clearance to save time and prioritize your comfort." }
+                                    { title: "Standard Express", desc: "Smooth airport greeting and luggage assistance. (VIP Handling available on request)." }
                                 ].map((item, i) => (
                                     <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
                                         <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
@@ -348,7 +352,7 @@ export default function LuxuryPlan() {
                                                 { label: "Curated Fine Dining", value: pricing.breakdown.meals },
                                                 { label: "Daily Wellness & Access", value: pricing.breakdown.wellness },
                                                 { label: "Elite Guides & Entrance", value: pricing.breakdown.experiences },
-                                                { label: "VIP Handling & Concierge", value: pricing.breakdown.logistics },
+                                                { label: "Premium Logistics & Support", value: pricing.breakdown.logistics },
                                             ].map((item, i) => (
                                                 <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
                                                     <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>

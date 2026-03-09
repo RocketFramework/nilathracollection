@@ -28,52 +28,52 @@ export default function PremiumPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 300; // Flagship Premium rate
+    const nightRatePerPerson = 150; // Flagship Premium rate
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 130 * nights * travelers, // Boutique Collection & Heritage Stays
-            transport: 50 * nights * travelers, // Professional Chauffeur & Sedan/SUV
-            meals: 40 * nights * travelers, // Curated Local Dining & Breakfast
-            wellness: 30 * nights * travelers, // Spa & Wellness Access
-            experiences: 40 * nights * travelers, // Guided Tours & Activity Entrances
-            logistics: 10 * nights * travelers // Arrival Assistance & Concierge
+            accommodation: 70 * nights * travelers, // Selected 3-4 Star Comfort Hotels
+            transport: 25 * nights * travelers, // Experienced Driver-Guide & Sedan/Van
+            meals: 20 * nights * travelers, // Daily Half-Board (HB): Breakfast & Dinner
+            wellness: 15 * nights * travelers, // Access to Standard Spa Facilities
+            experiences: 15 * nights * travelers, // Essential Guided Tours & Entry Fees
+            logistics: 5 * nights * travelers // Standard Arrival Assistance
         }
     };
 
     const itinerary = [
         {
-            title: "Express Arrival",
-            description: "Personalized greeting at the airport arrival terminal. Assistance with baggage and a comfortable wait in the executive lounge.",
+            title: "Warm Greeting",
+            description: "Personalized welcome at the airport arrival terminal by your dedicated representative, ensuring a smooth transition to your vehicle.",
             icon: Sparkles,
-            details: "Fast-track Arrival Assistance"
+            details: "Arrival Greeting Assistance"
         },
         {
             title: "Professional Transit",
-            description: "Travel in a well-maintained, air-conditioned Sedan or SUV with a dedicated English-speaking chauffeur guide.",
+            description: "Travel in a well-maintained, air-conditioned Sedan or Van with an experienced driver-guide acting as your local host.",
             icon: Car,
-            details: "Standard Luxury Sedan / SUV"
+            details: "Standard Luxury Sedan / Van"
         },
         {
-            title: "Boutique Collection",
-            description: "Accommodations at premium 4-star boutique hotels and restored heritage bungalows, known for their character and service.",
+            title: "3-4 Star Collection",
+            description: "Hand-picked accommodations at reputable 3 to 4 star hotels, ensuring reliable comfort, cleanliness, and essential amenities.",
             icon: Hotel,
-            details: "Boutique & Heritage Selection"
+            details: "3 to 4 Star Stay Hotels"
         },
         {
-            title: "Heritage Dining",
-            description: "Explore the island's culinary map with curated breakfast buffets and hand-picked local dining spots for dinner.",
+            title: "Half-Board Dining (HB)",
+            description: "Half-Board (HB) dining experience including breakfast and dinner at your hotels. Explore the island's culinary landscape with high-quality local flavors.",
             icon: Coffee,
-            details: "Curated Local Gastronomy"
+            details: "Half-Board Dining (HB)"
         },
         {
-            title: "Guided Discovery",
-            description: "Comprehensive tours of major cultural sites with your professional guide. Insightful commentary and local context.",
+            title: "Local Discovery",
+            description: "Explore the island's most iconic destinations with your experienced driver-guide. Practical local insights and seamless travel logistics.",
             icon: Camera,
-            details: "Professional Chauffeur Guide"
+            details: "Experienced Driver-Guide"
         },
         {
             title: "Seamless Departure",
@@ -85,22 +85,22 @@ export default function PremiumPlan() {
 
     const inclusions = [
         {
-            category: "Boutique & Heritage",
+            category: "3 to 4 Star Hotels",
             icon: Hotel,
             items: [
-                "Hand-picked 4-Star Boutique Hotels",
-                "Restored Colonial Heritage Bungalows",
-                "Well-appointed Superior/Deluxe Rooms",
-                "Daily International Breakfast Buffets",
-                "Complimentary In-room Wi-Fi"
+                "Reputable 3 to 4 Star Signature Hotels",
+                "Reliable Comfort and Modern Amenities",
+                "Well-appointed Standard/Deluxe Rooms",
+                "Daily Half-Board (HB) Dining Selection",
+                "Complimentary In-room Wi-Fi Access"
             ]
         },
         {
             category: "Logistics & Guide",
             icon: Car,
             items: [
-                "Private Air-Conditioned Sedan or SUV",
-                "Professional Chauffeur Guide (English)",
+                "Private Air-Conditioned Sedan or Van",
+                "Experienced Driver-Guide (English Speaking)",
                 "Arrival Terminal Greeting Assistance",
                 "All Domestic Transportation Costs",
                 "Highway Tolls & Parking Inclusions"
@@ -172,8 +172,8 @@ export default function PremiumPlan() {
                         transition={{ delay: 0.4 }}
                         className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
                     >
-                        A sophisticated blend of character, comfort, and professional service.
-                        Experience boutique Sri Lankan hospitality with premium standards.
+                        A sophisticated blend of reliability, comfort, and professional local service.
+                        Experience the best of Sri Lanka with reputable 3-4 star hospitality.
                     </motion.p>
 
                     <motion.div
@@ -220,10 +220,10 @@ export default function PremiumPlan() {
                         >
                             <Sparkles size={14} /> The Emerald Route
                         </motion.div>
-                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Boutique Journey</h2>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Emerald Journey</h2>
                         <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
                             A refined sequence from arrival to exit.
-                            Experience a beautifully paced exploration through Sri Lanka's heritage and boutique gems.
+                            Experience a beautifully paced exploration through Sri Lanka's cultural heart and comfort retreats.
                         </p>
                     </div>
 
@@ -262,7 +262,7 @@ export default function PremiumPlan() {
                                         </div>
 
                                         <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
-                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 min-h-[7rem] group-hover:text-neutral-700 transition-colors">
                                             {step.description}
                                         </p>
 
@@ -299,17 +299,17 @@ export default function PremiumPlan() {
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
                                 <Star size={14} /> Refined Standard
                             </div>
-                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Contemporary Character</h2>
+                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Contemporary Value</h2>
                             <p className="text-neutral-600 text-xl leading-relaxed font-medium">
-                                The Premium tier is for the traveler who appreciates heritage, boutique intimacy, and professional guidance. It's a journey that balances iconic sites with hidden gems.
+                                The Premium tier is for the traveler who appreciates reliable quality, cultural connection, and experienced local guidance. It's a journey that balances iconic sites with authentic discovery.
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                                 {[
-                                    { title: "Boutique Stays", desc: "Access to our curated collection of 4-star boutique and heritage hotels." },
-                                    { title: "Pro Guides", desc: "Dedicated English-speaking chauffeur guides with years of local expertise." },
-                                    { title: "High-End Transport", desc: "Arrival to destination in air-conditioned luxury Sedans or premium SUVs." },
-                                    { title: "Curated Tours", desc: "Selected entry into national parks and historic monuments with expert context." }
+                                    { title: "Standard Comfort", desc: "Access to our selected collection of 3 to 4 star comfort and business-class hotels." },
+                                    { title: "Driver-Guides", desc: "Experienced driver-guides with years of local expertise acting as your host." },
+                                    { title: "Reliable Transit", desc: "Arrival to destination in air-conditioned Sedans or modern passenger Vans." },
+                                    { title: "Essential Tours", desc: "Selected entry into national parks and historic monuments with local context." }
                                 ].map((item, i) => (
                                     <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
                                         <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
@@ -344,12 +344,12 @@ export default function PremiumPlan() {
                                     >
                                         <div className="grid gap-4">
                                             {[
-                                                { label: "Boutique & Heritage Stays", value: pricing.breakdown.accommodation },
-                                                { label: "Logistics & Chauffeur", value: pricing.breakdown.transport },
-                                                { label: "Curated Local Dining", value: pricing.breakdown.meals },
+                                                { label: "3-4 Star Comfort Hotels", value: pricing.breakdown.accommodation },
+                                                { label: "Logistics & Driver-Guide", value: pricing.breakdown.transport },
+                                                { label: "Essential Local Dining", value: pricing.breakdown.meals },
                                                 { label: "Wellness & Facilities", value: pricing.breakdown.wellness },
                                                 { label: "Tours & Entrance Fees", value: pricing.breakdown.experiences },
-                                                { label: "Concierge & Handling", value: pricing.breakdown.logistics },
+                                                { label: "Support & Handling", value: pricing.breakdown.logistics },
                                             ].map((item, i) => (
                                                 <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
                                                     <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
@@ -376,8 +376,8 @@ export default function PremiumPlan() {
                             <div className="space-y-4 pt-16">
                                 <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
                                     <Camera size={40} className="text-logo-blue mb-6" />
-                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">Heritage Focus</h4>
-                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">A strong emphasis on Sri Lanka's cultural legacy and beautifully restored architectural gems.</p>
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">Cultural Connection</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">A strong emphasis on Sri Lanka's living culture, iconic monuments, and immersive local experiences.</p>
                                 </div>
                             </div>
                         </div>
