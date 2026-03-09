@@ -17,16 +17,18 @@ import {
     Car,
     Users,
     Clock,
-    Heart
+    Heart,
+    Stethoscope,
+    Leaf,
+    Lock,
+    Shield
 } from "lucide-react";
-import PlanRequestFormModal from "./PlanRequestFormModal";
 import Link from "next/link";
 
 export default function UltraVIPPlan() {
     const [showBreakdown, setShowBreakdown] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [nights, setNights] = useState(7);
-    const [travelers, setTravelers] = useState(2);
+    const nights = 7;
+    const travelers = 2;
 
     const nightRatePerPerson = 7500; // mid range of 5000-10000
     const total = nightRatePerPerson * nights * travelers;
@@ -35,57 +37,96 @@ export default function UltraVIPPlan() {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 4500 * nights * Math.ceil(travelers / 2),
-            meals: 800 * travelers * nights,
-            transport: 1200 * nights, // private jets/helis
-            guide: 500 * nights,
-            experiences: 1000 * travelers,
-            taxes: 0
+            accommodation: 3500 * nights * travelers, // Buyout Properties & 24/7 Butler
+            transport: 1500 * nights * travelers, // Helicopter Fleet & Elite Security
+            meals: 800 * nights * travelers, // Bespoke Culinary & Farm-to-Table
+            wellness: 700 * nights * travelers, // Daily Ayurveda, Yoga & Medical Care
+            experiences: 600 * nights * travelers, // Bespoke Gems, Spiritual & Private Access
+            logistics: 400 * nights * travelers // VIP Port Handling & NDA Compliance
         }
     };
 
-    const subtotal = pricing.breakdown.accommodation + pricing.breakdown.meals + pricing.breakdown.transport + pricing.breakdown.guide + (pricing.breakdown.experiences * travelers);
-    pricing.breakdown.taxes = total - subtotal;
+    const itinerary = [
+        {
+            title: "VIP Arrival: The Gold Route",
+            description: "Direct tarmac exit to the exclusive Silk Route VIP Lounge. Fast-track customs and immigration handling while you relax.",
+            icon: Sparkles,
+            details: "Airport Fast-track + Lounge Access"
+        },
+        {
+            title: "Elite Escorted Transfer",
+            description: "Security-escorted Limousine transfer directly to the internal flight terminal or your private property.",
+            icon: ShieldCheck,
+            details: "Optional Armed Security Escort"
+        },
+        {
+            title: "Aerial Transit",
+            description: "Private Helicopter ride directly to your destination's helipad. Skip all traffic and enjoy stunning aerial views.",
+            icon: Plane,
+            details: "Helicopter Transfer"
+        },
+        {
+            title: "Private Paradise",
+            description: "Check-in at your private buyout boutique hotel or villa. Fully staffed with 24/7 Butler and on-call Medical Professional.",
+            icon: Crown,
+            details: "Full Property Buyout + 24/7 Butler"
+        },
+        {
+            title: "Bespoke Lifestyle",
+            description: "Craft your own jewelry with master goldsmiths, enjoy daily Ayurvedic massages, and organic farm-to-table dining.",
+            icon: Heart,
+            details: "Wellness, Gems & Custom Dining"
+        },
+        {
+            title: "Seamless Departure",
+            description: "Direct helicopter transfer back to the airport tarmac. Exit via the VIP lounge for a stress-free departure.",
+            icon: Clock,
+            details: "VIP Lounge Exit + Heli-Transfer"
+        }
+    ];
 
     const inclusions = [
         {
-            category: "Accommodation",
+            category: "Accommodation & Staff",
             icon: Crown,
             items: [
-                "Ultra-Luxury Villas / Private Estates (Buyout option)",
-                "Presidential Suites at Flagship Resorts",
-                "Dedicated Private Staff (Butlers & Valets)",
-                "Daily Spa & Holistic Wellness within suite"
+                "Full Property Buyout / Private Estates",
+                "24/7 Dedicated Butler & Lifestyle Manager",
+                "On-call Medical Professional (Doctor/Nurse)",
+                "Brand New Premium Linen & Facilities",
+                "Direct Farm-to-Table Fresh Dining"
             ]
         },
         {
             category: "Marine & Aerial",
             icon: Plane,
             items: [
-                "Private Jet Service (Domestic & Regional)",
                 "Helicopter Transfers between all locations",
+                "Private Helicopter ride to any destination",
                 "Luxury Yacht Charter (Private Crewed Experience)",
-                "VIP Airport Fast-track (Terminal to Tarmac)"
+                "Security Escorted Limousine Service"
             ]
         },
         {
-            category: "Elite Service Team",
-            icon: ShieldCheck,
-            items: [
-                "Elite Guide Team (Multiple Subject Experts)",
-                "24/7 Personal Concierge & Lifestyle Manager",
-                "Private Chef & Dedicated Waitstaff",
-                "End-to-End White Glove Handling"
-            ]
-        },
-        {
-            category: "Exclusivity",
+            category: "Bespoke & Cultural",
             icon: Gem,
             items: [
-                "Money-can't-buy Experiences & Private Access",
-                "Exclusive After-hours Monument Access",
-                "Private Dining in Extraordinary Locations",
-                "Custom-crafted Curated Amenities"
+                "Custom Gem & Jewelry Crafting (Master Goldsmiths)",
+                "Personalized Palm & Horoscope Reading",
+                "Buddhist Spiritual & Religious Discussions",
+                "Optional Armed Security Service Escort",
+                "Bespoke After-hours Monument Access"
+            ]
+        },
+        {
+            category: "Holistic Wellness",
+            icon: Heart,
+            items: [
+                "Daily In-Suite Ayurvedic Massage",
+                "Daily Guided Meditation & Yoga Sessions",
+                "Traditional Healing & Spiritual Consultations",
+                "Personal Nutritionist & Private Chef",
+                "Total Privacy & NDA Compliance"
             ]
         }
     ];
@@ -94,29 +135,34 @@ export default function UltraVIPPlan() {
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="bg-neutral-950 rounded-[3rem] overflow-hidden shadow-[0_0_100px_rgba(251,191,36,0.1)] border border-amber-900/30 text-amber-50"
+            className="bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-neutral-200 text-neutral-900"
         >
-            {/* Super VIP Header */}
-            <div className="relative h-[600px] overflow-hidden">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2070')] bg-cover bg-center opacity-40 grayscale" />
-                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/20 to-transparent" />
+            {/* World-Class Header */}
+            <div className="relative h-[700px] overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/brain/5c0b7cbc-b65d-4fcc-8a86-bcd055ad1798/sri_lanka_ultra_vip_aerial_1773054982649.png')] bg-cover bg-center" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />
 
                 <div className="relative z-10 h-full flex flex-col items-center justify-center text-center p-10">
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="flex items-center gap-3 px-6 py-2 bg-amber-500/10 rounded-full border border-amber-500/30 backdrop-blur-md mb-8"
+                        className="flex items-center gap-3 px-6 py-2 bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] via-[#B38728] via-[#FBF5B7] to-[#AA771C] rounded-full border border-[#D4AF37]/50 backdrop-blur-md mb-8 shadow-[0_15px_40_rgba(184,134,11,0.6)] relative overflow-hidden group"
                     >
-                        <Crown size={20} className="text-amber-500" />
-                        <span className="text-amber-500 text-xs font-black uppercase tracking-[0.4em]">The Ultimate Experience</span>
+                        <motion.div
+                            animate={{ x: ['-150%', '300%'] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none"
+                        />
+                        <Crown size={20} className="text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">The Ultimate Experience</span>
                     </motion.div>
 
                     <motion.h1
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-7xl md:text-8xl font-serif text-white mb-6 tracking-tight"
+                        className="text-7xl md:text-9xl font-serif text-logo-blue mb-6 tracking-tight drop-shadow-sm"
                     >
                         Ultra VIP
                     </motion.h1>
@@ -125,10 +171,10 @@ export default function UltraVIPPlan() {
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-amber-100/60 max-w-2xl text-xl leading-relaxed mb-12"
+                        className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
                     >
                         Reserved for the world's most discerning travelers.
-                        A realm of absolute privacy, bespoke luxury, and peerless service.
+                        A realm of absolute privacy, bespoke luxury, and peerless security.
                     </motion.p>
 
                     <motion.div
@@ -137,24 +183,24 @@ export default function UltraVIPPlan() {
                         transition={{ delay: 0.5 }}
                         className="flex flex-col items-center"
                     >
-                        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 md:px-12 md:py-10 shadow-2xl">
-                            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
+                        <div className="bg-white/95 backdrop-blur-xl border border-neutral-100 rounded-[3rem] p-8 md:px-14 md:py-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
+                            <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
                                 <div className="text-center md:text-left">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-500/60 font-black mb-2">Starting Quote</p>
-                                    <div className="text-6xl font-serif text-white tracking-widest leading-none">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">Signature Quote</p>
+                                    <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
                                         ${total.toLocaleString()}
                                     </div>
-                                    <p className="text-amber-100/40 text-xs mt-3 font-medium uppercase tracking-widest">
-                                        {nights} Nights · {travelers} Travelers
+                                    <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
+                                        7 Nights · 2 Travelers
                                     </p>
                                 </div>
-                                <div className="h-20 w-px bg-white/10 hidden md:block" />
+                                <div className="h-24 w-px bg-neutral-100 hidden md:block" />
                                 <div className="text-center md:text-left">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-amber-500/60 font-black mb-2">Daily Allocation</p>
-                                    <div className="text-4xl font-serif text-amber-500 leading-none">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">Daily Allocation</p>
+                                    <div className="text-4xl font-serif text-logo-blue leading-none">
                                         ${nightRatePerPerson.toLocaleString()}
                                     </div>
-                                    <p className="text-amber-100/40 text-xs mt-3 font-medium uppercase tracking-widest">
+                                    <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
                                         Per Person / Per Day
                                     </p>
                                 </div>
@@ -164,28 +210,128 @@ export default function UltraVIPPlan() {
                 </div>
             </div>
 
+            {/* Experience Roadmap - The Gold Route */}
+            <div className="bg-neutral-50 border-y border-neutral-100 py-32 overflow-hidden">
+                <div className="max-w-7xl mx-auto px-6 md:px-12">
+                    <div className="text-center mb-32">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] mb-6"
+                        >
+                            <Sparkles size={14} /> Sequential Excellence
+                        </motion.div>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Gold Route Journey</h2>
+                        <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
+                            A perfectly orchestrated sequence of luxury, privacy, and speed.
+                            From the moment you touch down to your final departure, every transition is seamless.
+                        </p>
+                    </div>
+
+                    <div className="relative">
+                        {/* Connecting Path Line (Desktop) */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neutral-200 to-transparent -translate-y-1/2 hidden lg:block" />
+
+                        <div className="grid lg:grid-cols-3 gap-y-24 lg:gap-12 relative">
+                            {itinerary.map((step, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.15, duration: 0.6 }}
+                                    viewport={{ once: true }}
+                                    className="relative flex flex-col items-center text-center group"
+                                >
+                                    {/* Sequence Number */}
+                                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-[80px] font-serif text-neutral-100/50 select-none group-hover:text-brand-gold/10 transition-colors duration-500">
+                                        0{idx + 1}
+                                    </div>
+
+                                    {/* Icon Milestone */}
+                                    <div className="relative z-10 w-24 h-24 rounded-full bg-white border-2 border-neutral-100 flex items-center justify-center text-logo-blue mb-10 shadow-xl group-hover:border-logo-blue group-hover:scale-110 transition-all duration-500">
+                                        <div className="absolute inset-2 rounded-full border border-neutral-50" />
+                                        <step.icon size={36} strokeWidth={1.5} />
+
+                                        {/* Progress Dot */}
+                                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-logo-blue border-4 border-white shadow-lg lg:hidden" />
+                                    </div>
+
+                                    {/* Content Card */}
+                                    <div className="relative p-10 rounded-[2.5rem] bg-white border border-neutral-100 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-4 transition-all duration-700 w-full max-w-sm">
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 rounded-full bg-logo-blue text-white text-[10px] font-black uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all duration-500">
+                                            Phase 0{idx + 1}
+                                        </div>
+
+                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                            {step.description}
+                                        </p>
+
+                                        <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-neutral-50 border border-neutral-100 group-hover:bg-logo-blue/5 group-hover:border-logo-blue/10 transition-all">
+                                            <Check size={14} className="text-brand-gold" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{step.details}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile Connector */}
+                                    {idx !== itinerary.length - 1 && (
+                                        <div className="h-24 w-px bg-gradient-to-b from-neutral-200 to-transparent lg:hidden mt-4" />
+                                    )}
+
+                                    {/* Desktop Arrow Connector */}
+                                    {idx !== itinerary.length - 1 && idx !== 2 && (
+                                        <div className="absolute top-1/2 -right-6 -translate-y-1/2 hidden lg:block">
+                                            <div className="w-12 h-px bg-neutral-200" />
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Content Section */}
-            <div className="max-w-7xl mx-auto px-6 py-24 md:px-12">
-                <div className="grid lg:grid-cols-2 gap-24 items-start">
+            <div className="max-w-7xl mx-auto px-6 py-32 md:px-12">
+                <div className="grid lg:grid-cols-2 gap-32 items-start">
                     {/* Left: Philosophy & Breakdown */}
-                    <div className="space-y-16">
-                        <div className="space-y-6">
-                            <h2 className="text-4xl font-serif text-white">The White Glove Standard</h2>
-                            <p className="text-amber-100/60 text-lg leading-relaxed">
-                                Our Ultra VIP tier is not just a package; it's a dedicated architecture of luxury.
-                                We rebuild every aspect of the journey to ensure total seclusion, absolute flexibility,
-                                and experiences that are literally impossible to access otherwise.
+                    <div className="space-y-20">
+                        <div className="space-y-8">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
+                                <Shield size={14} /> Total Anonymity Guaranteed
+                            </div>
+                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Privacy Architecture</h2>
+                            <p className="text-neutral-600 text-xl leading-relaxed font-medium">
+                                Our Ultra VIP tier is a fortified private domain. Beyond luxury, we provide a "Zero-Trace" security architecture designed for high-profile individuals requiring absolute seclusion.
                             </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                                {[
+                                    { title: "Full NDA Compliance", desc: "All staff and partners operate under strict legally binding non-disclosure agreements." },
+                                    { title: "Anonymous Transfers", desc: "No-name tarmac handling and private helipads to ensure zero public exposure." },
+                                    { title: "Secure Communications", desc: "Encrypted concierge channels for all planning and on-ground adjustments." },
+                                    { title: "Zero-Trace Billing", desc: "Discreet financial handling and comprehensive identity protection." }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
+                                        <div className="mt-1 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
+                                        <div>
+                                            <h4 className="text-sm font-black text-logo-blue uppercase tracking-widest mb-1">{item.title}</h4>
+                                            <p className="text-xs text-neutral-500 leading-relaxed">{item.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="space-y-8">
-                            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                                <h3 className="text-xl font-serif text-amber-500">Service Breakdown</h3>
+                        <div className="space-y-10">
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
+                                <h3 className="text-2xl font-serif text-logo-blue">Service Breakdown</h3>
                                 <button
                                     onClick={() => setShowBreakdown(!showBreakdown)}
-                                    className="text-[10px] font-black uppercase tracking-widest text-amber-100/40 hover:text-amber-500 transition-colors"
+                                    className="text-[11px] font-black uppercase tracking-widest text-neutral-400 hover:text-logo-blue transition-colors flex items-center gap-2"
                                 >
                                     {showBreakdown ? "Hide Details" : "Reveal Pricing"}
+                                    <Info size={14} />
                                 </button>
                             </div>
 
@@ -195,20 +341,20 @@ export default function UltraVIPPlan() {
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: "auto", opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden space-y-4"
+                                        className="overflow-hidden space-y-6"
                                     >
-                                        <div className="grid gap-4 text-sm font-medium">
+                                        <div className="grid gap-4">
                                             {[
-                                                { label: "Elite Accommodation & Butlers", value: pricing.breakdown.accommodation },
-                                                { label: "Private Aviation (Jets/Helis)", value: pricing.breakdown.transport },
-                                                { label: "Bespoke Culinary Management", value: pricing.breakdown.meals },
-                                                { label: "Specialist Guide & Concierge Team", value: pricing.breakdown.guide },
-                                                { label: "One-of-a-kind Experiences", value: pricing.breakdown.experiences * travelers },
-                                                { label: "Regulatory Fees & White-Glove Tax", value: pricing.breakdown.taxes },
+                                                { label: "Elite Buyout & 24/7 Butler", value: pricing.breakdown.accommodation },
+                                                { label: "Helicopter Fleet & Security", value: pricing.breakdown.transport },
+                                                { label: "Bespoke Culinary & Chef", value: pricing.breakdown.meals },
+                                                { label: "Daily Ayurveda & Medical", value: pricing.breakdown.wellness },
+                                                { label: "Bespoke Gems & Private Access", value: pricing.breakdown.experiences },
+                                                { label: "VIP Handling & NDA Compliance", value: pricing.breakdown.logistics },
                                             ].map((item, i) => (
-                                                <div key={i} className="flex justify-between items-center py-3 border-b border-white/5 hover:bg-white/5 transition-colors px-4 rounded-lg">
-                                                    <span className="text-amber-100/60 tracking-wide">{item.label}</span>
-                                                    <span className="text-amber-500 font-serif text-lg tracking-widest">${item.value.toLocaleString()}</span>
+                                                <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
+                                                    <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
+                                                    <span className="text-logo-blue font-serif text-2xl tracking-widest">${item.value.toLocaleString()}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -217,80 +363,58 @@ export default function UltraVIPPlan() {
                             </AnimatePresence>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-8">
+                        <div className="grid grid-cols-2 gap-12">
                             <div className="space-y-4">
-                                <div className="p-4 bg-amber-500/5 rounded-[2rem] border border-amber-500/10">
-                                    <Users size={32} className="text-amber-500 mb-4" />
-                                    <h4 className="font-serif text-xl text-white">Privacy First</h4>
-                                    <p className="text-xs text-amber-100/40 leading-relaxed font-medium">Full NDA compliance and absolute anonymity for high-profile clients.</p>
+                                <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <Lock size={80} className="text-white" />
+                                    </div>
+                                    <Users size={40} className="text-brand-gold mb-6" />
+                                    <h4 className="font-serif text-2xl text-white mb-2">Absolute Seclusion</h4>
+                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">Extreme privacy protocols with 100% staff anonymity and total site buyouts.</p>
                                 </div>
                             </div>
-                            <div className="space-y-4 pt-12">
-                                <div className="p-4 bg-amber-500/5 rounded-[2rem] border border-amber-500/10">
-                                    <Sparkles size={32} className="text-amber-500 mb-4" />
-                                    <h4 className="font-serif text-xl text-white">Impossible Access</h4>
-                                    <p className="text-xs text-amber-100/40 leading-relaxed font-medium">We open doors to private collections, remote sites, and sacred spaces.</p>
+                            <div className="space-y-4 pt-16">
+                                <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
+                                    <Sparkles size={40} className="text-logo-blue mb-6" />
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">Impossible Access</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">We open doors to private collections, remote sites, and sacred spaces.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Right: Inclusions & Quote */}
-                    <div className="space-y-12">
-                        <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 md:p-12 space-y-12">
+                    <div className="space-y-12 lg:sticky lg:top-32">
+                        <div className="bg-white border border-neutral-100 rounded-[3rem] p-12 space-y-16 shadow-xl">
                             {inclusions.map((section, idx) => (
-                                <div key={idx} className="space-y-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20">
-                                            <section.icon size={24} className="text-amber-500" />
+                                <div key={idx} className="space-y-8">
+                                    <div className="flex items-center gap-6">
+                                        <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
+                                            <section.icon size={28} className="text-logo-blue" />
                                         </div>
-                                        <h3 className="text-xl font-serif text-white">{section.category}</h3>
+                                        <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{section.category}</h3>
                                     </div>
-                                    <ul className="space-y-4">
+                                    <ul className="grid gap-5">
                                         {section.items.map((item, i) => (
                                             <li key={i} className="flex items-start gap-4">
-                                                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/40 shrink-0" />
-                                                <span className="text-sm font-medium text-amber-100/70 leading-relaxed">{item}</span>
+                                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.5)]" />
+                                                <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
                                             </li>
                                         ))}
                                     </ul>
                                 </div>
                             ))}
 
-                            <div className="pt-12 border-t border-white/10 flex flex-col items-center">
-                                <div className="w-full space-y-6 mb-10">
-                                    <div className="flex justify-between gap-4">
-                                        <div className="flex-grow">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 block mb-3">Journey Duration</label>
-                                            <select
-                                                value={nights}
-                                                onChange={(e) => setNights(Number(e.target.value))}
-                                                className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white focus:border-amber-500 outline-none transition-colors"
-                                            >
-                                                {[5, 7, 10, 14, 21].map(n => <option key={n} value={n}>{n} Nights</option>)}
-                                            </select>
-                                        </div>
-                                        <div className="flex-grow">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-amber-500/60 block mb-3">Party Size</label>
-                                            <select
-                                                value={travelers}
-                                                onChange={(e) => setTravelers(Number(e.target.value))}
-                                                className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-sm font-black text-white focus:border-amber-500 outline-none transition-colors"
-                                            >
-                                                {[1, 2, 4, 6].map(n => <option key={n} value={n}>{n} Travelers</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="w-full bg-amber-500 hover:bg-amber-400 text-black py-6 rounded-3xl font-black uppercase tracking-[0.25em] text-sm transition-all shadow-[0_20px_40px_rgba(245,158,11,0.2)] active:scale-[0.97]"
+                            <div className="pt-12 border-t border-neutral-100 flex flex-col items-center">
+                                <Link
+                                    href={`/contact?plan=ultra-vip&nights=${nights}&travelers=${travelers}`}
+                                    className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-6 rounded-3xl font-black uppercase tracking-[0.25em] text-sm transition-all shadow-2xl shadow-logo-blue/20 active:scale-[0.98] block text-center"
                                 >
                                     Initiate VIP Consultation
-                                </button>
+                                </Link>
 
-                                <p className="mt-6 text-[10px] uppercase font-black tracking-[0.2em] text-amber-500/40">
+                                <p className="mt-8 text-[11px] uppercase font-bold tracking-[0.3em] text-neutral-400">
                                     private concierge assigned upon request
                                 </p>
                             </div>
@@ -299,16 +423,6 @@ export default function UltraVIPPlan() {
                 </div>
             </div>
 
-            <PlanRequestFormModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                packageName="Ultra VIP"
-                nights={nights}
-                travelers={travelers}
-                totalPrice={total}
-                ctaText="Initiate VIP Consultation"
-                requestType="ultra-vip"
-            />
         </motion.div>
     );
 }

@@ -10,7 +10,7 @@ const plans = [
         id: "ultra-vip",
         title: "Ultra VIP",
         priceRange: "$5,000 - $10,000",
-        description: "Reserved for the world's most discerning travelers. Private jets, elite guides, and absolute seclusion.",
+        description: "Reserved for the world's most discerning travelers. Helicopter transit, elite armed security, and absolute seclusion.",
         icon: Crown,
         href: "/plans/ultra-vip",
         badge: "The Pinnacle",

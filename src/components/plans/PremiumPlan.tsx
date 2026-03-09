@@ -1,174 +1,427 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
     Gem,
-    Compass,
-    Coffee,
-    Camera,
-    Map,
-    Calendar,
     Check,
-    Hotel,
-    Utensils,
+    Info,
     Star,
+    Sparkles,
+    ShieldCheck,
     Car,
-    Wifi,
+    Clock,
+    Heart,
+    Crown,
     Shield,
-    ArrowRight
+    Coffee,
+    Hotel,
+    Waves,
+    Compass,
+    Camera,
+    Map
 } from "lucide-react";
 import Link from "next/link";
-import PlanRequestFormModal from "./PlanRequestFormModal";
 
 export default function PremiumPlan() {
-    const [nights, setNights] = useState(7);
-    const [travelers, setTravelers] = useState(2);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showBreakdown, setShowBreakdown] = useState(false);
+    const nights = 7;
+    const travelers = 2;
 
-    const basePrice = 275; // Average of 150-400
-    const total = basePrice * travelers * nights;
+    const nightRatePerPerson = 300; // Flagship Premium rate
+    const total = nightRatePerPerson * nights * travelers;
 
-    const highlights = [
-        { icon: Gem, text: "4-Star / Boutique Collection Selection" },
-        { icon: Hotel, text: "Heritage properties & refined atmosphere" },
-        { icon: Compass, text: "Professional Chauffeur Guide (English)" },
-        { icon: Camera, text: "Curated cultural & local experiences" },
-        { icon: Coffee, text: "Gourmet culinary journeys & welcome gift" },
-        { icon: Shield, text: "Standard VIP arrival assistance" }
+    const pricing = {
+        total: total,
+        perNight: nightRatePerPerson,
+        breakdown: {
+            accommodation: 130 * nights * travelers, // Boutique Collection & Heritage Stays
+            transport: 50 * nights * travelers, // Professional Chauffeur & Sedan/SUV
+            meals: 40 * nights * travelers, // Curated Local Dining & Breakfast
+            wellness: 30 * nights * travelers, // Spa & Wellness Access
+            experiences: 40 * nights * travelers, // Guided Tours & Activity Entrances
+            logistics: 10 * nights * travelers // Arrival Assistance & Concierge
+        }
+    };
+
+    const itinerary = [
+        {
+            title: "Express Arrival",
+            description: "Personalized greeting at the airport arrival terminal. Assistance with baggage and a comfortable wait in the executive lounge.",
+            icon: Sparkles,
+            details: "Fast-track Arrival Assistance"
+        },
+        {
+            title: "Professional Transit",
+            description: "Travel in a well-maintained, air-conditioned Sedan or SUV with a dedicated English-speaking chauffeur guide.",
+            icon: Car,
+            details: "Standard Luxury Sedan / SUV"
+        },
+        {
+            title: "Boutique Collection",
+            description: "Accommodations at premium 4-star boutique hotels and restored heritage bungalows, known for their character and service.",
+            icon: Hotel,
+            details: "Boutique & Heritage Selection"
+        },
+        {
+            title: "Heritage Dining",
+            description: "Explore the island's culinary map with curated breakfast buffets and hand-picked local dining spots for dinner.",
+            icon: Coffee,
+            details: "Curated Local Gastronomy"
+        },
+        {
+            title: "Guided Discovery",
+            description: "Comprehensive tours of major cultural sites with your professional guide. Insightful commentary and local context.",
+            icon: Camera,
+            details: "Professional Chauffeur Guide"
+        },
+        {
+            title: "Seamless Departure",
+            description: "Final stop for last-minute souvenirs before a well-timed drop-off at the airport for your return flight.",
+            icon: Clock,
+            details: "Timed Airport Departure Transit"
+        }
+    ];
+
+    const inclusions = [
+        {
+            category: "Boutique & Heritage",
+            icon: Hotel,
+            items: [
+                "Hand-picked 4-Star Boutique Hotels",
+                "Restored Colonial Heritage Bungalows",
+                "Well-appointed Superior/Deluxe Rooms",
+                "Daily International Breakfast Buffets",
+                "Complimentary In-room Wi-Fi"
+            ]
+        },
+        {
+            category: "Logistics & Guide",
+            icon: Car,
+            items: [
+                "Private Air-Conditioned Sedan or SUV",
+                "Professional Chauffeur Guide (English)",
+                "Arrival Terminal Greeting Assistance",
+                "All Domestic Transportation Costs",
+                "Highway Tolls & Parking Inclusions"
+            ]
+        },
+        {
+            category: "Cultural Insights",
+            icon: Compass,
+            items: [
+                "Guided Tours of Major Historic Sites",
+                "Entrance Fees to National Parks",
+                "Curated Local Artisan Visits",
+                "Flexible Daily Sightseeing Schedule",
+                "Authentic Village Experience Tours"
+            ]
+        },
+        {
+            category: "Dining & Comfort",
+            icon: Coffee,
+            items: [
+                "Curated Restaurant Recommendations",
+                "Welcome Pack & Local Sim/Guide Map",
+                "Access to Hotel Wellness & Pool Areas",
+                "Dedicated On-trip Support (Online)",
+                "All Local Taxes & Service Charges Included"
+            ]
+        }
     ];
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl overflow-hidden shadow-xl border border-blue-200"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-neutral-200 text-neutral-900"
         >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-logo-blue to-blue-900 p-8 text-white">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Gem size={28} className="text-blue-200" />
-                            <span className="text-blue-200 text-sm uppercase tracking-widest font-bold">Refined Style</span>
+            {/* World-Class Header */}
+            <div className="relative h-[700px] overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1546768292-fb12f6c92568?q=80&w=2070')] bg-cover bg-center" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />
+
+                <div className="relative z-10 h-full flex flex-col items-center justify-center text-center p-10">
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center gap-3 px-6 py-2 bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] via-[#B38728] via-[#FBF5B7] to-[#AA771C] rounded-full border border-[#D4AF37]/50 backdrop-blur-md mb-8 shadow-[0_15px_40px_-10px_rgba(184,134,11,0.3)] relative overflow-hidden group"
+                    >
+                        <motion.div
+                            animate={{ x: ['-150%', '300%'] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none"
+                        />
+                        <Gem size={20} className="text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">The Emerald Collection</span>
+                    </motion.div>
+
+                    <motion.h1
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-7xl md:text-9xl font-serif text-logo-blue mb-6 tracking-tight drop-shadow-sm"
+                    >
+                        Premium Plan
+                    </motion.h1>
+
+                    <motion.p
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
+                    >
+                        A sophisticated blend of character, comfort, and professional service.
+                        Experience boutique Sri Lankan hospitality with premium standards.
+                    </motion.p>
+
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="flex flex-col items-center"
+                    >
+                        <div className="bg-white/95 backdrop-blur-xl border border-neutral-100 rounded-[3rem] p-8 md:px-14 md:py-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
+                            <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
+                                <div className="text-center md:text-left">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">Signature Quote</p>
+                                    <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
+                                        ${total.toLocaleString()}
+                                    </div>
+                                    <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
+                                        7 Nights · 2 Travelers
+                                    </p>
+                                </div>
+                                <div className="h-24 w-px bg-neutral-100 hidden md:block" />
+                                <div className="text-center md:text-left">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">Daily Value</p>
+                                    <div className="text-4xl font-serif text-logo-blue leading-none">
+                                        ${nightRatePerPerson.toLocaleString()}
+                                    </div>
+                                    <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
+                                        Per Person / Per Day
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <h2 className="text-4xl font-serif mb-2">Premium Plan</h2>
-                        <p className="text-blue-100 max-w-xl">
-                            A sophisticated balance of comfort, heritage, and contemporary Sri Lankan style. Boutique gems and personalized service throughout.
-                        </p>
-                    </div>
-                    <div className="text-right bg-white/10 p-6 rounded-2xl backdrop-blur-sm">
-                        <div className="text-4xl font-light mb-1">${total.toLocaleString()}</div>
-                        <p className="text-blue-200 text-sm">for {nights} nights / {travelers} travelers</p>
-                        <p className="text-blue-200 text-xs mt-2 pt-2 border-t border-white/10">(${basePrice.toLocaleString()} avg. per person/day)</p>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 
-            <div className="p-8">
-                <div className="grid lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">
-                        <h3 className="text-xl font-serif text-logo-blue mb-6 flex items-center gap-2">
-                            <Star size={20} className="text-blue-500" />
-                            Premium Inclusions
-                        </h3>
-                        <div className="grid sm:grid-cols-2 gap-6">
-                            {highlights.map((item, index) => (
+            {/* Experience Roadmap - The Emerald Route */}
+            <div className="bg-neutral-50 border-y border-neutral-100 py-32 overflow-hidden">
+                <div className="max-w-7xl mx-auto px-6 md:px-12">
+                    <div className="text-center mb-32">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] mb-6"
+                        >
+                            <Sparkles size={14} /> The Emerald Route
+                        </motion.div>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Boutique Journey</h2>
+                        <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
+                            A refined sequence from arrival to exit.
+                            Experience a beautifully paced exploration through Sri Lanka's heritage and boutique gems.
+                        </p>
+                    </div>
+
+                    <div className="relative">
+                        {/* Connecting Path Line (Desktop) */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neutral-200 to-transparent -translate-y-1/2 hidden lg:block" />
+
+                        <div className="grid lg:grid-cols-3 gap-y-24 lg:gap-12 relative">
+                            {itinerary.map((step, idx) => (
                                 <motion.div
-                                    key={index}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className="flex items-start gap-4 p-4 rounded-2xl bg-blue-50/50 border border-blue-100"
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.15, duration: 0.6 }}
+                                    viewport={{ once: true }}
+                                    className="relative flex flex-col items-center text-center group"
                                 >
-                                    <div className="p-2.5 bg-white rounded-xl shadow-sm">
-                                        <item.icon size={20} className="text-logo-blue" />
+                                    {/* Sequence Number */}
+                                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-[80px] font-serif text-neutral-100/50 select-none group-hover:text-brand-gold/10 transition-colors duration-500">
+                                        0{idx + 1}
                                     </div>
-                                    <span className="text-sm font-medium text-logo-blue/90 pt-1 leading-relaxed">{item.text}</span>
+
+                                    {/* Icon Milestone */}
+                                    <div className="relative z-10 w-24 h-24 rounded-full bg-white border-2 border-neutral-100 flex items-center justify-center text-logo-blue mb-10 shadow-xl group-hover:border-logo-blue group-hover:scale-110 transition-all duration-500">
+                                        <div className="absolute inset-2 rounded-full border border-neutral-50" />
+                                        <step.icon size={36} strokeWidth={1.5} />
+
+                                        {/* Progress Dot */}
+                                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-logo-blue border-4 border-white shadow-lg lg:hidden" />
+                                    </div>
+
+                                    {/* Content Card */}
+                                    <div className="relative p-10 rounded-[2.5rem] bg-white border border-neutral-100 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-4 transition-all duration-700 w-full max-w-sm">
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 rounded-full bg-logo-blue text-white text-[10px] font-black uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all duration-500">
+                                            Phase 0{idx + 1}
+                                        </div>
+
+                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                            {step.description}
+                                        </p>
+
+                                        <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-neutral-50 border border-neutral-100 group-hover:bg-logo-blue/5 group-hover:border-logo-blue/10 transition-all">
+                                            <Check size={14} className="text-brand-gold" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{step.details}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile Connector */}
+                                    {idx !== itinerary.length - 1 && (
+                                        <div className="h-24 w-px bg-gradient-to-b from-neutral-200 to-transparent lg:hidden mt-4" />
+                                    )}
+
+                                    {/* Desktop Arrow Connector */}
+                                    {idx !== itinerary.length - 1 && idx !== 2 && (
+                                        <div className="absolute top-1/2 -right-6 -translate-y-1/2 hidden lg:block">
+                                            <div className="w-12 h-px bg-neutral-200" />
+                                        </div>
+                                    )}
                                 </motion.div>
                             ))}
                         </div>
-
-                        <div className="mt-10 grid md:grid-cols-2 gap-8">
-                            <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
-                                <h4 className="font-bold text-neutral-800 mb-3 text-xs uppercase tracking-widest">Transport & Service</h4>
-                                <p className="text-sm text-neutral-600 leading-relaxed">
-                                    Travel in style in a luxury sedan or SUV with a dedicated English-speaking chauffeur guide. Your guide is an expert in local culture and history, ensuring a rich, immersive experience.
-                                </p>
-                            </div>
-                            <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-200">
-                                <h4 className="font-bold text-neutral-800 mb-3 text-xs uppercase tracking-widest">Accommodation</h4>
-                                <p className="text-sm text-neutral-600 leading-relaxed">
-                                    Our Premium Collection features boutique hotels and restored heritage properties that offer character, intimacy, and high-end modern amenities in exceptional locations.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="bg-blue-50 p-6 rounded-3xl border border-blue-200 shadow-inner">
-                            <h3 className="text-lg font-serif text-blue-900 mb-6">Personalized Quote</h3>
-
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="text-xs font-bold text-blue-700 uppercase tracking-widest block mb-2">Duration (Nights)</label>
-                                    <input
-                                        type="number"
-                                        min="3"
-                                        max="21"
-                                        value={nights}
-                                        onChange={(e) => setNights(Number(e.target.value))}
-                                        className="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-bold text-blue-700 uppercase tracking-widest block mb-2">Travelers</label>
-                                    <select
-                                        value={travelers}
-                                        onChange={(e) => setTravelers(Number(e.target.value))}
-                                        className="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                                    >
-                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-                                            <option key={n} value={n}>{n} traveler{n > 1 ? 's' : ''}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="pt-6 border-t border-blue-200">
-                                    <div className="flex justify-between items-end mb-1">
-                                        <span className="text-sm text-blue-700 font-medium">Estimated Total:</span>
-                                        <span className="text-2xl font-serif text-blue-900">${total.toLocaleString()}</span>
-                                    </div>
-                                    <p className="text-[10px] text-blue-600 italic">
-                                        *Price includes all taxes and service charges.
-                                    </p>
-                                </div>
-
-                                <button
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-md active:scale-95"
-                                >
-                                    GET PERSONALIZED QUOTE
-                                </button>
-                                <PlanRequestFormModal
-                                    isOpen={isModalOpen}
-                                    onClose={() => setIsModalOpen(false)}
-                                    packageName="Premium"
-                                    nights={nights}
-                                    travelers={travelers}
-                                    totalPrice={total}
-                                    ctaText="GET PERSONALIZED QUOTE"
-                                />
-                            </div>
-                        </div>
-
-                        <Link href="/plans/compare" className="flex items-center justify-center gap-2 text-sm text-blue-700 hover:text-blue-900 transition-colors font-medium py-2">
-                            Compare all plans <ArrowRight size={16} />
-                        </Link>
                     </div>
                 </div>
             </div>
+
+            {/* Content Section */}
+            <div className="max-w-7xl mx-auto px-6 py-32 md:px-12">
+                <div className="grid lg:grid-cols-2 gap-32 items-start">
+                    {/* Left: Philosophy & Breakdown */}
+                    <div className="space-y-20">
+                        <div className="space-y-8">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
+                                <Star size={14} /> Refined Standard
+                            </div>
+                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Contemporary Character</h2>
+                            <p className="text-neutral-600 text-xl leading-relaxed font-medium">
+                                The Premium tier is for the traveler who appreciates heritage, boutique intimacy, and professional guidance. It's a journey that balances iconic sites with hidden gems.
+                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                                {[
+                                    { title: "Boutique Stays", desc: "Access to our curated collection of 4-star boutique and heritage hotels." },
+                                    { title: "Pro Guides", desc: "Dedicated English-speaking chauffeur guides with years of local expertise." },
+                                    { title: "High-End Transport", desc: "Arrival to destination in air-conditioned luxury Sedans or premium SUVs." },
+                                    { title: "Curated Tours", desc: "Selected entry into national parks and historic monuments with expert context." }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
+                                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
+                                        <div>
+                                            <h4 className="text-sm font-black text-logo-blue uppercase tracking-widest mb-1">{item.title}</h4>
+                                            <p className="text-xs text-neutral-500 leading-relaxed">{item.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-10">
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
+                                <h3 className="text-2xl font-serif text-logo-blue">Service Breakdown</h3>
+                                <button
+                                    onClick={() => setShowBreakdown(!showBreakdown)}
+                                    className="text-[11px] font-black uppercase tracking-widest text-neutral-400 hover:text-logo-blue transition-colors flex items-center gap-2"
+                                >
+                                    {showBreakdown ? "Hide Details" : "Reveal Pricing"}
+                                    <Info size={14} />
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                                {showBreakdown && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden space-y-6"
+                                    >
+                                        <div className="grid gap-4">
+                                            {[
+                                                { label: "Boutique & Heritage Stays", value: pricing.breakdown.accommodation },
+                                                { label: "Logistics & Chauffeur", value: pricing.breakdown.transport },
+                                                { label: "Curated Local Dining", value: pricing.breakdown.meals },
+                                                { label: "Wellness & Facilities", value: pricing.breakdown.wellness },
+                                                { label: "Tours & Entrance Fees", value: pricing.breakdown.experiences },
+                                                { label: "Concierge & Handling", value: pricing.breakdown.logistics },
+                                            ].map((item, i) => (
+                                                <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
+                                                    <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
+                                                    <span className="text-logo-blue font-serif text-2xl tracking-widest">${item.value.toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-12">
+                            <div className="space-y-4">
+                                <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <ShieldCheck size={80} className="text-white" />
+                                    </div>
+                                    <Clock size={40} className="text-brand-gold mb-6" />
+                                    <h4 className="font-serif text-2xl text-white mb-2">Reliable Comfort</h4>
+                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">Consistent, high-quality service standards across every partner hotel and transport provider.</p>
+                                </div>
+                            </div>
+                            <div className="space-y-4 pt-16">
+                                <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
+                                    <Camera size={40} className="text-logo-blue mb-6" />
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">Heritage Focus</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">A strong emphasis on Sri Lanka's cultural legacy and beautifully restored architectural gems.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right: Inclusions & Quote */}
+                    <div className="space-y-12 lg:sticky lg:top-32">
+                        <div className="bg-white border border-neutral-100 rounded-[3rem] p-12 space-y-16 shadow-xl">
+                            {inclusions.map((section, idx) => (
+                                <div key={idx} className="space-y-8">
+                                    <div className="flex items-center gap-6">
+                                        <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
+                                            <section.icon size={28} className="text-logo-blue" />
+                                        </div>
+                                        <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{section.category}</h3>
+                                    </div>
+                                    <ul className="grid gap-5">
+                                        {section.items.map((item, i) => (
+                                            <li key={i} className="flex items-start gap-4">
+                                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.4)]" />
+                                                <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+
+                            <div className="pt-12 border-t border-neutral-100 flex flex-col items-center">
+                                <Link
+                                    href={`/contact?plan=premium&nights=${nights}&travelers=${travelers}`}
+                                    className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-6 rounded-3xl font-black uppercase tracking-[0.25em] text-sm transition-all shadow-2xl shadow-logo-blue/20 active:scale-[0.98] block text-center"
+                                >
+                                    Initiate Premium Consultation
+                                </Link>
+
+                                <p className="mt-8 text-[11px] uppercase font-bold tracking-[0.3em] text-neutral-400">
+                                    dedicated specialist guidance provided
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </motion.div>
     );
 }

@@ -1,140 +1,425 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
-    Hotel,
-    Car,
-    MapPin,
-    Shield,
+    Gem,
     Check,
-    ArrowRight
+    Info,
+    Star,
+    Sparkles,
+    ShieldCheck,
+    Car,
+    Clock,
+    Heart,
+    Crown,
+    Shield,
+    Coffee,
+    Hotel,
+    Waves,
+    Compass,
+    MapPin,
+    Smartphone
 } from "lucide-react";
-import PlanRequestFormModal from "./PlanRequestFormModal";
 import Link from "next/link";
 
 export default function RegularPlan() {
-    const [selectedNights, setSelectedNights] = useState(7);
-    const [travelers, setTravelers] = useState(2);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showBreakdown, setShowBreakdown] = useState(false);
+    const nights = 7;
+    const travelers = 2;
 
-    const basePrice = 75; // average of 50-100
-    const totalPrice = basePrice * travelers * selectedNights;
+    const nightRatePerPerson = 100; // Flagship Regular rate
+    const total = nightRatePerPerson * nights * travelers;
+
+    const pricing = {
+        total: total,
+        perNight: nightRatePerPerson,
+        breakdown: {
+            accommodation: 45 * nights * travelers, // Clean & Authentic Local Stays
+            transport: 25 * nights * travelers, // Reliable AC Sedan & Driver
+            meals: 15 * nights * travelers, // Local Breakfast & Dining Tips
+            support: 5 * nights * travelers, // 24/7 Virtual Concierge
+            experiences: 10 * nights * travelers, // Essential Landmark Access
+        }
+    };
+
+    const itinerary = [
+        {
+            title: "Warm Welcome",
+            description: "Personalized greeting at the airport arrivals area. Assistance with local SIM cards and currency exchange for a smooth start.",
+            icon: Sparkles,
+            details: "Arrival Meeting & Assistance"
+        },
+        {
+            title: "Reliable Transit",
+            description: "Comfortable, air-conditioned compact Sedan or SUV with a professional, safety-vetted local driver.",
+            icon: Car,
+            details: "AC Sedan / Modern Compact"
+        },
+        {
+            title: "Authentic Comfort",
+            description: "Stays in highly-rated 3-star boutique guesthouses and clean local hotels known for their hospitality and safety.",
+            icon: Hotel,
+            details: "Hand-picked 3-Star Collection"
+        },
+        {
+            title: "Local Flavors",
+            description: "Daily breakfast included at your stays. We provide curated lists of the best safe and authentic local dining spots.",
+            icon: Coffee,
+            details: "Daily Authentic Breakfast"
+        },
+        {
+            title: "Guided Walks",
+            description: "Explore major landmarks and hidden alleys. Entrance fees to essential cultural sites are fully integrated into your plan.",
+            icon: MapPin,
+            details: "Essential Site Entrances"
+        },
+        {
+            title: "Friendly Departure",
+            description: "Leisurely final morning followed by a direct, safe transfer back to the airport well ahead of your check-in time.",
+            icon: Clock,
+            details: "Safe Airport Drop-off Transit"
+        }
+    ];
 
     const inclusions = [
-        { icon: Hotel, text: "3-Star / Comfortable Guest Houses", details: "Clean, safe, and authentic local stays" },
-        { icon: Car, text: "Compact Sedan / Shared Shuttle", details: "Reliable transport for your journey" },
-        { icon: MapPin, text: "Essential Sightseeing", details: "Major landmarks and local highlights" },
-        { icon: Shield, text: "24/7 Remote Support", details: "Local experts available via phone/WhatsApp" }
+        {
+            category: "Authentic Stays",
+            icon: Hotel,
+            items: [
+                "Highly-rated 3-Star Local Hotels",
+                "Charming Boutique Guesthouses",
+                "Comfortable AC Double/Twin Rooms",
+                "Daily Local & Continental Breakfast",
+                "Verified Safety & Cleanliness Standards"
+            ]
+        },
+        {
+            category: "Essential Logistics",
+            icon: Car,
+            items: [
+                "Private Air-Conditioned Compact Vehicle",
+                "Professional Vetted Local Driver",
+                "Airport Greeting & Route Guidance",
+                "All Land Transportation Fuel & Tolls",
+                "Dedicated Arrival Logistics Support"
+            ]
+        },
+        {
+            category: "Local Culture",
+            icon: Compass,
+            items: [
+                "Entrance to Key Cultural Sites",
+                "Curated 'Self-Guided' Trail Maps",
+                "Recommendations for Local Markets",
+                "Hand-picked Village Discovery Tips",
+                "Essential City Exploration Routes"
+            ]
+        },
+        {
+            category: "Constant Support",
+            icon: Smartphone,
+            items: [
+                "24/7 Virtual Concierge via WhatsApp",
+                "Emergency Local Medical Contacts",
+                "On-ground Safety Coordination",
+                "Local SIM Card Assistance on Arrival",
+                "All Standard Service Taxes Included"
+            ]
+        }
     ];
 
     return (
-        <div className="bg-white rounded-3xl overflow-hidden shadow-lg border border-green-200">
-            <div className="bg-gradient-to-r from-green-800 to-green-600 p-8 text-white">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                    <div>
-                        <h2 className="text-3xl font-serif mb-2">Regular Plan</h2>
-                        <p className="text-green-100 max-w-xl">
-                            Exceptional value without compromising on safety or authenticity. Perfect for the budget-conscious traveler.
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-neutral-200 text-neutral-900"
+        >
+            {/* World-Class Header */}
+            <div className="relative h-[700px] overflow-hidden">
+                <div className="absolute inset-0 bg-[url('/brain/5c0b7cbc-b65d-4fcc-8a86-bcd055ad1798/sri_lanka_budget_guesthouse_1773054870836.png')] bg-cover bg-center" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />
+
+                <div className="relative z-10 h-full flex flex-col items-center justify-center text-center p-10">
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center gap-3 px-6 py-2 bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] via-[#B38728] via-[#FBF5B7] to-[#AA771C] rounded-full border border-[#D4AF37]/50 backdrop-blur-md mb-8 shadow-[0_15px_40px_-10px_rgba(184,134,11,0.2)] relative overflow-hidden group"
+                    >
+                        <motion.div
+                            animate={{ x: ['-150%', '300%'] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none"
+                        />
+                        <Star size={20} className="text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">The Topaz Collection</span>
+                    </motion.div>
+
+                    <motion.h1
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-7xl md:text-9xl font-serif text-logo-blue mb-6 tracking-tight drop-shadow-sm"
+                    >
+                        Regular Plan
+                    </motion.h1>
+
+                    <motion.p
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
+                    >
+                        Authentic discovery with absolute reliability.
+                        Experience the heart of the island with comfort, safety, and incredible value.
+                    </motion.p>
+
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="flex flex-col items-center"
+                    >
+                        <div className="bg-white/95 backdrop-blur-xl border border-neutral-100 rounded-[3rem] p-8 md:px-14 md:py-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
+                            <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
+                                <div className="text-center md:text-left">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">Signature Quote</p>
+                                    <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
+                                        ${total.toLocaleString()}
+                                    </div>
+                                    <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
+                                        7 Nights · 2 Travelers
+                                    </p>
+                                </div>
+                                <div className="h-24 w-px bg-neutral-100 hidden md:block" />
+                                <div className="text-center md:text-left">
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">Daily Investment</p>
+                                    <div className="text-4xl font-serif text-logo-blue leading-none">
+                                        ${nightRatePerPerson.toLocaleString()}
+                                    </div>
+                                    <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
+                                        Per Person / Per Day
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+
+            {/* Experience Roadmap - The Topaz Route */}
+            <div className="bg-neutral-50 border-y border-neutral-100 py-32 overflow-hidden">
+                <div className="max-w-7xl mx-auto px-6 md:px-12">
+                    <div className="text-center mb-32">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] mb-6"
+                        >
+                            <Sparkles size={14} /> The Topaz Route
+                        </motion.div>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Authentic Path</h2>
+                        <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
+                            A carefully phased sequence of discovery.
+                            Balanced, safe, and rich in local character, ensuring every dollar creates a lasting memory.
                         </p>
                     </div>
-                    <div className="text-right bg-white/10 p-6 rounded-2xl">
-                        <div className="text-4xl font-light mb-1">${totalPrice.toLocaleString()}</div>
-                        <p className="text-green-200 text-sm">for {selectedNights} nights / {travelers} travelers</p>
-                        <p className="text-green-200 text-xs text-center border-t border-white/10 mt-2 pt-2">${basePrice} avg. per person/day</p>
+
+                    <div className="relative">
+                        {/* Connecting Path Line (Desktop) */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neutral-200 to-transparent -translate-y-1/2 hidden lg:block" />
+
+                        <div className="grid lg:grid-cols-3 gap-y-24 lg:gap-12 relative">
+                            {itinerary.map((step, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 30 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.15, duration: 0.6 }}
+                                    viewport={{ once: true }}
+                                    className="relative flex flex-col items-center text-center group"
+                                >
+                                    {/* Sequence Number */}
+                                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-[80px] font-serif text-neutral-100/50 select-none group-hover:text-brand-gold/10 transition-colors duration-500">
+                                        0{idx + 1}
+                                    </div>
+
+                                    {/* Icon Milestone */}
+                                    <div className="relative z-10 w-24 h-24 rounded-full bg-white border-2 border-neutral-100 flex items-center justify-center text-logo-blue mb-10 shadow-xl group-hover:border-logo-blue group-hover:scale-110 transition-all duration-500">
+                                        <div className="absolute inset-2 rounded-full border border-neutral-50" />
+                                        <step.icon size={36} strokeWidth={1.5} />
+
+                                        {/* Progress Dot */}
+                                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-logo-blue border-4 border-white shadow-lg lg:hidden" />
+                                    </div>
+
+                                    {/* Content Card */}
+                                    <div className="relative p-10 rounded-[2.5rem] bg-white border border-neutral-100 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-4 transition-all duration-700 w-full max-w-sm">
+                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 rounded-full bg-logo-blue text-white text-[10px] font-black uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all duration-500">
+                                            Phase 0{idx + 1}
+                                        </div>
+
+                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
+                                        <p className="text-neutral-500 text-sm leading-relaxed mb-8 h-20 overflow-hidden group-hover:text-neutral-700 transition-colors">
+                                            {step.description}
+                                        </p>
+
+                                        <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-neutral-50 border border-neutral-100 group-hover:bg-logo-blue/5 group-hover:border-logo-blue/10 transition-all">
+                                            <Check size={14} className="text-brand-gold" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{step.details}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile Connector */}
+                                    {idx !== itinerary.length - 1 && (
+                                        <div className="h-24 w-px bg-gradient-to-b from-neutral-200 to-transparent lg:hidden mt-4" />
+                                    )}
+
+                                    {/* Desktop Arrow Connector */}
+                                    {idx !== itinerary.length - 1 && idx !== 2 && (
+                                        <div className="absolute top-1/2 -right-6 -translate-y-1/2 hidden lg:block">
+                                            <div className="w-12 h-px bg-neutral-200" />
+                                        </div>
+                                    )}
+                                </motion.div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="p-8">
-                <div className="grid lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">
-                        <h3 className="text-lg font-serif text-green-900 mb-6">Standard Inclusions</h3>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            {inclusions.map((item, idx) => (
-                                <div key={idx} className="bg-green-50 p-5 rounded-2xl border border-green-100/50">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                                            <item.icon size={20} className="text-green-700" />
-                                        </div>
-                                        <span className="font-bold text-green-900">{item.text}</span>
-                                    </div>
-                                    <p className="text-sm text-green-700/80 leading-relaxed">{item.details}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-8 p-6 bg-neutral-50 rounded-2xl border border-neutral-200">
-                            <h4 className="font-bold text-neutral-800 mb-4 uppercase text-xs tracking-widest">Typical Daily Experience</h4>
-                            <p className="text-sm text-neutral-600 leading-relaxed">
-                                Our Regular plan focuses on the heart of Sri Lanka. You'll stay in highly-rated 3-star properties or charming guesthouses known for their hospitality. Transport is provided by professional drivers in comfortable, air-conditioned compact vehicles. You'll have the flexibility to explore at your own pace with the security of our 24/7 remote assistance.
+            {/* Content Section */}
+            <div className="max-w-7xl mx-auto px-6 py-32 md:px-12">
+                <div className="grid lg:grid-cols-2 gap-32 items-start">
+                    {/* Left: Philosophy & Breakdown */}
+                    <div className="space-y-20">
+                        <div className="space-y-8">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
+                                <ShieldCheck size={14} /> Reliable Value
+                            </div>
+                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Essential Quality</h2>
+                            <p className="text-neutral-600 text-xl leading-relaxed font-medium">
+                                The Regular tier provides the perfect foundation for a classic Sri Lankan adventure. We focus on cleanliness, safety, and authentic experiences, ensuring highly-rated stays and reliable transport.
                             </p>
-                        </div>
-                    </div>
 
-                    <div className="space-y-6">
-                        <div className="bg-green-50/50 p-6 rounded-3xl border border-green-100">
-                            <h4 className="font-serif text-xl text-green-900 mb-6">Calculate Quote</h4>
-
-                            <div className="space-y-5">
-                                <div>
-                                    <label className="text-xs font-bold text-green-700 uppercase tracking-wider block mb-2">Duration (Nights)</label>
-                                    <input
-                                        type="number"
-                                        min="3"
-                                        max="30"
-                                        value={selectedNights}
-                                        onChange={(e) => setSelectedNights(Number(e.target.value))}
-                                        className="w-full border border-green-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-bold text-green-700 uppercase tracking-wider block mb-2">Travelers</label>
-                                    <select
-                                        value={travelers}
-                                        onChange={(e) => setTravelers(Number(e.target.value))}
-                                        className="w-full border border-green-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 outline-none appearance-none bg-white"
-                                    >
-                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-                                            <option key={n} value={n}>{n} traveler{n > 1 ? 's' : ''}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="pt-6 border-t border-green-100">
-                                    <div className="flex justify-between items-end mb-1">
-                                        <span className="text-sm text-green-700">Estimated Total:</span>
-                                        <span className="text-2xl font-serif text-green-900">${totalPrice.toLocaleString()}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                                {[
+                                    { title: "Comfortable Stays", desc: "Access to our vetted collection of high-quality 3-star local hotels and guest houses." },
+                                    { title: "Reliable Drivers", desc: "Private transport with experienced local drivers who prioritize your safety and comfort." },
+                                    { title: "Landmark Entry", desc: "Fully included entrance fees to the island's most essential cultural and historic sites." },
+                                    { title: "Safety Focused", desc: "Continuous remote support and local expertise to handle any needs during your trip." }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
+                                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
+                                        <div>
+                                            <h4 className="text-sm font-black text-logo-blue uppercase tracking-widest mb-1">{item.title}</h4>
+                                            <p className="text-xs text-neutral-500 leading-relaxed">{item.desc}</p>
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-green-600 italic">
-                                        *Final price depends on seasonal availability.
-                                    </p>
-                                </div>
-
-                                <button
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="w-full bg-green-700 hover:bg-green-800 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-md active:scale-95"
-                                >
-                                    request customized quote
-                                </button>
-                                <PlanRequestFormModal
-                                    isOpen={isModalOpen}
-                                    onClose={() => setIsModalOpen(false)}
-                                    packageName="Regular"
-                                    nights={selectedNights}
-                                    travelers={travelers}
-                                    totalPrice={totalPrice}
-                                    ctaText="request customized quote"
-                                />
+                                ))}
                             </div>
                         </div>
 
-                        <Link href="/plans/compare" className="flex items-center justify-center gap-2 text-sm text-green-700 hover:text-green-900 transition-colors font-medium py-2">
-                            Compare with other plans <ArrowRight size={16} />
-                        </Link>
+                        <div className="space-y-10">
+                            <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
+                                <h3 className="text-2xl font-serif text-logo-blue">Value Allocation</h3>
+                                <button
+                                    onClick={() => setShowBreakdown(!showBreakdown)}
+                                    className="text-[11px] font-black uppercase tracking-widest text-neutral-400 hover:text-logo-blue transition-colors flex items-center gap-2"
+                                >
+                                    {showBreakdown ? "Hide Details" : "Reveal Pricing"}
+                                    <Info size={14} />
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                                {showBreakdown && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden space-y-6"
+                                    >
+                                        <div className="grid gap-4">
+                                            {[
+                                                { label: "Comfortable Local Stays", value: pricing.breakdown.accommodation },
+                                                { label: "AC Transport & Driver", value: pricing.breakdown.transport },
+                                                { label: "Authentic Local Breakfast", value: pricing.breakdown.meals },
+                                                { label: "Essential Site Entrances", value: pricing.breakdown.experiences },
+                                                { label: "24/7 Virtual Support", value: pricing.breakdown.support },
+                                            ].map((item, i) => (
+                                                <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
+                                                    <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
+                                                    <span className="text-logo-blue font-serif text-2xl tracking-widest">${item.value.toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-12">
+                            <div className="space-y-4">
+                                <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <Smartphone size={80} className="text-white" />
+                                    </div>
+                                    <Clock size={40} className="text-brand-gold mb-6" />
+                                    <h4 className="font-serif text-2xl text-white mb-2">Always Connected</h4>
+                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">Constant digital companionship to ensure your journey in a new country is stress-free.</p>
+                                </div>
+                            </div>
+                            <div className="space-y-4 pt-16">
+                                <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
+                                    <Heart size={40} className="text-logo-blue mb-6" />
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">True Hospitality</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">Experience the genuine warmth of Sri Lankan guesthouses hand-picked for their character.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right: Inclusions & Quote */}
+                    <div className="space-y-12 lg:sticky lg:top-32">
+                        <div className="bg-white border border-neutral-100 rounded-[3rem] p-12 space-y-16 shadow-xl">
+                            {inclusions.map((section, idx) => (
+                                <div key={idx} className="space-y-8">
+                                    <div className="flex items-center gap-6">
+                                        <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
+                                            <section.icon size={28} className="text-logo-blue" />
+                                        </div>
+                                        <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{section.category}</h3>
+                                    </div>
+                                    <ul className="grid gap-5">
+                                        {section.items.map((item, i) => (
+                                            <li key={i} className="flex items-start gap-4">
+                                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.3)]" />
+                                                <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+
+                            <div className="pt-12 border-t border-neutral-100 flex flex-col items-center">
+                                <Link
+                                    href={`/contact?plan=regular&nights=${nights}&travelers=${travelers}`}
+                                    className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-6 rounded-3xl font-black uppercase tracking-[0.25em] text-sm transition-all shadow-2xl shadow-logo-blue/20 active:scale-[0.98] block text-center"
+                                >
+                                    Initiate Regular Consultation
+                                </Link>
+
+                                <p className="mt-8 text-[11px] uppercase font-bold tracking-[0.3em] text-neutral-400">
+                                    coordinated local handling provided
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+        </motion.div>
     );
 }
