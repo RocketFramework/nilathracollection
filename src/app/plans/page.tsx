@@ -140,39 +140,45 @@ export default function PlansPage() {
                                     <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
                                     <div className="relative z-10 flex flex-col h-full p-8 md:p-10">
-                                        <div className="flex items-center justify-between mb-auto">
+                                        {/* Bookmark Ribbon */}
+                                        <div className="absolute top-0 left-8 flex flex-col items-center">
                                             <motion.div
-                                                initial={{ scale: 0.8, opacity: 0 }}
-                                                whileInView={{ scale: 1, opacity: 1 }}
-                                                className={`p-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 ${plan.iconColor} shadow-lg`}
+                                                initial={{ y: -100 }}
+                                                whileInView={{ y: 0 }}
+                                                transition={{ type: "spring", damping: 15, stiffness: 100, delay: 0.2 + idx * 0.1 }}
+                                                className={`w-24 md:w-28 pb-6 rounded-b-2xl bg-white/95 backdrop-blur-xl shadow-2xl border-x border-b border-white/20 flex flex-col items-center text-center`}
                                             >
-                                                <plan.icon size={24} />
+                                                <div className={`w-full p-3 rounded-b-xl mb-4 ${plan.btnColor.split(' ')[0]} flex justify-center`}>
+                                                    <plan.icon size={24} />
+                                                </div>
+                                                <h3 className="text-sm font-black uppercase tracking-tighter text-neutral-900 px-2 leading-tight">
+                                                    {plan.title.split(' ')[0]}<br />{plan.title.split(' ')[1] || ''}
+                                                </h3>
+                                                <div className="mt-4 pt-4 border-t border-neutral-100 w-full px-2">
+                                                    <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">From</p>
+                                                    <p className={`text-lg font-black font-mono tracking-tight text-neutral-900`}>
+                                                        {plan.priceRange.split(' ')[0]}
+                                                    </p>
+                                                </div>
                                             </motion.div>
-                                            <span className={`text-[9px] uppercase tracking-[0.2em] font-black px-4 py-2 rounded-full bg-black/30 backdrop-blur-md ${plan.iconColor} border border-white/10`}>
+                                            {/* Ribbon fold shadow effect */}
+                                            <div className="w-1 h-1 bg-black/20 absolute -top-1 left-0" />
+                                        </div>
+
+                                        <div className="flex items-center justify-end mb-auto">
+                                            <span className={`text-[9px] uppercase tracking-[0.2em] font-black px-4 py-2 rounded-full bg-logo-blue text-white shadow-lg border border-white/10`}>
                                                 {plan.badge}
                                             </span>
                                         </div>
 
-                                        <div className="mt-auto pt-12">
-                                            <div className="space-y-4 mb-8">
-                                                <h3 className="text-5xl font-serif text-white tracking-tight drop-shadow-2xl leading-none">{plan.title}</h3>
-                                                <div className="flex flex-col gap-1">
-                                                    <p className={`text-3xl font-black ${plan.iconColor} font-mono tracking-tighter drop-shadow-xl`}>
-                                                        {plan.priceRange}
-                                                    </p>
-                                                    <span className="text-[10px] uppercase font-black tracking-[0.3em] text-white/60 drop-shadow-sm">
-                                                        invest per day / person
-                                                    </span>
-                                                </div>
-                                            </div>
-
+                                        <div className="mt-auto">
                                             <p className={`text-white/90 mb-10 leading-relaxed text-sm font-medium drop-shadow-md max-w-sm group-hover:text-white transition-colors`}>
                                                 {plan.description}
                                             </p>
 
                                             <Link
                                                 href={plan.href}
-                                                className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] ${plan.btnColor}`}
+                                                className={`w-fit px-12 py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] ${plan.btnColor}`}
                                             >
                                                 explore journey <ArrowRight size={16} />
                                             </Link>
