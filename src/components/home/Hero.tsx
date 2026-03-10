@@ -32,8 +32,8 @@ export default function Hero() {
                     transition={{ duration: 1, delay: 0.4 }}
                     className="text-5xl md:text-8xl font-serif text-white mb-8 max-w-5xl leading-tight"
                 >
-                    Sri Lanka&apos;s Best Travel Agency for <br />
-                    <span className="text-gold-gradient italic">Curated Luxury Journeys</span>
+                    Luxury Unfiltered: <br />
+                    <span className="text-gold-gradient italic">Above and Beyond the Norm</span>
                 </motion.h1>
 
                 <motion.p
@@ -42,7 +42,7 @@ export default function Hero() {
                     transition={{ duration: 1, delay: 0.8 }}
                     className="text-white/80 text-lg md:text-xl max-w-2xl mb-12 font-light tracking-wide"
                 >
-                    Experience the pinnacle of hospitality in the heart of the Indian Ocean. From private villas to VIP handling, Nilathra Travels defines Sri Lankan luxury.
+                    Experience the pinnacle of hospitality in the heart of the Indian Ocean. Nilathra Collection curates bespoke journeys that redefine Sri Lankan luxury.
                 </motion.p>
 
                 <motion.div

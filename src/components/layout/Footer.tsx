@@ -27,7 +27,7 @@ export default function Footer() {
                         <div className="relative h-10 w-10 overflow-hidden rounded-full brightness-0 invert">
                             <Image
                                 src="/images/nilathra_travels_logo.jpeg"
-                                alt="Nilathra Travels Logo"
+                                alt="Nilathra Collection Logo"
                                 fill
                                 className="object-contain"
                             />
@@ -37,7 +37,7 @@ export default function Footer() {
                         </span>
                     </Link>
                     <p className="text-white/70 text-sm leading-relaxed max-w-xs">
-                        Curating the finest luxury travel experiences in Sri Lanka. From VIP handling to bespoke itineraries, we bring you the heart of the island in absolute comfort.
+                        Sri Lanka&apos;s premier luxury travel curator. From VIP handling to bespoke itineraries, we go above and beyond the norm to bring you the heart of the island.
                     </p>
                     <div className="flex items-center gap-5">
                         <a
@@ -149,7 +149,7 @@ export default function Footer() {
             </div>
 
             <div className="max-w-7xl mx-auto pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/50 uppercase tracking-widest">
-                <p>&copy; {new Date().getFullYear()} Nilathra Travels. All Rights Reserved.</p>
+                <p>&copy; {new Date().getFullYear()} Nilathra Collection. All Rights Reserved.</p>
                 <div className="flex gap-8">
                     <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
                     <Link href="/terms" className="hover:text-white">Terms of Service</Link>
