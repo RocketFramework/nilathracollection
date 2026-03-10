@@ -7,7 +7,7 @@ import ActivityCard from "@/components/ActivityCard";
 import {
     MapPin, Check, Sparkles, Navigation, CalendarDays,
     Compass, Utensils, BedDouble, Sun, Clock, Plus, AlertCircle,
-    Train, Info, AlertTriangle, ChevronDown, ChevronUp, BrainCircuit
+    Train, Info, AlertTriangle, ChevronDown, ChevronUp, BrainCircuit, Search
 } from "lucide-react";
 import { fetchActivities, Activity } from "@/data/activities";
 // Updated Import: Ensure this matches your export name from the engine
@@ -34,6 +34,7 @@ export default function CustomPlanContent() {
     const [selectedOptionalLocations, setSelectedOptionalLocations] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [showAllConflicts, setShowAllConflicts] = useState(false);
 
@@ -46,7 +47,26 @@ export default function CustomPlanContent() {
     const [routeResult, setRouteResult] = useState<RoutePlan | null>(null);
 
     // ... (toggleActivity and locations logic remains the same) ...
-    const categories = useMemo(() => Array.from(new Set(activities.map(a => a.category))), [activities]);
+    const categories = useMemo(() => ["All", ...Array.from(new Set(activities.map(a => a.category)))], [activities]);
+
+    // Set default category to "All" if it's the first load
+    useEffect(() => {
+        if (categories.length > 0 && selectedCategory === "Adventure" && !categories.includes("Adventure")) {
+            setSelectedCategory("All");
+        }
+    }, [categories]);
+
+    const filteredActivities = useMemo(() => {
+        return activities.filter(a => {
+            const matchesCategory = selectedCategory === "All" || a.category === selectedCategory;
+            const matchesSearch = !searchTerm ||
+                a.activity_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                a.location_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                a.description.toLowerCase().includes(searchTerm.toLowerCase());
+            return matchesCategory && matchesSearch;
+        });
+    }, [activities, selectedCategory, searchTerm]);
+
     const toggleActivity = (id: number) => {
         setSelectedActivities(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -236,29 +256,56 @@ export default function CustomPlanContent() {
                                         <p className="text-sm text-neutral-500">Select the experiences that call to you.</p>
                                     </div>
 
-                                    {/* Categories */}
-                                    <div className="flex flex-wrap gap-2 justify-center">
-                                        {categories.map(cat => (
-                                            <button
-                                                key={cat}
-                                                onClick={() => setSelectedCategory(cat)}
-                                                className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${selectedCategory === cat ? 'bg-brand-green text-white shadow-md scale-105' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
-                                            >
-                                                {cat}
-                                            </button>
-                                        ))}
+                                    <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
+                                        {/* Categories */}
+                                        <div className="flex flex-wrap gap-2 justify-center md:justify-start flex-1">
+                                            {categories.map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setSelectedCategory(cat)}
+                                                    className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${selectedCategory === cat ? 'bg-brand-green text-white shadow-md scale-105' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Search Bar */}
+                                        <div className="relative w-full md:w-72">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                                            <input
+                                                type="text"
+                                                placeholder="Search experiences..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full pl-12 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-full text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold transition-all"
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto p-2">
-                                        {activities.filter(a => a.category === selectedCategory).map(act => (
-                                            <ActivityCard
-                                                key={act.id}
-                                                activity={act}
-                                                isSelected={selectedActivities.includes(act.id)}
-                                                onToggle={toggleActivity}
-                                                variant="grid"
-                                            />
-                                        ))}
+                                        {filteredActivities.length > 0 ? (
+                                            filteredActivities.map(act => (
+                                                <ActivityCard
+                                                    key={act.id}
+                                                    activity={act}
+                                                    isSelected={selectedActivities.includes(act.id)}
+                                                    onToggle={toggleActivity}
+                                                    variant="grid"
+                                                />
+                                            ))
+                                        ) : (
+                                            <div className="col-span-full py-20 text-center">
+                                                <Search className="mx-auto text-neutral-200 mb-4" size={48} />
+                                                <p className="text-neutral-400 font-light text-lg">No experiences found for your criteria.</p>
+                                                <button
+                                                    onClick={() => { setSearchTerm(""); setSelectedCategory("All"); }}
+                                                    className="mt-4 text-brand-gold font-medium hover:underline"
+                                                >
+                                                    Clear filters
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex justify-end pt-8">

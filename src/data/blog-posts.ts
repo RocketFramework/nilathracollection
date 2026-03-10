@@ -389,6 +389,57 @@ Kandy is the spiritual heart of any Sri Lankan journey. Let us guide you through
     `
     },
     {
+        title: "The Wild Heart of Sri Lanka: A Unique Collection of Nature's Wonders",
+        slug: "wildlife-collection-sri-lanka",
+        date: "March 11, 2026",
+        author: "Nilathra Editorial",
+        category: "Nature",
+        readingTime: "9 min read",
+        image: "/images/wildlife_leopard.png",
+        excerpt: "From the elusive leopard of Yala to the majestic elephant herds of the dry zone, explore Sri Lanka's unparalleled wildlife heritage.",
+        content: `
+# The Wild Heart of Sri Lanka: A Unique Collection of Nature's Wonders
+
+Sri Lanka is often described as the 'Pearl of the Indian Ocean,' but for the wildlife enthusiast, it is more akin to an emerald sanctuary. Despite its compact size, the island boasts a biodiversity that rivals entire continents, housing a unique collection of species that range from the apex predators of the jungle to the gentle giants of the plains.
+
+## The Ghost of the Jungle: The Sri Lankan Leopard
+
+In the sun-drenched scrub lands of Yala National Park, a silent predator reigns supreme. The Sri Lankan leopard (*Panthera pardus kotiya*) is the island's most iconic inhabitant. Unlike their cousins in Africa or India, these leopards are the top predators of their ecosystem, leading to a boldness and visibility that is legendary among wildlife photographers.
+
+![Sri Lankan Leopard](/images/wildlife_leopard.png)
+
+## The Great Gathering: Asian Elephants
+
+Sri Lanka is home to approximately 10% of the world's wild Asian elephant population. Whether it's the seasonal 'Gathering' in Minneriya or the year-round sightings in Udawalawe and Yala, witnessing a herd of these majestic creatures is a humbling experience.
+
+![Elephant Herd](/images/wildlife_elephant_herd.png)
+
+## The Reclusive Resident: The Sloth Bear
+
+One of the island's most elusive residents is the Sri Lankan sloth bear. Known for its shaggy black coat and its fondness for the seasonal Palu fruit, the sloth bear is a testament to the primal nature of the dry zone forests.
+
+![Sri Lankan Sloth Bear](/images/wildlife_sloth_bears.png)
+
+## The Aquatic Giants: Water Buffaloes
+
+The wetlands and watering holes of the national parks are often dominated by the presence of the wild water buffalo. These powerful animals are a vital part of the ecosystem, often seen wading through the lagoons or parading across the plains in formidable herds.
+
+![Water Buffaloes](/images/wildlife_buffaloes.png)
+
+## The Nilathra Safari Legacy
+
+At Nilathra Travels, we don't just 'take' you on a safari; we architect an encounter with the wild. Our wildlife experiences are defined by:
+
+- **Private Ranger-Led Safaris**: Accompanied by expert naturalists who understand the nuances of animal behavior.
+- **Elite Tracking**: Our trackers use high-end optics and years of experience to locate the most elusive species.
+- **Luxury Conservation**: A portion of every wildlife journey goes directly towards local conservation and community-led protection initiatives.
+
+Sri Lanka's wildlife is a heritage that belongs to the world. We invite you to experience it in its purest, most respectful form.
+
+*Embark on your wild odyssey. Contact Nilathra Travels to design your bespoke safari today.*
+        `
+    },
+    {
         title: "Sri Lanka: The Heart of the Eastern Hemisphere – A Destination for Sustainable Investment",
         slug: "invest-in-sustainable-tourism-sri-lanka",
         date: "March 11, 2026",

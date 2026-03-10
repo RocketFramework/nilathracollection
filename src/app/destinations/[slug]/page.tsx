@@ -8,6 +8,7 @@ import SigiriyaAncientSection from "@/components/destinations/SigiriyaAncientSec
 import EllaMistySection from "@/components/destinations/EllaMistySection";
 import NuwaraEliyaHeritageSection from "@/components/destinations/NuwaraEliyaHeritageSection";
 import WeligamaMirissaSection from "@/components/destinations/WeligamaMirissaSection";
+import YalaWildlifeSection from "@/components/destinations/YalaWildlifeSection";
 import React from "react";
 
 // Mock data for destinations
@@ -364,6 +365,9 @@ export default function DestinationPage({ params }: { params: Promise<{ slug: st
 
             {/* Weligama & Mirissa Specific Elaborated Content */}
             {slug === "weligama-mirissa" && <WeligamaMirissaSection />}
+
+            {/* Yala Specific Elaborated Content */}
+            {slug === "yala" && <YalaWildlifeSection />}
 
             {/* Dynamic CTA */}
             <section className="py-24 px-6 md:px-12 bg-brand-green text-white text-center">
