@@ -157,6 +157,41 @@ export default function Home() {
 
       <PackagesSection />
 
+      {/* SEO Rich Text Section */}
+      <section className="py-24 px-6 md:px-12 bg-neutral-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+            <div className="space-y-6">
+              <h2 className="text-3xl md:text-5xl font-serif text-logo-blue leading-tight">
+                Architecting the Finest <br />
+                <span className="text-brand-gold italic">Sri Lankan Odysseys</span>
+              </h2>
+              <p className="text-neutral-600 font-light leading-relaxed">
+                As the leading luxury travel agency in Sri Lanka, Nilathra Travels specializes in curating experiences that transcend the ordinary. Our deep-rooted heritage in the island&apos;s hospitality sector allows us to open doors that remain closed to others, from private sunset viewings at the Sigiriya Rock Fortress to exclusive tea tastings in the misty valleys of Nuwara Eliya.
+              </p>
+              <div className="flex flex-wrap gap-4 pt-4">
+                {["VIP Concierge", "Private Jet Charters", "Security Detail", "Luxury Villa Buyouts"].map((service) => (
+                  <span key={service} className="px-5 py-2 bg-white rounded-full text-[11px] font-bold uppercase tracking-widest text-logo-blue border border-neutral-100 shadow-sm">
+                    {service}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-8 text-neutral-500 font-light text-sm leading-relaxed border-l border-neutral-200 pl-8 lg:pl-16">
+              <p>
+                Whether you are seeking the wild heart of Yala National Park for a leopard safari or the colonial elegance of Galle Fort, our travel architects design every moment with precision. We understand that for the high-net-worth traveler, time is the ultimate currency. That is why our itineraries prioritize efficiency without sacrificing depth.
+              </p>
+              <p>
+                Our collections—Ultra VIP, Luxury, and Premium—are designed to cater to varying levels of intensity and exclusivity. We invite you to explore our bespoke Sri Lanka tour packages, each a blank canvas ready to be painted with your specific desires. Let Nilathra Travels be your compass to the Pearl of the Indian Ocean.
+              </p>
+              <Link href="/blog" className="inline-flex items-center gap-2 text-logo-blue font-bold uppercase tracking-widest text-[10px] hover:gap-4 transition-all">
+                Read our latest journal entries <ArrowRight size={14} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <DestinationsSection />
 
       {/* FAQ Section - New SEO Section */}
