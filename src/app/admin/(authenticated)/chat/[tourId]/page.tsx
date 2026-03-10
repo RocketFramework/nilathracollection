@@ -7,7 +7,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 
 export default function AgentChatPage() {
     const params = useParams();
-    const tourId = params.id as string;
+    const tourId = params.tourId as string;
 
     // In a real app, logic to fetch metadata like Tourist Name based on Tour ID
     const tourTitle = "14-Day Complete Sri Lanka Circuit";

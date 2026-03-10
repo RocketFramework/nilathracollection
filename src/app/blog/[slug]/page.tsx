@@ -9,8 +9,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, User, Clock, Share2, Facebook, Twitter, Linkedin } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-    const post = blogPosts.find((p) => p.slug === params.slug);
+import React, { use } from "react";
+
+export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+    const resolvedParams = use(params);
+    const post = blogPosts.find((p) => p.slug === resolvedParams.slug);
 
     if (!post) {
         notFound();
