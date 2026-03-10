@@ -12,6 +12,7 @@
     "@geoapify/route-planner-sdk": "^1.1.7",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@turf/turf": "^7.3.4",
     "@vercel/analytics": "^1.6.1",
     "clsx": "^2.1.1",
@@ -21,6 +22,7 @@
     "openai": "^6.24.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
     "tailwind-merge": "^3.5.0",
     "traffic-traversal": "^1.4.1"
   },
