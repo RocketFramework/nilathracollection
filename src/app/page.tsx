@@ -163,7 +163,7 @@ export default function Home() {
                 <span className="text-brand-gold italic">Sri Lankan Odysseys</span>
               </h2>
               <p className="text-neutral-600 font-light leading-relaxed">
-                As the leading luxury travel agency in Sri Lanka, Nilathra Travels specializes in curating experiences that transcend the ordinary. Our deep-rooted heritage in the island&apos;s hospitality sector allows us to open doors that remain closed to others, from private sunset viewings at the Sigiriya Rock Fortress to exclusive tea tastings in the misty valleys of Nuwara Eliya.
+                As the leading luxury travel agency in Sri Lanka, Nilathra Collection specializes in curating experiences that transcend the ordinary. Our deep-rooted heritage in the island&apos;s hospitality sector allows us to open doors that remain closed to others, from private sunset viewings at the Sigiriya Rock Fortress to exclusive tea tastings in the misty valleys of Nuwara Eliya.
               </p>
               <div className="flex flex-wrap gap-4 pt-4">
                 {["VIP Concierge", "Private Jet Charters", "Security Detail", "Luxury Villa Buyouts"].map((service) => (
@@ -178,7 +178,7 @@ export default function Home() {
                 Whether you are seeking the wild heart of Yala National Park for a leopard safari or the colonial elegance of Galle Fort, our travel architects design every moment with precision. We understand that for the high-net-worth traveler, time is the ultimate currency. That is why our itineraries prioritize efficiency without sacrificing depth.
               </p>
               <p>
-                Our collections—Ultra VIP, Luxury, and Premium—are designed to cater to varying levels of intensity and exclusivity. We invite you to explore our bespoke Sri Lanka tour packages, each a blank canvas ready to be painted with your specific desires. Let Nilathra Travels be your compass to the Pearl of the Indian Ocean.
+                Our collections—Ultra VIP, Luxury, and Premium—are designed to cater to varying levels of intensity and exclusivity. We invite you to explore our bespoke Sri Lanka tour packages, each a blank canvas ready to be painted with your specific desires. Let Nilathra Collection be your compass to the Pearl of the Indian Ocean.
               </p>
               <Link href="/blog" className="inline-flex items-center gap-2 text-logo-blue font-bold uppercase tracking-widest text-[10px] hover:gap-4 transition-all">
                 Read our latest journal entries <ArrowRight size={14} />
@@ -255,7 +255,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto text-center relative z-10">
           <Quote className="mx-auto mb-10 text-brand-gold opacity-50" size={60} />
           <h2 className="font-serif text-3xl md:text-5xl leading-tight mb-12">
-            &quot;An unparalleled experience. From the private villa in Ella to the seamless VIP handling at Colombo, Nilathra Travels exceeded every expectation. True Sri Lankan luxury.&quot;
+            &quot;An unparalleled experience. From the private villa in Ella to the seamless VIP handling at Colombo, Nilathra Collection exceeded every expectation. True Sri Lankan luxury.&quot;
           </h2>
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1">
@@ -298,7 +298,7 @@ export default function Home() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "TravelAgency",
-            "name": "Nilathra Travels",
+            "name": "Nilathra Collection",
             "description": "The best travel agency in Sri Lanka specializing in luxury, curated, and VIP travel experiences.",
             "url": "https://nilathra.com",
             "telephone": "+94777278282",

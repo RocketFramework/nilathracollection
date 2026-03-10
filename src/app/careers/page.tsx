@@ -28,7 +28,7 @@ const vacancies = [
     {
         title: "Global Sales Executive",
         location: "Remote / Sri Lanka",
-        overview: "The Global Sales Executive will drive international business development for Nilathra Travels, building relationships with luxury travel agencies, concierge services, and high-net-worth clientele worldwide.",
+        overview: "The Global Sales Executive will drive international business development for Nilathra Collection, building relationships with luxury travel agencies, concierge services, and high-net-worth clientele worldwide.",
         responsibilities: [
             "Develop global partnerships with luxury travel agents and concierge companies",
             "Promote Nilathra’s ultra-luxury travel experiences internationally",
@@ -64,7 +64,7 @@ const vacancies = [
     {
         title: "Operations Executive",
         location: "Sri Lanka",
-        overview: "The Operations Executive is responsible for ensuring the flawless execution of all travel programs organized by Nilathra Travels.",
+        overview: "The Operations Executive is responsible for ensuring the flawless execution of all travel programs organized by Nilathra Collection.",
         responsibilities: [
             "Coordinate bookings, transport, guides, and accommodations",
             "Manage supplier relationships and service delivery",
@@ -82,7 +82,7 @@ const vacancies = [
     {
         title: "Digital Marketing Executive",
         location: "Remote / Sri Lanka",
-        overview: "The Digital Marketing Executive will lead the online marketing strategy for Nilathra Travels, focusing on attracting international luxury travelers.",
+        overview: "The Digital Marketing Executive will lead the online marketing strategy for Nilathra Collection, focusing on attracting international luxury travelers.",
         responsibilities: [
             "Manage SEO and digital marketing campaigns",
             "Optimize website content for global search visibility",

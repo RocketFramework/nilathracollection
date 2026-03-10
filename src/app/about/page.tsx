@@ -26,7 +26,7 @@ export default function AboutPage() {
                 <div className="max-w-4xl mx-auto text-center">
                     <h2 className="section-title mb-10">Luxury Unfiltered</h2>
                     <p className="text-xl text-brand-charcoal/70 font-light leading-relaxed mb-8">
-                        Nilathra Travels was born from a passion to showcase Sri Lanka in its purest, most elegant form. We believe that true luxury is not just about the finest sheets or the most expensive cars—it's about the access to authentic, soul-stirring experiences that remain etched in memory.
+                        Nilathra Collection was born from a passion to showcase Sri Lanka in its purest, most elegant form. We believe that true luxury is not just about the finest sheets or the most expensive cars—it's about the access to authentic, soul-stirring experiences that remain etched in memory.
                     </p>
                     <p className="text-brand-charcoal/60 leading-relaxed mb-12">
                         Based in Colombo, our team consists of local experts, historians, and hospitality veterans who understand the nuances of the island. We don't just book hotels; we relationships. We don't just plan routes; we curate narratives.

@@ -1747,10 +1747,10 @@ function renderPOContent(po: DBPurchaseOrder & { items: DBPurchaseOrderItem[] })
             {/* Document Header */}
             <div className="flex flex-row justify-between items-center gap-2 border-b border-neutral-100 pb-4">
                 <div className="flex items-center gap-3">
-                    <img src="/images/nilathra_travels_logo.jpeg" alt="Nilathra Travels" className="w-10 h-10 object-contain rounded-lg" />
+                    <img src="/images/nilathra_travels_logo.jpeg" alt="Nilathra Collection" className="w-10 h-10 object-contain rounded-lg" />
                     <div className="space-y-4">
                         <div className="space-y-0 text-left">
-                            <h1 className="text-sm font-serif font-black text-brand-charcoal tracking-tight leading-none uppercase">Nilathra Travels</h1>
+                            <h1 className="text-sm font-serif font-black text-brand-charcoal tracking-tight leading-none uppercase">Nilathra Collection</h1>
                             <p className="text-[7px] font-bold text-brand-gold uppercase tracking-tight leading-none">By Nilathra Hotel Management (Pvt) Ltd</p>
                         </div>
                         <div className="text-sm text-neutral-500 leading-relaxed font-medium">
@@ -1887,7 +1887,7 @@ function renderPOContent(po: DBPurchaseOrder & { items: DBPurchaseOrderItem[] })
 
             {/* Footnote */}
             <div className="text-center pt-16">
-                <p className="text-[10px] text-neutral-300 font-bold uppercase tracking-[0.4em] mb-4">Digitally Generated Document • Nilathra Travels Official PO</p>
+                <p className="text-[10px] text-neutral-300 font-bold uppercase tracking-[0.4em] mb-4">Digitally Generated Document • Nilathra Collection Official PO</p>
                 <div className="flex justify-center flex-wrap gap-8 grayscale opacity-30">
                     <div className="text-[10px] font-black p-2 border border-neutral-200 uppercase tracking-widest">Confirmed Excellence</div>
                     <div className="text-[10px] font-black p-2 border border-neutral-200 uppercase tracking-widest">Sustainable Sri Lanka</div>

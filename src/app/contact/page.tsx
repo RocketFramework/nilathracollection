@@ -329,7 +329,7 @@ export default function ContactPage() {
                     <div className="bg-white p-6 shadow-2xl flex items-center gap-4 rounded-sm border-t-2 border-brand-gold">
                         <MapPin className="text-brand-gold" size={32} />
                         <div>
-                            <p className="font-serif text-xl">Nilathra Travels</p>
+                            <p className="font-serif text-xl">Nilathra Collection</p>
                             <p className="text-xs text-brand-charcoal/50 uppercase tracking-widest">Colombo, Sri Lanka</p>
                         </div>
                     </div>
