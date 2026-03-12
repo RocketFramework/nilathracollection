@@ -1747,7 +1747,7 @@ function renderPOContent(po: DBPurchaseOrder & { items: DBPurchaseOrderItem[] })
             {/* Document Header */}
             <div className="flex flex-row justify-between items-center gap-2 border-b border-neutral-100 pb-4">
                 <div className="flex items-center gap-3">
-                    <img src="/images/nilathra_travels_logo.jpeg" alt="Nilathra Collection" className="w-10 h-10 object-contain rounded-lg" />
+                    <img src="/images/nilathra_travels_logo.png" alt="Nilathra Collection" className="w-10 h-10 object-contain rounded-lg" />
                     <div className="space-y-4">
                         <div className="space-y-0 text-left">
                             <h1 className="text-sm font-serif font-black text-brand-charcoal tracking-tight leading-none uppercase">Nilathra Collection</h1>

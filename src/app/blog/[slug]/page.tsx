@@ -3,8 +3,14 @@ import { notFound } from "next/navigation";
 import BlogContent from "./BlogContent";
 import { Metadata } from "next";
 
+const BASE_URL = "https://nilathra.com";
+
 interface Props {
     params: Promise<{ slug: string }>;
+}
+
+export async function generateStaticParams() {
+    return blogPosts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -17,13 +23,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         };
     }
 
+    const canonicalUrl = `${BASE_URL}/blog/${post.slug}`;
+
     return {
         title: `${post.title} | Nilathra Collection Blog`,
         description: post.excerpt,
+        alternates: {
+            canonical: canonicalUrl,
+        },
         openGraph: {
             title: post.title,
             description: post.excerpt,
-            images: [post.image],
+            url: canonicalUrl,
+            siteName: "Nilathra Collection",
+            images: [
+                {
+                    url: post.image,
+                    width: 1200,
+                    height: 630,
+                    alt: post.title,
+                },
+            ],
             type: "article",
             publishedTime: post.date,
             authors: [post.author],
@@ -33,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             title: post.title,
             description: post.excerpt,
             images: [post.image],
-        }
+        },
     };
 }
 
@@ -45,5 +65,39 @@ export default async function BlogPostPage({ params }: Props) {
         notFound();
     }
 
-    return <BlogContent post={post} />;
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: post.title,
+        description: post.excerpt,
+        image: `${BASE_URL}${post.image}`,
+        datePublished: post.date,
+        dateModified: post.date,
+        author: {
+            "@type": "Person",
+            name: post.author,
+        },
+        publisher: {
+            "@type": "Organization",
+            name: "Nilathra Collection",
+            logo: {
+                "@type": "ImageObject",
+                url: `${BASE_URL}/images/logo.png`,
+            },
+        },
+        mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": `${BASE_URL}/blog/${post.slug}`,
+        },
+    };
+
+    return (
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+            <BlogContent post={post} />
+        </>
+    );
 }

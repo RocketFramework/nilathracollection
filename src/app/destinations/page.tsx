@@ -15,14 +15,14 @@ const destinations = [
         slug: "galle",
         name: "Galle",
         type: "Colonial History",
-        image: "/images/galle_fort.jpg",
+        image: "/images/galle_fort.png",
         desc: "A UNESCO World Heritage site, famous for its Dutch Fort and golden beaches.",
     },
     {
         slug: "sigiriya",
         name: "Sigiriya",
         type: "Heritage & History",
-        image: "/images/sigiriya_rock.jpg",
+        image: "/images/sigiriya_rock.png",
         desc: "The iconic Lion Rock fortress, a testament to ancient Sri Lankan engineering.",
     },
     {
@@ -36,7 +36,7 @@ const destinations = [
         slug: "kandy",
         name: "Kandy",
         type: "Culture & Royalty",
-        image: "/images/kandy_real.jpg",
+        image: "/images/kandy_real.png",
         desc: "The sacred city, home to the Temple of the Tooth and traditional festivities.",
     },
     {
@@ -50,14 +50,14 @@ const destinations = [
         slug: "nuwara-eliya",
         name: "Nuwara Eliya",
         type: "Tea & Relaxation",
-        image: "/images/nuwara_eliya.jpg",
+        image: "/images/nuwara_eliya.png",
         desc: "Little England, a cool-climate retreat known for premium Ceylon tea.",
     },
     {
         slug: "weligama-mirissa",
         name: "Weligama & Mirissa",
         type: "Coastal Synergy",
-        image: "/images/tangalle.jpg",
+        image: "/images/tangalle.png",
         desc: "The heartbeat of the south coast, combining surf culture with luxury whale watching.",
     },
     {

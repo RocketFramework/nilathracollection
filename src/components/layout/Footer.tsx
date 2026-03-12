@@ -26,7 +26,7 @@ export default function Footer() {
                     <Link href="/" className="flex items-center gap-3">
                         <div className="relative h-10 w-10 overflow-hidden rounded-full brightness-0 invert">
                             <Image
-                                src="/images/nilathra_travels_logo.jpeg"
+                                src="/images/nilathra_travels_logo.png"
                                 alt="Nilathra Collection Logo"
                                 fill
                                 className="object-contain"

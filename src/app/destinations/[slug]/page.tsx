@@ -16,7 +16,7 @@ const destinationsData: Record<string, any> = {
     sigiriya: {
         name: "Sigiriya",
         tagline: "The Lion Rock Fortress",
-        heroImage: "/images/sigiriya_rock.jpg",
+        heroImage: "/images/sigiriya_rock.png",
         description: "Rising 200m above the jungle, Sigiriya is an ancient palace-fortress of incomparable majesty. This UNESCO World Heritage site, the 'Lion Rock', is a masterpiece of 5th-century urban planning, hydraulic engineering, and artistic expression. From the Mirror Wall's ancient graffiti to the vivid frescoes and the massive lion's paws guarding the final ascent, Sigiriya offers a profound encounter with Sri Lanka's royal heritage.",
         highlights: [
             "Private early-dawn climb with an expert archaeologist",
@@ -40,7 +40,7 @@ const destinationsData: Record<string, any> = {
     galle: {
         name: "Galle",
         tagline: "Colonial Charm & Ocean Breeze",
-        heroImage: "/images/galle_fort.jpg",
+        heroImage: "/images/galle_fort.png",
         description: "Galle is a jewel where history meets the horizon. A UNESCO World Heritage site, the city is an intricate mosaic of colonial architecture and tropical elegance. The Dutch Fort is the heartbeat of Galle, housing luxury boutique villas, eclectic designer shops, and artisanal cafes within its ancient granite ramparts. Every cobblestone street tells a story of the VOC era, now reimagined as a sophisticated sanctuary for the modern traveler.",
         highlights: [
             "Private heritage walk with a local historian",
@@ -87,7 +87,7 @@ const destinationsData: Record<string, any> = {
     kandy: {
         name: "Kandy",
         tagline: "The Sacred Hill Capital",
-        heroImage: "/images/kandy_real.jpg",
+        heroImage: "/images/kandy_real.png",
         description: "Nestled amidst misty green hills, Kandy is the cultural soul of Sri Lanka. Home to the sacred Temple of the Tooth Relic, this city offers a blend of spirituality, history, and natural beauty.",
         highlights: [
             "Visit the Temple of the Tooth Relic",
@@ -158,7 +158,7 @@ const destinationsData: Record<string, any> = {
     "weligama-mirissa": {
         name: "Weligama & Mirissa",
         tagline: "The Southern Rhythm",
-        heroImage: "/images/tangalle.jpg",
+        heroImage: "/images/tangalle.png",
         description: "Experience the ultimate coastal synergy where the golden sands of Weligama meet the vibrant bays of Mirissa. This southern duo offers a sophisticated blend of world-class surfing, intimate coastal coves, and the island's premier whale watching expeditions. Whether you're catching waves in the crescent bay of Weligama or watching the sunset from Mirissa's Parrot Rock, the southern coast pulses with a refined energy you won't find anywhere else.",
         highlights: [
             "Private yacht charter for whale watching",
@@ -181,7 +181,7 @@ const destinationsData: Record<string, any> = {
     "nuwara-eliya": {
         name: "Nuwara Eliya",
         tagline: "The Little England of Sri Lanka",
-        heroImage: "/images/nuwara_eliya.jpg",
+        heroImage: "/images/nuwara_eliya.png",
         description: "Elegant, nostalgic, and perpetually cool, Nuwara Eliya is the quintessential highland retreat. Known as 'Little England' for its colonial-era charm and manicured gardens, the city is surrounded by some of the world's most famous tea estates. From the tranquil Gregory Lake to the historic Hill Club, Nuwara Eliya offers a refined sanctuary where the air is fresh and the pace of life gracefully slows down.",
         highlights: [
             "Private high-tea at a historic colonial bungalow",

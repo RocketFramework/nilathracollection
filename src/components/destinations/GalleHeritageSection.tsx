@@ -44,7 +44,7 @@ export default function GalleHeritageSection() {
                         className="relative h-[600px] rounded-sm overflow-hidden shadow-2xl lg:order-1"
                     >
                         <Image
-                            src="/images/galle_fort.jpg"
+                            src="/images/galle_fort.png"
                             alt="Galle Fort Clock Tower"
                             fill
                             className="object-cover"
