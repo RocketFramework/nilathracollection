@@ -1,0 +1,366 @@
+[
+  {
+    "id": 75,
+    "activity_name": "Visiting a Local Fruit Market (Colombo Pettah)",
+    "category": "Food & Drink",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 83,
+    "activity_name": "Witnessing 'The Gathering' in Minneriya",
+    "category": "Nature & Wildlife",
+    "location_name": "Minneriya National Park",
+    "images": null
+  },
+  {
+    "id": 93,
+    "activity_name": "Visiting the Elephant Transit Home in Udawalawe",
+    "category": "Nature & Wildlife",
+    "location_name": "Udawalawe",
+    "images": null
+  },
+  {
+    "id": 94,
+    "activity_name": "Rafting in the Kelani River",
+    "category": "Nature & Wildlife",
+    "location_name": "Kitulgala",
+    "images": null
+  },
+  {
+    "id": 121,
+    "activity_name": "Pinnawala Elephant Orphanage Visit",
+    "category": "Wildlife",
+    "location_name": "Pinnawala",
+    "images": null
+  },
+  {
+    "id": 159,
+    "activity_name": "Colombo City Tour",
+    "category": "Urban",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 163,
+    "activity_name": "Viharamahadevi Park",
+    "category": "Urban",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 164,
+    "activity_name": "Independence Square",
+    "category": "Urban",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 165,
+    "activity_name": "Kandy Lake Walk",
+    "category": "Urban",
+    "location_name": "Kandy",
+    "images": null
+  },
+  {
+    "id": 166,
+    "activity_name": "Kandy City View Point",
+    "category": "Urban",
+    "location_name": "Kandy",
+    "images": null
+  },
+  {
+    "id": 167,
+    "activity_name": "Jaffna Market Tour",
+    "category": "Urban",
+    "location_name": "Jaffna",
+    "images": null
+  },
+  {
+    "id": 174,
+    "activity_name": "Spice Garden Tour",
+    "category": "Food",
+    "location_name": "Matale",
+    "images": null
+  },
+  {
+    "id": 180,
+    "activity_name": "Kandy Esala Perahera",
+    "category": "Cultural",
+    "location_name": "Kandy",
+    "images": null
+  },
+  {
+    "id": 181,
+    "activity_name": "Sinhala Tamil New Year Celebrations",
+    "category": "Cultural",
+    "location_name": "Various",
+    "images": null
+  },
+  {
+    "id": 182,
+    "activity_name": "Vesak Festival",
+    "category": "Cultural",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 183,
+    "activity_name": "Deepavali Celebrations",
+    "category": "Cultural",
+    "location_name": "Various",
+    "images": null
+  },
+  {
+    "id": 184,
+    "activity_name": "Kataragama Esala Festival",
+    "category": "Cultural",
+    "location_name": "Kataragama",
+    "images": null
+  },
+  {
+    "id": 188,
+    "activity_name": "Bopath Ella Visit",
+    "category": "Nature",
+    "location_name": "Ratnapura",
+    "images": null
+  },
+  {
+    "id": 196,
+    "activity_name": "Maligawila Buddha Statue",
+    "category": "Cultural",
+    "location_name": "Maligawila",
+    "images": null
+  },
+  {
+    "id": 201,
+    "activity_name": "Kudumbigala Monastery",
+    "category": "Cultural",
+    "location_name": "Kudumbigala",
+    "images": null
+  },
+  {
+    "id": 205,
+    "activity_name": "KayaMai Mountain Biking",
+    "category": "Adventure",
+    "location_name": "Ella",
+    "images": null
+  },
+  {
+    "id": 208,
+    "activity_name": "Mannar Island Discovery",
+    "category": "Nature",
+    "location_name": "Mannar",
+    "images": null
+  },
+  {
+    "id": 209,
+    "activity_name": "Delft Island Ferry Trip",
+    "category": "Nature",
+    "location_name": "Delft",
+    "images": null
+  },
+  {
+    "id": 212,
+    "activity_name": "Sunken Church Visit",
+    "category": "Cultural",
+    "location_name": "Jaffna",
+    "images": null
+  },
+  {
+    "id": 213,
+    "activity_name": "Jaffna Public Library",
+    "category": "Cultural",
+    "location_name": "Jaffna",
+    "images": null
+  },
+  {
+    "id": 214,
+    "activity_name": "Ratnapura Gem Mine Visit",
+    "category": "Cultural",
+    "location_name": "Ratnapura",
+    "images": null
+  },
+  {
+    "id": 215,
+    "activity_name": "Gem Panning Experience",
+    "category": "Cultural",
+    "location_name": "Elahera",
+    "images": null
+  },
+  {
+    "id": 216,
+    "activity_name": "Meetiyagoda Moonstone Mine",
+    "category": "Cultural",
+    "location_name": "Meetiyagoda",
+    "images": null
+  },
+  {
+    "id": 218,
+    "activity_name": "Beruwala Gem Market Tour",
+    "category": "Cultural",
+    "location_name": "Beruwala",
+    "images": null
+  },
+  {
+    "id": 219,
+    "activity_name": "Lapidary Workshop Experience",
+    "category": "Cultural",
+    "location_name": "Ratnapura",
+    "images": null
+  },
+  {
+    "id": 221,
+    "activity_name": "Vajira Lasanthi Homestay Experience",
+    "category": "Cultural",
+    "location_name": "Aberdeen",
+    "images": null
+  },
+  {
+    "id": 222,
+    "activity_name": "Nanda Tea Shop Visit",
+    "category": "Food",
+    "location_name": "Aberdeen",
+    "images": null
+  },
+  {
+    "id": 223,
+    "activity_name": "Kolapathana Estate Camping",
+    "category": "Nature",
+    "location_name": "Kolapathana",
+    "images": null
+  },
+  {
+    "id": 224,
+    "activity_name": "Kadadora Village Experience",
+    "category": "Cultural",
+    "location_name": "Kadadora",
+    "images": null
+  },
+  {
+    "id": 225,
+    "activity_name": "Ranamune Spout Visit",
+    "category": "Cultural",
+    "location_name": "Ranamune",
+    "images": null
+  },
+  {
+    "id": 226,
+    "activity_name": "Pusulpitiya Exploration",
+    "category": "Nature",
+    "location_name": "Pusulpitiya",
+    "images": null
+  },
+  {
+    "id": 227,
+    "activity_name": "Meemure Village Experience",
+    "category": "Cultural",
+    "location_name": "Meemure",
+    "images": null
+  },
+  {
+    "id": 230,
+    "activity_name": "Eagles Crest Mountain Lodge",
+    "category": "Cultural",
+    "location_name": "Knuckles",
+    "images": null
+  },
+  {
+    "id": 231,
+    "activity_name": "Belihuloya Nature Trails",
+    "category": "Nature",
+    "location_name": "Belihuloya",
+    "images": null
+  },
+  {
+    "id": 232,
+    "activity_name": "Madulsima Exploration",
+    "category": "Nature",
+    "location_name": "Madulsima",
+    "images": null
+  },
+  {
+    "id": 234,
+    "activity_name": "Kalpitiya Lagoon Kayaking",
+    "category": "Nature",
+    "location_name": "Kalpitiya",
+    "images": null
+  },
+  {
+    "id": 235,
+    "activity_name": "Koggala Lagoon Boat Ride",
+    "category": "Nature",
+    "location_name": "Koggala",
+    "images": null
+  },
+  {
+    "id": 237,
+    "activity_name": "Stilt Fishermen Photography",
+    "category": "Cultural",
+    "location_name": "Koggala",
+    "images": null
+  },
+  {
+    "id": 239,
+    "activity_name": "Madiha Village Stay",
+    "category": "Cultural",
+    "location_name": "Madiha",
+    "images": null
+  },
+  {
+    "id": 241,
+    "activity_name": "Parippu Vade Tasting at Galle Face",
+    "category": "Food",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 243,
+    "activity_name": "Vedda Tribe Experience",
+    "category": "Cultural",
+    "location_name": "Gal Oya",
+    "images": null
+  },
+  {
+    "id": 246,
+    "activity_name": "Ritigala Forest Monastery",
+    "category": "Cultural",
+    "location_name": "Ritigala",
+    "images": null
+  },
+  {
+    "id": 248,
+    "activity_name": "Nine Skies Bungalow Stay",
+    "category": "Cultural",
+    "location_name": "Demodara",
+    "images": null
+  },
+  {
+    "id": 251,
+    "activity_name": "Pekoe Trail Hiking",
+    "category": "Adventure",
+    "location_name": "Various",
+    "images": null
+  },
+  {
+    "id": 254,
+    "activity_name": "Maligawila Buddha Statue",
+    "category": "Cultural",
+    "location_name": "Maligawila",
+    "images": null
+  },
+  {
+    "id": 255,
+    "activity_name": "Colombo Art Scene Tour",
+    "category": "Urban",
+    "location_name": "Colombo",
+    "images": null
+  },
+  {
+    "id": 256,
+    "activity_name": "Colombo Restaurant Tour",
+    "category": "Food",
+    "location_name": "Colombo",
+    "images": null
+  }
+]
