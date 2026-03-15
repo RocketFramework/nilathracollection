@@ -74,6 +74,24 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <head>
         <meta name="ahrefs-site-verification" content="22fc30d51e6331979f27c2c228517f2c5970fd11f1da7bcf396ddc32b41d4e56"></meta>
+        {/* Google tag (gtag.js) */}
+        <Script
+          strategy="afterInteractive"
+          src="https://www.googletagmanager.com/gtag/js?id=G-HJLVG7J5RQ"
+        />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+
+              gtag('config', 'G-HJLVG7J5RQ');
+            `,
+          }}
+        />
         <Script
           id="google-tag-manager"
           strategy="afterInteractive"
