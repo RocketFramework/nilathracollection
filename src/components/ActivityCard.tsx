@@ -52,13 +52,15 @@ export default function ActivityCard({
         bestTime: string;
     } | null>(null);
 
-    // Fetch location images when popup opens
+    // Fetch location images when popup opens, but fetch weather immediately
     useEffect(() => {
-        if (showPopup && images.length === 0) {
-            fetchLocationImages();
+        if (!weatherInfo) {
             fetchWeatherInfo();
         }
-    }, [showPopup]);
+        if (showPopup && images.length === 0) {
+            fetchLocationImages();
+        }
+    }, [showPopup, images.length, weatherInfo]);
 
     const fetchLocationImages = async () => {
         setIsLoadingImages(true);
@@ -244,9 +246,11 @@ export default function ActivityCard({
                             e.stopPropagation();
                             setShowPopup(true);
                         }}
-                        className="text-neutral-400 hover:text-brand-gold transition-colors"
+                        className="text-neutral-400 hover:text-brand-gold transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-neutral-50"
+                        title="View more details about this activity"
                     >
-                        <Info size={16} />
+                        <Info size={14} />
+                        <span className="text-xs font-medium">Details</span>
                     </button>
                 </button>
 
@@ -278,21 +282,12 @@ export default function ActivityCard({
         <>
             <div
                 onClick={() => onToggle(activity.id)}
-                className={`group relative p-5 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden ${isSelected
+                className={`group relative p-5 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full ${isSelected
                     ? 'border-brand-gold bg-brand-gold/5 shadow-[0_8px_30px_rgba(212,175,55,0.12)] -translate-y-1'
                     : 'border-neutral-200 bg-white hover:border-brand-gold/50 hover:shadow-md'
                     }`}
             >
                 <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowPopup(true);
-                        }}
-                        className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm border border-neutral-200 flex items-center justify-center text-neutral-600 hover:text-brand-gold hover:border-brand-gold transition-all shadow-sm"
-                    >
-                        <Info size={16} />
-                    </button>
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${isSelected
                         ? 'bg-brand-gold border-brand-gold text-white'
                         : 'border-neutral-300 text-transparent group-hover:border-brand-gold/50'
@@ -310,20 +305,35 @@ export default function ActivityCard({
                     {activity.description}
                 </p>
 
-                <div className="flex items-center gap-2 text-xs font-medium text-neutral-400">
-                    <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                        <Clock size={12} /> {activity.duration_hours}h
-                    </span>
-                    <span className="flex items-center gap-1 bg-neutral-100 px-2 py-1 rounded-md">
-                        <MapPin size={12} /> {activity.location_name}
-                    </span>
+                <div className="flex items-center justify-between gap-1.5 mt-auto">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowPopup(true);
+                        }}
+                        className="px-3 py-1.5 rounded-full bg-brand-green/5 hover:bg-brand-green/10 border border-brand-green/20 text-brand-green flex items-center gap-1.5 text-xs font-semibold transition-all flex-shrink-0 shadow-sm"
+                        title="View more details about this activity"
+                    >
+                        <Info size={14} />
+                        <span>Details</span>
+                    </button>
+
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-500 overflow-hidden justify-end">
+                        <span className="flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-md whitespace-nowrap flex-shrink-0">
+                            <Clock size={12} /> {activity.duration_hours}h
+                        </span>
+                        <span className="flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-md max-w-[85px] w-[85px] line-clamp-1" title={activity.location_name}>
+                            <MapPin size={12} className="flex-shrink-0" />
+                            <span className="truncate">{activity.location_name}</span>
+                        </span>
+                    </div>
                 </div>
 
                 {/* Quick weather indicator */}
                 {weatherInfo && (
-                    <div className="mt-2 flex items-center gap-1 text-xs text-neutral-400">
+                    <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center gap-1.5 text-xs text-neutral-400">
                         {getWeatherIcon(weatherInfo.condition)}
-                        <span>{weatherInfo.temp}°C</span>
+                        <span>{weatherInfo.temp}°C {weatherInfo.condition}</span>
                     </div>
                 )}
             </div>
