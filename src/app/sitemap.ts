@@ -8,12 +8,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const staticRoutes = [
         '',
         '/about',
+        '/plans',
+        '/plans/compare',
+        '/plans/luxury',
+        '/plans/premium',
+        '/plans/regular',
+        '/plans/ultra-vip', 
         '/packages',
         '/destinations',
         '/blog',
         '/careers',
         '/custom-plan',
         '/contact',
+        '/reference',
+        '/booking-conditions',
+        '/privacy',
+        '/terms'
     ].map((route) => ({
         url: `${baseUrl}${route}`,
         lastModified: new Date(),
