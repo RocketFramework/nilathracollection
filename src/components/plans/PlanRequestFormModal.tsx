@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, Mail, Calendar, Users, Send, CheckCircle2 } from "lucide-react";
-import { AuthService } from "@/services/auth.service";
+import { registerTouristAction } from "@/actions/contact.actions";
 import { RequestService } from "@/services/request.service";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 
@@ -49,7 +49,7 @@ export default function PlanRequestFormModal({
             // Lazy Auth or get existing user
             let authResult: any = null;
             try {
-                authResult = await AuthService.registerTouristByEmail(email);
+                authResult = await registerTouristAction(email);
             } catch (authError) {
                 console.warn("Auth Registration skipped (e.g., rate limit):", authError);
                 // We proceed anyway because the request service handles anonymous requests now!

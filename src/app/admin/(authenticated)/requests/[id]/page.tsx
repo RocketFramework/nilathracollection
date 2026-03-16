@@ -146,8 +146,8 @@ export default function RequestDetailsPage() {
     const touristProfile = request.tourist?.tourist_profile?.[0];
     const touristName = touristProfile?.first_name
         ? `${touristProfile.first_name} ${touristProfile.last_name}`
-        : request.email || 'Anonymous Client';
-    const touristPhone = touristProfile?.phone || 'Not provided';
+        : request.name || request.email || 'Anonymous Client';
+    const touristPhone = touristProfile?.phone || request.phone_number || 'Not provided';
 
     const agentProfile = request.agent?.agent_profile?.[0];
     const agentName = agentProfile?.first_name
@@ -195,7 +195,7 @@ export default function RequestDetailsPage() {
                         </div>
                         <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl p-4 text-center min-w-[140px]">
                             <p className="text-xs text-brand-gold uppercase tracking-widest font-bold mb-1">Duration</p>
-                            <p className="text-2xl font-bold">{details.nights || '?'} Nights</p>
+                            <p className="text-2xl font-bold">{details.nights || request.duration_nights || '?'} Nights</p>
                         </div>
                     </div>
                 </div>
@@ -259,6 +259,15 @@ export default function RequestDetailsPage() {
                                         {touristPhone}
                                     </div>
                                 </div>
+                                {request.departure_country && (
+                                    <div>
+                                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Departure Country</p>
+                                        <div className="flex items-center gap-2 font-medium text-brand-charcoal">
+                                            <MapPin size={14} className="text-neutral-400" />
+                                            {request.departure_country}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -272,21 +281,22 @@ export default function RequestDetailsPage() {
                                     <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Target Dates</p>
                                     <div className="flex items-center gap-2 font-medium text-brand-charcoal text-sm">
                                         <Calendar size={14} className="text-neutral-400" />
-                                        {details.start_date ? new Date(details.start_date).toLocaleDateString() : 'Flexible'}
+                                        {details.start_date || request.start_date ? new Date(details.start_date || request.start_date).toLocaleDateString() : 'Flexible'}
                                     </div>
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Passengers</p>
                                     <div className="font-medium text-brand-charcoal text-sm">
-                                        {details.adults || 0} Adults
-                                        {details.children > 0 && `, ${details.children} Kids`}
+                                        {details.adults || request.adults || 0} Adults
+                                        {(details.children > 0 || request.children > 0) && `, ${details.children || request.children} Kids`}
+                                        {request.infants > 0 && `, ${request.infants} Infants`}
                                     </div>
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Estimated Budget</p>
                                     <div className="flex items-center gap-1 font-medium text-brand-charcoal text-sm">
                                         <DollarSign size={14} className="text-neutral-400" />
-                                        {details.estimated_price?.toLocaleString() || 'Not specified'}
+                                        {(details.estimated_price || request.budget)?.toLocaleString() || 'Not specified'}
                                     </div>
                                 </div>
                                 <div>
@@ -298,14 +308,14 @@ export default function RequestDetailsPage() {
                             </div>
                         </div>
 
-                        {/* Special Requirements */}
-                        {details.special_requirements && (
+                        {/* Special Requirements / Notes */}
+                        {(details.special_requirements || request.note) && (
                             <div className="md:col-span-2">
                                 <h3 className="text-lg font-bold text-brand-charcoal mb-4 flex items-center gap-2 border-b border-neutral-100 pb-2">
-                                    <Clock size={18} className="text-brand-gold" /> Special Requirements
+                                    <Clock size={18} className="text-brand-gold" /> Notes & Requirements
                                 </h3>
-                                <div className="bg-neutral-50 p-4 rounded-lg text-sm text-neutral-700 leading-relaxed border border-neutral-100">
-                                    {details.special_requirements}
+                                <div className="bg-neutral-50 p-4 rounded-lg text-sm text-neutral-700 leading-relaxed border border-neutral-100 whitespace-pre-wrap">
+                                    {details.special_requirements || request.note}
                                 </div>
                             </div>
                         )}

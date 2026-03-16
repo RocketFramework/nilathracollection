@@ -6,10 +6,11 @@ import { COUNTRY_CODES } from "@/constants/countries";
 
 interface PhoneInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     onPhoneChange: (phone: string) => void;
+    onCountryChange?: (countryName: string) => void;
 }
 
 export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
-    ({ className, onPhoneChange, value, ...props }, ref) => {
+    ({ className, onPhoneChange, onCountryChange, value, ...props }, ref) => {
         const [selectedCountry, setSelectedCountry] = useState(
             COUNTRY_CODES.find(c => c.code === "US") || COUNTRY_CODES[0]
         );
@@ -25,6 +26,9 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
                         const matchedCountry = COUNTRY_CODES.find(c => c.code === data.country_code);
                         if (matchedCountry) {
                             setSelectedCountry(matchedCountry);
+                            if (onCountryChange) {
+                                onCountryChange(matchedCountry.name);
+                            }
                         }
                     }
                 } catch (error) {
@@ -43,6 +47,9 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
                 if (matchedCountry) {
                     if (selectedCountry.code !== matchedCountry.code) {
                         setSelectedCountry(matchedCountry);
+                        if (onCountryChange) {
+                            onCountryChange(matchedCountry.name);
+                        }
                     }
                     const newNumber = value.substring(matchedCountry.dialCode.length).trim();
                     if (phoneNumber !== newNumber) {
@@ -68,6 +75,9 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
             const matchedCountry = COUNTRY_CODES.find(c => c.code === countryCode);
             if (matchedCountry) {
                 setSelectedCountry(matchedCountry);
+                if (onCountryChange) {
+                    onCountryChange(matchedCountry.name);
+                }
                 onPhoneChange(`${matchedCountry.dialCode} ${phoneNumber}`);
                 setIsOpen(false);
             }

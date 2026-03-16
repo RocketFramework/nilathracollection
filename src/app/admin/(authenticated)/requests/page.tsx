@@ -67,7 +67,10 @@ export default function AdminRequests() {
                         destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
                         assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
                         date: new Date(req.created_at).toLocaleDateString(),
-                        nights: nights
+                        nights: nights,
+                        adults: req.adults || req.details?.[0]?.adults || 0,
+                        children: req.children || req.details?.[0]?.children || 0,
+                        infants: req.infants || 0
                     };
                 });
                 setRequests(mapped);
@@ -305,6 +308,9 @@ export default function AdminRequests() {
                                                 Tourist
                                             </th>
                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                                                Passengers
+                                            </th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                                                 Status
                                             </th>
                                             {userRole === 'admin' && (
@@ -333,6 +339,13 @@ export default function AdminRequests() {
                                                 <td className="p-4 text-sm text-neutral-600">
                                                     {request.tourist}
                                                     <span className="block text-xs text-neutral-500 mt-0.5">{request.email}</span>
+                                                </td>
+                                                <td className="p-4 text-sm text-neutral-600">
+                                                    <div className="flex items-center gap-1 font-bold text-brand-charcoal">
+                                                        <span>{request.adults}A</span>
+                                                        {request.children > 0 && <span className="text-neutral-400 text-xs ml-0.5">+{request.children}C</span>}
+                                                        {request.infants > 0 && <span className="text-neutral-400 text-xs ml-0.5">+{request.infants}I</span>}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-sm">
                                                     <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${request.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : request.status === 'Assigned' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>

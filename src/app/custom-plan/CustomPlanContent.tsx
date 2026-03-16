@@ -12,7 +12,7 @@ import {
 import { fetchActivities, Activity } from "@/data/activities";
 // Updated Import: Ensure this matches your export name from the engine
 import { generateRoutePlan, ItineraryEvent, RoutePlan, GeoLocation } from "@/lib/route-engine";
-import { AuthService } from "@/services/auth.service";
+import { registerTouristAction } from "@/actions/contact.actions";
 import { RequestService } from "@/services/request.service";
 
 export default function CustomPlanContent() {
@@ -173,7 +173,12 @@ export default function CustomPlanContent() {
         setIsSubmitting(true);
         try {
             // Lazy authentication - creates user if they don't exist
-            const authResult = await AuthService.registerTouristByEmail(email);
+            let authResult: any = null;
+            try {
+                authResult = await registerTouristAction(email);
+            } catch (authError) {
+                console.warn("Auth Registration skipped:", authError);
+            }
 
             // Extract all selected destinations
             const destinations = [

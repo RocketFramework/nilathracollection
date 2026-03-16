@@ -180,6 +180,7 @@ export default function ContactPage() {
                                                     required={false}
                                                     value={form.phone}
                                                     onPhoneChange={(val) => setForm({ ...form, phone: val })}
+                                                    onCountryChange={(countryName) => setForm(prev => ({ ...prev, departureCountry: countryName }))}
                                                     className="w-full bg-white/50 border-b border-brand-charcoal/20 outline-none focus-within:border-brand-gold transition-colors"
                                                 />
                                             </div>

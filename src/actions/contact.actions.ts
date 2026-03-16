@@ -3,6 +3,41 @@
 import { AuthService } from "@/services/auth.service";
 import { RequestService } from "@/services/request.service";
 import { CreateRequestDTO } from "@/dtos/request.dto";
+import { createAdminClient } from "@/utils/supabase/admin";
+
+export async function registerTouristAction(email: string) {
+    try {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Check if user exists in public.users to avoid throwing an error
+        const { data: existingUser } = await supabaseAdmin.from('users').select('id').eq('email', email).single();
+        if (existingUser) {
+            return { success: true, user: { id: existingUser.id } };
+        }
+
+        // 2. Try to create user directly via admin API
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            email_confirm: true, // Bypass email confirmation
+            user_metadata: { role: 'tourist' }
+        });
+
+        if (authError) {
+            if (authError.message.includes('already registered')) {
+                // Fallback to exact match via listUsers if public.users query failed
+                const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+                const fallbackUser = users.find(u => u.email === email);
+                if (fallbackUser) return { success: true, user: { id: fallbackUser.id } };
+            }
+            return { success: false, error: authError.message };
+        }
+
+        return { success: true, user: { id: authUser.user.id } };
+    } catch (error: any) {
+        console.error("registerTouristAction error", error);
+        return { success: false, error: error.message };
+    }
+}
 
 export async function submitInquiryAction(formData: {
     name: string;
@@ -32,8 +67,10 @@ export async function submitInquiryAction(formData: {
         // Lazy register user or get existing
         let userId = null;
         try {
-            const authResult = await AuthService.registerTouristByEmail(email);
-            userId = (authResult as any)?.user?.id || null;
+            const authResult = await registerTouristAction(email);
+            if (authResult.success && authResult.user) {
+                userId = authResult.user.id;
+            }
         } catch (authError) {
             console.warn("Auth Registration skipped in inquiry flow:", authError);
         }

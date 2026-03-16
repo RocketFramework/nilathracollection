@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Package, MapPin, TrendingUp, AlertTriangle, CheckCircle, Navigation } from "lucide-react";
+import { Users, Package, MapPin, TrendingUp, AlertTriangle, CheckCircle, Navigation, Phone, Calendar, DollarSign, Plane, User, Info } from "lucide-react";
 import Link from "next/link";
 import { UserService } from "@/services/user.service";
 
@@ -31,7 +31,7 @@ export default function AdminDashboard() {
                     const mapped = data.map((req: any) => {
                         const touristName = req.tourist_profile?.[0]?.first_name && req.tourist_profile?.[0]?.last_name
                             ? `${req.tourist_profile[0].first_name} ${req.tourist_profile[0].last_name}`
-                            : req.email || 'Anonymous';
+                            : req.name || req.email || 'Anonymous';
 
                         const dests = req.details?.[0]?.destinations || [];
                         const packageName = req.details?.[0]?.package_name || req.request_type;
@@ -39,11 +39,21 @@ export default function AdminDashboard() {
                         return {
                             id: req.id,
                             type: req.request_type === 'package' ? packageName : 'Custom Plan',
-                            tourist: touristName,
+                            touristName: touristName,
+                            email: req.email,
+                            phone_number: req.phone_number,
+                            country: req.departure_country,
+                            budget: req.budget || req.details?.[0]?.estimated_price,
+                            startDate: req.start_date || req.details?.[0]?.start_date,
+                            durationNights: req.duration_nights || req.details?.[0]?.nights,
+                            adults: req.adults || 0,
+                            children: req.children || 0,
+                            infants: req.infants || 0,
                             status: req.status,
                             destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
                             assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
-                            date: new Date(req.created_at).toLocaleDateString()
+                            date: new Date(req.created_at).toLocaleDateString(),
+                            time: new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         };
                     });
                     setRequests(mapped);
@@ -114,95 +124,6 @@ export default function AdminDashboard() {
                             <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 hidden md:block">
                                 <RevenueChart />
                             </div>
-
-                            {/* Pending Requests / Leads */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-                                <div className="px-6 py-5 border-b border-[#E5E7EB] flex items-center justify-between">
-                                    <h2 className="text-lg font-bold text-brand-charcoal">Recent Incoming Requests</h2>
-                                    <Link href="/admin/requests" className="text-sm font-bold text-brand-gold hover:text-[#B3932F] transition-colors">
-                                        View All Requests
-                                    </Link>
-                                </div>
-                                <div className="divide-y divide-neutral-100">
-                                    {isLoading ? (
-                                        <div className="p-8 text-center text-neutral-500">
-                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-gold mx-auto mb-3"></div>
-                                            Loading requests...
-                                        </div>
-                                    ) : requests.length === 0 ? (
-                                        <div className="p-8 text-center text-neutral-500">
-                                            <p>No requests found in the database.</p>
-                                        </div>
-                                    ) : requests.map(req => (
-                                        <div
-                                            key={req.id}
-                                            className="p-6 hover:bg-neutral-50 flex flex-col md:flex-row gap-4 items-center justify-between transition-colors cursor-pointer group"
-                                            onClick={() => router.push(`/admin/requests/${req.id}`)}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-full bg-brand-charcoal text-white flex items-center justify-center font-bold">
-                                                    {req.tourist ? req.tourist.charAt(0).toUpperCase() : '?'}
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-brand-charcoal text-sm">{req.details?.package_name || 'Custom Trip Request'}</p>
-                                                    <div className="flex items-center gap-3 text-xs text-neutral-500 mt-1">
-                                                        <span>{req.details?.nights || '?'} Nights</span>
-                                                        <span className="w-1 h-1 rounded-full bg-neutral-300"></span>
-                                                        <span>{req.details?.adults || 0} Adults</span>
-                                                        <span className="w-1 h-1 rounded-full bg-neutral-300"></span>
-                                                        <span>${req.details?.estimated_price?.toLocaleString() || 'TBD'} Budget</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-                                                {userRole === 'admin' && req.status === 'Pending' && (
-                                                    <button
-                                                        className="flex-1 md:flex-none text-xs font-bold uppercase tracking-wider bg-brand-gold text-white px-4 py-2 rounded-lg hover:bg-[#B3932F] transition-colors"
-                                                        onClick={(e) => { e.stopPropagation(); /* TODO Admin Assign Modal */ }}
-                                                    >
-                                                        Assign Agent
-                                                    </button>
-                                                )}
-                                                {userRole === 'agent' && req.status === 'Assigned' && (
-                                                    <button
-                                                        className="flex-1 md:flex-none text-xs font-bold uppercase tracking-wider bg-brand-green text-white px-4 py-2 rounded-lg hover:bg-green-900 transition-colors"
-                                                        onClick={(e) => { e.stopPropagation(); /* TODO Build Itin Modal/Route */ }}
-                                                    >
-                                                        Build Itinerary
-                                                    </button>
-                                                )}
-                                                <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${req.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                    req.status === 'Assigned' ? 'bg-blue-100 text-blue-700' :
-                                                        req.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-700'
-                                                    }`}>
-                                                    {req.status}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {/* Pagination Controls */}
-                                {totalPages > 1 && (
-                                    <div className="flex justify-between items-center p-4 border-t border-neutral-100">
-                                        <button
-                                            onClick={handlePrevPage}
-                                            disabled={currentPage === 1}
-                                            className="px-4 py-2 text-sm font-medium text-brand-charcoal bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="text-sm text-neutral-600">Page {currentPage} of {totalPages}</span>
-                                        <button
-                                            onClick={handleNextPage}
-                                            disabled={currentPage === totalPages}
-                                            className="px-4 py-2 text-sm font-medium text-brand-charcoal bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         {/* Side Panel (Admin: Suspensions, Agent: Quick Links) */}
@@ -251,8 +172,173 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                             )}
-
                         </div>
+                    </div>
+
+
+                    {/* Pending Requests / Leads - Full Width */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden mt-8">
+                        <div className="px-6 py-5 border-b border-[#E5E7EB] flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-brand-charcoal">Recent Incoming Requests</h2>
+                            <Link href="/admin/requests" className="text-sm font-bold text-brand-gold hover:text-[#B3932F] transition-colors">
+                                View All Requests
+                            </Link>
+                        </div>
+                        <div className="overflow-x-auto">
+                            {isLoading ? (
+                                <div className="p-8 text-center text-neutral-500">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-gold mx-auto mb-3"></div>
+                                    Loading requests...
+                                </div>
+                            ) : requests.length === 0 ? (
+                                <div className="p-8 text-center text-neutral-500">
+                                    <p>No requests found in the database.</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left text-sm whitespace-nowrap">
+                                    <thead className="bg-[#F9FAFB] text-[#6B7280] uppercase tracking-wider text-[11px] font-bold border-b border-[#E5E7EB]">
+                                        <tr>
+                                            <th className="px-6 py-4">Tourist & Contact</th>
+                                            <th className="px-6 py-4">Status & Details</th>
+                                            <th className="px-6 py-4">Dates</th>
+                                            <th className="px-6 py-4">Requirements</th>
+                                            <th className="px-6 py-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#E5E7EB]">
+                                        {requests.map((req) => (
+                                            <tr
+                                                key={req.id}
+                                                className="hover:bg-neutral-50/50 transition-colors cursor-pointer group"
+                                                onClick={() => router.push(`/admin/requests/${req.id}`)}
+                                            >
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-brand-gold/10 text-brand-gold flex items-center justify-center font-bold border border-brand-gold/30 shrink-0">
+                                                            {req.touristName ? req.touristName.charAt(0).toUpperCase() : '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-brand-charcoal text-[14px]">{req.touristName}</p>
+                                                            <div className="text-xs text-neutral-500 flex items-center gap-2 mt-0.5">
+                                                                <span className="truncate max-w-[150px]">{req.email}</span>
+                                                                {req.phone_number && (
+                                                                    <span className="relative group/tooltip inline-flex items-center">
+                                                                        <Phone size={14} className="text-brand-gold cursor-help" />
+                                                                        <span className="absolute left-1/2 -top-10 -translate-x-1/2 bg-gray-900 text-white text-[11px] py-1.5 px-2.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-50 pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-900">
+                                                                            {req.phone_number}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[11px] text-neutral-400 mt-0.5">from <span className="font-medium text-neutral-600">{req.country || 'Unknown'}</span></p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col gap-2 items-start">
+                                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                                            ${req.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                req.status === 'Assigned' ? 'bg-blue-100 text-blue-700' :
+                                                                    req.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-700'
+                                                            }`}>
+                                                            {req.status}
+                                                        </div>
+                                                        <div className="relative group/tooltip inline-flex items-center gap-1.5 text-xs text-brand-charcoal font-medium">
+                                                            <Package size={14} className="text-neutral-400 shrink-0" />
+                                                            <span className="truncate max-w-[150px]">{req.type}</span>
+                                                            <span className="absolute left-1/2 -top-10 -translate-x-1/2 bg-gray-900 text-white text-[11px] py-1.5 px-2.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-50 pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-900">
+                                                                Requested: {req.type}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5 text-xs">
+                                                            <span className="font-semibold text-brand-charcoal">{req.date}</span>
+                                                            <span className="text-[10px] text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200">{req.time}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                                                            <Calendar size={12} className="shrink-0" />
+                                                            <span>Start: <span className="font-medium text-neutral-700">{req.startDate ? new Date(req.startDate).toLocaleDateString() : 'Flexible'}</span></span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative group/tooltip flex items-center justify-center w-8 h-8 rounded-full bg-brand-green/10 text-brand-green cursor-help border border-brand-green/20">
+                                                            <DollarSign size={16} />
+                                                            <span className="absolute left-1/2 -top-10 -translate-x-1/2 bg-brand-green text-white font-bold text-[11px] py-1.5 px-2.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-50 pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-brand-green">
+                                                                Budget: {req.budget ? `$${req.budget.toLocaleString()}` : 'Flexible / TBD'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 text-xs">
+                                                            <div className="flex flex-col items-center justify-center bg-neutral-50 px-2 py-1 rounded border border-neutral-200 min-w-[36px]">
+                                                                <span className="font-bold text-brand-charcoal">{req.durationNights || '?'}N</span>
+                                                            </div>
+                                                            <div className="flex flex-col items-center justify-center bg-neutral-50 px-2 py-1 rounded border border-neutral-200">
+                                                                <div className="flex items-center gap-1 font-bold text-brand-charcoal">
+                                                                    <User size={12} className="text-neutral-400" />
+                                                                    <span>{req.adults}</span>
+                                                                    {req.children > 0 && <span className="text-neutral-400 text-[10px] ml-0.5">+{req.children}c</span>}
+                                                                    {req.infants > 0 && <span className="text-neutral-400 text-[10px] ml-0.5">+{req.infants}i</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {userRole === 'admin' && req.status === 'Pending' && (
+                                                        <button
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-brand-gold text-white px-4 py-2 rounded-lg shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-[#B3932F] transition-all"
+                                                            onClick={(e) => { e.stopPropagation(); router.push(`/admin/requests/${req.id}`); }}
+                                                        >
+                                                            Assign Agent
+                                                        </button>
+                                                    )}
+                                                    {userRole === 'agent' && req.status === 'Assigned' && (
+                                                        <button
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-brand-green text-white px-4 py-2 rounded-lg shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-green-800 transition-all"
+                                                            onClick={(e) => { e.stopPropagation(); /* TODO Build Itin Modal/Route */ }}
+                                                        >
+                                                            Build Itinerary
+                                                        </button>
+                                                    )}
+                                                    {(req.status !== 'Pending' && req.status !== 'Assigned') && (
+                                                        <button
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-white border border-neutral-200 text-neutral-600 px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors"
+                                                            onClick={(e) => { e.stopPropagation(); /* View Request */ }}
+                                                        >
+                                                            View
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-between items-center p-4 border-t border-neutral-200 bg-[#F9FAFB]">
+                                <button
+                                    onClick={handlePrevPage}
+                                    disabled={currentPage === 1}
+                                    className="px-4 py-2 text-sm font-medium text-brand-charcoal bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-sm text-neutral-600 font-medium">Page {currentPage} of {totalPages}</span>
+                                <button
+                                    onClick={handleNextPage}
+                                    disabled={currentPage === totalPages}
+                                    className="px-4 py-2 text-sm font-medium text-brand-charcoal bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
