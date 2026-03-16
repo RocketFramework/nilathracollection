@@ -1,0 +1,100 @@
+[
+  {
+    "id": 174,
+    "activity_name": "Spice Garden Tour",
+    "location_name": "Matale",
+    "description": "Visit spice garden to see cinnamon, cardamom, pepper, and vanilla growing.",
+    "images": null
+  },
+  {
+    "id": 227,
+    "activity_name": "Meemure Village Experience",
+    "location_name": "Meemure",
+    "description": "Remote village deep in Knuckles Mountain Range. No mobile coverage, limited electricity - perfect digital detox. Experience authentic village life, traditional farming methods, and local cooking.",
+    "images": null
+  },
+  {
+    "id": 231,
+    "activity_name": "Belihuloya Nature Trails",
+    "location_name": "Belihuloya",
+    "description": "Mist-covered valleys, hiking trails, scenic viewpoints. Emerging destination for immersive nature experiences with waterfalls and diverse flora.",
+    "images": null
+  },
+  {
+    "id": 232,
+    "activity_name": "Madulsima Exploration",
+    "location_name": "Madulsima",
+    "description": "Hidden hill-country beauty with mist-covered valleys and hiking trails that rival more well-known areas. Tea plantations and stunning viewpoints without the crowds.",
+    "images": null
+  },
+  {
+    "id": 234,
+    "activity_name": "Kalpitiya Lagoon Kayaking",
+    "location_name": "Kalpitiya",
+    "description": "Explore mangroves and calm lagoon waters by kayak. Spot birds, monitor lizards, and maybe even dolphins entering the lagoon.",
+    "images": null
+  },
+  {
+    "id": 235,
+    "activity_name": "Koggala Lagoon Boat Ride",
+    "location_name": "Koggala",
+    "description": "Explore lagoon surrounded by cinnamon plantations. Visit Cinnamon Island and spice gardens. Temple and meditation center on island. Bird watching opportunities.",
+    "images": null
+  },
+  {
+    "id": 246,
+    "activity_name": "Ritigala Forest Monastery",
+    "location_name": "Ritigala",
+    "description": "Ancient monastery hidden within dense forest reserve. Stone pathways, meditation platforms, and ruins dating back 2000 years. Medicinal plants in surrounding forest. Peaceful and mystical.",
+    "images": null
+  },
+  {
+    "id": 248,
+    "activity_name": "Nine Skies Bungalow Stay",
+    "location_name": "Demodara",
+    "description": "Five-bedroomed colonial bungalow with dreamy views of surrounding tea country. Step back in time with vintage furnishings and old-world charm.",
+    "images": null
+  },
+  {
+    "id": 254,
+    "activity_name": "Maligawila Buddha Statue",
+    "location_name": "Maligawila",
+    "description": "11-meter-tall freestanding Buddha sculpture made of crystalline limestone. Dating to 7th century, once tallest free-standing Buddha in the world. Hidden in monkey-filled jungle.",
+    "images": null
+  },
+  {
+    "id": 259,
+    "activity_name": "Negombo Lagoon Fishing Tour",
+    "location_name": "Negombo",
+    "description": "Traditional lagoon fishing experience with local fishermen. Learn about lagoon ecosystem and try your hand at net fishing. See stilt fishing and colorful fishing boats.",
+    "images": null
+  },
+  {
+    "id": 260,
+    "activity_name": "Yapahuwa Rock Fortress",
+    "location_name": "Yapahuwa",
+    "description": "Ancient rock fortress and capital briefly in 13th century. Impressive stone stairway with carved railings. Cave temples at base with Buddhist paintings. Panoramic views from summit.",
+    "images": null
+  },
+  {
+    "id": 261,
+    "activity_name": "Panduwasnuwara Ancient City",
+    "location_name": "Panduwasnuwara",
+    "description": "Archaeological site with remains of medieval kingdom. Circular palace complex, Buddhist shrines, and museum with artifacts. Dating to 12th century.",
+    "images": null
+  },
+  {
+    "id": 262,
+    "activity_name": "Dedigama Ancient Site",
+    "location_name": "Dedigama",
+    "description": "Important archaeological site with ruins from medieval period. Birthplace of King Parakramabahu I. Ancient stupa and inscriptions.",
+    "images": null
+  },
+  {
+    "id": 263,
+    "activity_name": "Kirinda Viharaya",
+    "location_name": "Kirinda",
+    "description": "Scenic Buddhist temple on rocky outcrop overlooking the ocean. Legend of Princess Vihara Maha Devi. Stunning coastal views and peaceful atmosphere.",
+    "images": null
+  }
+]
