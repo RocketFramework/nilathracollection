@@ -2,7 +2,7 @@ export interface CreateRequestDTO {
     email: string;
     request_type: 'package' | 'custom-plan' | 'inquiry' | 'ultra-vip';
     name?: string;
-    phone_number?: string | number;
+    phone_number?: string;
     package_name?: string;
     nights?: number;
     estimated_price?: number;
