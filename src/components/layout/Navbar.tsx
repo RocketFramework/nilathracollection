@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 
 const NavLinks = [
     { name: "Home", href: "/" },
+    { name: "For VIP", href: "/for-vip" },
     { name: "Destinations", href: "/destinations" },
     { name: "Packages", href: "/plans" },
     { name: "Blog", href: "/blog" },
@@ -18,7 +19,7 @@ const NavLinks = [
 
 export default function Navbar() {
     const pathname = usePathname();
-    const isHome = pathname === "/";
+    const isHeroPage = pathname === "/" || pathname === "/for-vip";
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
@@ -30,7 +31,7 @@ export default function Navbar() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    const isTransparent = isHome && !scrolled;
+    const isTransparent = isHeroPage && !scrolled;
 
     return (
         <nav

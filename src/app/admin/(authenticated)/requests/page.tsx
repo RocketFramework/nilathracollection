@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Package, MapPin, Search, Filter } from "lucide-react";
+import { Package, MapPin, Search, Filter, Phone, Calendar, DollarSign, Plane, User, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { UserService } from "@/services/user.service";
+import { createTourAction } from "@/actions/admin.actions";
 
 export default function AdminRequests() {
     // In a real app, retrieve user role securely server-side or via context. Using state for mock implementation.
@@ -13,10 +14,28 @@ export default function AdminRequests() {
 
     const [requests, setRequests] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isCreatingTour, setIsCreatingTour] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRequests, setTotalRequests] = useState(0);
     const pageSize = 10;
+
+    const handleCreateTour = async (requestId: string) => {
+        setIsCreatingTour(requestId);
+        try {
+            const res = await createTourAction(requestId);
+            if (res.success && res.tourId) {
+                router.push(`/admin/planner?tourId=${res.tourId}`);
+            } else {
+                alert(res.error || 'Failed to open trip planner.');
+            }
+        } catch (error: any) {
+            console.error(error);
+            alert(error.message || 'Failed to open trip planner.');
+        } finally {
+            setIsCreatingTour(null);
+        }
+    };
 
     const [filters, setFilters] = useState({
         status: "",
@@ -61,16 +80,21 @@ export default function AdminRequests() {
                     return {
                         id: req.id,
                         type: req.request_type === 'package' ? packageName : 'Custom Plan',
-                        tourist: touristName,
+                        touristName: touristName,
                         email: req.email,
+                        phone_number: req.phone_number,
+                        country: req.departure_country,
+                        budget: req.budget || req.details?.[0]?.estimated_price,
+                        startDate: req.start_date || req.details?.[0]?.start_date,
+                        durationNights: req.duration_nights || req.details?.[0]?.nights || 0,
+                        adults: req.adults || req.details?.[0]?.adults || 0,
+                        children: req.children || req.details?.[0]?.children || 0,
+                        infants: req.infants || 0,
                         status: req.status,
                         destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
                         assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
                         date: new Date(req.created_at).toLocaleDateString(),
-                        nights: nights,
-                        adults: req.adults || req.details?.[0]?.adults || 0,
-                        children: req.children || req.details?.[0]?.children || 0,
-                        infants: req.infants || 0
+                        time: new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     };
                 });
                 setRequests(mapped);
@@ -298,71 +322,125 @@ export default function AdminRequests() {
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-neutral-100">
-                                    <thead className="bg-neutral-50">
+                                <table className="w-full text-left text-sm whitespace-nowrap">
+                                    <thead className="bg-[#F9FAFB] text-[#6B7280] uppercase tracking-wider text-[11px] font-bold border-b border-[#E5E7EB]">
                                         <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                                Request Details
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                                Tourist
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                                Passengers
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                                Status
-                                            </th>
-                                            {userRole === 'admin' && (
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                                                    Assigned To
-                                                </th>
-                                            )}
-                                            <th scope="col" className="relative px-6 py-3">
-                                                <span className="sr-only">View</span>
-                                            </th>
+                                            <th className="px-6 py-4">Tourist & Contact</th>
+                                            <th className="px-6 py-4">Status & Details</th>
+                                            <th className="px-6 py-4">Dates</th>
+                                            <th className="px-6 py-4">Requirements</th>
+                                            <th className="px-6 py-4 text-right">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-neutral-100">
-                                        {requests.map((request) => (
+                                    <tbody className="divide-y divide-[#E5E7EB]">
+                                        {requests.map((req) => (
                                             <tr
-                                                key={request.id}
-                                                className="border-b border-[#E5E7EB] hover:bg-neutral-50 transition-colors cursor-pointer group"
-                                                onClick={() => router.push(`/admin/requests/${request.id}`)}
+                                                key={req.id}
+                                                className="hover:bg-neutral-50/50 transition-colors cursor-pointer group"
+                                                onClick={() => router.push(`/admin/requests/${req.id}`)}
                                             >
-                                                <td className="p-4 text-sm font-medium text-brand-charcoal">
-                                                    {request.details?.package_name || 'Custom Trip'}
-                                                    <span className="block text-xs font-normal text-neutral-500 mt-0.5">
-                                                        {request.details?.destinations?.length > 0 ? request.details.destinations.join(', ') : 'Destinations TBD'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-sm text-neutral-600">
-                                                    {request.tourist}
-                                                    <span className="block text-xs text-neutral-500 mt-0.5">{request.email}</span>
-                                                </td>
-                                                <td className="p-4 text-sm text-neutral-600">
-                                                    <div className="flex items-center gap-1 font-bold text-brand-charcoal">
-                                                        <span>{request.adults}A</span>
-                                                        {request.children > 0 && <span className="text-neutral-400 text-xs ml-0.5">+{request.children}C</span>}
-                                                        {request.infants > 0 && <span className="text-neutral-400 text-xs ml-0.5">+{request.infants}I</span>}
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-full bg-brand-gold/10 text-brand-gold flex items-center justify-center font-bold border border-brand-gold/30 shrink-0">
+                                                            {req.touristName ? req.touristName.charAt(0).toUpperCase() : '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-brand-charcoal text-[14px]">{req.touristName}</p>
+                                                            <div className="text-xs text-neutral-500 flex items-center gap-2 mt-0.5">
+                                                                <span className="truncate max-w-[150px]">{req.email}</span>
+                                                                {req.phone_number && (
+                                                                    <span className="relative group/tooltip inline-flex items-center">
+                                                                        <Phone size={14} className="text-brand-gold cursor-help" />
+                                                                        <span className="absolute left-1/2 -top-10 -translate-x-1/2 bg-gray-900 text-white text-[11px] py-1.5 px-2.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-50 pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-900">
+                                                                            {req.phone_number}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[11px] text-neutral-400 mt-0.5">from <span className="font-medium text-neutral-600">{req.country || 'Unknown'}</span></p>
+                                                        </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-4 text-sm">
-                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${request.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : request.status === 'Assigned' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                                                        {request.status}
-                                                    </span>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col gap-2 items-start">
+                                                        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                                            ${req.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                req.status === 'Assigned' ? 'bg-blue-100 text-blue-700' :
+                                                                    req.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-700'
+                                                            }`}>
+                                                            {req.status}
+                                                        </div>
+                                                        <div className="relative group/tooltip inline-flex items-center gap-1.5 text-xs text-brand-charcoal font-medium">
+                                                            <Package size={14} className="text-neutral-400 shrink-0" />
+                                                            <span className="truncate max-w-[150px]">{req.type}</span>
+                                                            <span className="absolute left-1/2 -top-10 -translate-x-1/2 bg-gray-900 text-white text-[11px] py-1.5 px-2.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-50 pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-gray-900">
+                                                                Requested: {req.type}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </td>
-                                                {userRole === 'admin' && (
-                                                    <td className="p-4 text-sm">
-                                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${request.assignedTo === 'Unassigned' ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-neutral-100 text-neutral-700 border border-neutral-200'}`}>
-                                                            {request.assignedTo}
-                                                        </span>
-                                                    </td>
-                                                )}
-                                                <td className="p-4 text-sm text-right">
-                                                    <button className="text-brand-gold hover:text-[#B3932F] font-bold text-xs uppercase tracking-wider">
-                                                        View Details
-                                                    </button>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5 text-xs">
+                                                            <span className="font-semibold text-brand-charcoal">{req.date}</span>
+                                                            <span className="text-[10px] text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200">{req.time}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                                                            <Calendar size={12} className="shrink-0" />
+                                                            <span>Start: <span className="font-medium text-neutral-700">{req.startDate ? new Date(req.startDate).toLocaleDateString() : 'Flexible'}</span></span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative group/tooltip flex items-center justify-center w-8 h-8 rounded-full bg-brand-green/10 text-brand-green cursor-help border border-brand-green/20">
+                                                            <DollarSign size={16} />
+                                                            <span className="absolute left-1/2 -top-10 -translate-x-1/2 bg-brand-green text-white font-bold text-[11px] py-1.5 px-2.5 rounded shadow-lg opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all whitespace-nowrap z-50 pointer-events-none before:content-[''] before:absolute before:-bottom-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-brand-green">
+                                                                Budget: {req.budget ? `$${req.budget.toLocaleString()}` : 'Flexible / TBD'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 text-xs">
+                                                            <div className="flex flex-col items-center justify-center bg-neutral-50 px-2 py-1 rounded border border-neutral-200 min-w-[36px]">
+                                                                <span className="font-bold text-brand-charcoal">{req.durationNights || '?'}N</span>
+                                                            </div>
+                                                            <div className="flex flex-col items-center justify-center bg-neutral-50 px-2 py-1 rounded border border-neutral-200">
+                                                                <div className="flex items-center gap-1 font-bold text-brand-charcoal">
+                                                                    <User size={12} className="text-neutral-400" />
+                                                                    <span>{req.adults}</span>
+                                                                    {req.children > 0 && <span className="text-neutral-400 text-[10px] ml-0.5">+{req.children}c</span>}
+                                                                    {req.infants > 0 && <span className="text-neutral-400 text-[10px] ml-0.5">+{req.infants}i</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    {userRole === 'admin' && req.status === 'Pending' && (
+                                                        <button
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-brand-gold text-white px-4 py-2 rounded-lg shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-[#B3932F] transition-all"
+                                                            onClick={(e) => { e.stopPropagation(); router.push(`/admin/requests/${req.id}`); }}
+                                                        >
+                                                            Assign Agent
+                                                        </button>
+                                                    )}
+                                                    {(req.status === 'Assigned' || req.status === 'Active') && (
+                                                        <button
+                                                            disabled={isCreatingTour === req.id}
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-brand-green text-white px-4 py-2 rounded-lg shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-green-800 transition-all flex items-center gap-2 ml-auto disabled:opacity-70 disabled:cursor-not-allowed"
+                                                            onClick={(e) => { e.stopPropagation(); handleCreateTour(req.id); }}
+                                                        >
+                                                            {isCreatingTour === req.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                                            Open Trip Planner
+                                                        </button>
+                                                    )}
+                                                    {(req.status !== 'Pending' && req.status !== 'Assigned' && req.status !== 'Active') && (
+                                                        <button
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-white border border-neutral-200 text-neutral-600 px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors inline-block"
+                                                            onClick={(e) => { e.stopPropagation(); router.push(`/admin/requests/${req.id}`); }}
+                                                        >
+                                                            View
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

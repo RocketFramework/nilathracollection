@@ -2,13 +2,8 @@ import { Activity } from "@/data/activities";
 
 export type ServiceScope =
     | 'Book International Flights'
-    | 'Book Accommodation'
-    | 'Arrange Transport'
     | 'Plan Activities & Experiences'
-    | 'Arrange Dining / Culinary Experiences'
-    | 'Book Event / Entry Tickets'
-    | 'Visa Assistance'
-    | 'Full End-to-End Luxury Handling';
+    | 'Visa Assistance';
 
 export type TravelStyle = 'Regular' | 'Premium' | 'Luxury' | 'Ultra VIP' | 'Mixed';
 

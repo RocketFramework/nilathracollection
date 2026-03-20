@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Package, MapPin, TrendingUp, AlertTriangle, CheckCircle, Navigation, Phone, Calendar, DollarSign, Plane, User, Info } from "lucide-react";
+import { Users, Package, MapPin, TrendingUp, AlertTriangle, CheckCircle, Navigation, Phone, Calendar, DollarSign, Plane, User, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { UserService } from "@/services/user.service";
+import { createTourAction } from "@/actions/admin.actions";
 
 export default function AdminDashboard() {
     // In a real app, retrieve user role securely server-side or via context. Using state for mock implementation.
@@ -13,9 +14,27 @@ export default function AdminDashboard() {
 
     const [requests, setRequests] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isCreatingTour, setIsCreatingTour] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 10;
+
+    const handleCreateTour = async (requestId: string) => {
+        setIsCreatingTour(requestId);
+        try {
+            const res = await createTourAction(requestId);
+            if (res.success && res.tourId) {
+                router.push(`/admin/planner?tourId=${res.tourId}`);
+            } else {
+                alert(res.error || 'Failed to open trip planner.');
+            }
+        } catch (error: any) {
+            console.error(error);
+            alert(error.message || 'Failed to open trip planner.');
+        } finally {
+            setIsCreatingTour(null);
+        }
+    };
 
     useEffect(() => {
         const fetchRequests = async () => {
@@ -296,18 +315,20 @@ export default function AdminDashboard() {
                                                             Assign Agent
                                                         </button>
                                                     )}
-                                                    {userRole === 'agent' && req.status === 'Assigned' && (
+                                                    {(req.status === 'Assigned' || req.status === 'Active') && (
                                                         <button
-                                                            className="text-[11px] font-bold uppercase tracking-wider bg-brand-green text-white px-4 py-2 rounded-lg shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-green-800 transition-all"
-                                                            onClick={(e) => { e.stopPropagation(); /* TODO Build Itin Modal/Route */ }}
+                                                            disabled={isCreatingTour === req.id}
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-brand-green text-white px-4 py-2 rounded-lg shadow-sm hover:shadow hover:-translate-y-0.5 hover:bg-green-800 transition-all flex items-center gap-2 ml-auto disabled:opacity-70 disabled:cursor-not-allowed"
+                                                            onClick={(e) => { e.stopPropagation(); handleCreateTour(req.id); }}
                                                         >
-                                                            Build Itinerary
+                                                            {isCreatingTour === req.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                                            Open Trip Planner
                                                         </button>
                                                     )}
-                                                    {(req.status !== 'Pending' && req.status !== 'Assigned') && (
+                                                    {(req.status !== 'Pending' && req.status !== 'Assigned' && req.status !== 'Active') && (
                                                         <button
-                                                            className="text-[11px] font-bold uppercase tracking-wider bg-white border border-neutral-200 text-neutral-600 px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors"
-                                                            onClick={(e) => { e.stopPropagation(); /* View Request */ }}
+                                                            className="text-[11px] font-bold uppercase tracking-wider bg-white border border-neutral-200 text-neutral-600 px-4 py-2 rounded-lg hover:bg-neutral-50 transition-colors inline-block"
+                                                            onClick={(e) => { e.stopPropagation(); router.push(`/admin/requests/${req.id}`); }}
                                                         >
                                                             View
                                                         </button>

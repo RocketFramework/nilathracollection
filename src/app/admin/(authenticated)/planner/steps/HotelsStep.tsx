@@ -22,16 +22,6 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
         fetchHotels();
     }, []);
 
-    if (!tripData.serviceScopes.includes('Book Accommodation')) {
-        return (
-            <div className="bg-neutral-50 p-12 text-center rounded-3xl border border-dashed border-neutral-300">
-                <BedDouble className="mx-auto h-12 w-12 text-neutral-300 mb-4" />
-                <h3 className="text-lg font-medium text-neutral-600">Accommodation Module Disabled</h3>
-                <p className="text-sm text-neutral-400 mt-2">To plan hotels and stays, enable "Book Accommodation" in Step 1.</p>
-            </div>
-        );
-    }
-
     const { accommodations } = tripData;
 
     // Helper to calculate the exact stay date for a specific night index

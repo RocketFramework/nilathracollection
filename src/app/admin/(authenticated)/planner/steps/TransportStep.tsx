@@ -56,32 +56,9 @@ export function TransportStep({ tripData, updateTransport }: { tripData: TripDat
         updateTransport([...transports, newTrans]);
     };
 
-    // Auto-fill logic: only run if the module is enabled and we have zero segments
-    // BUT we need to distinguish between "initial empty state" and "user explicitly removed everything"
-    // We'll only auto-fill if the module was just enabled or it's the first render with the module enabled
-    useEffect(() => {
-        const isTransportEnabled = tripData.serviceScopes.includes('Arrange Transport');
-        // If it's enabled and we have literally NO segments, we add the first recommended one
-        // To avoid the loop when deleting, we can check if it's the very first time we see it enabled
-        // Or simpler: only add if transports is undefined/null (though here it's an array)
-        // Actually, the most robust way is to check if it's the first time we are seeing 0 segments in this session
-        // but wait, if the user navigates away and back, it should probably still be there.
-        // Let's settle for: only auto-fill if transports is empty AND it matches the initial state of the trip record
-        if (isTransportEnabled && transports.length === 0) {
-            // We only add if this is likely the first time the user is interacting with this step
-            addVehicle();
-        }
-    }, [tripData.serviceScopes.includes('Arrange Transport')]); // Only depend on the boolean flag, not the length!
+    // Auto-fill logic removed because it depended on a removed scope.
 
-    if (!tripData.serviceScopes.includes('Arrange Transport')) {
-        return (
-            <div className="bg-neutral-50 p-12 text-center rounded-3xl border border-dashed border-neutral-300">
-                <CarFront className="mx-auto h-12 w-12 text-neutral-300 mb-4" />
-                <h3 className="text-lg font-medium text-neutral-600">Transport Module Disabled</h3>
-                <p className="text-sm text-neutral-400 mt-2">To align logistics and vehicles, enable &quot;Arrange Transport&quot; in Step 1.</p>
-            </div>
-        );
-    }
+    // Disabled state removed because it depended on a removed scope.
 
     const applyRecommendation = (id: string) => {
         updateTransportField(id, 'mode', recommended);

@@ -13,14 +13,12 @@ export function OperationalReadiness({ tripData }: { tripData: TripData }) {
     };
 
     const calculateHotelsReady = () => {
-        if (!tripData.serviceScopes.includes('Book Accommodation')) return null;
-        if (tripData.accommodations.length === 0) return false;
+        if (tripData.accommodations.length === 0) return null;
         return tripData.accommodations.every(h => h.status === 'Confirmed' && h.paymentStatus === 'Paid');
     };
 
     const calculateTransportReady = () => {
-        if (!tripData.serviceScopes.includes('Arrange Transport')) return null;
-        if (tripData.transports.length === 0) return false;
+        if (tripData.transports.length === 0) return null;
         return tripData.transports.every(t => t.status === 'Confirmed' && t.paymentStatus === 'Paid');
     };
 

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Send, Paperclip, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
+import { ChatService } from "@/services/chat.service";
+import { createClient } from "@/utils/supabase/client";
 
 export interface Message {
     id: string;
@@ -44,8 +46,9 @@ const mockMessages: Message[] = [
 ];
 
 export function ChatInterface({ topicId, currentUserId, currentUserType, title, subtitle }: ChatInterfaceProps) {
-    const [messages, setMessages] = useState<Message[]>(mockMessages);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
+    const [dbTopicId, setDbTopicId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -56,35 +59,107 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
         scrollToBottom();
     }, [messages]);
 
-    const handleSend = () => {
-        if (!inputValue.trim()) return;
+    useEffect(() => {
+        let isMounted = true;
+        let channel: any = null;
 
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            senderId: currentUserId,
-            senderType: currentUserType,
-            senderName: currentUserType === 'tourist' ? 'You' : 'Agent',
-            content: inputValue,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            read: false,
+        const initChat = async () => {
+            try {
+                // 1. Get or create topic using the passed `topicId` (which is actually `tourId` / `conversation_id`)
+                let topic = await ChatService.getTopicByConversationId(topicId);
+                if (!topic) {
+                    topic = await ChatService.createTopic({
+                        conversation_id: topicId,
+                        title: title || 'Tour Communications'
+                    });
+                }
+                if (!isMounted) return;
+
+                setDbTopicId(topic.id);
+
+                // 2. Fetch history
+                const history = await ChatService.getMessages(topic.id);
+
+                // Map database messages to UI Message interface
+                const mappedHistory = history.map((m: any) => ({
+                    id: m.id,
+                    senderId: m.sender_id,
+                    senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
+                    senderName: m.sender_id === currentUserId ? 'You' : (m.sender_id?.includes('agent') ? 'Agent' : 'Tourist'),
+                    content: m.content,
+                    timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    read: true
+                }));
+
+                setMessages(mappedHistory);
+
+                // 3. Subscribe to realtime
+                const supabase = createClient();
+                channel = supabase.channel(`messages:${topic.id}`)
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `topic_id=eq.${topic.id}` }, (payload) => {
+                        if (isMounted) {
+                            const m = payload.new;
+                            setMessages(prev => {
+                                if (prev.find(msg => msg.id === m.id)) return prev;
+                                return [...prev, {
+                                    id: m.id,
+                                    senderId: m.sender_id,
+                                    senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
+                                    senderName: m.sender_id === currentUserId ? 'You' : (m.sender_id?.includes('agent') ? 'Agent' : 'Tourist'),
+                                    content: m.content,
+                                    timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                    read: true
+                                }];
+                            });
+                        }
+                    })
+                    .subscribe();
+            } catch (error) {
+                console.error("Failed to initialize chat", error);
+            }
         };
 
-        setMessages([...messages, newMessage]);
-        setInputValue("");
+        if (topicId && currentUserId) {
+            initChat();
+        }
 
-        // Mock a reply if user is tourist
-        if (currentUserType === 'tourist') {
-            setTimeout(() => {
-                setMessages(prev => [...prev, {
-                    id: Date.now().toString() + 'r',
-                    senderId: 'agent-1',
-                    senderType: 'agent',
-                    senderName: 'Samadhi Silva',
-                    content: "Let me check the availability and get back to you right away.",
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    read: true,
-                }]);
-            }, 1000);
+        return () => {
+            isMounted = false;
+            if (channel) {
+                const supabase = createClient();
+                supabase.removeChannel(channel);
+            }
+        };
+    }, [topicId, currentUserId, currentUserType, title]);
+
+    const handleSend = async () => {
+        if (!inputValue.trim() || !dbTopicId || !currentUserId) return;
+
+        const content = inputValue.trim();
+        setInputValue(""); // optimistic clear
+
+        try {
+            const saved = await ChatService.sendMessage({
+                topic_id: dbTopicId,
+                content: content
+            }, currentUserId);
+
+            // Add optimistically
+            setMessages(prev => {
+                if (prev.find(msg => msg.id === saved.id)) return prev;
+                return [...prev, {
+                    id: saved.id,
+                    senderId: saved.sender_id,
+                    senderType: currentUserType,
+                    senderName: 'You',
+                    content: saved.content,
+                    timestamp: new Date(saved.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    read: true
+                }];
+            });
+        } catch (error) {
+            console.error("Failed to send message", error);
+            setInputValue(content); // revert
         }
     };
 
@@ -110,8 +185,8 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
                             </div>
                             <div
                                 className={`px-5 py-3.5 max-w-[85%] md:max-w-[70%] text-[15px] leading-relaxed relative ${isMe
-                                        ? 'bg-brand-green text-white rounded-2xl rounded-tr-sm shadow-md'
-                                        : 'bg-white text-brand-charcoal border border-neutral-200 rounded-2xl rounded-tl-sm shadow-sm'
+                                    ? 'bg-brand-green text-white rounded-2xl rounded-tr-sm shadow-md'
+                                    : 'bg-white text-brand-charcoal border border-neutral-200 rounded-2xl rounded-tl-sm shadow-sm'
                                     }`}
                             >
                                 {msg.content}

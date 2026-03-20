@@ -29,6 +29,27 @@ export class ChatService {
         return data;
     }
 
+    static async getTopicByConversationId(conversationId: string) {
+        const { data, error } = await supabase
+            .from('conversation_topics')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .single();
+        // If no topic exists, we return null (handled by components to create one)
+        if (error && error.code !== 'PGRST116') throw error;
+        return data || null;
+    }
+
+    static async getMessages(topicId: string) {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('topic_id', topicId)
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    }
+
     // To support realtime, the UI will subscribe directly to Supabase channels
     // e.g. supabase.channel('messages').on('postgres_changes', ...)
 }

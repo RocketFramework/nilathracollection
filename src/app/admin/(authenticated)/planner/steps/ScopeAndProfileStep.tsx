@@ -6,13 +6,8 @@ import { useState } from "react";
 
 const allScopes: ServiceScope[] = [
     'Book International Flights',
-    'Book Accommodation',
-    'Arrange Transport',
     'Plan Activities & Experiences',
-    'Arrange Dining / Culinary Experiences',
-    'Book Event / Entry Tickets',
-    'Visa Assistance',
-    'Full End-to-End Luxury Handling'
+    'Visa Assistance'
 ];
 
 const styles = ['Regular', 'Premium', 'Luxury', 'Ultra VIP', 'Mixed'] as const;

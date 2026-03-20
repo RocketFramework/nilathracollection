@@ -11,12 +11,13 @@ export class AuthService {
      * Registers a user via email. Password is created later during tourist portal access if needed.
      * Can use a magic link or just sign up with a dummy password if custom flow is required.
      */
-    static async registerTouristByEmail(email: string) {
+    static async registerTouristByEmail(email: string, redirectUrl?: string) {
         // Implementing lazy verification or simple magic link logic
         const { data, error } = await supabase.auth.signInWithOtp({
             email,
             options: {
                 shouldCreateUser: true,
+                ...(redirectUrl ? { emailRedirectTo: redirectUrl } : {})
             }
         });
         if (error) {
