@@ -29,7 +29,7 @@ export default function VIPContent() {
     useEffect(() => {
         // Initialize audio instance only on the client
         if (typeof window !== "undefined") {
-            audioRef.current = new Audio('/audio/vip-story.wav');
+            audioRef.current = new Audio('/audio/vip-story.mp3');
             const handleEnded = () => setIsPlaying(false);
 
             audioRef.current.addEventListener('ended', handleEnded);
