@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nilathra.com/sitemap.xml
+Sitemap: https://www.nilathra.com/sitemap.xml

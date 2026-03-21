@@ -72,7 +72,7 @@ export default function VIPContent() {
                         src="/images/sri-lanka/climate/sandy-beaches.avif"
                         alt="Sri Lanka VIP Beach"
                         fill
-                        className="object-cover"
+                        className="object-cover object-top"
                         priority
                     />
                     <div className="absolute inset-0 bg-black/50" />
