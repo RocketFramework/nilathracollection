@@ -10,13 +10,13 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 
 const experienceAssets = [
-  { src: "/images/hero_ultra_vip.png", rotate: "-12deg", left: "15%", top: "15%", z: 10, label: "Private Aviation" },
-  { src: "/images/luxury_transport_fleet_sl_1773073885754.png", rotate: "8deg", left: "85%", top: "12%", z: 20, label: "Limo & SUV Fleet" },
-  { src: "/images/kandyan_dancers_luxury_welcome_1773073904824.png", rotate: "-6deg", left: "10%", top: "45%", z: 30, label: "Cultural Welcome" },
-  { src: "/images/private_chef_luxury_dining_1773073921412.png", rotate: "12deg", left: "80%", top: "45%", z: 15, label: "Bespoke Culinary" },
-  { src: "/images/bespoke_gem_jewelry_experience_1773073939946.png", rotate: "-15deg", left: "70%", top: "85%", z: 25, label: "Gem Curation" },
-  { src: "/images/luxury_massage_spa_serenity_1773073961558.png", rotate: "10deg", left: "20%", top: "85%", z: 5, label: "Ayurvedic Spa" },
-  { src: "/images/luxury_bedroom_mountain_view_1773073980186.png", rotate: "0deg", left: "45%", top: "40%", z: 35, label: "Sovereign Sanctuary" },
+  { src: "/images/hero_ultra_vip.avif", rotate: "-12deg", left: "15%", top: "15%", z: 10, label: "Private Aviation" },
+  { src: "/images/luxury_transport_fleet_sl_1773073885754.avif", rotate: "8deg", left: "85%", top: "12%", z: 20, label: "Limo & SUV Fleet" },
+  { src: "/images/kandyan_dancers_luxury_welcome_1773073904824.avif", rotate: "-6deg", left: "10%", top: "45%", z: 30, label: "Cultural Welcome" },
+  { src: "/images/private_chef_luxury_dining_1773073921412.avif", rotate: "12deg", left: "80%", top: "45%", z: 15, label: "Bespoke Culinary" },
+  { src: "/images/bespoke_gem_jewelry_experience_1773073939946.avif", rotate: "-15deg", left: "70%", top: "85%", z: 25, label: "Gem Curation" },
+  { src: "/images/luxury_massage_spa_serenity_1773073961558.avif", rotate: "10deg", left: "20%", top: "85%", z: 5, label: "Ayurvedic Spa" },
+  { src: "/images/luxury_bedroom_mountain_view_1773073980186.avif", rotate: "0deg", left: "45%", top: "40%", z: 35, label: "Sovereign Sanctuary" },
 ];
 
 function ExperienceGallery() {
@@ -260,7 +260,7 @@ export default function Home() {
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1">
               <div className="w-full h-full rounded-full overflow-hidden relative">
-                <Image src="/images/tier_vip.png" alt="Client" fill className="object-cover" />
+                <Image src="/images/tier_vip.avif" alt="Client" fill className="object-cover" />
               </div>
             </div>
             <div className="text-center">
@@ -307,7 +307,7 @@ export default function Home() {
               "addressLocality": "Colombo",
               "addressCountry": "LK"
             },
-            "image": "https://nilathra.com/images/luxury_resort_sunset.png",
+            "image": "https://nilathra.com/images/luxury_resort_sunset.avif",
             "priceRange": "$$$$"
           }),
         }}

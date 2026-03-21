@@ -45,7 +45,7 @@ export default function Navbar() {
                     <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white shadow-md flex-shrink-0" style={{ padding: '3px' }}>
                         <div className="relative w-full h-full">
                             <Image
-                                src="/images/nilathra_travels_logo.png"
+                                src="/images/nilathra_travels_logo.avif"
                                 alt="Nilathra Collection Logo"
                                 fill
                                 className="object-contain"

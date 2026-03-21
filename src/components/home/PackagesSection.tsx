@@ -22,7 +22,7 @@ const packages = [
         textColor: "text-white",
         accent: "text-brand-gold",
         href: "/plans/ultra-vip",
-        image: "/images/hero_ultra_vip.png"
+        image: "/images/hero_ultra_vip.avif"
     },
     {
         title: "Luxury Collection",

@@ -9,7 +9,7 @@ const tiers = [
         icon: Gem,
         price: "From $1,500 / night",
         description: "Reserved for the world's most discerning travelers. Experience absolute seclusion at properties like Amanwella or Ceylon Tea Trails, featuring private butler service and helicopter transfers.",
-        image: "/images/hotel_resplendent.png",
+        image: "/images/hotel_resplendent.avif",
         features: [
             "Stays at Relais & Châteaux and Aman properties",
             "Private villas with dedicated butler service",
@@ -28,7 +28,7 @@ const tiers = [
         icon: Star,
         price: "From $800 / night",
         description: "Refined luxury combining heritage and contemporary style. Featuring boutique gems such as Fort Bazaar in Galle and Wild Coast Tented Lodge.",
-        image: "/images/hotel_boutique.png",
+        image: "/images/hotel_boutique.avif",
         features: [
             "Curated selection of premium 5-star boutiques",
             "Heritage suites and luxury tented camps",
@@ -47,7 +47,7 @@ const tiers = [
         icon: Shield,
         price: "From $400 / night",
         description: "Excellence in comfort and service at Sri Lanka's leading 5-star establishments, including the historic Grand Hotel in Nuwara Eliya.",
-        image: "/images/hotel_manor.png",
+        image: "/images/hotel_manor.avif",
         features: [
             "Iconic 5-star hotels & manor houses",
             "Spacious premium rooms and suites",
@@ -66,7 +66,7 @@ const tiers = [
         icon: LayoutGrid,
         price: "Variable Pricing",
         description: "The ultimate flexibility. Blend the seclusion of a private coastal villa with the charm of a colonial hill country estate.",
-        image: "/images/hotel_coastal.png",
+        image: "/images/hotel_coastal.avif",
         features: [
             "Seamless mix of VIP and Deluxe tiers",
             "Total flexibility in property selection",

@@ -44,7 +44,7 @@ export default function ColomboUrbanSection() {
                         className="relative h-[600px] rounded-sm overflow-hidden shadow-2xl"
                     >
                         <Image
-                            src="/images/colombo_morning_drone.png"
+                            src="/images/colombo_morning_drone.avif"
                             alt="Colombo Skyline Morning"
                             fill
                             className="object-cover"

@@ -82,7 +82,7 @@ export default async function BlogPostPage({ params }: Props) {
             name: "Nilathra Collection",
             logo: {
                 "@type": "ImageObject",
-                url: `${BASE_URL}/images/logo.png`,
+                url: `${BASE_URL}/images/logo.avif`,
             },
         },
         mainEntityOfPage: {

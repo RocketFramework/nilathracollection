@@ -69,7 +69,7 @@ export default function VIPContent() {
             <section className="relative h-screen w-full flex items-center justify-center pt-20">
                 <div className="absolute inset-0 z-0">
                     <Image
-                        src="/images/sri-lanka/climate/sandy-beaches.jpg"
+                        src="/images/sri-lanka/climate/sandy-beaches.avif"
                         alt="Sri Lanka VIP Beach"
                         fill
                         className="object-cover"
@@ -158,7 +158,7 @@ export default function VIPContent() {
                     </div>
                     <div className="relative h-[600px] rounded-lg overflow-hidden group">
                         <Image
-                            src="/images/sri-lanka/climate/hill-country.jpg"
+                            src="/images/sri-lanka/climate/hill-country.avif"
                             alt="Tea Estates Above the Clouds"
                             fill
                             className="object-cover transition-transform duration-1000 group-hover:scale-105"
@@ -194,9 +194,9 @@ export default function VIPContent() {
                         className="grid grid-cols-1 md:grid-cols-3 gap-6"
                     >
                         {[
-                            { src: "/images/sri-lanka/climate/sandy-beaches.jpg", title: "Morning: Coastal Sun" },
-                            { src: "/images/sri-lanka/climate/wet-land.jpeg", title: "Noon: Emerald Wetlands" },
-                            { src: "/images/sri-lanka/climate/dry-land.jpg", title: "Evening: Golden Dry Lands" }
+                            { src: "/images/sri-lanka/climate/sandy-beaches.avif", title: "Morning: Coastal Sun" },
+                            { src: "/images/sri-lanka/climate/wet-land.avif", title: "Noon: Emerald Wetlands" },
+                            { src: "/images/sri-lanka/climate/dry-land.avif", title: "Evening: Golden Dry Lands" }
                         ].map((img, i) => (
                             <motion.div key={i} variants={fadeUpVariant} className="relative h-[400px] rounded-lg overflow-hidden group">
                                 <Image src={img.src} alt={img.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -222,18 +222,18 @@ export default function VIPContent() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-4">
                                 <div className="relative h-64 rounded-lg overflow-hidden">
-                                    <Image src="/images/sri-lanka/man made/8th-wonder-of-the-world-lion-rock.jpeg" alt="Lion Rock" fill className="object-cover" />
+                                    <Image src="/images/sri-lanka/man made/8th-wonder-of-the-world-lion-rock.avif" alt="Lion Rock" fill className="object-cover" />
                                 </div>
                                 <div className="relative h-48 rounded-lg overflow-hidden">
-                                    <Image src="/images/sri-lanka/man made/ancient-resorvoir-called-kala-wewa.jpg" alt="Kala Wewa" fill className="object-cover" />
+                                    <Image src="/images/sri-lanka/man made/ancient-resorvoir-called-kala-wewa.avif" alt="Kala Wewa" fill className="object-cover" />
                                 </div>
                             </div>
                             <div className="space-y-4 mt-8">
                                 <div className="relative h-48 rounded-lg overflow-hidden">
-                                    <Image src="/images/sri-lanka/culture/devil-dance.jpg" alt="Devil Dance" fill className="object-cover" />
+                                    <Image src="/images/sri-lanka/culture/devil-dance.avif" alt="Devil Dance" fill className="object-cover" />
                                 </div>
                                 <div className="relative h-64 rounded-lg overflow-hidden">
-                                    <Image src="/images/sri-lanka/man made/ancient-stone-temple-called-gal-viharaya.jpg" alt="Gal Viharaya" fill className="object-cover" />
+                                    <Image src="/images/sri-lanka/man made/ancient-stone-temple-called-gal-viharaya.avif" alt="Gal Viharaya" fill className="object-cover" />
                                 </div>
                             </div>
                         </div>
@@ -283,17 +283,17 @@ export default function VIPContent() {
                     className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4"
                 >
                     {[
-                        "/images/sri-lanka/animals/leopard.jpg",
-                        "/images/sri-lanka/animals/tusker.jpg",
-                        "/images/sri-lanka/nature/blue-sapphire-gem.jpg", // placeholder, will verify actual gem image
-                        "/images/sri-lanka/animals/peacock.jpg",
-                        "/images/sri-lanka/animals/whale.jpg",
-                        "/images/sri-lanka/nature/sinharaja-rain-forest.jpg",
-                        "/images/sri-lanka/nature/laxapana-waterfalls.jpg",
-                        "/images/sri-lanka/animals/hornbill.jpg"
+                        "/images/sri-lanka/animals/leopard.avif",
+                        "/images/sri-lanka/animals/tusker.avif",
+                        "/images/sri-lanka/nature/blue-sapphire-gem.avif", // placeholder, will verify actual gem image
+                        "/images/sri-lanka/animals/peacock.avif",
+                        "/images/sri-lanka/animals/whale.avif",
+                        "/images/sri-lanka/nature/sinharaja-rain-forest.avif",
+                        "/images/sri-lanka/nature/laxapana-waterfalls.avif",
+                        "/images/sri-lanka/animals/hornbill.avif"
                     ].map((src, i) => {
-                        // Adjust gem path since earlier we listed 'gem.jpg'
-                        const actualSrc = src.includes('blue-sapphire') ? "/images/sri-lanka/nature/gem.jpg" : src;
+                        // Adjust gem path since earlier we listed 'gem.avif'
+                        const actualSrc = src.includes('blue-sapphire') ? "/images/sri-lanka/nature/gem.avif" : src;
                         return (
                             <motion.div key={i} variants={fadeUpVariant} className="relative aspect-square rounded-lg overflow-hidden group">
                                 <Image src={actualSrc} alt="Nature and Wildlife" fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -331,83 +331,83 @@ export default function VIPContent() {
                         {[
                             // Mixed array of Food, Fruit, and All Unused Images
                             { src: "/images/sri-lanka/food/crab-curry.webp", label: "Lagoon Crab Curry" },
-                            { src: "/images/sri-lanka/animals/elephant.jpg", label: "Wild Elephant" },
-                            { src: "/images/sri-lanka/fruit/mangosteen-fruit.jpg", label: "Fresh Mangosteen" },
-                            { src: "/images/sri-lanka/man made/famous-nine-arch-bridge.jpg", label: "Nine Arch Bridge" },
-                            { src: "/images/sri-lanka/food/hopper.jpg", label: "Artisanal Hoppers" },
-                            { src: "/images/sri-lanka/culture/fire-dance.jpg", label: "Traditional Fire Dance" },
-                            { src: "/images/sri-lanka/fruit/rambutan.jpg", label: "Tropical Rambutan" },
+                            { src: "/images/sri-lanka/animals/elephant.avif", label: "Wild Elephant" },
+                            { src: "/images/sri-lanka/fruit/mangosteen-fruit.avif", label: "Fresh Mangosteen" },
+                            { src: "/images/sri-lanka/man made/famous-nine-arch-bridge.avif", label: "Nine Arch Bridge" },
+                            { src: "/images/sri-lanka/food/hopper.avif", label: "Artisanal Hoppers" },
+                            { src: "/images/sri-lanka/culture/fire-dance.avif", label: "Traditional Fire Dance" },
+                            { src: "/images/sri-lanka/fruit/rambutan.avif", label: "Tropical Rambutan" },
                             { src: "/images/sri-lanka/nature/adams-peak.avif", label: "Sacred Adam's Peak" },
 
-                            { src: "/images/sri-lanka/food/kottu.jpg", label: "Signature Kottu" },
+                            { src: "/images/sri-lanka/food/kottu.avif", label: "Signature Kottu" },
                             { src: "/images/sri-lanka/animals/turtle.webp", label: "Sea Turtles" },
-                            { src: "/images/sri-lanka/fruit/passion-fruit.jpg", label: "Passion Fruit" },
-                            { src: "/images/sri-lanka/culture/wood-craft.jpg", label: "Ancient Wood Craft" },
-                            { src: "/images/sri-lanka/food/sweet.jpeg", label: "Native Sweets" },
-                            { src: "/images/sri-lanka/man made/kandy-ancient-temple-of-tooth.jpg", label: "Temple of the Tooth" },
-                            { src: "/images/sri-lanka/fruit/papaya.jpeg", label: "Ceylon Papaya" },
-                            { src: "/images/sri-lanka/nature/beautiful-sembuwatta-lake.jpg", label: "Sembuwatta Lake" },
+                            { src: "/images/sri-lanka/fruit/passion-fruit.avif", label: "Passion Fruit" },
+                            { src: "/images/sri-lanka/culture/wood-craft.avif", label: "Ancient Wood Craft" },
+                            { src: "/images/sri-lanka/food/sweet.avif", label: "Native Sweets" },
+                            { src: "/images/sri-lanka/man made/kandy-ancient-temple-of-tooth.avif", label: "Temple of the Tooth" },
+                            { src: "/images/sri-lanka/fruit/papaya.avif", label: "Ceylon Papaya" },
+                            { src: "/images/sri-lanka/nature/beautiful-sembuwatta-lake.avif", label: "Sembuwatta Lake" },
 
-                            { src: "/images/sri-lanka/food/cashewnut-curry.jpg", label: "Cashewnut Curry" },
-                            { src: "/images/sri-lanka/climate/plain-lands.jpg", label: "Lush Plains" },
-                            { src: "/images/sri-lanka/fruit/king-coconut.jpeg", label: "King Coconut" },
-                            { src: "/images/sri-lanka/man made/ancient-ruwan weli-pagoda.jpg", label: "Ruwanweli Pagoda" },
-                            { src: "/images/sri-lanka/food/ambul-kiribath.jpg", label: "Ambul Kiribath" },
-                            { src: "/images/sri-lanka/animals/monkey.jpg", label: "Macaque Monkeys" },
-                            { src: "/images/sri-lanka/fruit/star-fruit.jpg", label: "Star Fruit" },
-                            { src: "/images/sri-lanka/culture/yak-bera.jpg", label: "Yak Bera Drums" },
+                            { src: "/images/sri-lanka/food/cashewnut-curry.avif", label: "Cashewnut Curry" },
+                            { src: "/images/sri-lanka/climate/plain-lands.avif", label: "Lush Plains" },
+                            { src: "/images/sri-lanka/fruit/king-coconut.avif", label: "King Coconut" },
+                            { src: "/images/sri-lanka/man made/ancient-ruwan weli-pagoda.avif", label: "Ruwanweli Pagoda" },
+                            { src: "/images/sri-lanka/food/ambul-kiribath.avif", label: "Ambul Kiribath" },
+                            { src: "/images/sri-lanka/animals/monkey.avif", label: "Macaque Monkeys" },
+                            { src: "/images/sri-lanka/fruit/star-fruit.avif", label: "Star Fruit" },
+                            { src: "/images/sri-lanka/culture/yak-bera.avif", label: "Yak Bera Drums" },
 
-                            { src: "/images/sri-lanka/food/all.jpg", label: "Culinary Assortment" },
-                            { src: "/images/sri-lanka/man made/2500-years-old-ancient-twin-pool.jpg", label: "Ancient Twin Pool" },
-                            { src: "/images/sri-lanka/fruit/banana.jpeg", label: "Local Banana" },
+                            { src: "/images/sri-lanka/food/all.avif", label: "Culinary Assortment" },
+                            { src: "/images/sri-lanka/man made/2500-years-old-ancient-twin-pool.avif", label: "Ancient Twin Pool" },
+                            { src: "/images/sri-lanka/fruit/banana.avif", label: "Local Banana" },
                             { src: "/images/sri-lanka/nature/cloud-forest-seen-from-adams-peak.webp", label: "Highland Cloud Forest" },
                             { src: "/images/sri-lanka/food/black-pork-curry.webp", label: "Black Pork Curry" },
-                            { src: "/images/sri-lanka/culture/new-year-rituals.jpg", label: "New Year Rituals" },
+                            { src: "/images/sri-lanka/culture/new-year-rituals.avif", label: "New Year Rituals" },
 
-                            { src: "/images/sri-lanka/food/brinjal-curry.jpg", label: "Brinjal Curry" },
-                            { src: "/images/sri-lanka/man made/6000-years-old-burial-site.jpg", label: "Prehistoric Burial Site" },
-                            { src: "/images/sri-lanka/fruit/bilingi-fruit.jpeg", label: "Bilingi" },
-                            { src: "/images/sri-lanka/nature/common-waterfalls.jpg", label: "Hill Country Falls" },
+                            { src: "/images/sri-lanka/food/brinjal-curry.avif", label: "Brinjal Curry" },
+                            { src: "/images/sri-lanka/man made/6000-years-old-burial-site.avif", label: "Prehistoric Burial Site" },
+                            { src: "/images/sri-lanka/fruit/bilingi-fruit.avif", label: "Bilingi" },
+                            { src: "/images/sri-lanka/nature/common-waterfalls.avif", label: "Hill Country Falls" },
 
-                            { src: "/images/sri-lanka/food/dhal-curry.jpg", label: "Dhal Curry" },
-                            { src: "/images/sri-lanka/climate/rocky-lands.jpg", label: "Rocky Landscapes" },
-                            { src: "/images/sri-lanka/fruit/gaduguda-tree.jpg", label: "Gaduguda Tree" },
+                            { src: "/images/sri-lanka/food/dhal-curry.avif", label: "Dhal Curry" },
+                            { src: "/images/sri-lanka/climate/rocky-lands.avif", label: "Rocky Landscapes" },
+                            { src: "/images/sri-lanka/fruit/gaduguda-tree.avif", label: "Gaduguda Tree" },
                             { src: "/images/sri-lanka/culture/puppet-dance.webp", label: "Puppetry Art" },
 
-                            { src: "/images/sri-lanka/food/fish-curry.jpg", label: "Fish Curry" },
-                            { src: "/images/sri-lanka/man made/ancient-damascas-sword.jpg", label: "Ancient Metallurgy" },
-                            { src: "/images/sri-lanka/fruit/gaduguda.jpg", label: "Gaduguda Fruit" },
-                            { src: "/images/sri-lanka/nature/flower-summer.jpeg", label: "Summer Blooms" },
+                            { src: "/images/sri-lanka/food/fish-curry.avif", label: "Fish Curry" },
+                            { src: "/images/sri-lanka/man made/ancient-damascas-sword.avif", label: "Ancient Metallurgy" },
+                            { src: "/images/sri-lanka/fruit/gaduguda.avif", label: "Gaduguda Fruit" },
+                            { src: "/images/sri-lanka/nature/flower-summer.avif", label: "Summer Blooms" },
 
-                            { src: "/images/sri-lanka/food/melon-curry.jpg", label: "Melon Curry" },
-                            { src: "/images/sri-lanka/man made/ancient-ruines-of-bath-room.jpeg", label: "Royal Bath Ruins" },
-                            { src: "/images/sri-lanka/fruit/golde-apple.jpeg", label: "Golden Apple" },
-                            { src: "/images/sri-lanka/culture/thovil-dance.jpg", label: "Thovil Ritual" },
+                            { src: "/images/sri-lanka/food/melon-curry.avif", label: "Melon Curry" },
+                            { src: "/images/sri-lanka/man made/ancient-ruines-of-bath-room.avif", label: "Royal Bath Ruins" },
+                            { src: "/images/sri-lanka/fruit/golde-apple.avif", label: "Golden Apple" },
+                            { src: "/images/sri-lanka/culture/thovil-dance.avif", label: "Thovil Ritual" },
 
-                            { src: "/images/sri-lanka/food/milkrice.jpeg", label: "Festive Milkrice" },
+                            { src: "/images/sri-lanka/food/milkrice.avif", label: "Festive Milkrice" },
                             { src: "/images/sri-lanka/man made/ancient-surgical-hospital.webp", label: "Ancient Hospital" },
-                            { src: "/images/sri-lanka/fruit/king of Fruit.jpeg", label: "King of Fruits" },
-                            { src: "/images/sri-lanka/nature/long-clean-sandy-beach.jpg", label: "Endless Horizons" },
+                            { src: "/images/sri-lanka/fruit/king of Fruit.avif", label: "King of Fruits" },
+                            { src: "/images/sri-lanka/nature/long-clean-sandy-beach.avif", label: "Endless Horizons" },
 
-                            { src: "/images/sri-lanka/food/potato-curry.jpg", label: "Potato Curry" },
+                            { src: "/images/sri-lanka/food/potato-curry.avif", label: "Potato Curry" },
                             { src: "/images/sri-lanka/culture/dance.webp", label: "Traditional Performers" },
-                            { src: "/images/sri-lanka/fruit/laulu.jpeg", label: "Laulu Fruit" },
+                            { src: "/images/sri-lanka/fruit/laulu.avif", label: "Laulu Fruit" },
 
-                            { src: "/images/sri-lanka/food/regular-meal.jpg", label: "Traditional Meal" },
-                            { src: "/images/sri-lanka/fruit/maa-dam-fruit.jpeg", label: "Maa Dam" },
-                            { src: "/images/sri-lanka/food/rice.jpg", label: "Steamed Rice" },
-                            { src: "/images/sri-lanka/fruit/orange-trees.jpg", label: "Orange Orchards" },
+                            { src: "/images/sri-lanka/food/regular-meal.avif", label: "Traditional Meal" },
+                            { src: "/images/sri-lanka/fruit/maa-dam-fruit.avif", label: "Maa Dam" },
+                            { src: "/images/sri-lanka/food/rice.avif", label: "Steamed Rice" },
+                            { src: "/images/sri-lanka/fruit/orange-trees.avif", label: "Orange Orchards" },
 
-                            { src: "/images/sri-lanka/food/roti.jpeg", label: "Roti" },
-                            { src: "/images/sri-lanka/fruit/red-guava.jpeg", label: "Red Guava" },
-                            { src: "/images/sri-lanka/food/short-eats.jpeg", label: "Short Eats" },
-                            { src: "/images/sri-lanka/fruit/small-tamarind.jpeg", label: "Small Tamarind" },
+                            { src: "/images/sri-lanka/food/roti.avif", label: "Roti" },
+                            { src: "/images/sri-lanka/fruit/red-guava.avif", label: "Red Guava" },
+                            { src: "/images/sri-lanka/food/short-eats.avif", label: "Short Eats" },
+                            { src: "/images/sri-lanka/fruit/small-tamarind.avif", label: "Small Tamarind" },
 
                             { src: "/images/sri-lanka/food/string-hoppers.webp", label: "String Hoppers" },
-                            { src: "/images/sri-lanka/fruit/tamarind.jpg", label: "Tamarind" },
-                            { src: "/images/sri-lanka/food/traditional-wada.jpg", label: "Traditional Wada" },
-                            { src: "/images/sri-lanka/fruit/waraka.jpeg", label: "Waraka" },
-                            { src: "/images/sri-lanka/food/vegitable-rotti.jpeg", label: "Vegetable Rotti" }
+                            { src: "/images/sri-lanka/fruit/tamarind.avif", label: "Tamarind" },
+                            { src: "/images/sri-lanka/food/traditional-wada.avif", label: "Traditional Wada" },
+                            { src: "/images/sri-lanka/fruit/waraka.avif", label: "Waraka" },
+                            { src: "/images/sri-lanka/food/vegitable-rotti.avif", label: "Vegetable Rotti" }
                         ].map((item, i) => (
                             <div key={i} className="w-[85vw] md:w-[45vw] lg:w-[400px] snap-center flex flex-col items-center group">
                                 <div className="relative w-full h-[400px] rounded-xl overflow-hidden mb-4 shadow-2xl shadow-black/50">
@@ -452,7 +452,7 @@ export default function VIPContent() {
             {/* CTA */}
             <section className="py-32 relative flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
-                    <Image src="/images/sri-lanka/nature/watch-sunrise.jpg" alt="Sunrise" fill className="object-cover" />
+                    <Image src="/images/sri-lanka/nature/watch-sunrise.avif" alt="Sunrise" fill className="object-cover" />
                     <div className="absolute inset-0 bg-black/70" />
                 </div>
                 <div className="relative z-10 text-center px-6 max-w-3xl">

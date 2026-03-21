@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     openGraph: {
         title: "AI Trip Planner | Nilathra Collection",
         description: "Design your bespoke Sri Lankan journey with our AI-powered planner.",
-        images: ["/images/hero_ella_bridge.png"],
+        images: ["/images/hero_ella_bridge.avif"],
     },
 };
 

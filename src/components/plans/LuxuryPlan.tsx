@@ -223,7 +223,7 @@ export default function LuxuryPlan() {
             {/* World-Class Header */}
             <div className="relative h-[700px] overflow-hidden">
                 <div
-                    className="absolute inset-0 bg-[url('/images/plans/luxury_sri_lanka.png')] bg-cover"
+                    className="absolute inset-0 bg-[url('/images/plans/luxury_sri_lanka.avif')] bg-cover"
                     style={{ backgroundPosition: 'center -150px' }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />

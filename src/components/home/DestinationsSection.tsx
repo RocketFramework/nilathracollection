@@ -9,25 +9,25 @@ const destinations = [
     {
         name: "Sigiriya",
         tagline: "The Lion Rock Fortress",
-        image: "/images/hero_sigiriya_breakfast.png",
+        image: "/images/hero_sigiriya_breakfast.avif",
         href: "/destinations/sigiriya",
     },
     {
         name: "Galle",
         tagline: "Colonial Charm & Ocean Breeze",
-        image: "/images/galle_hero.png",
+        image: "/images/galle_hero.avif",
         href: "/destinations/galle",
     },
     {
         name: "Ella",
         tagline: "Highlands & Tea Estates",
-        image: "/images/hero_ella_bridge.png",
+        image: "/images/hero_ella_bridge.avif",
         href: "/destinations/ella",
     },
     {
         name: "Yala",
         tagline: "Wild Safaris & Leopards",
-        image: "/images/yala_hero.png",
+        image: "/images/yala_hero.avif",
         href: "/destinations/yala",
     },
 ];

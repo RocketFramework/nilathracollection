@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     siteName: "Nilathra Collection",
     images: [
       {
-        url: "/images/luxury_resort_sunset.png",
+        url: "/images/luxury_resort_sunset.avif",
         width: 1200,
         height: 630,
         alt: "Nilathra Collection - Luxury Unfiltered",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Nilathra Collection | Above and Beyond the Norm",
     description: "Sri Lanka's premier choice for high-end travelers. Curated experiences that go above and beyond the norm.",
-    images: ["/images/luxury_resort_sunset.png"],
+    images: ["/images/luxury_resort_sunset.avif"],
   },
   robots: {
     index: true,

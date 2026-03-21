@@ -15,7 +15,7 @@ export default function WeligamaMirissaSection() {
                         className="relative h-[600px] rounded-sm overflow-hidden shadow-2xl"
                     >
                         <Image
-                            src="/images/tangalle.png"
+                            src="/images/tangalle.avif"
                             alt="Weligama and Mirissa Coastline"
                             fill
                             className="object-cover"

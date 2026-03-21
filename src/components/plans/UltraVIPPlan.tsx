@@ -223,7 +223,7 @@ export default function UltraVIPPlan() {
             {/* World-Class Header */}
             <div className="relative h-[700px] overflow-hidden">
                 <div
-                    className="absolute inset-0 bg-[url('/images/plans/ultra_vip_sri_lanka_v5.png')] bg-cover"
+                    className="absolute inset-0 bg-[url('/images/plans/ultra_vip_sri_lanka_v5.avif')] bg-cover"
                     style={{ backgroundPosition: 'center -140px' }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />

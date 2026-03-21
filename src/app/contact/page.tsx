@@ -320,7 +320,7 @@ export default function ContactPage() {
             <section className="h-[400px] w-full relative bg-brand-sand">
                 <div className="absolute inset-0 grayscale opacity-40">
                     <Image
-                        src="/images/luxury_resort_sunset.png"
+                        src="/images/luxury_resort_sunset.avif"
                         alt="Map"
                         fill
                         className="object-cover"

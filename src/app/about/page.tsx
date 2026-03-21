@@ -8,7 +8,7 @@ export default function AboutPage() {
             {/* Hero Section */}
             <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center overflow-hidden">
                 <Image
-                    src="/images/hero_sigiriya_breakfast.png"
+                    src="/images/hero_sigiriya_breakfast.avif"
                     alt="Luxury hospitality"
                     fill
                     className="object-cover"
@@ -63,7 +63,7 @@ export default function AboutPage() {
                     <div className="flex-1">
                         <div className="relative h-[500px] w-full rounded-sm overflow-hidden">
                             <Image
-                                src="/images/yala_hero.png"
+                                src="/images/yala_hero.avif"
                                 alt="Expert guide"
                                 fill
                                 className="object-cover"

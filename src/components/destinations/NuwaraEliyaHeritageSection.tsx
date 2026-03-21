@@ -15,7 +15,7 @@ export default function NuwaraEliyaHeritageSection() {
                         className="relative h-[600px] rounded-sm overflow-hidden shadow-2xl lg:order-2"
                     >
                         <Image
-                            src="/images/nuwara_eliya.png"
+                            src="/images/nuwara_eliya.avif"
                             alt="Nuwara Eliya Tea Country"
                             fill
                             className="object-cover"

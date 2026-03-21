@@ -7,22 +7,22 @@ import { Camera, MapPin, Eye } from "lucide-react";
 const wildlifeData = [
     {
         title: "The Elusive Leopard",
-        image: "/images/wildlife_leopard.png",
+        image: "/images/wildlife_leopard.avif",
         description: "Yala boasts one of the highest leopard densities in the world. Witness the apex predator of the island in its natural habitat."
     },
     {
         title: "Gentle Giants",
-        image: "/images/wildlife_elephant_herd.png",
+        image: "/images/wildlife_elephant_herd.avif",
         description: "Large herds of Asian elephants roam the plains of Yala, often seen congregating around ancient water reservoirs."
     },
     {
         title: "The Shaggy Recluse",
-        image: "/images/wildlife_sloth_bears.png",
+        image: "/images/wildlife_sloth_bears.avif",
         description: "The rare Sri Lankan sloth bear is a prized sighting, often found during the Palu fruit season."
     },
     {
         title: "Lagoon Sentinels",
-        image: "/images/wildlife_buffaloes.png",
+        image: "/images/wildlife_buffaloes.avif",
         description: "Wild water buffaloes and diverse birdlife thrive in the intricate network of lagoons and wetlands."
     }
 ];
@@ -87,7 +87,7 @@ export default function YalaWildlifeSection() {
                 <div className="mt-20 p-12 border border-white/10 bg-white/5 rounded-sm flex flex-col md:flex-row items-center gap-12">
                     <div className="relative w-full md:w-1/3 h-[250px] rounded-sm overflow-hidden">
                         <Image
-                            src="/images/wildlife_elephant_jeep.png"
+                            src="/images/wildlife_elephant_jeep.avif"
                             alt="Private Safari"
                             fill
                             className="object-cover"

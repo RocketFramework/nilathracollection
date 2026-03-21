@@ -16,7 +16,7 @@ const destinationsData: Record<string, any> = {
     sigiriya: {
         name: "Sigiriya",
         tagline: "The Lion Rock Fortress",
-        heroImage: "/images/sigiriya_rock.png",
+        heroImage: "/images/sigiriya_rock.avif",
         description: "Rising 200m above the jungle, Sigiriya is an ancient palace-fortress of incomparable majesty. This UNESCO World Heritage site, the 'Lion Rock', is a masterpiece of 5th-century urban planning, hydraulic engineering, and artistic expression. From the Mirror Wall's ancient graffiti to the vivid frescoes and the massive lion's paws guarding the final ascent, Sigiriya offers a profound encounter with Sri Lanka's royal heritage.",
         highlights: [
             "Private early-dawn climb with an expert archaeologist",
@@ -40,7 +40,7 @@ const destinationsData: Record<string, any> = {
     galle: {
         name: "Galle",
         tagline: "Colonial Charm & Ocean Breeze",
-        heroImage: "/images/galle_fort.png",
+        heroImage: "/images/galle_fort.avif",
         description: "Galle is a jewel where history meets the horizon. A UNESCO World Heritage site, the city is an intricate mosaic of colonial architecture and tropical elegance. The Dutch Fort is the heartbeat of Galle, housing luxury boutique villas, eclectic designer shops, and artisanal cafes within its ancient granite ramparts. Every cobblestone street tells a story of the VOC era, now reimagined as a sophisticated sanctuary for the modern traveler.",
         highlights: [
             "Private heritage walk with a local historian",
@@ -64,7 +64,7 @@ const destinationsData: Record<string, any> = {
     yala: {
         name: "Yala",
         tagline: "Wild Safaris & Leopards",
-        heroImage: "/images/yala_hero.png",
+        heroImage: "/images/yala_hero.avif",
         description: "Yala National Park is the most visited and second largest national park in Sri Lanka. The park is best known for its variety of wild animals. It is important for the conservation of Sri Lankan elephants, Sri Lankan leopards and aquatic birds.",
         highlights: [
             "Exclusive dawn leopard safari",
@@ -87,7 +87,7 @@ const destinationsData: Record<string, any> = {
     kandy: {
         name: "Kandy",
         tagline: "The Sacred Hill Capital",
-        heroImage: "/images/kandy_real.png",
+        heroImage: "/images/kandy_real.avif",
         description: "Nestled amidst misty green hills, Kandy is the cultural soul of Sri Lanka. Home to the sacred Temple of the Tooth Relic, this city offers a blend of spirituality, history, and natural beauty.",
         highlights: [
             "Visit the Temple of the Tooth Relic",
@@ -110,7 +110,7 @@ const destinationsData: Record<string, any> = {
     colombo: {
         name: "Colombo",
         tagline: "Luxury Cosmopolitan Hub",
-        heroImage: "/images/colombo_morning_drone.png",
+        heroImage: "/images/colombo_morning_drone.avif",
         description: "A vibrant fusion of colonial-era heritage and ultra-modern ambition, Colombo is the dynamic heartbeat of Sri Lanka. As the island's commercial capital and a burgeoning global hub, the city offers a sophisticated blend of world-class shopping at One Galle Face, exquisite fine dining, and meticulously preserved architecture. From the iconic Lotus Tower piercing the skyline to the historic grandeur of the Galle Face Hotel, Colombo provides a multifaceted luxury experience that serves as the perfect introduction or finale to your Sri Lankan journey.",
         highlights: [
             "Cinematic sunset views from the Lotus Tower rooftop",
@@ -134,7 +134,7 @@ const destinationsData: Record<string, any> = {
     ella: {
         name: "Ella",
         tagline: "The Misty Highland Sanctuary",
-        heroImage: "/images/ella_hero.png",
+        heroImage: "/images/ella_hero.avif",
         description: "Perched amidst the emerald peaks of the Central Highlands, Ella is a mist-shrouded sanctuary for nature lovers and seekers of serenity. Famous for its sweeping mountain vistas and the iconic Nine Arch Bridge, this charming village offers a refreshing escape from the tropical heat. With its lush tea plantations, hidden waterfalls, and dramatic rock formations, Ella provides an immersive encounter with the raw beauty of Sri Lanka's hill country.",
         highlights: [
             "Scenic private hike to the summit of Little Adam's Peak",
@@ -158,7 +158,7 @@ const destinationsData: Record<string, any> = {
     "weligama-mirissa": {
         name: "Weligama & Mirissa",
         tagline: "The Southern Rhythm",
-        heroImage: "/images/tangalle.png",
+        heroImage: "/images/tangalle.avif",
         description: "Experience the ultimate coastal synergy where the golden sands of Weligama meet the vibrant bays of Mirissa. This southern duo offers a sophisticated blend of world-class surfing, intimate coastal coves, and the island's premier whale watching expeditions. Whether you're catching waves in the crescent bay of Weligama or watching the sunset from Mirissa's Parrot Rock, the southern coast pulses with a refined energy you won't find anywhere else.",
         highlights: [
             "Private yacht charter for whale watching",
@@ -181,7 +181,7 @@ const destinationsData: Record<string, any> = {
     "nuwara-eliya": {
         name: "Nuwara Eliya",
         tagline: "The Little England of Sri Lanka",
-        heroImage: "/images/nuwara_eliya.png",
+        heroImage: "/images/nuwara_eliya.avif",
         description: "Elegant, nostalgic, and perpetually cool, Nuwara Eliya is the quintessential highland retreat. Known as 'Little England' for its colonial-era charm and manicured gardens, the city is surrounded by some of the world's most famous tea estates. From the tranquil Gregory Lake to the historic Hill Club, Nuwara Eliya offers a refined sanctuary where the air is fresh and the pace of life gracefully slows down.",
         highlights: [
             "Private high-tea at a historic colonial bungalow",
@@ -205,7 +205,7 @@ const destinationsData: Record<string, any> = {
     trincomalee: {
         name: "Trincomalee",
         tagline: "East Coast Charm & Blue Seas",
-        heroImage: "/images/trincomalee_hero.png",
+        heroImage: "/images/trincomalee_hero.avif",
         description: "Trincomalee, on the east coast of Sri Lanka, is home to one of the world's finest natural deep-sea harbors. It offers pristine white sand beaches, sacred Hindu temples, and world-class whale watching opportunities.",
         highlights: [
             "Private whale & dolphin watching",
@@ -335,7 +335,7 @@ export default function DestinationPage({ params }: { params: Promise<{ slug: st
 
                         <div className="relative h-[300px] rounded-sm overflow-hidden group">
                             <Image
-                                src="/images/galle_hero.png"
+                                src="/images/galle_hero.avif"
                                 alt="Luxury travel"
                                 fill
                                 className="object-cover transition-transform group-hover:scale-110"

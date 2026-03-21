@@ -15,7 +15,7 @@ export default function SigiriyaAncientSection() {
                         className="relative h-[600px] rounded-sm overflow-hidden shadow-2xl"
                     >
                         <Image
-                            src="/images/sigiriya_rock.png"
+                            src="/images/sigiriya_rock.avif"
                             alt="Sigiriya Rock Fortress Ancient View"
                             fill
                             className="object-cover"

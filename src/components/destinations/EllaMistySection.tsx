@@ -44,7 +44,7 @@ export default function EllaMistySection() {
                         className="relative h-[600px] rounded-sm overflow-hidden shadow-2xl"
                     >
                         <Image
-                            src="/images/ella_hero.png"
+                            src="/images/ella_hero.avif"
                             alt="Ella Misty Mountains"
                             fill
                             className="object-cover"

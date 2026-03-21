@@ -18,7 +18,7 @@ export const blogPosts: BlogPost[] = [
         author: "Nilathra Editorial",
         category: "Destinations",
         readingTime: "8 min read",
-        image: "/images/hero_ultra_vip.png",
+        image: "/images/hero_ultra_vip.avif",
         excerpt: "Discover what truly sets Sri Lanka apart from other luxury destinations. From ancient civilizations and wildlife safaris to misty tea mountains and whale watching, explore ten unforgettable experiences in one extraordinary island.",
         content: `
 ## 10 Extraordinary Experiences That Make Sri Lanka a Dream Destination for Luxury Travelers
@@ -171,7 +171,7 @@ And when you are ready, **this extraordinary island will be waiting to welcome y
         author: "Nilathra Editorial",
         category: "Destinations",
         readingTime: "6 min read",
-        image: "/images/weligama_surfing.png",
+        image: "/images/weligama_surfing.avif",
         excerpt: "Discover the perfect fusion of world-class waves and refined coastal living. Weligama is redefining the luxury surf experience in the Indian Ocean.",
         content: `
 # Weligama: The Premier Luxury Surf Sanctuary of Sri Lanka
@@ -217,7 +217,7 @@ Weligama is not just a place to surf; it is a place to find your rhythm.
         author: "Nilathra Concierge",
         category: "Ultra Luxury",
         readingTime: "8 min read",
-        image: "/images/hero_ultra_vip.png",
+        image: "/images/hero_ultra_vip.avif",
         excerpt: "Experience the pinnacle of hospitality with our Sovereignty Collection. From private jets to absolute anonymity, discover what true VIP travel looks like.",
         content: `
 # The Ultimate Guide to Ultra VIP Travel in Sri Lanka: The Sovereignty Collection
@@ -266,7 +266,7 @@ At Nilathra Travels, we don’t just plan trips; we architect the impossible.
         author: "Luxury Travel Specialist",
         category: "Luxury",
         readingTime: "6 min read",
-        image: "/images/luxury_resort_sunset.png",
+        image: "/images/luxury_resort_sunset.avif",
         excerpt: "Discover the perfect balance of iconic 5-star comfort and authentic cultural immersion with our curated Luxury Collection.",
         content: `
 # Sustainable Luxury: Exploring the Sapphire Collection in Sri Lanka
@@ -311,7 +311,7 @@ The Sapphire Route is where authentic Sri Lanka meets world-class luxury.
         author: "Heritage Guide",
         category: "Premium",
         readingTime: "5 min read",
-        image: "/images/hero_ella_bridge.png",
+        image: "/images/hero_ella_bridge.avif",
         excerpt: "Experience the heart of Sri Lanka with our Premium Plan. A sophisticated blend of 3-4 star comfort and expert local guidance.",
         content: `
 # The Emerald Route: Heritage and Highland Comfort in Sri Lanka
@@ -352,7 +352,7 @@ The Emerald Route is the perfect choice for families, couples, and groups who wa
         author: "Travel Curator",
         category: "Destinations",
         readingTime: "7 min read",
-        image: "/images/galle_hero.png",
+        image: "/images/galle_hero.avif",
         excerpt: "From historical fortresses to pristine wildlife sanctuaries, explore the ultimate list of luxury destinations in Sri Lanka.",
         content: `
 # Top 10 Must-Visit Luxury Locations in Sri Lanka for 2026
@@ -413,7 +413,7 @@ At Nilathra Travels, we offer four distinct tiers—**Ultra VIP, Luxury, Premium
         author: "Travel Coordinator",
         category: "Authentic Collection",
         readingTime: "5 min read",
-        image: "/images/tier_standard.png",
+        image: "/images/tier_standard.avif",
         excerpt: "High-quality, reliable, and authentic travel doesn't always require a VIP budget. Discover the heart of Sri Lanka with our Regular Plan.",
         content: `
 # The Pearl Route: Authentic Sri Lanka for the Regular Traveler
@@ -446,7 +446,7 @@ The Pearl Route is for the explorer, the family, and the curious traveler who wa
         author: "Chef de Cuisine",
         category: "Gastronomy",
         readingTime: "7 min read",
-        image: "/images/private_chef_luxury_dining_1773073921412.png",
+        image: "/images/private_chef_luxury_dining_1773073921412.avif",
         excerpt: "Embark on a sensory journey through the spice gardens and kitchens of Sri Lanka. Discover the secrets behind the island's vibrant flavors.",
         content: `
 # Culinary Odyssey: A Masterclass in Sri Lankan Spices
@@ -483,7 +483,7 @@ Sri Lanka is a feast for the senses. Let us show you the true taste of the islan
         author: "Adventure Curator",
         category: "Nature",
         readingTime: "6 min read",
-        image: "/images/ella_hero.png",
+        image: "/images/ella_hero.avif",
         excerpt: "Leave the beaches behind and head into the emerald heart of the island. Discover secluded waterfalls and misty peaks away from the crowds.",
         content: `
 # Beyond the Shores: Hidden Waterfalls of the Highlands
@@ -515,7 +515,7 @@ From the Knuckles Range to the Horton Plains, the highlands are calling.
         author: "Heritage Specialist",
         category: "Culture",
         readingTime: "8 min read",
-        image: "/images/dalada.png",
+        image: "/images/dalada.avif",
         excerpt: "Explore the last royal stronghold of the island. From the Temple of the Tooth to the rhythmic Kandyan dancers, discover the spirit of Kandy.",
         content: `
 # The Soul of Kandy: A Guide to the Sacred Hill Capital
@@ -548,7 +548,7 @@ Kandy is the spiritual heart of any Sri Lankan journey. Let us guide you through
         author: "Nilathra Editorial",
         category: "Nature",
         readingTime: "9 min read",
-        image: "/images/wildlife_leopard.png",
+        image: "/images/wildlife_leopard.avif",
         excerpt: "From the elusive leopard of Yala to the majestic elephant herds of the dry zone, explore Sri Lanka's unparalleled wildlife heritage.",
         content: `
 # The Wild Heart of Sri Lanka: A Unique Collection of Nature's Wonders
@@ -559,25 +559,25 @@ Sri Lanka is often described as the 'Pearl of the Indian Ocean,' but for the wil
 
 In the sun-drenched scrub lands of Yala National Park, a silent predator reigns supreme. The Sri Lankan leopard (*Panthera pardus kotiya*) is the island's most iconic inhabitant. Unlike their cousins in Africa or India, these leopards are the top predators of their ecosystem, leading to a boldness and visibility that is legendary among wildlife photographers.
 
-![Sri Lankan Leopard](/images/wildlife_leopard.png)
+![Sri Lankan Leopard](/images/wildlife_leopard.avif)
 
 ## The Great Gathering: Asian Elephants
 
 Sri Lanka is home to approximately 10% of the world's wild Asian elephant population. Whether it's the seasonal 'Gathering' in Minneriya or the year-round sightings in Udawalawe and Yala, witnessing a herd of these majestic creatures is a humbling experience.
 
-![Elephant Herd](/images/wildlife_elephant_herd.png)
+![Elephant Herd](/images/wildlife_elephant_herd.avif)
 
 ## The Reclusive Resident: The Sloth Bear
 
 One of the island's most elusive residents is the Sri Lankan sloth bear. Known for its shaggy black coat and its fondness for the seasonal Palu fruit, the sloth bear is a testament to the primal nature of the dry zone forests.
 
-![Sri Lankan Sloth Bear](/images/wildlife_sloth_bears.png)
+![Sri Lankan Sloth Bear](/images/wildlife_sloth_bears.avif)
 
 ## The Aquatic Giants: Water Buffaloes
 
 The wetlands and watering holes of the national parks are often dominated by the presence of the wild water buffalo. These powerful animals are a vital part of the ecosystem, often seen wading through the lagoons or parading across the plains in formidable herds.
 
-![Water Buffaloes](/images/wildlife_buffaloes.png)
+![Water Buffaloes](/images/wildlife_buffaloes.avif)
 
 ## The Nilathra Safari Legacy
 
@@ -599,7 +599,7 @@ Sri Lanka's wildlife is a heritage that belongs to the world. We invite you to e
         author: "SLTDA Investor Relations",
         category: "Investing",
         readingTime: "12 min read",
-        image: "/images/investment_hero.png",
+        image: "/images/investment_hero.avif",
         excerpt: "Discover why Sri Lanka is the ultimate destination for timeless, sustainable investments in tourism, benefiting from premium returns and a commitment to people and the planet.",
         content: `
 # Sri Lanka: The Heart of the Eastern Hemisphere – A Destination for Sustainable Investment

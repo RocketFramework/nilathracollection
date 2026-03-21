@@ -26,7 +26,7 @@ export const metadata: Metadata = {
         siteName: "Nilathra Collection",
         images: [
             {
-                url: "/images/luxury_resort_sunset.png",
+                url: "/images/luxury_resort_sunset.avif",
                 width: 1200,
                 height: 630,
                 alt: "The Nilathra Journal – Luxury Travel Blog Sri Lanka",
