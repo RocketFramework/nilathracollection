@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 text.txt
+
+devpromptexperts-a57169ef8ea4.json
+error.log
+*.log
