@@ -46,164 +46,36 @@ export default function ActivityCard({
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isLoadingImages, setIsLoadingImages] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
-    const [weatherInfo, setWeatherInfo] = useState<{
-        temp: number;
-        condition: string;
-        bestTime: string;
-    } | null>(null);
 
-    // Fetch location images when popup opens, but fetch weather immediately
+    // Fetch location images when popup opens
     useEffect(() => {
-        if (!weatherInfo) {
-            fetchWeatherInfo();
-        }
         if (showPopup && images.length === 0) {
             fetchLocationImages();
         }
-    }, [showPopup, images.length, weatherInfo]);
+    }, [showPopup, images.length]);
 
     const fetchLocationImages = async () => {
         setIsLoadingImages(true);
         setImageError(null);
 
         try {
-            // Check if activity has images from the database
             if (activity.images && activity.images.length > 0) {
-                const dbImages: LocationImage[] = activity.images.map(url => ({
+                const dbImages: LocationImage[] = activity.images.map((url, i) => ({
                     url,
-                    alt: activity.activity_name,
+                    alt: `${activity.activity_name} - Image ${i + 1}`,
                     source: "Nilathra Collection"
                 }));
                 setImages(dbImages);
                 return;
             }
 
-            // Fallback: Using multiple image sources for redundancy
-            const searchQuery = encodeURIComponent(`${activity.location_name} Sri Lanka landmark`);
-            const demoImages = getDemoImages(activity.location_name);
-            setImages(demoImages);
+            setImageError("No images available for this activity.");
         } catch (error) {
-            console.error("Error fetching images:", error);
-            setImageError("Unable to load location images");
-            // Fallback to placeholder images
-            setImages(getFallbackImages(activity));
+            console.error("Error formatting images:", error);
+            setImageError("Unable to load location images.");
         } finally {
             setIsLoadingImages(false);
         }
-    };
-
-    const fetchWeatherInfo = async () => {
-        try {
-            // In production, use OpenWeatherMap API
-            // const response = await fetch(
-            //   `https://api.openweathermap.org/data/2.5/weather?lat=${activity.lat}&lon=${activity.lng}&appid=${process.env.WEATHER_API_KEY}&units=metric`
-            // );
-            // const data = await response.json();
-
-            // Demo weather data
-            const demoWeather = getDemoWeather(activity.location_name);
-            setWeatherInfo(demoWeather);
-        } catch (error) {
-            console.error("Error fetching weather:", error);
-        }
-    };
-
-    const getDemoImages = (location: string): LocationImage[] => {
-        // Curated images for popular locations
-        const imageMap: Record<string, LocationImage[]> = {
-            "Sigiriya": [
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Sigiriya Rock Fortress", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1544731612-36b6c8a7b3e8?w=800", alt: "Sigiriya Frescoes", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Sigiriya Lion Gate", source: "Unsplash" }
-            ],
-            "Kandy": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Temple of the Tooth", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Kandy Lake", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Kandy Cultural Dance", source: "Unsplash" }
-            ],
-            "Ella": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Ella Gap", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Nine Arch Bridge", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Little Adam's Peak", source: "Unsplash" }
-            ],
-            "Galle": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Galle Fort", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Galle Lighthouse", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Dutch Colonial Architecture", source: "Unsplash" }
-            ],
-            "Mirissa": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Mirissa Beach", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Whale Watching Mirissa", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Mirissa Sunset", source: "Unsplash" }
-            ],
-            "Colombo": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Colombo Skyline", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Galle Face Green", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Colombo Fort", source: "Unsplash" }
-            ],
-            "Nuwara Eliya": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Nuwara Eliya Tea Plantations", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Gregory Lake", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Nuwara Eliya Golf Club", source: "Unsplash" }
-            ],
-            "Anuradhapura": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Ruwanwelisaya Stupa", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Sri Maha Bodhi", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Jetavanaramaya", source: "Unsplash" }
-            ],
-            "Polonnaruwa": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Gal Vihara", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Royal Palace", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Polonnaruwa Ruins", source: "Unsplash" }
-            ],
-            "Yala": [
-                { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Yala Leopard", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Yala Elephant", source: "Unsplash" },
-                { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Yala Safari", source: "Unsplash" }
-            ]
-        };
-
-        // Try to find images for this location
-        for (const [key, value] of Object.entries(imageMap)) {
-            if (location.includes(key) || activity.district.includes(key)) {
-                return value;
-            }
-        }
-
-        // Return generic Sri Lanka images if no specific match
-        return [
-            { url: "https://images.unsplash.com/photo-1590212894113-5c31f7c7f5f0?w=800", alt: "Sri Lanka Landscape", source: "Unsplash" },
-            { url: "https://images.unsplash.com/photo-1589621316382-008455b857cd?w=800", alt: "Sri Lanka Nature", source: "Unsplash" },
-            { url: "https://images.unsplash.com/photo-1566671018-7f7b2a0b8f0e?w=800", alt: "Sri Lanka Culture", source: "Unsplash" }
-        ];
-    };
-
-    const getFallbackImages = (activity: Activity): LocationImage[] => {
-        return [
-            { url: `https://via.placeholder.com/800x600?text=${encodeURIComponent(activity.location_name)}`, alt: activity.location_name, source: "Placeholder" },
-            { url: `https://via.placeholder.com/800x600?text=Sri+Lanka`, alt: "Sri Lanka", source: "Placeholder" }
-        ];
-    };
-
-    const getDemoWeather = (location: string) => {
-        const weatherMap: Record<string, { temp: number; condition: string; bestTime: string }> = {
-            "Sigiriya": { temp: 28, condition: "Sunny", bestTime: "early morning (6:30-9:00 AM)" },
-            "Kandy": { temp: 24, condition: "Partly Cloudy", bestTime: "morning (7:00-10:00 AM)" },
-            "Ella": { temp: 22, condition: "Misty", bestTime: "sunrise (5:30-7:30 AM)" },
-            "Galle": { temp: 29, condition: "Sunny", bestTime: "late afternoon (4:00-6:00 PM)" },
-            "Mirissa": { temp: 30, condition: "Sunny", bestTime: "morning (6:00-9:00 AM)" },
-            "Colombo": { temp: 31, condition: "Humid", bestTime: "evening (5:00-7:00 PM)" },
-            "Nuwara Eliya": { temp: 18, condition: "Misty", bestTime: "morning (8:00-11:00 AM)" },
-            "Anuradhapura": { temp: 32, condition: "Sunny", bestTime: "early morning (6:00-9:00 AM)" },
-            "Polonnaruwa": { temp: 33, condition: "Sunny", bestTime: "early morning (6:30-10:00 AM)" },
-            "Yala": { temp: 34, condition: "Sunny", bestTime: "early morning (5:30-9:00 AM)" }
-        };
-
-        for (const [key, value] of Object.entries(weatherMap)) {
-            if (location.includes(key)) return value;
-        }
-
-        return { temp: 27, condition: "Sunny", bestTime: "morning (7:00-11:00 AM)" };
     };
 
     const nextImage = () => {
@@ -212,17 +84,6 @@ export default function ActivityCard({
 
     const prevImage = () => {
         setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-    };
-
-    const getWeatherIcon = (condition: string) => {
-        switch (condition.toLowerCase()) {
-            case 'sunny': return <Sun className="text-yellow-500" size={20} />;
-            case 'partly cloudy': return <Cloud className="text-gray-500" size={20} />;
-            case 'misty': return <Cloud className="text-gray-400" size={20} />;
-            case 'humid': return <Cloud className="text-blue-400" size={20} />;
-            case 'rainy': return <Umbrella className="text-blue-500" size={20} />;
-            default: return <Sun className="text-yellow-500" size={20} />;
-        }
     };
 
     // Card variants
@@ -236,10 +97,15 @@ export default function ActivityCard({
                         : 'border-neutral-200 hover:border-neutral-300'
                         }`}
                 >
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'bg-brand-gold border-brand-gold text-white' : 'border-neutral-400'
+                    <div className={`w-5 h-5 flex-shrink-0 rounded-full border flex items-center justify-center ${isSelected ? 'bg-brand-gold border-brand-gold text-white' : 'border-neutral-400'
                         }`}>
                         {isSelected && <Check size={12} />}
                     </div>
+                    {activity.images && activity.images.length > 0 && (
+                        <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-neutral-100">
+                            <img src={activity.images[0]} alt={activity.activity_name} className="w-full h-full object-cover" />
+                        </div>
+                    )}
                     <span className="text-sm truncate flex-1 text-left">{activity.activity_name}</span>
                     <button
                         onClick={(e) => {
@@ -265,11 +131,9 @@ export default function ActivityCard({
                             currentImageIndex={currentImageIndex}
                             isLoadingImages={isLoadingImages}
                             imageError={imageError}
-                            weatherInfo={weatherInfo}
                             onClose={() => setShowPopup(false)}
                             onNextImage={nextImage}
                             onPrevImage={prevImage}
-                            getWeatherIcon={getWeatherIcon}
                         />
                     )}
                 </AnimatePresence>
@@ -282,60 +146,70 @@ export default function ActivityCard({
         <>
             <div
                 onClick={() => onToggle(activity.id)}
-                className={`group relative p-5 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full ${isSelected
-                    ? 'border-brand-gold bg-brand-gold/5 shadow-[0_8px_30px_rgba(212,175,55,0.12)] -translate-y-1'
-                    : 'border-neutral-200 bg-white hover:border-brand-gold/50 hover:shadow-md'
+                className={`group relative rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full bg-white ${isSelected
+                    ? 'border-brand-gold shadow-[0_8px_30px_rgba(212,175,55,0.12)] -translate-y-1'
+                    : 'border-neutral-200 hover:border-brand-gold/50 hover:shadow-md'
                     }`}
             >
-                <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${isSelected
+                {activity.images && activity.images.length > 0 ? (
+                    <div className="relative h-48 w-full overflow-hidden bg-neutral-100 flex-shrink-0">
+                        <img src={activity.images[0]} alt={activity.activity_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
+                        <div className="absolute top-4 left-4 px-2.5 py-1 bg-black/40 backdrop-blur-md rounded text-white text-[10px] font-medium uppercase tracking-wider">
+                            {activity.category}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="relative h-12 w-full bg-brand-green/5 flex items-end px-5 pb-2 flex-shrink-0">
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-brand-green/60">{activity.category}</span>
+                    </div>
+                )}
+
+                <div className={`absolute top-4 right-4 z-10 flex items-center gap-2 ${activity.images && activity.images.length > 0 ? '' : 'top-3 right-3'}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors shadow-sm ${isSelected
                         ? 'bg-brand-gold border-brand-gold text-white'
-                        : 'border-neutral-300 text-transparent group-hover:border-brand-gold/50'
+                        : activity.images && activity.images.length > 0
+                            ? 'bg-white/20 border-white/50 text-transparent backdrop-blur-md group-hover:border-white/80'
+                            : 'border-neutral-300 bg-white text-transparent group-hover:border-brand-gold/50'
                         }`}>
                         <Check size={14} />
                     </div>
                 </div>
 
-                <h4 className={`font-serif text-lg mb-2 pr-16 ${isSelected ? 'text-brand-green' : 'text-neutral-800'
-                    }`}>
-                    {activity.activity_name}
-                </h4>
+                <div className={`p-5 flex flex-col flex-1 ${isSelected && (!activity.images || activity.images.length === 0) ? 'bg-brand-gold/5' : ''}`}>
+                    <h4 className={`font-serif text-lg mb-2 pr-8 ${isSelected ? 'text-brand-green' : 'text-neutral-800'}`}>
+                        {activity.activity_name}
+                    </h4>
 
-                <p className="text-xs text-neutral-500 line-clamp-3 leading-relaxed mb-4">
-                    {activity.description}
-                </p>
+                    <p className="text-xs text-neutral-500 line-clamp-3 leading-relaxed mb-4">
+                        {activity.description}
+                    </p>
 
-                <div className="flex items-center justify-between gap-1.5 mt-auto">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowPopup(true);
-                        }}
-                        className="px-3 py-1.5 rounded-full bg-brand-green/5 hover:bg-brand-green/10 border border-brand-green/20 text-brand-green flex items-center gap-1.5 text-xs font-semibold transition-all flex-shrink-0 shadow-sm"
-                        title="View more details about this activity"
-                    >
-                        <Info size={14} />
-                        <span>Details</span>
-                    </button>
+                    <div className="flex items-center justify-between gap-1.5 mt-auto">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowPopup(true);
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-brand-green/5 hover:bg-brand-green/10 border border-brand-green/20 text-brand-green flex items-center gap-1.5 text-xs font-semibold transition-all flex-shrink-0 shadow-sm"
+                            title="View more details about this activity"
+                        >
+                            <Info size={14} />
+                            <span>Details</span>
+                        </button>
 
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-500 overflow-hidden justify-end">
-                        <span className="flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-md whitespace-nowrap flex-shrink-0">
-                            <Clock size={12} /> {activity.duration_hours}h
-                        </span>
-                        <span className="flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-md max-w-[85px] w-[85px] line-clamp-1" title={activity.location_name}>
-                            <MapPin size={12} className="flex-shrink-0" />
-                            <span className="truncate">{activity.location_name}</span>
-                        </span>
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-500 overflow-hidden justify-end">
+                            <span className="flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-md whitespace-nowrap flex-shrink-0">
+                                <Clock size={12} /> {activity.duration_hours}h
+                            </span>
+                            <span className="flex items-center gap-1 bg-neutral-100 px-1.5 py-1 rounded-md max-w-[85px] w-[85px] line-clamp-1" title={activity.location_name}>
+                                <MapPin size={12} className="flex-shrink-0" />
+                                <span className="truncate">{activity.location_name}</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Quick weather indicator */}
-                {weatherInfo && (
-                    <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center gap-1.5 text-xs text-neutral-400">
-                        {getWeatherIcon(weatherInfo.condition)}
-                        <span>{weatherInfo.temp}°C {weatherInfo.condition}</span>
-                    </div>
-                )}
             </div>
 
             {/* Popup modal for grid view */}
@@ -349,11 +223,9 @@ export default function ActivityCard({
                         currentImageIndex={currentImageIndex}
                         isLoadingImages={isLoadingImages}
                         imageError={imageError}
-                        weatherInfo={weatherInfo}
                         onClose={() => setShowPopup(false)}
                         onNextImage={nextImage}
                         onPrevImage={prevImage}
-                        getWeatherIcon={getWeatherIcon}
                     />
                 )}
             </AnimatePresence>
@@ -370,11 +242,9 @@ function PopupContent({
     currentImageIndex,
     isLoadingImages,
     imageError,
-    weatherInfo,
     onClose,
     onNextImage,
-    onPrevImage,
-    getWeatherIcon
+    onPrevImage
 }: {
     activity: Activity;
     isSelected: boolean;
@@ -383,11 +253,9 @@ function PopupContent({
     currentImageIndex: number;
     isLoadingImages: boolean;
     imageError: string | null;
-    weatherInfo: { temp: number; condition: string; bestTime: string } | null;
     onClose: () => void;
     onNextImage: () => void;
     onPrevImage: () => void;
-    getWeatherIcon: (condition: string) => React.JSX.Element;
 }) {
     // Close on escape key
     useEffect(() => {
@@ -544,13 +412,6 @@ function PopupContent({
                             </div>
                         )}
 
-                        {weatherInfo && (
-                            <div className="bg-neutral-50 p-3 rounded-xl">
-                                {getWeatherIcon(weatherInfo.condition)}
-                                <p className="text-xs text-neutral-500 mt-1">Weather</p>
-                                <p className="font-medium text-sm">{weatherInfo.temp}°C · {weatherInfo.condition}</p>
-                            </div>
-                        )}
                     </div>
 
                     {/* Description */}
@@ -581,19 +442,6 @@ function PopupContent({
                                     View on Maps <ExternalLink size={14} />
                                 </a>
                             </div>
-                        </div>
-                    )}
-
-                    {/* Best time advice */}
-                    {weatherInfo?.bestTime && (
-                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                            <h3 className="text-sm font-semibold text-blue-800 mb-1 flex items-center gap-2">
-                                <Info size={16} />
-                                Pro Tip
-                            </h3>
-                            <p className="text-sm text-blue-600">
-                                Best experienced {weatherInfo.bestTime} for optimal conditions.
-                            </p>
                         </div>
                     )}
 

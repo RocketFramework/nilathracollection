@@ -1,0 +1,1712 @@
+[
+  {
+    "id": 104,
+    "name": "Scenic Train Ride - Kandy to Ella",
+    "description": "Take the train from Kandy to Ella. Scenic Train Ride (Badulla to Ella),Experience the final and arguably most scenic leg of the hill country railway, winding through lush greenery and mountains.",
+    "currentImages": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ]
+  },
+  {
+    "id": 202,
+    "name": "Wasgamuwa National Park",
+    "description": "Remote park famous for wild elephants and endemic birds.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 79,
+    "name": "Learning to Make Hoppers (Galle)",
+    "description": "Take a short workshop to learn how to make appa (hoppers) – the bowl-shaped rice flour crepes that are a breakfast staple – from a local chef.",
+    "currentImages": [
+      "/images/activities/cooking_class_colombo_1.avif",
+      "/images/activities/cooking_class_colombo_2.avif",
+      "/images/activities/cooking_class_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/cooking_class_colombo_1.avif",
+      "/images/activities/cooking_class_colombo_2.avif",
+      "/images/activities/cooking_class_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 81,
+    "name": "Jeep Safari in Yala National Park (Evening)",
+    "description": "Embark on a thrilling jeep safari in Yala National Park, famous for having one of the highest densities of leopards in the world. Evening safari as animals become active again.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 82,
+    "name": "Jeep Safari in Udawalawe National Park",
+    "description": "Go on a safari in Udawalawe National Park, known for its large herds of wild elephants that are easily spotted against the park's open landscape. Elephants are active throughout the morning.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 84,
+    "name": "Whale Watching in Mirissa",
+    "description": "Take a boat trip from Mirissa into the deep seas for a chance to see majestic blue whales and sperm whales in their natural habitat. Includes safety briefing, 3-4 hours at sea, and light refreshments.",
+    "currentImages": [
+      "/images/activities/whale_watching_mirissa_1.avif",
+      "/images/activities/whale_watching_mirissa_2.avif",
+      "/images/activities/whale_watching_mirissa_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/whale_watching_mirissa_1.avif",
+      "/images/activities/whale_watching_mirissa_2.avif",
+      "/images/activities/whale_watching_mirissa_3.avif"
+    ]
+  },
+  {
+    "id": 87,
+    "name": "Turtle Watching at Rekawa",
+    "description": "Join a conservation project at Rekawa Beach at night to witness endangered sea turtles coming ashore to lay their eggs. Timing depends on tides and nesting season - requires patience and quiet observation.",
+    "currentImages": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ]
+  },
+  {
+    "id": 88,
+    "name": "Visiting a Turtle Hatchery (Bentota)",
+    "description": "Learn about sea turtle conservation at a hatchery along the southern coast. Includes viewing of tanks with different turtle species.",
+    "currentImages": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ]
+  },
+  {
+    "id": 90,
+    "name": "Boat Safari in Gal Oya National Park",
+    "description": "Experience a unique boat safari in Gal Oya National Park, where you can see elephants swimming between the islands of the vast Senanayake Samudraya reservoir. Morning offers best chance of elephant sightings.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 91,
+    "name": "Bird Watching in Bundala National Park",
+    "description": "Spot a huge variety of migratory and resident water birds in Bundala National Park, a Ramsar wetland of international importance. Early morning is prime birding time.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 96,
+    "name": "Trekking to Bambarakanda Falls",
+    "description": "Hike through pine forests to reach Bambarakanda Falls, the tallest waterfall in Sri Lanka, which plunges 263 meters in a dramatic cascade. Includes guide and time for photography.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 95,
+    "name": "Visiting Ravana Falls",
+    "description": "Stop at this iconic and picturesque waterfall near Ella, one of the widest falls in the country, with a plunge pool ideal for a quick dip. Can be combined with other Ella activities.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 97,
+    "name": "Exploring the Hakgala Botanical Gardens",
+    "description": "Wander through these cool-climate gardens in Nuwara Eliya, which once served as a trial ground for cinchona and tea cultivation. Best in morning for crisp mountain air.",
+    "currentImages": [
+      "/images/activities/peradeniya_botanical_gardens_1.avif",
+      "/images/activities/peradeniya_botanical_gardens_2.avif",
+      "/images/activities/peradeniya_botanical_gardens_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/peradeniya_botanical_gardens_1.avif",
+      "/images/activities/peradeniya_botanical_gardens_2.avif",
+      "/images/activities/peradeniya_botanical_gardens_3.avif"
+    ]
+  },
+  {
+    "id": 98,
+    "name": "Bird Watching at Kumana National Park",
+    "description": "Visit this premier bird sanctuary, a 200-hectare park within Yala, to see thousands of birds, including kingfishers, pelicans, and painted storks. Best during migration season (April-July).",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 106,
+    "name": "Explore Temple of the Tooth Relic",
+    "description": "Sacred Buddhist temple housing the tooth relic of Lord Buddha. Experience traditional rituals and architecture.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 107,
+    "name": "Dambulla Cave Temple Complex",
+    "description": "Visit five magnificent cave temples with over 150 Buddha statues and intricate ceiling paintings.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 109,
+    "name": "Sacred City of Anuradhapura",
+    "description": "Discover ancient Buddhist civilization with massive stupas, monasteries, and the sacred Bodhi Tree.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 110,
+    "name": "Galle Dutch Fort",
+    "description": "Walk through colonial-era fort with Dutch architecture, museums, boutiques, and ocean views.",
+    "currentImages": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ]
+  },
+  {
+    "id": 112,
+    "name": "Koneswaram Temple",
+    "description": "Ancient Hindu temple on Swami Rock cliff with spectacular ocean views and religious significance.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 114,
+    "name": "Adam's Peak (Sri Pada)",
+    "description": "Sacred mountain pilgrimage with footprint mark. Sunrise views are spectacular.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 116,
+    "name": "Udawalawe National Park Safari",
+    "description": "Excellent elephant sightings year-round. Also home to water buffalo, deer, and many bird species.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 117,
+    "name": "Minneriya National Park Safari",
+    "description": "Famous for \"The Gathering\" of hundreds of elephants from July-October.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 119,
+    "name": "Bundala National Park Safari",
+    "description": "Ramsar wetland with migratory flamingos and over 200 bird species.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 122,
+    "name": "Turtle Conservation Project Visit",
+    "description": "Learn about sea turtle conservation and see hatchlings being released.",
+    "currentImages": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ]
+  },
+  {
+    "id": 123,
+    "name": "Ridiyagama Safari Park",
+    "description": "Drive-through safari park with animals from different continents.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 128,
+    "name": "Surfing at Hikkaduwa",
+    "description": "Popular surf beach with reef and point breaks. Good for beginners and intermediates.",
+    "currentImages": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ]
+  },
+  {
+    "id": 137,
+    "name": "Ella Rock Hike",
+    "description": "Scenic hike through tea plantations and forest with panoramic views at summit.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 139,
+    "name": "Horton Plains and World's End Trek",
+    "description": "Trek through cloud forest to dramatic cliff edge with 1000m drop. Start early before clouds roll in.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 141,
+    "name": "Pidurangala Rock Climb",
+    "description": "Climb massive rock for spectacular views of Sigiriya Rock and surrounding jungle.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 143,
+    "name": "Ravana Falls Visit",
+    "description": "Popular multi-tiered waterfall with pool for swimming. Mythological significance.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 145,
+    "name": "Belihuloya Mountain Trekking",
+    "description": "Trek through rainforest with streams, small waterfalls, and diverse flora.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 146,
+    "name": "Laggala Rock Climbing",
+    "description": "Challenging climb to remote peak with panoramic views of Knuckles range.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 148,
+    "name": "Namunukula Peak Trek",
+    "description": "Trek through tea estates to summit with views of eastern plains.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 150,
+    "name": "Pedro Tea Estate Visit",
+    "description": "Working tea estate with factory tours and scenic views of tea gardens.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 152,
+    "name": "Dambatenne Tea Factory Tour",
+    "description": "Thomas Lipton's original tea factory. Spectacular views and historic exhibits.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 154,
+    "name": "Tea Plucking Experience",
+    "description": "Join tea pluckers to learn how to pick tea leaves. Wear a basket on your back.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 156,
+    "name": "Colombo to Galle Coastal Train",
+    "description": "Iconic train ride along the coast with ocean views from the window.",
+    "currentImages": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ]
+  },
+  {
+    "id": 157,
+    "name": "Badulla to Ella Train",
+    "description": "Short but scenic journey through tunnels and tea country with stunning views.",
+    "currentImages": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ]
+  },
+  {
+    "id": 160,
+    "name": "Gangaramaya Temple Visit",
+    "description": "Eclectic temple with museum, architecture blending styles, and sacred relics.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 162,
+    "name": "National Museum of Colombo",
+    "description": "Sri Lanka's largest museum with royal regalia, artifacts, and historical exhibits.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 170,
+    "name": "Colombo Street Food Tour",
+    "description": "Sample kottu roti, isso vade, and short eats at local food stalls.",
+    "currentImages": [
+      "/images/activities/street_food_colombo_1.avif",
+      "/images/activities/street_food_colombo_2.avif",
+      "/images/activities/street_food_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/street_food_colombo_1.avif",
+      "/images/activities/street_food_colombo_2.avif",
+      "/images/activities/street_food_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 172,
+    "name": "Jaffna Crab Curry Experience",
+    "description": "Taste authentic Jaffna-style crab curry at local restaurant.",
+    "currentImages": [
+      "/images/activities/street_food_colombo_1.avif",
+      "/images/activities/street_food_colombo_2.avif",
+      "/images/activities/street_food_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/street_food_colombo_1.avif",
+      "/images/activities/street_food_colombo_2.avif",
+      "/images/activities/street_food_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 175,
+    "name": "Ayurvedic Massage Treatment",
+    "description": "Traditional Sri Lankan oil massage and wellness treatment.",
+    "currentImages": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ]
+  },
+  {
+    "id": 176,
+    "name": "Yoga Retreat Session",
+    "description": "Beachfront yoga class suitable for all levels.",
+    "currentImages": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ]
+  },
+  {
+    "id": 178,
+    "name": "Herbal Steam Bath",
+    "description": "Traditional herbal steam treatment for detoxification and relaxation.",
+    "currentImages": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ]
+  },
+  {
+    "id": 185,
+    "name": "Devon Falls Visit",
+    "description": "One of Sri Lanka's most beautiful waterfalls, 97m high. View from main road.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 187,
+    "name": "Laxapana Falls Visit",
+    "description": "Powerful waterfall (126m) with hydroelectric station nearby.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 190,
+    "name": "Colombo Dutch Museum",
+    "description": "17th-century Dutch mansion with colonial artifacts and history exhibits.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 192,
+    "name": "Railway Museum",
+    "description": "Historic locomotives and railway memorabilia in original station.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 194,
+    "name": "Anuradhapura Archaeological Museum",
+    "description": "Ancient artifacts and carvings from the sacred city.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 197,
+    "name": "Maduru Oya National Park",
+    "description": "Remote park with ancient reservoirs, elephants, and indigenous communities.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 198,
+    "name": "Gal Oya National Park Boat Safari",
+    "description": "Only park in Sri Lanka with boat safaris to see elephants swimming.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 200,
+    "name": "Lunugamvehera National Park",
+    "description": "Less-visited park with elephants, water buffalo, and birdlife.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 204,
+    "name": "Nagadeepa Temple",
+    "description": "Ancient Buddhist temple on island off Jaffna, accessible by ferry.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 207,
+    "name": "Thirukketheeswaram Temple",
+    "description": "Ancient Hindu temple, one of the oldest on the island with classical antiquity connections. One of the five ancient Ishwarams dedicated to Shiva.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 211,
+    "name": "Chundikkulam National Park",
+    "description": "Bird sanctuary with lagoon, mangrove swamps, seagrass beds, and diverse dry zone flora. Home to migratory birds and mammals including elephants and spotted deer.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 217,
+    "name": "Gem Museum & Cutting Demonstration",
+    "description": "Comprehensive exhibit of Sri Lankan gemstones with live cutting and polishing demonstrations. Learn to distinguish precious from semi-precious stones.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 228,
+    "name": "Lakegala Rock Trek",
+    "description": "Towering peak steeped in legend. Challenging trek from Meemure village with spectacular views. Spot peacocks dancing in paddy fields and diverse birdlife. Requires local guide.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 229,
+    "name": "Knuckles Mountain Range Trek",
+    "description": "155 sq km conservation area with 5 major forest types. Home to slender loris, mouse deer, giant squirrel, and 17 of Sri Lanka's 23 endemic bird species. Multi-day trekking options.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 240,
+    "name": "Matara Forts Exploration",
+    "description": "Two quaint forts - one built in 1560 (Dutch Fort), other star-shaped (Star Fort). Visit Dutch Reformed Church, Buddhist island temple, and southernmost tip with oldest lighthouse nearby.",
+    "currentImages": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ]
+  },
+  {
+    "id": 242,
+    "name": "Gal Oya Boat Safari",
+    "description": "Only place in Sri Lanka for boat safaris watching elephants swimming between islands in Senanayake Samudraya, the country's largest reservoir. Unique wildlife experience.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 245,
+    "name": "Minneriya National Park Safari",
+    "description": "Between July and October, largest gathering of Asian elephants in the world converges here. Elephants bring calves to graze, drink, and bathe. Spectacular wildlife viewing.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 247,
+    "name": "Demodara Loop Hike",
+    "description": "Whimsical trails through tea plantations. Demodara railway station looks like a fairytale. See unique spiral railway loop where the track passes under itself. 4km hike to Nine Arch Bridge through villages.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 253,
+    "name": "Eagles Crest Wellness Stay",
+    "description": "Mountain lodge offering insight into disappearing way of life and natural ecosystem. Yoga with jungle views, Ayurvedic treatments using local herbs, and meditation in pristine nature.",
+    "currentImages": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ]
+  },
+  {
+    "id": 236,
+    "name": "Martin Wickramasinghe Folk Museum",
+    "description": "Museum celebrating Sri Lanka's literary and cultural heritage in writer's hometown. Traditional artifacts, folk art, and exhibits on local life.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 118,
+    "name": "Wilpattu National Park Safari",
+    "description": "Largest national park with natural lakes (villus). Known for leopard sightings.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 258,
+    "name": "Bentota River Safari",
+    "description": "Boat ride through mangroves along Bentota River. Spot water monitors, crocodiles, and diverse bird species. Visit traditional villages and see cinnamon peeling demonstrations.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 120,
+    "name": "Kumana National Park Safari",
+    "description": "Bird sanctuary with mangroves, lagoons, and nesting water birds. Good for crocodile spotting.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 78,
+    "name": "Learning to Make Hoppers (Colombo)",
+    "description": "Take a short workshop to learn how to make appa (hoppers) – the bowl-shaped rice flour crepes that are a breakfast staple – from a local chef.",
+    "currentImages": [
+      "/images/activities/cooking_class_colombo_1.avif",
+      "/images/activities/cooking_class_colombo_2.avif",
+      "/images/activities/cooking_class_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/cooking_class_colombo_1.avif",
+      "/images/activities/cooking_class_colombo_2.avif",
+      "/images/activities/cooking_class_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 80,
+    "name": "Jeep Safari in Yala National Park (Morning)",
+    "description": "Embark on a thrilling jeep safari in Yala National Park, famous for having one of the highest densities of leopards in the world. Early morning offers best wildlife viewing when animals are most active.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 86,
+    "name": "Botanical Gardens in Kandy",
+    "description": "Stroll through the beautiful Peradeniya Royal Botanical Gardens near Kandy, home to a vast collection of orchids, giant bamboo, and the famous Javan Fig Tree. Best in morning before the heat and crowds.",
+    "currentImages": [
+      "/images/activities/peradeniya_botanical_gardens_1.avif",
+      "/images/activities/peradeniya_botanical_gardens_2.avif",
+      "/images/activities/peradeniya_botanical_gardens_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/peradeniya_botanical_gardens_1.avif",
+      "/images/activities/peradeniya_botanical_gardens_2.avif",
+      "/images/activities/peradeniya_botanical_gardens_3.avif"
+    ]
+  },
+  {
+    "id": 89,
+    "name": "Visiting a Turtle Hatchery (Kosgoda)",
+    "description": "Learn about sea turtle conservation at a hatchery along the southern coast. Includes viewing of tanks with different turtle species.",
+    "currentImages": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/turtle_watching_kosgoda_1.avif",
+      "/images/activities/turtle_watching_kosgoda_2.avif",
+      "/images/activities/turtle_watching_kosgoda_3.avif"
+    ]
+  },
+  {
+    "id": 92,
+    "name": "Exploring Wilpattu National Park",
+    "description": "Go on a safari in Wilpattu National Park, Sri Lanka's largest national park, known for its unique \"villus\" (natural lakes) and a more secluded wildlife experience. Requires full morning due to park size.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 105,
+    "name": "Visit Sigiriya Rock Fortress",
+    "description": "Climb the ancient rock fortress with frescoes and lion gate. UNESCO World Heritage site with breathtaking views from the summit.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 108,
+    "name": "Ancient City of Polonnaruwa",
+    "description": "Explore the medieval capital with royal palaces, temples, and the famous Gal Vihara rock statues.",
+    "currentImages": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ]
+  },
+  {
+    "id": 111,
+    "name": "Jaffna Fort",
+    "description": "Explore historic Portuguese-Dutch fort with distinctive star-shaped design and coastal views.",
+    "currentImages": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ]
+  },
+  {
+    "id": 113,
+    "name": "Munneswaram Temple",
+    "description": "Important Hindu temple complex with colorful gopuram and annual festival.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 115,
+    "name": "Yala National Park Safari",
+    "description": "Best place to spot leopards, elephants, sloth bears, and crocodiles. Morning safari recommended.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 127,
+    "name": "Surfing at Arugam Bay",
+    "description": "World-class point break surf spot. Main point suitable for intermediate to advanced surfers.",
+    "currentImages": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ]
+  },
+  {
+    "id": 129,
+    "name": "Surfing at Weligama",
+    "description": "Beginner-friendly bay beach with long gentle waves. Surf schools available.",
+    "currentImages": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ]
+  },
+  {
+    "id": 135,
+    "name": "Kitesurfing at Kalpitiya",
+    "description": "Perfect conditions for kitesurfing with shallow lagoon and consistent wind.",
+    "currentImages": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ]
+  },
+  {
+    "id": 138,
+    "name": "Little Adam's Peak Hike",
+    "description": "Easy hike with stunning views of Ella Gap and surrounding mountains.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 140,
+    "name": "Knuckles Mountain Range Trek",
+    "description": "Multi-hour trek through misty mountains, waterfalls, and remote villages. UNESCO heritage site.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 142,
+    "name": "Bambarakanda Falls Trek",
+    "description": "Visit Sri Lanka's tallest waterfall (263m). Trek through pine forest to the base.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 144,
+    "name": "Diyaluma Falls Hike",
+    "description": "Second highest waterfall with natural pools at different levels. Swim with views.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 147,
+    "name": "Ritigala Forest Monastery Hike",
+    "description": "Ancient forest monastery with medicinal plants and unique rock formations.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 149,
+    "name": "Mackwoods Tea Factory Tour",
+    "description": "Historic tea factory tour with tea tasting and explanation of tea processing.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 151,
+    "name": "Blue Field Tea Factory Tour",
+    "description": "Smaller tea factory with personalized tours and excellent tea tasting.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 153,
+    "name": "Handunugoda Tea Estate",
+    "description": "\"Virgin White Tea\" estate where tea is touched by gloved hands only. Small factory.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 155,
+    "name": "Kandy to Ella Scenic Train",
+    "description": "World's most beautiful train ride through tea plantations, mountains, and misty valleys.",
+    "currentImages": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ]
+  },
+  {
+    "id": 158,
+    "name": "Nanu Oya to Ella Train",
+    "description": "Most scenic section of the main line with nine tunnels and dramatic scenery.",
+    "currentImages": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/scenic_train_ride_1.avif",
+      "/images/activities/scenic_train_ride_2.avif",
+      "/images/activities/scenic_train_ride_3.avif"
+    ]
+  },
+  {
+    "id": 161,
+    "name": "Jami Ul-Alfar Mosque",
+    "description": "Iconic red and white striped mosque in Pettah. Photography allowed outside.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 168,
+    "name": "Nallur Kandaswamy Temple",
+    "description": "Magnificent Hindu temple with golden gopuram and colorful deities.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 169,
+    "name": "Sri Lankan Cooking Class",
+    "description": "Learn to prepare traditional Sri Lankan curry, hoppers, and sambols with local family.",
+    "currentImages": [
+      "/images/activities/cooking_class_colombo_1.avif",
+      "/images/activities/cooking_class_colombo_2.avif",
+      "/images/activities/cooking_class_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/cooking_class_colombo_1.avif",
+      "/images/activities/cooking_class_colombo_2.avif",
+      "/images/activities/cooking_class_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 173,
+    "name": "Tea Tasting Experience",
+    "description": "Sample different grades of Ceylon tea with expert guidance.",
+    "currentImages": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/tea_tasting_nuwara_eliya_1.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_2.avif",
+      "/images/activities/tea_tasting_nuwara_eliya_3.avif"
+    ]
+  },
+  {
+    "id": 177,
+    "name": "Ayurvedic Consultation",
+    "description": "Consultation with qualified Ayurvedic doctor for personalized wellness plan.",
+    "currentImages": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ]
+  },
+  {
+    "id": 179,
+    "name": "Meditation at Buddhist Temple",
+    "description": "Learn mindfulness meditation with resident monks.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 186,
+    "name": "St. Clair's Falls Visit",
+    "description": "\"Little Niagara of Sri Lanka\" with twin falls dropping 80m.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 189,
+    "name": "Dunhinda Falls Visit",
+    "description": "Iconic waterfall (64m) with scenic approach through jungle.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 191,
+    "name": "Gem Museum Visit",
+    "description": "Learn about Sri Lanka's gem industry and see precious stones.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 193,
+    "name": "Martin Wickramasinghe Museum",
+    "description": "Folk museum in house of famous Sri Lankan author.",
+    "currentImages": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/national_museum_colombo_1.avif",
+      "/images/activities/national_museum_colombo_2.avif",
+      "/images/activities/national_museum_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 199,
+    "name": "Mulkirigala Rock Temple",
+    "description": "Ancient cave temple complex on massive rock with Buddha statues and paintings.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 206,
+    "name": "Nallur Kandaswamy Kovil Visit",
+    "description": "Vibrant Hindu temple with golden gopuram and colorful deities. One of the most significant Hindu temples in Sri Lanka, dating back to 948 AD.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 210,
+    "name": "Naguleswaram Temple & Keerimalai Springs",
+    "description": "Ancient Hindu temple with freshwater springs right by the ocean, believed to have healing properties. Natural pool where locals bathe before prayers.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 220,
+    "name": "Aberdeen Falls Trek",
+    "description": "98-meter waterfall accessible via Dehigasthenna or Kalawaldeniya villages. Nature trails through Poonagala Forest Reserve with opportunities for camping at Upper Aberdeen 7 Falls.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 233,
+    "name": "Kalpitiya Kitesurfing",
+    "description": "One of Asia's best kitesurfing spots. Shallow lagoon with consistent wind conditions from May-September. Schools and equipment rental available.",
+    "currentImages": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/surfing_hiriketiya_1.avif",
+      "/images/activities/surfing_hiriketiya_2.avif",
+      "/images/activities/surfing_hiriketiya_3.avif"
+    ]
+  },
+  {
+    "id": 238,
+    "name": "Kelaniya Raja Maha Viharaya",
+    "description": "Temple 11km northeast of Colombo with murals by artist Walimuni Solias Mendis who dedicated 20 years to paintings. Stupa magical at dusk. Important Buddhist pilgrimage site.",
+    "currentImages": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/temple_of_the_tooth_1.avif",
+      "/images/activities/temple_of_the_tooth_2.avif",
+      "/images/activities/temple_of_the_tooth_3.avif"
+    ]
+  },
+  {
+    "id": 244,
+    "name": "Wilpattu National Park Safari",
+    "description": "Largest national park in Sri Lanka, yet fewer visitors than Yala. Government-run bungalows available for immersive jungle experience with cook and tracker. Known for leopard sightings.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  },
+  {
+    "id": 249,
+    "name": "Diyaluma Falls Natural Pools",
+    "description": "Second highest waterfall in Sri Lanka (220m). Hike to top for natural infinity pools with stunning valley views. Multiple tiers with swimming opportunities at different levels.",
+    "currentImages": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/bambarakanda_falls_1.avif",
+      "/images/activities/bambarakanda_falls_2.avif",
+      "/images/activities/bambarakanda_falls_3.avif"
+    ]
+  },
+  {
+    "id": 252,
+    "name": "Ulpotha Yoga Retreat",
+    "description": "Traditional village with no electricity/WiFi/AC. Opens seasonally for authentic yoga and Ayurveda. Organic meals cooked over open fire, treatments prescribed individually following ancient texts. Transformative experience.",
+    "currentImages": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/ayurvedic_massage_1.avif",
+      "/images/activities/ayurvedic_massage_2.avif",
+      "/images/activities/ayurvedic_massage_3.avif"
+    ]
+  },
+  {
+    "id": 124,
+    "name": "Sinharaja Rainforest Trek",
+    "description": "UNESCO Biosphere Reserve with endemic birds, mammals, and incredible biodiversity.",
+    "currentImages": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/climbing_sigiriya_rock_1.avif",
+      "/images/activities/climbing_sigiriya_rock_2.avif",
+      "/images/activities/climbing_sigiriya_rock_3.avif"
+    ]
+  },
+  {
+    "id": 171,
+    "name": "Galle Fort Food Tour",
+    "description": "Explore Dutch-era buildings while sampling local delicacies and fusion cuisine.",
+    "currentImages": [
+      "/images/activities/street_food_colombo_1.avif",
+      "/images/activities/street_food_colombo_2.avif",
+      "/images/activities/street_food_colombo_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/street_food_colombo_1.avif",
+      "/images/activities/street_food_colombo_2.avif",
+      "/images/activities/street_food_colombo_3.avif"
+    ]
+  },
+  {
+    "id": 195,
+    "name": "Buduruwagala Ancient Statues",
+    "description": "Massive 7 ancient Buddha statues carved into rock face, dating to 10th century.",
+    "currentImages": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/galle_fort_ramparts_1.avif",
+      "/images/activities/galle_fort_ramparts_2.avif",
+      "/images/activities/galle_fort_ramparts_3.avif"
+    ]
+  },
+  {
+    "id": 257,
+    "name": "Madu Ganga Boat Safari",
+    "description": "Explore stunning mangrove ecosystem with 64 islands. Visit Buddhist temples, cinnamon plantations, and traditional fishing communities. Rich biodiversity with monitor lizards, birds, and aquatic life.",
+    "currentImages": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ],
+    "missingFiles": [
+      "/images/activities/yala_safari_1.avif",
+      "/images/activities/yala_safari_2.avif",
+      "/images/activities/yala_safari_3.avif"
+    ]
+  }
+]
