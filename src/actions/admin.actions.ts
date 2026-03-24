@@ -6,19 +6,20 @@ import { TourService } from "@/services/tour.service";
 import { HotelService } from "@/services/hotel.service";
 import { MasterDataService, Restaurant } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
-import { CreateAgentDTO } from "@/dtos/user-vendor.dto";
+import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
 import { CurrencyService } from "@/services/currency.service";
 import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
 
 export async function createAgentAction(formData: FormData) {
     try {
-        const dto: CreateAgentDTO = {
+        const dto: CreateUserDTO = {
             first_name: formData.get("first_name") as string,
             last_name: formData.get("last_name") as string,
             email: formData.get("email") as string,
             phone: formData.get("phone") as string,
-            password: formData.get("password") as string
+            password: formData.get("password") as string,
+            role: "agent"
         };
 
         if (!dto.first_name || !dto.last_name || !dto.email || !dto.password) {
@@ -26,10 +27,10 @@ export async function createAgentAction(formData: FormData) {
         }
 
         // Delegate business logic to the proper service class
-        await AdminService.createAgent(dto);
+        await AdminService.createUser(dto);
 
         // Revalidate admin pages that might show the list of agents
-        revalidatePath("/admin/users");
+        revalidatePath("/admin/user-management");
 
         return { success: true, message: `Successfully created Agent account for ${dto.first_name} ${dto.last_name}` };
     } catch (error: any) {

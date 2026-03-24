@@ -8,19 +8,37 @@ import { Mail, KeyRound, ArrowRight, Loader2, MapPin } from "lucide-react";
 export default function TouristLogin() {
     const router = useRouter();
     const [email, setEmail] = useState("");
-    const [step, setStep] = useState<"email" | "sent">("email");
+    const [password, setPassword] = useState("");
+    const [loginMethod, setLoginMethod] = useState<"password" | "magic_link">("password");
+    const [step, setStep] = useState<"form" | "sent">("form");
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
-    const handleSendCode = async (e: React.FormEvent) => {
+    const handlePasswordLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email || !password) return;
+
+        setIsLoading(true);
+        setErrorMsg("");
+
+        try {
+            await AuthService.signInWithPassword(email, password);
+            router.push("/tourist");
+        } catch (error: any) {
+            console.error("Login error:", error);
+            setErrorMsg(error.message || "Invalid email or password.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleMagicLink = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) return;
 
         setIsLoading(true);
         setErrorMsg("");
 
-        // Define the URL where the magic link should redirect the user.
-        // It points to the tourist dashboard.
         const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/tourist` : undefined;
 
         try {
@@ -33,8 +51,6 @@ export default function TouristLogin() {
             setIsLoading(false);
         }
     };
-
-    // OTP verification function removed since we rely on magic link
 
     return (
         <div className="min-h-screen bg-[#F5F3EF] flex items-center justify-center p-4">
@@ -51,8 +67,8 @@ export default function TouristLogin() {
                 <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-                    {step === "email" ? (
-                        <form onSubmit={handleSendCode} className="space-y-6 relative z-10">
+                    {step === "form" ? (
+                        <form onSubmit={loginMethod === "password" ? handlePasswordLogin : handleMagicLink} className="space-y-6 relative z-10">
                             <div>
                                 <label className="block text-sm font-semibold text-brand-charcoal mb-2">Email Address</label>
                                 <div className="relative">
@@ -70,6 +86,25 @@ export default function TouristLogin() {
                                 </div>
                             </div>
 
+                            {loginMethod === "password" && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-brand-charcoal mb-2">Password</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <KeyRound className="h-5 w-5 text-neutral-400" />
+                                        </div>
+                                        <input
+                                            type="password"
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="block w-full pl-10 pr-3 py-3 border border-neutral-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold transition-colors bg-neutral-50"
+                                            placeholder="••••••••"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             {errorMsg && (
                                 <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">{errorMsg}</p>
                             )}
@@ -79,9 +114,24 @@ export default function TouristLogin() {
                                 disabled={isLoading}
                                 className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-brand-green hover:bg-green-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-green transition-colors disabled:opacity-70"
                             >
-                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send Magic Link"}
+                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (loginMethod === "password" ? "Sign In" : "Send Magic Link")}
                                 {!isLoading && <ArrowRight className="w-4 h-4" />}
                             </button>
+
+                            <div className="text-center mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setLoginMethod(prev => prev === "password" ? "magic_link" : "password");
+                                        setErrorMsg("");
+                                    }}
+                                    className="text-sm font-medium text-neutral-500 hover:text-brand-green transition-colors"
+                                >
+                                    {loginMethod === "password"
+                                        ? "Forgot password? Sign in with Magic Link"
+                                        : "Have a password? Sign in here"}
+                                </button>
+                            </div>
                         </form>
                     ) : (
                         <div className="text-center space-y-6 relative z-10">
@@ -97,7 +147,7 @@ export default function TouristLogin() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setStep("email");
+                                    setStep("form");
                                     setErrorMsg("");
                                 }}
                                 className="mt-8 text-sm font-semibold text-brand-green hover:text-green-900 transition-colors"

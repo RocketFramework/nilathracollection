@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { UserProfileDTO, CreateAgentDTO } from '../dtos/user-vendor.dto';
+import { UserProfileDTO, CreateUserDTO, UpdateUserDTO, ResetPasswordDTO } from '../dtos/user-vendor.dto';
 import { createAdminClient } from '../utils/supabase/admin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -86,7 +86,7 @@ export class AdminService {
         return data;
     }
 
-    static async createAgent(dto: CreateAgentDTO) {
+    static async createUser(dto: CreateUserDTO) {
         if (!dto.first_name || !dto.last_name || !dto.email || !dto.password) {
             throw new Error("First Name, Last Name, Email, and Password are required.");
         }
@@ -97,7 +97,7 @@ export class AdminService {
         const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email: dto.email,
             password: dto.password,
-            email_confirm: false,
+            email_confirm: true,
             user_metadata: {
                 first_name: dto.first_name,
                 last_name: dto.last_name,
@@ -110,25 +110,26 @@ export class AdminService {
 
         const newUserId = authUser.user.id;
 
-        // 2. Fetch the 'agent' role ID
+        // 2. Fetch the role ID
         const { data: roleData, error: roleError } = await supabaseAdmin
             .from("roles")
             .select("id")
-            .eq("name", "agent")
+            .eq("name", dto.role)
             .single();
 
-        if (roleError || !roleData) throw new Error("Failed to locate agent role. Did you create it?");
+        if (roleError || !roleData) throw new Error(`Failed to locate ${dto.role} role. Did you create it?`);
 
         // 3. Assign User Role
         const { error: assignError } = await supabaseAdmin
             .from("user_roles")
             .insert([{ user_id: newUserId, role_id: roleData.id }]);
 
-        if (assignError) throw new Error("Agent account created, but role assignment failed.");
+        if (assignError) throw new Error("Account created, but role assignment failed.");
 
-        // 4. Create Agent Profile
+        // 4. Create Profile
+        const profileTable = `${dto.role}_profiles`;
         const { error: profileError } = await supabaseAdmin
-            .from("agent_profiles")
+            .from(profileTable)
             .insert([{
                 id: newUserId,
                 first_name: dto.first_name,
@@ -137,8 +138,77 @@ export class AdminService {
                 is_active: true
             }]);
 
-        if (profileError) throw new Error("Agent role assigned, but profile creation failed.");
+        if (profileError) throw new Error(`Role assigned, but ${dto.role} profile creation failed.`);
 
         return { id: newUserId, ...dto };
+    }
+
+    static async updateUser(userId: string, role: string, dto: UpdateUserDTO) {
+        const supabaseAdmin = createAdminClient();
+        const profileTable = `${role}_profiles`;
+
+        const { error } = await supabaseAdmin
+            .from(profileTable)
+            .update({
+                ...(dto.first_name !== undefined && { first_name: dto.first_name }),
+                ...(dto.last_name !== undefined && { last_name: dto.last_name }),
+                ...(dto.phone !== undefined && { phone: dto.phone }),
+                ...(dto.is_active !== undefined && { is_active: dto.is_active }),
+            })
+            .eq('id', userId);
+
+        if (error) throw new Error(`Failed to update ${role} profile: ${error.message}`);
+
+        // Also update auth user metadata if name/phone changed
+        if (dto.first_name !== undefined || dto.last_name !== undefined || dto.phone !== undefined) {
+            const updates: any = {};
+            if (dto.first_name !== undefined) updates.first_name = dto.first_name;
+            if (dto.last_name !== undefined) updates.last_name = dto.last_name;
+            if (dto.phone !== undefined) updates.phone = dto.phone;
+            await supabaseAdmin.auth.admin.updateUserById(userId, { user_metadata: updates });
+        }
+        return true;
+    }
+
+    static async resetUserPassword(dto: ResetPasswordDTO) {
+        if (!dto.newPassword) throw new Error("New password is required.");
+
+        const supabaseAdmin = createAdminClient();
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(dto.userId, {
+            password: dto.newPassword
+        });
+
+        if (error) throw new Error(`Failed to reset password: ${error.message}`);
+        return true;
+    }
+
+    static async getUsersByRole(role: 'tourist' | 'agent' | 'admin') {
+        const supabaseAdmin = createAdminClient();
+        const profileTable = `${role}_profiles`;
+
+        const { data, error } = await supabaseAdmin
+            .from(profileTable)
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw new Error(`Failed to fetch ${role}s: ${error.message}`);
+
+        // Get emails from auth.users (requires service role)
+        const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+        if (usersError) throw new Error(`Failed to fetch auth users: ${usersError.message}`);
+
+        // Merge profile with auth user email
+        return data.map(profile => {
+            const authUser = usersData.users.find(u => u.id === profile.id);
+            return {
+                ...profile,
+                email: authUser?.email || 'N/A',
+                role
+            };
+        });
+    }
+
+    static async deactivateUser(userId: string, role: 'tourist' | 'agent' | 'admin') {
+        return this.updateUser(userId, role, { is_active: false });
     }
 }

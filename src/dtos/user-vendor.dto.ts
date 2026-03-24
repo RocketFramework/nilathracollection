@@ -1,9 +1,22 @@
-export interface CreateAgentDTO {
+export interface CreateUserDTO {
     first_name: string;
     last_name: string;
     email: string;
     phone?: string;
     password?: string; // Only for initial creation
+    role: 'tourist' | 'agent' | 'admin';
+}
+
+export interface UpdateUserDTO {
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    is_active?: boolean;
+}
+
+export interface ResetPasswordDTO {
+    userId: string;
+    newPassword?: string; // Optional if you decide to send a link instead, but we need it for direct reset.
 }
 
 export interface UserProfileDTO {

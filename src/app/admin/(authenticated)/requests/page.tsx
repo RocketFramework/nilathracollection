@@ -167,23 +167,23 @@ export default function AdminRequests() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-                {/* Filters Sidebar */}
-                <div className="xl:col-span-1 bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 h-fit sticky top-6">
-                    <div className="flex items-center gap-2 mb-6 text-brand-charcoal font-bold border-b border-neutral-100 pb-4">
-                        <Filter size={20} />
-                        <h2>Filters</h2>
+            <div className="flex flex-col gap-6 w-full">
+                {/* Top Filters Bar */}
+                <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-5">
+                    <div className="flex items-center gap-2 mb-4 text-brand-charcoal font-bold text-sm">
+                        <Filter size={16} />
+                        <h2>Filter Requests</h2>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
                         {/* Status Filter */}
-                        <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Status</label>
+                        <div className="xl:col-span-1">
+                            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Status</label>
                             <select
                                 name="status"
                                 value={filters.status}
                                 onChange={handleFilterChange}
-                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
+                                className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
                             >
                                 <option value="">All Statuses</option>
                                 <option value="Pending">Pending</option>
@@ -195,57 +195,52 @@ export default function AdminRequests() {
                         </div>
 
                         {/* Date Filter */}
-                        <div className="space-y-2">
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">Date Submitted</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <span className="text-[10px] text-neutral-400 block mb-1">From</span>
-                                    <input
-                                        type="date"
-                                        name="dateFrom"
-                                        value={filters.dateFrom}
-                                        onChange={handleFilterChange}
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-brand-gold"
-                                    />
-                                </div>
-                                <div>
-                                    <span className="text-[10px] text-neutral-400 block mb-1">To</span>
-                                    <input
-                                        type="date"
-                                        name="dateTo"
-                                        value={filters.dateTo}
-                                        onChange={handleFilterChange}
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-brand-gold"
-                                    />
-                                </div>
+                        <div className="lg:col-span-2">
+                            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Date Submitted (From - To)</label>
+                            <div className="flex items-center justify-between gap-2">
+                                <input
+                                    type="date"
+                                    name="dateFrom"
+                                    value={filters.dateFrom}
+                                    onChange={handleFilterChange}
+                                    className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-brand-gold"
+                                />
+                                <span className="text-neutral-300 text-xs">-</span>
+                                <input
+                                    type="date"
+                                    name="dateTo"
+                                    value={filters.dateTo}
+                                    onChange={handleFilterChange}
+                                    className="flex-1 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-brand-gold"
+                                />
                             </div>
                         </div>
 
                         {/* Email Filter */}
-                        <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Tourist Email</label>
+                        <div className="xl:col-span-1">
+                            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Tourist Email</label>
                             <div className="relative">
-                                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
                                 <input
                                     type="text"
                                     name="email"
                                     value={filters.email}
                                     onChange={handleFilterChange}
                                     placeholder="Search email..."
-                                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-brand-gold"
+                                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-brand-gold"
                                 />
                             </div>
                         </div>
 
                         {/* Nights Filter */}
-                        <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Number of Nights</label>
-                            <div className="flex gap-2">
+                        <div className="xl:col-span-1">
+                            <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Duration</label>
+                            <div className="flex gap-1">
                                 <select
                                     name="nightsOperator"
                                     value={filters.nightsOperator}
                                     onChange={handleFilterChange}
-                                    className="w-1/2 bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-brand-gold"
+                                    className="w-[50px] bg-neutral-50 border border-neutral-200 rounded-l-lg px-1 py-2 text-xs focus:outline-none focus:border-brand-gold"
                                 >
                                     <option value="Higher than">&gt;=</option>
                                     <option value="Lower than">&lt;=</option>
@@ -255,48 +250,52 @@ export default function AdminRequests() {
                                     name="nightsValue"
                                     value={filters.nightsValue}
                                     onChange={handleFilterChange}
-                                    placeholder="e.g. 5"
-                                    className="w-1/2 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-gold"
+                                    placeholder="Nights"
+                                    className="w-full bg-neutral-50 border border-neutral-200 border-l-0 rounded-r-lg px-2 py-2 text-xs focus:outline-none focus:border-brand-gold"
                                 />
                             </div>
                         </div>
 
                         {/* Admin Assigned To Filter (Admin Only) */}
-                        {userRole === 'admin' && (
-                            <div>
-                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Assigned Agent</label>
-                                <select
-                                    name="adminAssignedTo"
-                                    value={filters.adminAssignedTo}
-                                    onChange={handleFilterChange}
-                                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-gold"
-                                >
-                                    <option value="">Any Agent</option>
-                                    <option value="unassigned">Unassigned Only</option>
-                                    {/* In a real app we would map over a list of agent IDs/names here */}
-                                </select>
-                            </div>
-                        )}
+                        <div className="xl:col-span-1">
+                            {userRole === 'admin' ? (
+                                <div>
+                                    <label className="block text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">Assigned Agent</label>
+                                    <select
+                                        name="adminAssignedTo"
+                                        value={filters.adminAssignedTo}
+                                        onChange={handleFilterChange}
+                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-brand-gold overflow-hidden text-ellipsis"
+                                    >
+                                        <option value="">Any Agent</option>
+                                        <option value="unassigned">Unassigned Only</option>
+                                    </select>
+                                </div>
+                            ) : (
+                                <div className="hidden"></div>
+                            )}
+                        </div>
 
-                        <div className="pt-4 border-t border-neutral-100 flex flex-col gap-2">
+                        {/* Buttons */}
+                        <div className="flex gap-2 h-fit xl:col-span-1">
                             <button
                                 onClick={applyFilters}
-                                className="w-full font-bold text-sm bg-brand-charcoal text-white py-2.5 rounded-lg hover:bg-neutral-800 transition-colors"
+                                className="flex-1 font-bold text-xs bg-brand-charcoal text-white py-2.5 rounded-lg hover:bg-neutral-800 transition-colors shadow-sm"
                             >
-                                Apply Filters
+                                Apply
                             </button>
                             <button
                                 onClick={clearFilters}
-                                className="w-full font-bold text-sm bg-neutral-100 text-neutral-600 py-2.5 rounded-lg hover:bg-neutral-200 transition-colors"
+                                className="flex-1 font-bold text-xs bg-neutral-100 text-neutral-600 py-2.5 rounded-lg hover:bg-neutral-200 transition-colors border border-neutral-200 shadow-sm"
                             >
-                                Clear All
+                                Clear
                             </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Main Requests List */}
-                <div className="xl:col-span-3 bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden flex flex-col">
+                <div className="w-full bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden flex flex-col">
                     <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50">
                         <h2 className="text-xl font-bold font-playfair text-[#2B2B2B]">
                             {isLoading ? 'Searching...' : `${totalRequests} Request${totalRequests !== 1 ? 's' : ''} Found`}

@@ -7,57 +7,62 @@ import DestinationsSection from "@/components/home/DestinationsSection";
 import { ArrowRight, Quote, Shield, Crown, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
 
 const experienceAssets = [
-  { src: "/images/hero_ultra_vip.avif", rotate: "-12deg", left: "15%", top: "15%", z: 10, label: "Private Aviation" },
-  { src: "/images/luxury_transport_fleet_sl_1773073885754.avif", rotate: "8deg", left: "85%", top: "12%", z: 20, label: "Limo & SUV Fleet" },
-  { src: "/images/kandyan_dancers_luxury_welcome_1773073904824.avif", rotate: "-6deg", left: "10%", top: "45%", z: 30, label: "Cultural Welcome" },
-  { src: "/images/private_chef_luxury_dining_1773073921412.avif", rotate: "12deg", left: "80%", top: "45%", z: 15, label: "Bespoke Culinary" },
-  { src: "/images/bespoke_gem_jewelry_experience_1773073939946.avif", rotate: "-15deg", left: "70%", top: "85%", z: 25, label: "Gem Curation" },
-  { src: "/images/luxury_massage_spa_serenity_1773073961558.avif", rotate: "10deg", left: "20%", top: "85%", z: 5, label: "Ayurvedic Spa" },
-  { src: "/images/luxury_bedroom_mountain_view_1773073980186.avif", rotate: "0deg", left: "45%", top: "40%", z: 35, label: "Sovereign Sanctuary" },
+  { src: "/images/hero_ultra_vip.avif", label: "Private Aviation" },
+  { src: "/images/luxury_transport_fleet_sl_1773073885754.avif", label: "Limo & SUV Fleet" },
+  { src: "/images/kandyan_dancers_luxury_welcome_1773073904824.avif", label: "Cultural Welcome" },
+  { src: "/images/private_chef_luxury_dining_1773073921412.avif", label: "Bespoke Culinary" },
+  { src: "/images/bespoke_gem_jewelry_experience_1773073939946.avif", label: "Gem Curation" },
+  { src: "/images/luxury_massage_spa_serenity_1773073961558.avif", label: "Ayurvedic Spa" },
+  { src: "/images/luxury_bedroom_mountain_view_1773073980186.avif", label: "Sovereign Sanctuary" },
 ];
 
 function ExperienceGallery() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % experienceAssets.length);
+    }, 4500); // Elegant, slow cinematic timing
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="relative w-full h-full max-w-[1000px] aspect-square lg:aspect-[4/3] mx-auto">
-      {experienceAssets.map((asset, idx) => (
+    <div className="relative w-full h-[500px] md:h-[600px] lg:h-[750px] rounded-[4px] overflow-hidden bg-brand-charcoal shadow-2xl">
+      <AnimatePresence initial={false}>
         <motion.div
-          key={idx}
-          initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
-          whileInView={{
-            opacity: 1,
-            scale: 1,
-            rotate: asset.rotate,
-            transition: { delay: idx * 0.1, duration: 0.8, ease: "easeOut" }
-          }}
-          whileHover={{
-            scale: 1.1,
-            zIndex: 100,
-            rotate: "0deg",
-            transition: { duration: 0.3 }
-          }}
-          viewport={{ once: true }}
-          className="absolute w-[220px] md:w-[280px] aspect-[3/4] rounded-sm overflow-hidden shadow-2xl border-4 border-white bg-neutral-100"
-          style={{
-            left: asset.left,
-            top: asset.top,
-            transform: "translate(-50%, -50%)",
-            zIndex: asset.z
-          }}
+          key={currentIndex}
+          className="absolute inset-0 w-full h-full"
+          initial={{ x: "100%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "-100%" }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
         >
           <Image
-            src={asset.src}
-            alt={asset.label}
+            src={experienceAssets[currentIndex].src}
+            alt={experienceAssets[currentIndex].label}
             fill
             className="object-cover"
+            priority={currentIndex === 0}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-            <span className="text-white text-[10px] uppercase font-black tracking-widest">{asset.label}</span>
+
+          {/* Elegant typography overlay at the bottom */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-8 md:p-12">
+            <div className="flex items-center gap-4 lg:gap-6">
+              <span className="text-brand-gold font-serif italic text-xl md:text-2xl">
+                {String(currentIndex + 1).padStart(2, '0')} <span className="opacity-40 text-sm md:text-base pl-1">/ {String(experienceAssets.length).padStart(2, '0')}</span>
+              </span>
+              <div className="h-px w-8 md:w-12 bg-brand-gold/50" />
+              <span className="text-white text-xs md:text-sm tracking-[0.2em] uppercase font-light drop-shadow-md">
+                {experienceAssets[currentIndex].label}
+              </span>
+            </div>
           </div>
         </motion.div>
-      ))}
+      </AnimatePresence>
     </div>
   );
 }
@@ -97,8 +102,8 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* Experience Gallery - The Card Spread */}
-          <div className="relative h-[650px] w-full flex items-center justify-center lg:justify-end">
+          {/* Experience Gallery - The Bento Spread */}
+          <div className="relative w-full flex items-center justify-center lg:justify-end">
             <ExperienceGallery />
           </div>
         </div>
