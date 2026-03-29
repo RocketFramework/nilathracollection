@@ -8,8 +8,8 @@ import { UserService } from "@/services/user.service";
 import { createTourAction } from "@/actions/admin.actions";
 
 export default function AdminDashboard() {
-    // In a real app, retrieve user role securely server-side or via context. Using state for mock implementation.
-    const [userRole, setUserRole] = useState<'admin' | 'agent' | null>('admin');
+    const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const router = useRouter();
 
     const [requests, setRequests] = useState<any[]>([]);
@@ -37,13 +37,26 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
+        UserService.getCurrentUserProfile().then(p => {
+            setUserRole(p?.role as any || 'agent');
+            setUserId(p?.id || null);
+        });
+    }, []);
+
+    useEffect(() => {
         const fetchRequests = async () => {
+            if (!userRole || !userId) return; // Wait for auth
             setIsLoading(true);
             try {
-                // In production, this would use a secure server-side method if strictly for admins,
-                // but for our prototype we can assume the admin is authenticated.
                 const { RequestService } = await import('@/services/request.service');
-                const { data, count } = await RequestService.getAllRequests(currentPage, pageSize);
+
+                let result;
+                if (userRole === 'admin') {
+                    result = await RequestService.getAllRequests(currentPage, pageSize);
+                } else {
+                    result = await RequestService.getRequestsWithFilters({ adminAssignedTo: userId }, currentPage, pageSize);
+                }
+                const { data, count } = result;
 
                 // Map database format to UI format
                 if (data) {
@@ -86,7 +99,7 @@ export default function AdminDashboard() {
         };
 
         fetchRequests();
-    }, [currentPage]);
+    }, [currentPage, userRole, userId]);
 
     const handleNextPage = () => {
         if (currentPage < totalPages) setCurrentPage(c => c + 1);
@@ -113,12 +126,6 @@ export default function AdminDashboard() {
 
     return (
         <div className="max-w-7xl mx-auto p-10 animate-in fade-in duration-500">
-            {/* Quick role toggle for testing ONLY */}
-            <div className="flex gap-2 mb-8 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-xl">
-                <span className="text-sm font-bold text-brand-gold flex items-center mr-4">DEV TOGGLE:</span>
-                <button onClick={() => setUserRole('admin')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'admin' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Admin View</button>
-                <button onClick={() => setUserRole('agent')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'agent' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Agent View</button>
-            </div>
 
             <div className="space-y-8 mt-4">
                 <div className="flex items-center justify-between">

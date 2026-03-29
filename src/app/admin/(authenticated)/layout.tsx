@@ -12,6 +12,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
     let isAdmin = false;
     let userInitials = "NC";
+    let displayRole = "Guest";
 
     if (user) {
         // Broad check for admin using service role client to bypass any RLS read restrictions
@@ -26,12 +27,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
         if (isRpcAdmin || adminData || metadataRole === 'admin') {
             isAdmin = true;
+            displayRole = "Admin";
             userInitials = adminData?.first_name ? adminData.first_name.substring(0, 2).toUpperCase() : "AD";
         } else {
             // Retrieve agent info for initials
             const { data: agentData } = await adminSupabase.from('agent_profiles').select('*').eq('id', user.id).single();
             if (agentData && agentData.first_name) {
                 userInitials = agentData.first_name.substring(0, 2).toUpperCase();
+                displayRole = "Agent";
             }
         }
     }
@@ -103,6 +106,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <header className="h-16 bg-white/80 backdrop-blur-md border-b border-[#E5E7EB] flex items-center px-8 justify-between shrink-0 shadow-sm z-10">
                     <h1 className="text-xl font-semibold text-[#2B2B2B] font-playfair tracking-wide flex-shrink-0">Admin Dashboard</h1>
                     <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end mr-2">
+                            <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">{displayRole}</span>
+                        </div>
                         <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-[#D4AF37] font-bold text-sm shadow-md">
                             {userInitials}
                         </div>

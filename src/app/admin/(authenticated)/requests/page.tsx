@@ -8,8 +8,8 @@ import { UserService } from "@/services/user.service";
 import { createTourAction } from "@/actions/admin.actions";
 
 export default function AdminRequests() {
-    // In a real app, retrieve user role securely server-side or via context. Using state for mock implementation.
-    const [userRole, setUserRole] = useState<'admin' | 'agent' | null>('admin');
+    const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const router = useRouter();
 
     const [requests, setRequests] = useState<any[]>([]);
@@ -47,22 +47,36 @@ export default function AdminRequests() {
         nightsValue: "" as string | number,
     });
 
+    useEffect(() => {
+        UserService.getCurrentUserProfile().then(p => {
+            setUserRole(p?.role as any || 'agent');
+            setUserId(p?.id || null);
+        });
+    }, []);
+
     const fetchRequests = async () => {
+        if (!userRole || !userId) return; // Wait for auth constraints
         setIsLoading(true);
         try {
             const { RequestService } = await import('@/services/request.service');
 
             // Format filters for API
-            const apiFilters = {
+            const apiFilters: any = {
                 ...filters,
                 nightsValue: filters.nightsValue !== "" ? Number(filters.nightsValue) : undefined,
                 status: filters.status || undefined,
                 dateFrom: filters.dateFrom || undefined,
                 dateTo: filters.dateTo || undefined,
                 email: filters.email || undefined,
-                adminAssignedTo: filters.adminAssignedTo || undefined,
                 nightsOperator: filters.nightsOperator
             };
+
+            // Enforce Agent assignment restriction
+            if (userRole === 'agent') {
+                apiFilters.adminAssignedTo = userId;
+            } else {
+                apiFilters.adminAssignedTo = filters.adminAssignedTo || undefined;
+            }
 
             const { data, count } = await RequestService.getRequestsWithFilters(apiFilters, currentPage, pageSize);
 
@@ -110,7 +124,7 @@ export default function AdminRequests() {
 
     useEffect(() => {
         fetchRequests();
-    }, [currentPage]);
+    }, [currentPage, userRole, userId]);
 
     const handleNextPage = () => {
         if (currentPage < totalPages) setCurrentPage(c => c + 1);
@@ -146,12 +160,6 @@ export default function AdminRequests() {
 
     return (
         <div className="max-w-7xl mx-auto p-10 animate-in fade-in duration-500">
-            {/* Quick role toggle for testing ONLY */}
-            <div className="flex gap-2 mb-8 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-xl">
-                <span className="text-sm font-bold text-brand-gold flex items-center mr-4">DEV TOGGLE:</span>
-                <button onClick={() => { setUserRole('admin'); setCurrentPage(1); fetchRequests(); }} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'admin' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Admin View</button>
-                <button onClick={() => { setUserRole('agent'); setCurrentPage(1); fetchRequests(); }} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'agent' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Agent View</button>
-            </div>
 
             <div className="flex items-center justify-between mb-8">
                 <div>
