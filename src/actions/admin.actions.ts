@@ -316,3 +316,105 @@ export async function getExchangeRateAction() {
         return { success: false, error: error.message };
     }
 }
+
+export async function getPendingApprovalsAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('master_data_approvals')
+            .select('*')
+            .eq('status', 'PENDING')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Enhance with agent details manually to avoid PostgREST relationship errors
+        if (data && data.length > 0) {
+            const agentIds = [...new Set(data.map((d: any) => d.requested_by).filter(Boolean))];
+            if (agentIds.length > 0) {
+                const { data: agents } = await adminSupabase
+                    .from('agent_profiles')
+                    .select('id, first_name, last_name, phone')
+                    .in('id', agentIds);
+
+                const agentMap = (agents || []).reduce((acc: any, curr: any) => {
+                    acc[curr.id] = curr;
+                    return acc;
+                }, {});
+
+                data.forEach((d: any) => {
+                    d.agent = agentMap[d.requested_by] || null;
+                });
+            }
+        }
+
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Error fetching approvals:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function resolveApprovalAction(id: string, status: 'APPROVED' | 'REJECTED') {
+    try {
+        const adminSupabase = createAdminClient();
+        const serverClient = await createClient();
+        const { data: { user } } = await serverClient.auth.getUser();
+
+        // 1. Mark as resolved
+        const { error, data: approvalData } = await adminSupabase
+            .from('master_data_approvals')
+            .update({
+                status,
+                resolved_at: new Date().toISOString(),
+                resolved_by: user?.id || null
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // 2. If approved, apply the proposed_data to the relevant entity table
+        if (status === 'APPROVED' && approvalData) {
+            const { entity_type, proposed_data } = approvalData;
+
+            try {
+                switch (entity_type) {
+                    case 'hotel':
+                        if (proposed_data.id) {
+                            await HotelService.updateHotel(proposed_data);
+                        } else {
+                            await HotelService.createHotel(proposed_data);
+                        }
+                        break;
+                    case 'vendor':
+                        await MasterDataService.saveVendor(proposed_data);
+                        break;
+                    case 'restaurant':
+                        await MasterDataService.saveRestaurant(proposed_data);
+                        break;
+                    case 'transport':
+                        await MasterDataService.saveTransportProvider(proposed_data);
+                        break;
+                    case 'driver':
+                        await MasterDataService.saveDriver(proposed_data);
+                        break;
+                    case 'guide':
+                        await MasterDataService.saveTourGuide(proposed_data);
+                        break;
+                    default:
+                        console.warn(`Unknown entity type for approval application: ${entity_type}`);
+                }
+            } catch (applyError: any) {
+                console.error("Error applying approved data to entity table:", applyError);
+                throw new Error("Approval status updated, but failed to apply changes to database.");
+            }
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error resolving approval:", error);
+        return { success: false, error: error.message };
+    }
+}

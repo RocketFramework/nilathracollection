@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 import { MasterDataApprovalsService, ApprovalRequest } from "@/services/master-data-approvals.service";
+import { resolveApprovalAction } from "@/actions/admin.actions";
 
 interface ApprovalReviewModalProps {
     isOpen: boolean;
@@ -18,7 +19,9 @@ export default function ApprovalReviewModal({ isOpen, onClose, request, onResolv
         if (!confirm(`Are you sure you want to ${status.toLowerCase()} this request?`)) return;
         setLoading(true);
         try {
-            await MasterDataApprovalsService.resolveApproval(request.id!, status);
+            const res = await resolveApprovalAction(request.id!, status);
+            if (!res.success) throw new Error(res.error);
+
             onResolved();
             onClose();
         } catch (error: any) {

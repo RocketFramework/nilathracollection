@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { UserService } from "@/services/user.service";
+import { getUserRoleAction, getPendingApprovalsAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -67,7 +67,13 @@ export default function MasterDataPage() {
     const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
 
     useEffect(() => {
-        UserService.getCurrentUserProfile().then(p => setUserRole(p?.role || 'agent'));
+        const fetchRole = async () => {
+            const res = await getUserRoleAction();
+            if (res && res.role) {
+                setUserRole(res.role);
+            }
+        };
+        fetchRole();
     }, []);
 
     // Debounce search
@@ -128,9 +134,13 @@ export default function MasterDataPage() {
                 setGuides(data);
                 setTotalCount(count);
             } else if (activeTab === 'approvals') {
-                const data = await MasterDataApprovalsService.getPendingApprovals();
-                setApprovals(data);
-                setTotalCount(data.length);
+                const result = await getPendingApprovalsAction();
+                if (result.success && result.data) {
+                    setApprovals(result.data);
+                    setTotalCount(result.data.length);
+                } else {
+                    console.error("Failed to load approvals:", result.error);
+                }
             }
         } catch (error) {
             console.error("Failed to load data:", error);
