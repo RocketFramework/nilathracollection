@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
+import { UserService } from "@/services/user.service";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
 import TourGuideFormModal from "./components/TourGuideFormModal";
 import TransportProviderFormModal from "./components/TransportProviderFormModal";
 import RestaurantFormModal from "./components/RestaurantFormModal";
+import ApprovalReviewModal from "./components/ApprovalReviewModal";
+import { MasterDataApprovalsService, ApprovalRequest } from "@/services/master-data-approvals.service";
 
 const DATABASES = [
     { id: 'hotels', label: 'Hotels & Resorts', icon: Building2 },
@@ -24,6 +27,7 @@ export default function MasterDataPage() {
     const [activeTab, setActiveTab] = useState(DATABASES[0].id);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [userRole, setUserRole] = useState<string>("agent");
 
     const [hotels, setHotels] = useState<Hotel[]>([]);
     const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -31,6 +35,7 @@ export default function MasterDataPage() {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [guides, setGuides] = useState<TourGuide[]>([]);
     const [transports, setTransports] = useState<TransportProvider[]>([]);
+    const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
@@ -57,6 +62,13 @@ export default function MasterDataPage() {
 
     const [isRestaurantModalOpen, setIsRestaurantModalOpen] = useState(false);
     const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+
+    const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+    const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
+
+    useEffect(() => {
+        UserService.getCurrentUserProfile().then(p => setUserRole(p?.role || 'agent'));
+    }, []);
 
     // Debounce search
     useEffect(() => {
@@ -115,6 +127,10 @@ export default function MasterDataPage() {
                 const { data, count } = await MasterDataService.getTourGuides(options);
                 setGuides(data);
                 setTotalCount(count);
+            } else if (activeTab === 'approvals') {
+                const data = await MasterDataApprovalsService.getPendingApprovals();
+                setApprovals(data);
+                setTotalCount(data.length);
             }
         } catch (error) {
             console.error("Failed to load data:", error);
@@ -217,15 +233,17 @@ export default function MasterDataPage() {
                     <h1 className="text-3xl font-bold font-playfair text-[#2B2B2B]">Master Database</h1>
                     <p className="text-[#6B7280] mt-1">Manage global records for vendors, partners, and user accounts.</p>
                 </div>
-                <button onClick={handleAdd} className="bg-brand-green hover:bg-brand-charcoal text-white px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm">
-                    <Plus size={18} /> Add New Record
-                </button>
+                {activeTab !== 'approvals' && (
+                    <button onClick={handleAdd} className="bg-brand-green hover:bg-brand-charcoal text-white px-6 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm text-sm">
+                        <Plus size={18} /> Add New Record
+                    </button>
+                )}
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
                 {/* Tabs */}
                 <div className="flex items-center overflow-x-auto border-b border-neutral-100 px-6">
-                    {DATABASES.map(db => {
+                    {(userRole === 'admin' ? [{ id: 'approvals', label: 'Pending Approvals', icon: Inbox }, ...DATABASES] : DATABASES).map(db => {
                         const Icon = db.icon;
                         const isActive = activeTab === db.id;
                         return (
@@ -235,6 +253,9 @@ export default function MasterDataPage() {
                                 className={`flex items-center gap-2 px-6 py-4 font-bold text-sm tracking-wide transition-colors border-b-2 ${isActive ? 'border-brand-green text-brand-green bg-brand-green/5' : 'border-transparent text-neutral-500 hover:text-brand-charcoal hover:bg-neutral-50'}`}
                             >
                                 <Icon size={16} /> {db.label}
+                                {db.id === 'approvals' && approvals.length > 0 && (
+                                    <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{approvals.length}</span>
+                                )}
                             </button>
                         );
                     })}
@@ -259,29 +280,71 @@ export default function MasterDataPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-neutral-50 border-b border-neutral-200 text-xs uppercase tracking-wider font-bold text-neutral-500">
-                                <th className="p-4 pl-6">Identifier name</th>
-                                <th className="p-4">Category</th>
-                                <th onClick={() => toggleSort(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : 'name')} className="p-4 pl-6 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest cursor-pointer group hover:text-brand-green">
+                                <th className="p-4 pl-6">
+                                    {activeTab === 'approvals' ? 'Request Type' : 'Identifier name'}
+                                </th>
+                                <th className="p-4">
+                                    {activeTab === 'approvals' ? 'Entity Context' : 'Category'}
+                                </th>
+                                <th onClick={() => activeTab !== 'approvals' && toggleSort(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : 'name')} className={`p-4 pl-6 text-left text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
                                     <div className="flex items-center">
-                                        {activeTab === 'drivers' || activeTab === 'guides' ? 'Full Name' : (activeTab === 'hotels' ? 'Hotel Name' : 'Name')}
-                                        {renderSortIcon(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : 'name')}
+                                        {activeTab === 'approvals' ? 'Requested By' : activeTab === 'drivers' || activeTab === 'guides' ? 'Full Name' : (activeTab === 'hotels' ? 'Hotel Name' : 'Name')}
+                                        {activeTab !== 'approvals' && renderSortIcon(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : 'name')}
                                     </div>
                                 </th>
-                                <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">Category</th>
                                 <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
-                                    {activeTab === 'hotels' ? 'Rooms' : (activeTab === 'vendors' ? 'Phone' : (activeTab === 'restaurants' ? 'Cuisine / Phone' : (activeTab === 'transports' ? 'Vehicles' : 'Contact')))}
+                                    {activeTab === 'approvals' ? 'Date' : 'Category'}
                                 </th>
-                                <th onClick={() => toggleSort('is_suspended')} className="p-4 text-center text-[10px] uppercase font-black text-neutral-400 tracking-widest cursor-pointer group hover:text-brand-green">
+                                {activeTab !== 'approvals' && (
+                                    <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
+                                        {activeTab === 'hotels' ? 'Rooms' : (activeTab === 'vendors' ? 'Phone' : (activeTab === 'restaurants' ? 'Cuisine / Phone' : (activeTab === 'transports' ? 'Vehicles' : 'Contact')))}
+                                    </th>
+                                )}
+                                <th onClick={() => activeTab !== 'approvals' && toggleSort('is_suspended')} className={`p-4 text-center text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
                                     <div className="flex items-center justify-center">
                                         Status
-                                        {renderSortIcon('is_suspended')}
+                                        {activeTab !== 'approvals' && renderSortIcon('is_suspended')}
                                     </div>
                                 </th>
                                 <th className="p-4 pr-6 text-right text-[10px] uppercase font-black text-neutral-400 tracking-widest">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-100 text-sm text-brand-charcoal font-medium">
-                            {activeTab === 'hotels' ? (
+                            {activeTab === 'approvals' ? (
+                                loading ? (
+                                    <tr><td colSpan={7} className="p-8 text-center text-neutral-500 font-bold">Loading records...</td></tr>
+                                ) : approvals.length === 0 ? (
+                                    <tr><td colSpan={7} className="p-8 text-center text-neutral-500 font-bold">No pending approvals found.</td></tr>
+                                ) : (
+                                    approvals.map(row => (
+                                        <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
+                                            <td className="p-4 pl-6 font-bold capitalize">
+                                                <span className={`inline-block px-2 py-0.5 text-[10px] rounded mr-2 ${row.action === 'CREATE' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{row.action}</span>
+                                                {row.entity_type}
+                                            </td>
+                                            <td className="p-4 text-neutral-500">
+                                                {row.contact_details?.name || 'Unknown Contact'}
+                                            </td>
+                                            <td className="p-4 pl-6 text-neutral-500">
+                                                {((row as any).agent?.first_name ? `${(row as any).agent.first_name} ${(row as any).agent.last_name || ''}` : row.requested_by)}
+                                            </td>
+                                            <td className="p-4 text-neutral-500 text-xs">
+                                                {new Date(row.created_at!).toLocaleDateString()}
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className="inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full bg-amber-100 text-amber-700">
+                                                    {row.status}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 pr-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => { setSelectedApproval(row); setIsApprovalModalOpen(true); }} className="px-3 py-1.5 text-xs font-bold text-brand-green bg-brand-green/10 hover:bg-brand-green/20 rounded-lg transition-colors flex items-center gap-1"><Eye size={14} /> Review</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )
+                            ) : activeTab === 'hotels' ? (
                                 loading ? (
                                     <tr>
                                         <td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">Loading records...</td>
@@ -513,36 +576,51 @@ export default function MasterDataPage() {
                 onClose={() => setIsHotelModalOpen(false)}
                 hotel={selectedHotel}
                 onSave={loadData}
+                userRole={userRole}
             />
             <VendorFormModal
                 isOpen={isVendorModalOpen}
                 onClose={() => setIsVendorModalOpen(false)}
                 vendor={selectedVendor}
                 onSave={loadData}
+                userRole={userRole}
             />
             <DriverFormModal
                 isOpen={isDriverModalOpen}
                 onClose={() => setIsDriverModalOpen(false)}
                 driver={selectedDriver}
                 onSave={loadData}
+                userRole={userRole}
             />
             <TourGuideFormModal
                 isOpen={isGuideModalOpen}
                 onClose={() => setIsGuideModalOpen(false)}
                 guide={selectedGuide}
                 onSave={loadData}
+                userRole={userRole}
             />
             <TransportProviderFormModal
                 isOpen={isTransportModalOpen}
                 onClose={() => setIsTransportModalOpen(false)}
                 provider={selectedTransport}
                 onSave={loadData}
+                userRole={userRole}
             />
             <RestaurantFormModal
                 isOpen={isRestaurantModalOpen}
                 onClose={() => setIsRestaurantModalOpen(false)}
                 restaurant={selectedRestaurant}
                 onSave={loadData}
+                userRole={userRole}
+            />
+            <ApprovalReviewModal
+                isOpen={isApprovalModalOpen}
+                onClose={() => setIsApprovalModalOpen(false)}
+                request={selectedApproval}
+                onResolved={() => {
+                    loadData();
+                    // Optionally refresh other tabs data if we switch
+                }}
             />
         </div>
     );

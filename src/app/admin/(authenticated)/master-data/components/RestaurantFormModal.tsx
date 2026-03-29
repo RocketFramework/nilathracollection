@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, Restaurant } from "@/services/master-data.service";
+import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
 
 interface RestaurantFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     restaurant?: Restaurant | null;
     onSave: () => void;
+    userRole: string;
 }
 
 const TABS = ["Basic Info", "Meal Rates", "Payment Details"];
 
-export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSave }: RestaurantFormModalProps) {
+export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSave, userRole }: RestaurantFormModalProps) {
     const [activeTab, setActiveTab] = useState(TABS[0]);
     const [loading, setLoading] = useState(false);
+    const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<Restaurant>>({
         name: "", address: "", contact_name: "", contact_number: "", email: "",
@@ -46,6 +49,7 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                 setCoordinateInput("");
             }
             setActiveTab(TABS[0]);
+            setProofImage(null);
         }
     }, [isOpen, restaurant]);
 
@@ -82,15 +86,38 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
         if (!formData.name) return alert("Restaurant name is required");
         setLoading(true);
         try {
-            const savedId = await MasterDataService.saveRestaurant(formData as Restaurant);
-            onSave();
+            if (userRole === 'agent') {
+                let proof_image_url = null;
+                const hasPayment = formData.payment_details?.bank_name || formData.payment_details?.account_number;
+                if (hasPayment && proofImage) {
+                    proof_image_url = await MasterDataApprovalsService.uploadPaymentProofImage(proofImage);
+                } else if (hasPayment && !proofImage && !restaurant?.payment_details?.id) {
+                    alert("A verification proof image is required when setting up payment details.");
+                    setLoading(false);
+                    return;
+                }
 
-            if (savedId) {
-                const updated = await MasterDataService.getRestaurant(savedId);
-                setFormData({ ...updated, payment_details: updated.payment_details || {} });
-                setCoordinateInput((updated.lat && updated.lng) ? `${updated.lat}, ${updated.lng}` : "");
+                await MasterDataApprovalsService.submitApproval({
+                    entity_type: 'restaurant',
+                    entity_id: formData.id || null,
+                    action: formData.id ? 'UPDATE' : 'CREATE',
+                    proposed_data: formData,
+                    contact_details: { name: formData.contact_name || formData.name, phone: formData.contact_number, email: formData.email },
+                    proof_image_url
+                });
+                alert("Request sent for Admin approval.");
+                onClose();
+            } else {
+                const savedId = await MasterDataService.saveRestaurant(formData as Restaurant);
+                onSave();
+
+                if (savedId) {
+                    const updated = await MasterDataService.getRestaurant(savedId);
+                    setFormData({ ...updated, payment_details: updated.payment_details || {} });
+                    setCoordinateInput((updated.lat && updated.lng) ? `${updated.lat}, ${updated.lng}` : "");
+                }
+                alert("Restaurant saved successfully.");
             }
-            alert("Restaurant saved successfully.");
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "An unknown error occurred";
             alert(`Error saving restaurant: ${message}`);
@@ -383,6 +410,18 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">SWIFT Code</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.payment_details?.swift_code || ''} onChange={e => handlePaymentChange('swift_code', e.target.value)} />
                             </div>
+
+                            <div className="col-span-2 text-sm font-bold text-[#2B2B2B] bg-neutral-100 p-3 rounded-lg mt-4">Verification Proof</div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-4 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all bg-amber-50/30">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider block mb-2">Upload Bank Slip/Document {userRole === 'agent' && '*'}</label>
+                                <input
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    className="w-full text-sm outline-none text-brand-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-green/10 file:text-brand-green hover:file:bg-brand-green/20 cursor-pointer"
+                                    onChange={e => setProofImage(e.target.files?.[0] || null)}
+                                />
+                                <p className="text-[10px] text-neutral-400 mt-2">Required if adding or updating payment details to ensure accuracy.</p>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -392,7 +431,7 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                         Cancel
                     </button>
                     <button onClick={handleSubmit} disabled={loading} className={`px-8 py-2.5 rounded-xl font-bold text-white transition-all flex items-center gap-2 shadow-sm ${loading ? 'bg-neutral-400 cursor-not-allowed' : 'bg-brand-green hover:bg-brand-charcoal hover:shadow-md'}`}>
-                        {loading ? "Saving..." : <><Check size={18} /> {restaurant ? "Save Changes" : "Create Restaurant"}</>}
+                        {loading ? "Saving..." : <><Check size={18} /> {userRole === 'agent' ? "Submit for Approval" : (restaurant ? "Save Changes" : "Create Restaurant")}</>}
                     </button>
                 </div>
             </div>

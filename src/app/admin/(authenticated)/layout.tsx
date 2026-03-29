@@ -3,7 +3,32 @@ import Link from "next/link";
 import { LayoutDashboard, Users, Settings, LogOut, Package, Compass, MapPin, Database, UserPlus } from "lucide-react";
 import { logoutAction } from "../../actions/auth";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+import { createClient } from "@/utils/supabase/server";
+
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    let isAdmin = false;
+    let userInitials = "NC";
+
+    if (user) {
+        // Check role robustly
+        const { data: role } = await supabase.rpc('get_user_role', { user_id: user.id });
+        if (role === 'admin') {
+            isAdmin = true;
+            const { data: adminData } = await supabase.from('admin_profiles').select('first_name').eq('id', user.id).single();
+            if (adminData && adminData.first_name) {
+                userInitials = adminData.first_name.substring(0, 2).toUpperCase();
+            }
+        } else if (role === 'agent') {
+            const { data: agentData } = await supabase.from('agent_profiles').select('first_name').eq('id', user.id).single();
+            if (agentData && agentData.first_name) {
+                userInitials = agentData.first_name.substring(0, 2).toUpperCase();
+            }
+        }
+    }
+
     return (
         <div className="flex h-screen bg-[#F5F3EF] text-[#2B2B2B] font-sans overflow-hidden">
             {/* Sidebar */}
@@ -29,22 +54,31 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         <Package size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                         <span className="font-medium tracking-wide">Packages</span>
                     </Link>
-                    <Link href="/admin/user-management" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <Users size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Users</span>
-                    </Link>
+
+                    {isAdmin && (
+                        <>
+                            <Link href="/admin/user-management" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <Users size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Users</span>
+                            </Link>
+                            <Link href="/admin/users/create-agent" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <UserPlus size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Create Agent</span>
+                            </Link>
+                        </>
+                    )}
+
                     <Link href="/admin/master-data" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                         <Database size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                         <span className="font-medium tracking-wide">Master Data</span>
                     </Link>
-                    <Link href="/admin/users/create-agent" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <UserPlus size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Create Agent</span>
-                    </Link>
-                    <Link href="/admin/settings" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <Settings size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Settings</span>
-                    </Link>
+
+                    {isAdmin && (
+                        <Link href="/admin/settings" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                            <Settings size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                            <span className="font-medium tracking-wide">Settings</span>
+                        </Link>
+                    )}
                 </nav>
                 <div className="p-6 border-t border-[#E5E7EB]">
                     <form action={logoutAction}>
@@ -63,7 +97,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <h1 className="text-xl font-semibold text-[#2B2B2B] font-playfair tracking-wide flex-shrink-0">Admin Dashboard</h1>
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-[#2B2B2B] flex items-center justify-center text-[#D4AF37] font-bold text-sm shadow-md">
-                            NC
+                            {userInitials}
                         </div>
                     </div>
                 </header>
