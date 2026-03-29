@@ -74,11 +74,12 @@ export class RequestService {
         return data;
     }
 
-    static async getAllRequests(page: number = 1, pageSize: number = 10) {
+    static async getAllRequests(page: number = 1, pageSize: number = 10, customClient?: any) {
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
+        const client = customClient || supabase;
 
-        const { data, count, error } = await supabase
+        const { data, count, error } = await client
             .from('requests')
             .select(`
                 id,
@@ -117,13 +118,14 @@ export class RequestService {
         adminAssignedTo?: string;
         nightsOperator?: 'Higher than' | 'Lower than';
         nightsValue?: number;
-    }, page: number = 1, pageSize: number = 10) {
+    }, page: number = 1, pageSize: number = 10, customClient?: any) {
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
+        const client = customClient || supabase;
 
         const detailsJoin = filters.nightsValue !== undefined ? '!inner' : '';
 
-        let query = supabase
+        let query = client
             .from('requests')
             .select(`
                 id,

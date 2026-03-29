@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Package, MapPin, TrendingUp, AlertTriangle, CheckCircle, Navigation, Phone, Calendar, DollarSign, Plane, User, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { UserService } from "@/services/user.service";
-import { createTourAction } from "@/actions/admin.actions";
+import { createClient } from "@/utils/supabase/client";
+import { createTourAction, getDashboardRequestsAction } from "@/actions/admin.actions";
 
 export default function AdminDashboard() {
     const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
@@ -37,59 +37,50 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        UserService.getCurrentUserProfile().then(p => {
-            setUserRole(p?.role as any || 'agent');
-            setUserId(p?.id || null);
-        });
-    }, []);
-
-    useEffect(() => {
         const fetchRequests = async () => {
-            if (!userRole || !userId) return; // Wait for auth
             setIsLoading(true);
             try {
-                const { RequestService } = await import('@/services/request.service');
+                const result = await getDashboardRequestsAction({}, currentPage, pageSize);
 
-                let result;
-                if (userRole === 'admin') {
-                    result = await RequestService.getAllRequests(currentPage, pageSize);
-                } else {
-                    result = await RequestService.getRequestsWithFilters({ adminAssignedTo: userId }, currentPage, pageSize);
-                }
-                const { data, count } = result;
+                if (result.success && result.data) {
+                    setUserRole(result.role as 'admin' | 'agent');
+                    setUserId(result.userId as string);
 
-                // Map database format to UI format
-                if (data) {
-                    const mapped = data.map((req: any) => {
-                        const touristName = req.tourist_profile?.[0]?.first_name && req.tourist_profile?.[0]?.last_name
-                            ? `${req.tourist_profile[0].first_name} ${req.tourist_profile[0].last_name}`
-                            : req.name || req.email || 'Anonymous';
+                    const { data, count } = result;
 
-                        const dests = req.details?.[0]?.destinations || [];
-                        const packageName = req.details?.[0]?.package_name || req.request_type;
+                    // Map database format to UI format
+                    if (data) {
+                        const mapped = data.map((req: any) => {
+                            const touristName = req.tourist_profile?.[0]?.first_name && req.tourist_profile?.[0]?.last_name
+                                ? `${req.tourist_profile[0].first_name} ${req.tourist_profile[0].last_name}`
+                                : req.name || req.email || 'Anonymous';
 
-                        return {
-                            id: req.id,
-                            type: req.request_type === 'package' ? packageName : 'Custom Plan',
-                            touristName: touristName,
-                            email: req.email,
-                            phone_number: req.phone_number,
-                            country: req.departure_country,
-                            budget: req.budget || req.details?.[0]?.estimated_price,
-                            startDate: req.start_date || req.details?.[0]?.start_date,
-                            durationNights: req.duration_nights || req.details?.[0]?.nights,
-                            adults: req.adults || 0,
-                            children: req.children || 0,
-                            infants: req.infants || 0,
-                            status: req.status,
-                            destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
-                            assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
-                            date: new Date(req.created_at).toLocaleDateString(),
-                            time: new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        };
-                    });
-                    setRequests(mapped);
-                    setTotalPages(Math.ceil((count || 0) / pageSize) || 1);
+                            const dests = req.details?.[0]?.destinations || [];
+                            const packageName = req.details?.[0]?.package_name || req.request_type;
+
+                            return {
+                                id: req.id,
+                                type: req.request_type === 'package' ? packageName : 'Custom Plan',
+                                touristName: touristName,
+                                email: req.email,
+                                phone_number: req.phone_number,
+                                country: req.departure_country,
+                                budget: req.budget || req.details?.[0]?.estimated_price,
+                                startDate: req.start_date || req.details?.[0]?.start_date,
+                                durationNights: req.duration_nights || req.details?.[0]?.nights,
+                                adults: req.adults || 0,
+                                children: req.children || 0,
+                                infants: req.infants || 0,
+                                status: req.status,
+                                destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
+                                assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
+                                date: new Date(req.created_at).toLocaleDateString(),
+                                time: new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            };
+                        });
+                        setRequests(mapped);
+                        setTotalPages(Math.ceil((count || 0) / pageSize) || 1);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to load requests:", error);
@@ -99,7 +90,7 @@ export default function AdminDashboard() {
         };
 
         fetchRequests();
-    }, [currentPage, userRole, userId]);
+    }, [currentPage]);
 
     const handleNextPage = () => {
         if (currentPage < totalPages) setCurrentPage(c => c + 1);

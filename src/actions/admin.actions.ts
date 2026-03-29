@@ -10,6 +10,66 @@ import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
 import { CurrencyService } from "@/services/currency.service";
 import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
+import { createClient } from "@/utils/supabase/server";
+import { RequestService } from "@/services/request.service";
+
+export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const adminSupabase = createAdminClient();
+        const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
+        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
+        const metadataRole = user.user_metadata?.role;
+
+        const isRpcAdmin = typeof rpcRole === 'string'
+            ? rpcRole.trim().toLowerCase() === 'admin'
+            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role === 'admin';
+
+        const isAdmin = isRpcAdmin || adminData || metadataRole === 'admin';
+
+        let apiFilters = { ...filters };
+
+        if (!isAdmin) {
+            apiFilters.adminAssignedTo = user.id;
+        }
+
+        const { data, count } = await RequestService.getRequestsWithFilters(apiFilters, currentPage, pageSize, adminSupabase);
+
+        return { success: true, data, count, role: isAdmin ? 'admin' : 'agent', userId: user.id };
+    } catch (error: any) {
+        console.error("Error fetching dashboard requests:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getUserRoleAction() {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: true, role: 'guest', id: null };
+
+        const adminSupabase = createAdminClient();
+        const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
+        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
+        const metadataRole = user.user_metadata?.role;
+
+        const isRpcAdmin = typeof rpcRole === 'string'
+            ? rpcRole.trim().toLowerCase() === 'admin'
+            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role === 'admin';
+
+        if (isRpcAdmin || adminData || metadataRole === 'admin') {
+            return { success: true, role: 'admin', id: user.id };
+        }
+
+        return { success: true, role: 'agent', id: user.id };
+    } catch (error: any) {
+        console.error("Error fetching user role:", error);
+        return { success: false, role: 'agent', id: null };
+    }
+}
 
 export async function createAgentAction(formData: FormData) {
     try {
