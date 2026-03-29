@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { blogPosts } from '@/data/blog-posts';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://nilathra.com';
+    const baseUrl = 'https://www.nilathra.com';
 
     // Static routes
     const staticRoutes = [
@@ -13,8 +13,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
         '/plans/luxury',
         '/plans/premium',
         '/plans/regular',
-        '/plans/ultra-vip', 
+        '/plans/ultra-vip',
         '/packages',
+        '/for-vip',
         '/destinations',
         '/blog',
         '/careers',
@@ -31,6 +32,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: route === '' ? 1 : 0.8,
     }));
 
+    // Dynamic destination routes
+    const destinationSlugs = [
+        "sigiriya", "galle", "ella", "yala", "kandy",
+        "bentota", "nuwara-eliya", "trincomalee", "colombo"
+    ];
+
+    const destinationRoutes = destinationSlugs.map((slug) => ({
+        url: `${baseUrl}/destinations/${slug}`,
+        lastModified: new Date(),
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+    }));
+
     // Dynamic blog routes
     const blogRoutes = blogPosts.map((post) => ({
         url: `${baseUrl}/blog/${post.slug}`,
@@ -39,5 +53,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.6,
     }));
 
-    return [...staticRoutes, ...blogRoutes];
+    return [...staticRoutes, ...destinationRoutes, ...blogRoutes];
 }
