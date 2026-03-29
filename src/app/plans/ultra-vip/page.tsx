@@ -2,7 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import UltraVIPPlan from "@/components/plans/UltraVIPPlan";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Ultra VIP Plan | The Best VIP Tour Packages from Sri Lanka",
+};
 export default function UltraVIPPage() {
     return (
         <MainLayout>

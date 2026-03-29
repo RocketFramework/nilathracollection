@@ -2,6 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Explore Destinations | Tour of Sri Lanka & Travel to Sri Lanka",
+};
 
 const destinations = [
     {

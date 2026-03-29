@@ -2,7 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import PremiumPlan from "@/components/plans/PremiumPlan";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Premium Plan | Premium Tour Booking Sri Lanka",
+};
 export default function PremiumPage() {
     return (
         <MainLayout>

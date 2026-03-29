@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const canonicalUrl = `${BASE_URL}/blog/${post.slug}`;
 
     return {
-        title: `${post.title} | Nilathra Collection Blog`,
+        title: `${post.title} | Travel Blog Sri Lanka`,
         description: post.excerpt,
         alternates: {
             canonical: canonicalUrl,

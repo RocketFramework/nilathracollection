@@ -1,7 +1,11 @@
 import MainLayout from "@/components/layout/MainLayout";
 import { motion } from "framer-motion";
 import { Shield, Gavel, FileText, CreditCard, UserCheck, Stethoscope, AlertCircle, HelpCircle } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Booking Conditions | Tour Booking Sri Lanka Policy",
+};
 export default function BookingConditionsPage() {
     return (
         <MainLayout>

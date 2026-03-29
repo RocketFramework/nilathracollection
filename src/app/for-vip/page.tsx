@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import MainLayout from "@/components/layout/MainLayout";
 
 export const metadata: Metadata = {
-    title: "For VIP | Nilathra Collection",
+    title: "VIP Tour Packages from Sri Lanka | Exclusive Luxury Travel",
     description: "Experience Thabrobana: The ultimate luxury travel destination. A land like no other.",
 };
 

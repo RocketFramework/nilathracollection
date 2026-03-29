@@ -41,6 +41,7 @@ export default function TouristLayout({ children }: { children: React.ReactNode 
 
     return (
         <div className="min-h-screen bg-[#F9FAFB] flex flex-col">
+            <title>Tourist Portal | Your Tour of Sri Lanka Dashboard</title>
             {/* Top Navigation - Hide on login page */}
             {!pathname?.includes('/tourist/login') && (
                 <header className="bg-white border-b border-neutral-200 sticky top-0 z-40 shadow-sm">

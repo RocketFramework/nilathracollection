@@ -227,6 +227,8 @@ const destinationsData: Record<string, any> = {
     },
 };
 
+import { Metadata } from "next";
+
 export async function generateStaticParams() {
     return [
         { slug: "sigiriya" },
@@ -239,6 +241,16 @@ export async function generateStaticParams() {
         { slug: "trincomalee" },
         { slug: "colombo" },
     ];
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+    const { slug } = await params;
+    const data = destinationsData[slug] || destinationsData["sigiriya"];
+
+    return {
+        title: `${data.name} | Tour of Sri Lanka & Travel to Sri Lanka`,
+        description: data.description,
+    };
 }
 
 export default function DestinationPage({ params }: { params: Promise<{ slug: string }> }) {

@@ -2,7 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import RegularPlan from "@/components/plans/RegularPlan";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Standard Plan | Affordable Tour Sri Lanka Price",
+};
 export default function RegularPage() {
     return (
         <MainLayout>

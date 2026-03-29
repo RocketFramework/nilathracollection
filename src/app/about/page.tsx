@@ -1,7 +1,11 @@
 import MainLayout from "@/components/layout/MainLayout";
 import Image from "next/image";
 import { Award, ShieldCheck, HeartHandshake, Map } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "About Us | Sri Lanka Tour Company & Top 10 Travel Agencies",
+};
 export default function AboutPage() {
     return (
         <MainLayout>

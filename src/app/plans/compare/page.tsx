@@ -2,7 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import PlanComparison from "@/components/plans/PlanComparison";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Compare Plans | Who Are The Best Travel Agencies in Sri Lanka?",
+};
 export default function ComparePlansPage() {
     return (
         <MainLayout>

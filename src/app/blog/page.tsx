@@ -2,7 +2,7 @@ import BlogListingContent from "./BlogListingContent";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "The Nilathra Journal | Luxury Travel Blog Sri Lanka",
+    title: "Travel Blog | Travel to Sri Lanka Tips & Guides",
     description: "Discover the secrets of the island, from hidden heritage sites to the nuances of world-class concierge service. Insights and inspirations from Nilathra Collection.",
     keywords: [
         "luxury travel blog sri lanka",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
         canonical: "https://nilathra.com/blog",
     },
     openGraph: {
-        title: "The Nilathra Journal | Luxury Travel Insights",
+        title: "Travel Blog | Travel to Sri Lanka Tips & Guides",
         description: "Discover the secrets of the island with Nilathra Collection.",
         url: "https://nilathra.com/blog",
         siteName: "Nilathra Collection",

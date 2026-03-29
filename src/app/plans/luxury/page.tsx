@@ -2,7 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import LuxuryPlan from "@/components/plans/LuxuryPlan";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Luxury Plan | High-End Tour Sri Lanka Packages",
+};
 export default function LuxuryPage() {
     return (
         <MainLayout>

@@ -1,6 +1,10 @@
 import MainLayout from "@/components/layout/MainLayout";
 import { Info, MousePointer2, Phone, UserCheck, ShieldAlert, Plane, Building2, Clock, Camera, FileCheck } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Terms of Service | Sri Lanka Tour Website",
+};
 export default function TermsOfServicePage() {
     return (
         <MainLayout>

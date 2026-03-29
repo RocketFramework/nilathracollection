@@ -2,7 +2,11 @@ import MainLayout from "@/components/layout/MainLayout";
 import { Check, Gem, Star, Shield, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Sri Lanka Tours Packages | Tour Sri Lanka Packages & Prices",
+};
 const tiers = [
     {
         name: "Super Luxury VIP",

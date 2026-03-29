@@ -17,7 +17,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   metadataBase: new URL("https://nilathra.com"),
   title: {
-    default: "Nilathra Collection | Above and Beyond the Norm | Luxury Travel Sri Lanka",
+    default: "Best Travel Agency in Sri Lanka | Holidays in Sri Lanka",
     template: "%s | Nilathra Collection"
   },
   description: "Nilathra Collection is Sri Lanka's premier luxury travel curator. Experience bespoke journeys, VIP handling, and heritage retreats that go above and beyond the norm.",

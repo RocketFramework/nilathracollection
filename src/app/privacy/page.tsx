@@ -1,6 +1,10 @@
 import MainLayout from "@/components/layout/MainLayout";
 import { Shield, Lock, Eye, Users, Globe, Database, Scale, Mail } from "lucide-react";
+import { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Privacy Policy | Nilathra Collection Sri Lanka Tour Website",
+};
 export default function PrivacyPolicyPage() {
     return (
         <MainLayout>
