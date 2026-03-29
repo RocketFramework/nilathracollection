@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Settings, LogOut, Package, Compass, MapPin, Dat
 import { logoutAction } from "../../actions/auth";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
     const supabase = await createClient();
@@ -13,16 +14,22 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     let userInitials = "NC";
 
     if (user) {
-        // Check role robustly
-        const { data: role } = await supabase.rpc('get_user_role', { user_id: user.id });
-        if (role === 'admin') {
+        // Broad check for admin using service role client to bypass any RLS read restrictions
+        const adminSupabase = createAdminClient();
+        const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
+        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
+        const metadataRole = user.user_metadata?.role;
+
+        const isRpcAdmin = typeof rpcRole === 'string'
+            ? rpcRole.trim().toLowerCase() === 'admin'
+            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role === 'admin';
+
+        if (isRpcAdmin || adminData || metadataRole === 'admin') {
             isAdmin = true;
-            const { data: adminData } = await supabase.from('admin_profiles').select('first_name').eq('id', user.id).single();
-            if (adminData && adminData.first_name) {
-                userInitials = adminData.first_name.substring(0, 2).toUpperCase();
-            }
-        } else if (role === 'agent') {
-            const { data: agentData } = await supabase.from('agent_profiles').select('first_name').eq('id', user.id).single();
+            userInitials = adminData?.first_name ? adminData.first_name.substring(0, 2).toUpperCase() : "AD";
+        } else {
+            // Retrieve agent info for initials
+            const { data: agentData } = await adminSupabase.from('agent_profiles').select('*').eq('id', user.id).single();
             if (agentData && agentData.first_name) {
                 userInitials = agentData.first_name.substring(0, 2).toUpperCase();
             }
