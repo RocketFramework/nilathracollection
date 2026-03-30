@@ -1,7 +1,7 @@
 "use client";
 
-import { TripProfile, ServiceScope, TripData } from "../types";
-import { Users, Calendar, Wallet, CheckSquare, Check, AlertTriangle } from "lucide-react";
+import { TripProfile, ServiceScope, TripData, Traveler } from "../types";
+import { Users, Calendar, Wallet, CheckSquare, Check, AlertTriangle, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 const allScopes: ServiceScope[] = [
@@ -48,6 +48,52 @@ export function ScopeAndProfileStep({ tripData, updateData }: { tripData: TripDa
 
     const profile = tripData.profile;
     const [durationError, setDurationError] = useState('');
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const XLSX = await import('xlsx');
+                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                // Assuming Name is at index 0, Passport 1, Nationality 2, Dietary 3, Room 4, Medical 5
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+                const newTravelers: Traveler[] = [];
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    if (!row || row.length === 0 || !row[0]) continue;
+
+                    newTravelers.push({
+                        id: crypto.randomUUID(),
+                        fullName: row[0] ? String(row[0]) : '',
+                        passportNumber: row[1] ? String(row[1]) : '',
+                        nationality: row[2] ? String(row[2]) : '',
+                        dietaryPreferences: row[3] ? String(row[3]) : '',
+                        roomPreference: (row[4] === 'Single' || row[4] === 'Twin' || row[4] === 'Family') ? row[4] : 'Double',
+                        medicalNotes: row[5] ? String(row[5]) : ''
+                    });
+                }
+
+                if (newTravelers.length > 0) {
+                    updateData({ travelers: [...(tripData.travelers || []), ...newTravelers] });
+                    alert(`Successfully imported ${newTravelers.length} travelers!`);
+                } else {
+                    alert("No valid travelers found in the Excel file. Please ensure the first column (Full Name) is not empty on data rows. (Row 1 is skipped to account for headers).");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Failed to parse Excel file. Please ensure it's a valid clear format.");
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = ''; // Reset input to allow re-selection
+    };
 
     const toggleScope = (scope: ServiceScope) => {
         const isAdding = !tripData.serviceScopes.includes(scope);
@@ -331,6 +377,95 @@ export function ScopeAndProfileStep({ tripData, updateData }: { tripData: TripDa
                     </div>
                 </div>
 
+            </section>
+
+            {/* Traveler Details Module */}
+            <section className="bg-white p-6 md:p-8 rounded-3xl border border-neutral-200 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 w-40 h-40 opacity-5 -z-10 pointer-events-none">
+                    <Users className="w-full h-full text-brand-gold" />
+                </div>
+                <h3 className="text-xl font-serif text-brand-green mb-2 flex items-center gap-2">
+                    <Users size={20} className="text-brand-gold" /> Step 3: Individual Travelers
+                </h3>
+                <p className="text-neutral-500 text-sm mb-6 pb-4 border-b">Capture detailed passport, rooming, and medical notes for each passenger.</p>
+
+                <div className="space-y-6">
+                    {(tripData.travelers || []).map((t, index) => (
+                        <div key={t.id} className="p-6 bg-neutral-50 border border-neutral-200 rounded-2xl relative">
+                            <button onClick={() => updateData({ travelers: (tripData.travelers || []).filter(tv => tv.id !== t.id) })} className="absolute top-4 right-4 text-neutral-400 hover:text-red-500 transition-colors">
+                                <Trash2 size={16} />
+                            </button>
+                            <h4 className="font-bold text-brand-charcoal text-sm mb-4">Traveler {index + 1}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-xs text-neutral-500 mb-1 block">Full Name</label>
+                                    <input type="text" value={t.fullName} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, fullName: e.target.value } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold" placeholder="Jane Doe" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-neutral-500 mb-1 block">Passport Number</label>
+                                    <input type="text" value={t.passportNumber || ''} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, passportNumber: e.target.value } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold" placeholder="P12345678" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-neutral-500 mb-1 block">Nationality</label>
+                                    <input type="text" value={t.nationality || ''} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, nationality: e.target.value } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold" placeholder="British" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-neutral-500 mb-1 block">Dietary Preferences</label>
+                                    <input type="text" value={t.dietaryPreferences || ''} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, dietaryPreferences: e.target.value } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold" placeholder="Vegetarian, Halal, etc." />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-neutral-500 mb-1 block">Room Preference</label>
+                                    <select value={t.roomPreference || 'Double'} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, roomPreference: e.target.value as any } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold outline-none">
+                                        <option value="Single">Single</option>
+                                        <option value="Double">Double</option>
+                                        <option value="Twin">Twin</option>
+                                        <option value="Family">Family</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-neutral-500 mb-1 block">Medical / Special Notes</label>
+                                    <input type="text" value={t.medicalNotes || ''} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, medicalNotes: e.target.value } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold" placeholder="Allergies, wheelchair..." />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={() => {
+                                const newTraveler = {
+                                    id: crypto.randomUUID(),
+                                    fullName: '',
+                                    passportNumber: '',
+                                    nationality: '',
+                                    dietaryPreferences: '',
+                                    roomPreference: 'Double' as const,
+                                    medicalNotes: ''
+                                };
+                                updateData({ travelers: [...(tripData.travelers || []), newTraveler] });
+                            }}
+                            className="flex items-center gap-2 text-brand-gold font-bold hover:text-brand-green transition-colors text-sm px-5 py-3 bg-brand-gold/10 hover:bg-brand-green/10 rounded-xl"
+                        >
+                            <Plus size={16} /> Add Traveler Profile
+                        </button>
+
+                        <div className="relative">
+                            <input
+                                type="file"
+                                id="excel-upload"
+                                className="hidden"
+                                accept=".xlsx, .xls, .csv"
+                                onChange={handleFileUpload}
+                            />
+                            <label
+                                htmlFor="excel-upload"
+                                className="flex items-center gap-2 text-neutral-600 font-bold hover:text-brand-green transition-colors text-sm px-5 py-3 bg-neutral-100 hover:bg-brand-green/10 rounded-xl cursor-pointer"
+                            >
+                                <Upload size={16} /> Import via Excel
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
     );

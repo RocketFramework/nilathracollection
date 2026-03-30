@@ -40,7 +40,7 @@ export class TourService {
                     admin_profile:admin_profiles(first_name, last_name),
                     agent_profile:agent_profiles(first_name, last_name)
                 ),
-                request:requests(email, budget, duration_nights)
+                request:requests(name, email, budget, duration_nights)
             `)
             .in('status', statuses)
             .order('created_at', { ascending: false });

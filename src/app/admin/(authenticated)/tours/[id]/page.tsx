@@ -24,7 +24,7 @@ export default function TourDetailViewPage() {
         setIsLoading(true);
         const res = await getTourDataAction(tourId);
         if (res.success && res.data) {
-            setTripData(res.data.tripData);
+            setTripData(res.data.tripData as TripData);
             setTourMsg(res.data.tourMsg);
         } else {
             console.error(res.error);

@@ -188,6 +188,16 @@ export interface InternalItineraryBlock {
     transportQuantity?: number;
 }
 
+export interface Traveler {
+    id: string;
+    fullName: string;
+    passportNumber?: string;
+    nationality?: string;
+    dietaryPreferences?: string;
+    roomPreference?: 'Single' | 'Double' | 'Twin' | 'Family';
+    medicalNotes?: string;
+}
+
 export interface TripData {
     id?: string;
     clientName: string;
@@ -198,6 +208,7 @@ export interface TripData {
     status: TripStatus;
     serviceScopes: ServiceScope[];
     profile: TripProfile;
+    travelers?: Traveler[];
 
     // Default Trip-Wide Assignments
     defaultDriverId?: string;

@@ -32,7 +32,8 @@ export default function AdminToursPage() {
                 if (filters.search) {
                     const lcSearch = filters.search.toLowerCase();
                     data = data.filter((t: any) => {
-                        const touristName = (t.tourist?.tourist_profile?.[0]?.first_name ? `${t.tourist?.tourist_profile?.[0]?.first_name} ${t.tourist?.tourist_profile?.[0]?.last_name}` : t.title || '').toLowerCase();
+                        const name = t.request?.name || (t.tourist?.tourist_profile?.[0]?.first_name ? `${t.tourist.tourist_profile[0].first_name} ${t.tourist.tourist_profile[0].last_name || ''}` : t.title || '');
+                        const touristName = name.toLowerCase();
                         return touristName.includes(lcSearch) || (t.title && t.title.toLowerCase().includes(lcSearch));
                     });
                 }
@@ -41,11 +42,12 @@ export default function AdminToursPage() {
                     const plannerData = tour.planner_data || {};
                     const touristEmail = tour.tourist?.email || tour.request?.email || plannerData.clientEmail || 'No Email';
 
-                    let touristName = tour.tourist?.tourist_profile?.[0]?.first_name
-                        ? `${tour.tourist.tourist_profile[0].first_name} ${tour.tourist.tourist_profile[0].last_name || ''}`.trim()
-                        : plannerData.clientName && plannerData.clientName !== touristEmail
-                            ? plannerData.clientName
-                            : 'Client';
+                    let touristName = tour.request?.name
+                        || (tour.tourist?.tourist_profile?.[0]?.first_name
+                            ? `${tour.tourist.tourist_profile[0].first_name} ${tour.tourist.tourist_profile[0].last_name || ''}`.trim()
+                            : plannerData.clientName && plannerData.clientName !== touristEmail
+                                ? plannerData.clientName
+                                : 'Client');
 
                     if (touristName.startsWith('Custom Tour - ')) {
                         touristName = touristName.replace('Custom Tour - ', '').trim();
