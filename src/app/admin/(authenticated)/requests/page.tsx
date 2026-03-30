@@ -73,10 +73,8 @@ export default function AdminRequests() {
                 // Map database format to UI format
                 if (data) {
                     const mapped = data.map((req: any) => {
-                        const touristName = req.tourist_profile?.[0]?.first_name && req.tourist_profile?.[0]?.last_name
-                            ? `${req.tourist_profile[0].first_name} ${req.tourist_profile[0].last_name}`
-                            : req.email || 'Anonymous';
-
+                        const profile = req.tourist_profile?.[0];
+                        const touristName = req.name;
                         const dests = req.details?.[0]?.destinations || [];
                         const packageName = req.details?.[0]?.package_name || req.request_type;
                         const nights = req.details?.[0]?.nights || 0;

@@ -145,8 +145,8 @@ export default function RequestDetailsPage() {
     const details = request.details?.[0] || {};
     const touristProfile = request.tourist?.tourist_profile?.[0];
     const touristName = touristProfile?.first_name
-        ? `${touristProfile.first_name} ${touristProfile.last_name}`
-        : request.name || request.email || 'Anonymous Client';
+        ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
+        : request.name || 'Client';
     const touristPhone = touristProfile?.phone || request.phone_number || 'Not provided';
 
     const agentProfile = request.agent?.agent_profile?.[0];
