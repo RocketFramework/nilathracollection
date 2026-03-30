@@ -25,6 +25,30 @@ export class TourService {
         return data;
     }
 
+    static async getToursByStatuses(statuses: string[]) {
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin
+            .from('tours')
+            .select(`
+                *,
+                tourist:users!tours_tourist_id_fkey(
+                    email,
+                    tourist_profile:tourist_profiles(first_name, last_name, phone)
+                ),
+                agent:users!tours_agent_id_fkey(
+                    email,
+                    admin_profile:admin_profiles(first_name, last_name),
+                    agent_profile:agent_profiles(first_name, last_name)
+                ),
+                request:requests(email, budget, duration_nights)
+            `)
+            .in('status', statuses)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    }
+
     static async updateTourStatus(tourId: string, status: string, userId: string) {
         // Logic to update tour and record history
         const { data: tour, error: tourErr } = await supabase

@@ -418,3 +418,13 @@ export async function resolveApprovalAction(id: string, status: 'APPROVED' | 'RE
         return { success: false, error: error.message };
     }
 }
+
+export async function getToursAction(statuses: string[]) {
+    try {
+        const tours = await TourService.getToursByStatuses(statuses);
+        return { success: true, tours };
+    } catch (error: any) {
+        console.error("Error fetching tours:", error);
+        return { success: false, error: error.message };
+    }
+}
