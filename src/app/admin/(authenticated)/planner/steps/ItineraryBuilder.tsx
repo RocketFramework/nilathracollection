@@ -8,6 +8,7 @@ import {
     CheckCircle2, AlertTriangle, Search, X, Check, XCircle, PlusCircle, Waves, Wifi, Briefcase, HeartPulse, Plane, Phone
 } from "lucide-react";
 import { generateRoutePlan, GeoLocation } from "@/lib/route-engine";
+import { generateAIRoutePlan } from "@/lib/ai-route-engine";
 import { useState, useEffect, useMemo } from "react";
 import { Activity } from "@/data/activities";
 import {
@@ -62,6 +63,7 @@ function TimeInput({ value, onChange }: { value: string, onChange: (val: string)
 export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [optScore, setOptScore] = useState<number | null>(null);
+    const [engineChoice, setEngineChoice] = useState<'standard' | 'ai'>('standard');
 
     // Master Data State
     const [masterData, setMasterData] = useState<{
@@ -135,7 +137,13 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             });
             const locations = Array.from(locationsMap.values());
             const durationDays = tripData.profile.durationDays || 3;
-            const routeResult = await generateRoutePlan(chosenActivities, locations, durationDays);
+
+            let routeResult;
+            if (engineChoice === 'standard') {
+                routeResult = await generateRoutePlan(chosenActivities, locations, durationDays);
+            } else {
+                routeResult = await generateAIRoutePlan(chosenActivities, locations, durationDays);
+            }
 
             const generatedBlocks: InternalItineraryBlock[] = [];
             routeResult.plan.forEach(day => {
@@ -155,12 +163,34 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                         clientVisibleNotes: '',
                         locationName: event.locationName,
                         distance: event.distance,
-                        lat: event.location?.lat,
                         lng: event.location?.lng
                     };
                     generatedBlocks.push(block);
                 });
             });
+
+            if (routeResult.droppedActivities && routeResult.droppedActivities.length > 0) {
+                routeResult.droppedActivities.forEach(act => {
+                    generatedBlocks.push({
+                        id: crypto.randomUUID(),
+                        dayNumber: 0,
+                        type: 'activity',
+                        name: act.activity_name,
+                        startTime: '',
+                        endTime: '',
+                        bufferMins: 0,
+                        durationHours: act.duration_hours || 2,
+                        confirmationStatus: 'Pending',
+                        paymentStatus: 'Pending',
+                        internalNotes: 'This activity could not fit in the AI schedule.',
+                        clientVisibleNotes: '',
+                        locationName: act.location_name,
+                        distance: undefined,
+                        lat: act.lat || undefined,
+                        lng: act.lng || undefined
+                    });
+                });
+            }
 
             setOptScore(routeResult.optimizationScore);
 
@@ -306,11 +336,18 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
     const itinerarySummary = useMemo(() => {
         const blocks = tripData.itinerary || [];
 
-        // 1. Total Distance (only from 'travel' blocks that have distance strings like "120 km")
+        // 1. Total Distance (aggregate from all blocks that contain distance data)
+        const processedDistances = new Set<string>();
         const totalKm = blocks.reduce((sum, b) => {
-            if (b.type === 'travel' && b.distance) {
-                const num = parseInt(b.distance.replace(/[^0-9]/g, ''));
-                return sum + (isNaN(num) ? 0 : num);
+            if (b.distance) {
+                const num = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                if (isNaN(num) || num === 0) return sum;
+
+                const dedupeKey = `${b.dayNumber}-${b.locationName}-${num}`;
+                if (!processedDistances.has(dedupeKey)) {
+                    processedDistances.add(dedupeKey);
+                    return sum + num;
+                }
             }
             return sum;
         }, 0);
@@ -374,6 +411,23 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         }
     }, [totalCosts, tripData.financials, updateData]);
 
+    // 🧠 AI LEARNING FOUNDATION 
+    // This function captures manual agent corrections (moving blocks, changing days, deleting) 
+    // and prepares them to be translated into RAG Rules for the AI Builder Engine.
+    const recordAgentCorrection = (actionType: string, blockId: string, details: any) => {
+        if (engineChoice !== 'ai') return; // Only learn if we are using the AI engine
+        const block = tripData.itinerary.find(b => b.id === blockId);
+        if (!block) return;
+
+        console.log(`[AI Engine] Agent Correction Logged -> ${actionType}`, {
+            activity: block.name,
+            originalDay: block.dayNumber,
+            originalTime: block.startTime,
+            details
+        });
+        // PHASE 2: Send to Supabase 'ai_routing_rules' table.
+    };
+
     const updateBlock = (id: string, fields: Partial<InternalItineraryBlock>) => {
         updateData({
             itinerary: tripData.itinerary.map(b => b.id === id ? { ...b, ...fields } : b)
@@ -404,7 +458,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         const block = tripData.itinerary.find(b => b.id === blockId);
         if (!block) return;
         const targetDay = block.dayNumber + (direction === 'next' ? 1 : -1);
-        if (targetDay < 1) return;
+        if (targetDay < 0) return;
+        recordAgentCorrection('MOVED_DAY', block.id, { from: block.dayNumber, to: targetDay });
         updateData({ itinerary: tripData.itinerary.map(b => b.id === blockId ? { ...b, dayNumber: targetDay } : b) });
     };
 
@@ -416,15 +471,14 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         const index = dayBlocks.findIndex(b => b.id === blockId);
 
         if (direction === 'up' && index > 0) {
-            // Swap with previous
             [dayBlocks[index], dayBlocks[index - 1]] = [dayBlocks[index - 1], dayBlocks[index]];
         } else if (direction === 'down' && index < dayBlocks.length - 1) {
-            // Swap with next
             [dayBlocks[index], dayBlocks[index + 1]] = [dayBlocks[index + 1], dayBlocks[index]];
         } else {
-            return; // No movement possible
+            return;
         }
 
+        recordAgentCorrection('REORDERED_TIME', block.id, { shift: direction });
         const otherDaysBlocks = tripData.itinerary.filter(b => b.dayNumber !== block.dayNumber);
         updateData({ itinerary: [...otherDaysBlocks, ...dayBlocks].sort((a, b) => a.dayNumber - b.dayNumber) });
     };
@@ -461,6 +515,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         const blockIndex = dayBlocks.findIndex(b => b.id === blockId);
         if (blockIndex === -1) return;
 
+        recordAgentCorrection('REMOVED_ACTIVITY', blockId, { fromDay: dayNumber });
         dayBlocks.splice(blockIndex, 1);
 
         const otherDays = tripData.itinerary.filter(b => b.dayNumber !== dayNumber);
@@ -737,14 +792,25 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={runEngine}
-                            disabled={isGenerating || tripData.activities.length === 0}
-                            className="flex items-center gap-2 bg-gradient-to-r from-brand-charcoal to-brand-green text-white px-5 py-2.5 rounded-xl hover:shadow-md transition-all font-semibold disabled:opacity-50"
-                        >
-                            {isGenerating ? <RefreshCcw className="animate-spin" size={16} /> : <Rocket size={16} className="text-brand-gold" />}
-                            {tripData.itinerary.length > 0 ? 'Regenerate Base' : 'Auto-Generate Route'}
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <select
+                                value={engineChoice}
+                                onChange={e => setEngineChoice(e.target.value as 'standard' | 'ai')}
+                                className="bg-neutral-50 border border-neutral-200 text-sm font-bold text-neutral-600 px-3 py-2.5 rounded-xl focus:ring-1 focus:ring-brand-gold outline-none"
+                            >
+                                <option value="standard">Standard Engine</option>
+                                <option value="ai">AI Smart Builder ✦</option>
+                            </select>
+
+                            <button
+                                onClick={runEngine}
+                                disabled={isGenerating || tripData.activities.length === 0}
+                                className="flex items-center gap-2 bg-gradient-to-r from-brand-charcoal to-brand-green text-white px-5 py-2.5 rounded-xl hover:shadow-md transition-all font-semibold disabled:opacity-50"
+                            >
+                                {isGenerating ? <RefreshCcw className="animate-spin" size={16} /> : <Rocket size={16} className="text-brand-gold" />}
+                                {tripData.itinerary.length > 0 ? 'Regenerate Base' : 'Auto-Generate Route'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -900,8 +966,10 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                     <div className="space-y-10">
                         {Object.entries(days).sort(([a], [b]) => Number(a) - Number(b)).map(([dayStr, blocks]) => {
                             const dayNum = Number(dayStr);
+                            const isUnscheduled = dayNum === 0;
+
                             let actualDate = "";
-                            if (tripData.profile.arrivalDate) {
+                            if (!isUnscheduled && tripData.profile.arrivalDate) {
                                 try {
                                     const date = new Date(tripData.profile.arrivalDate);
                                     date.setDate(date.getDate() + (dayNum - 1));
@@ -912,13 +980,15 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                             }
 
                             return (
-                                <div key={dayStr} className="group/day relative pl-8 border-l-2 border-neutral-100 ml-4 pb-4">
-                                    <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-brand-gold border-4 border-white shadow-sm flex items-center justify-center text-[10px] text-white font-bold">
-                                        {dayStr}
+                                <div key={dayStr} className={`group/day relative pl-8 border-l-2 ml-4 pb-4 ${isUnscheduled ? 'border-orange-200 border-dashed bg-orange-50/10 -ml-4 pl-12 rounded-xl mt-8 pt-4' : 'border-neutral-100'}`}>
+                                    <div className={`absolute ${isUnscheduled ? 'left-1' : '-left-3'} top-4 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center text-[10px] text-white font-bold ${isUnscheduled ? 'bg-orange-500' : 'bg-brand-gold'}`}>
+                                        {isUnscheduled ? '!' : dayStr}
                                     </div>
                                     <div className="flex items-center justify-between mb-6">
-                                        <h4 className="text-lg font-serif text-brand-charcoal font-bold tracking-tight">
-                                            Day {dayStr} {actualDate && <span className="text-sm font-sans text-neutral-400 font-normal ml-2">({actualDate})</span>} Journey
+                                        <h4 className={`text-lg font-serif font-bold tracking-tight ${isUnscheduled ? 'text-orange-600' : 'text-brand-charcoal'}`}>
+                                            {isUnscheduled ? 'Unscheduled Holding Area' : `Day ${dayStr}`}
+                                            {actualDate && <span className="text-sm font-sans text-neutral-400 font-normal ml-2">({actualDate})</span>}
+                                            {isUnscheduled ? <span className="text-xs font-sans text-orange-400 ml-2 font-bold uppercase tracking-widest">(Needs Action)</span> : ' Journey'}
                                         </h4>
                                         <div className="flex gap-4 opacity-0 group-hover/day:opacity-100 transition-opacity">
                                             <button
@@ -1018,12 +1088,31 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                 </button>
                                                             )}
 
-                                                            <div className="flex gap-1">
+                                                            <div className="flex gap-1 items-center">
+                                                                <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all justify-center">
+                                                                    <button
+                                                                        onClick={() => moveBlockDay(block.id, 'prev')}
+                                                                        className="p-1 text-neutral-300 hover:text-blue-500 disabled:opacity-30"
+                                                                        disabled={block.dayNumber === 0}
+                                                                        title="Move to Previous Day"
+                                                                    >
+                                                                        <ChevronLeft size={14} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => moveBlockDay(block.id, 'next')}
+                                                                        className="p-1 text-neutral-300 hover:text-blue-500 disabled:opacity-30"
+                                                                        title="Move to Next Day"
+                                                                    >
+                                                                        <ChevronRight size={14} />
+                                                                    </button>
+                                                                </div>
+
                                                                 <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all">
                                                                     <button
                                                                         onClick={() => moveBlockPosition(block.id, 'up')}
                                                                         className="p-1 text-neutral-300 hover:text-brand-green disabled:opacity-30"
                                                                         disabled={idx === 0}
+                                                                        title="Move Up"
                                                                     >
                                                                         <ArrowUp size={14} />
                                                                     </button>
@@ -1031,11 +1120,14 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                         onClick={() => moveBlockPosition(block.id, 'down')}
                                                                         className="p-1 text-neutral-300 hover:text-brand-green disabled:opacity-30"
                                                                         disabled={idx === blocks.length - 1}
+                                                                        title="Move Down"
                                                                     >
                                                                         <ArrowDown size={14} />
                                                                     </button>
                                                                 </div>
-                                                                <button onClick={() => removeBlock(block.id, block.dayNumber)} className="p-1.5 text-neutral-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
+                                                                <button onClick={() => removeBlock(block.id, block.dayNumber)} className="p-1.5 text-neutral-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all ml-1">
+                                                                    <Trash2 size={16} />
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>

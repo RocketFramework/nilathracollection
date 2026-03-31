@@ -272,6 +272,38 @@ export class TourService {
     static async saveTour(tourId: string, tripData: TripData) {
         const supabaseAdmin = createAdminClient();
 
+        // Dynamically recalculate itinerary summary to prevent React state staleness
+        const blocks = tripData.itinerary || [];
+        const processedDistances = new Set<string>();
+
+        let totalKm = 0;
+        let totalCities = new Set<string>();
+        let totalActivities = 0;
+        const activityMix: Record<string, number> = {};
+
+        // Fetch activity categories for mix computation
+        const { data: actData } = await supabaseAdmin.from('activities').select('id, category');
+        const catMap = new Map(actData?.map(a => [a.id, a.category]) || []);
+
+        blocks.forEach(b => {
+            if (b.distance) {
+                const num = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                if (!isNaN(num) && num > 0) {
+                    const dedupeKey = `${b.dayNumber}-${b.locationName}-${num}`;
+                    if (!processedDistances.has(dedupeKey)) {
+                        processedDistances.add(dedupeKey);
+                        totalKm += num;
+                    }
+                }
+            }
+            if (b.locationName) totalCities.add(b.locationName.split(',')[0].trim());
+            if (b.type === 'activity') {
+                totalActivities++;
+                const cat = (b.activityId ? catMap.get(b.activityId) : null) || 'General';
+                activityMix[cat] = (activityMix[cat] || 0) + 1;
+            }
+        });
+
         // 1. SAVE RAW JSONB STATE & BASIC RELATIONAL TOUR INFO
         const { error: tourErr } = await supabaseAdmin
             .from('tours')
@@ -281,10 +313,10 @@ export class TourService {
                 status: tripData.status,
                 start_date: tripData.profile?.arrivalDate || null,
                 end_date: tripData.profile?.departureDate || null,
-                total_km: tripData.summary?.totalDistanceKm || 0,
-                total_cities: tripData.summary?.totalCities || 0,
-                total_activities: tripData.summary?.totalActivities || 0,
-                activity_mix: tripData.summary?.activityTypeMix || {}
+                total_km: totalKm,
+                total_cities: totalCities.size,
+                total_activities: totalActivities,
+                activity_mix: activityMix
             })
             .eq('id', tourId);
 
