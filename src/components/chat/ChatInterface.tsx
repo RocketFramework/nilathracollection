@@ -50,10 +50,12 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [dbTopicId, setDbTopicId] = useState<string | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
     };
 
     useEffect(() => {
@@ -192,7 +194,7 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-neutral-50/50">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-neutral-50/50 scroll-smooth">
                 {messages.map((msg) => {
                     const isMe = msg.senderId === currentUserId;
                     return (
@@ -217,7 +219,6 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
                         </div>
                     );
                 })}
-                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}

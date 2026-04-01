@@ -1,10 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Consider using Next.js specific Supabase client internally if doing SSR, 
-// this is a basic abstraction
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { createClient } from '@/utils/supabase/client';
 
 export class AuthService {
     /**
@@ -12,6 +6,7 @@ export class AuthService {
      * Can use a magic link or just sign up with a dummy password if custom flow is required.
      */
     static async registerTouristByEmail(email: string, redirectUrl?: string) {
+        const supabase = createClient();
         // Implementing lazy verification or simple magic link logic
         const { data, error } = await supabase.auth.signInWithOtp({
             email,
@@ -38,6 +33,7 @@ export class AuthService {
     }
 
     static async verifyOtp(email: string, token: string) {
+        const supabase = createClient();
         const { data, error } = await supabase.auth.verifyOtp({
             email,
             token,
@@ -48,6 +44,7 @@ export class AuthService {
     }
 
     static async signInWithPassword(email: string, password: string) {
+        const supabase = createClient();
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -57,11 +54,13 @@ export class AuthService {
     }
 
     static async signOut() {
+        const supabase = createClient();
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
     }
 
     static async setPassword(password: string) {
+        const supabase = createClient();
         const { data, error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
         return data;

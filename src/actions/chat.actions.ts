@@ -47,3 +47,20 @@ export async function initOrCreateChatTopicAction(tourId: string, title?: string
     if (createErr) throw createErr;
     return created;
 }
+
+export async function sendChatMessageAction(topicId: string, content: string, senderId: string) {
+    const supabaseAction = createAdminClient();
+
+    const { data: created, error } = await supabaseAction
+        .from('messages')
+        .insert({
+            topic_id: topicId,
+            content: content,
+            sender_id: senderId
+        })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return created;
+}

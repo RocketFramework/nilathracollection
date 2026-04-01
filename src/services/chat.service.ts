@@ -1,19 +1,10 @@
 import { createClient } from '@/utils/supabase/client';
 import { ChatMessageDTO, CreateTopicDTO } from '../dtos/chat.dto';
+import { sendChatMessageAction } from '@/actions/chat.actions';
 
 export class ChatService {
     static async sendMessage(dto: ChatMessageDTO, senderId: string) {
-        const supabase = createClient();
-        const { data, error } = await supabase
-            .from('messages')
-            .insert({
-                ...dto,
-                sender_id: senderId
-            })
-            .select()
-            .single();
-        if (error) throw error;
-        return data;
+        return await sendChatMessageAction(dto.topic_id, dto.content, senderId);
     }
 
     static async getMessages(topicId: string) {
