@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Paperclip, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
 import { ChatService } from "@/services/chat.service";
 import { createClient } from "@/utils/supabase/client";
+import { initOrCreateChatTopicAction } from "@/actions/chat.actions";
 
 export interface Message {
     id: string;
@@ -65,14 +66,8 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
 
         const initChat = async () => {
             try {
-                // 1. Get or create topic using the passed `topicId` (which is actually `tourId` / `conversation_id`)
-                let topic = await ChatService.getTopicByConversationId(topicId);
-                if (!topic) {
-                    topic = await ChatService.createTopic({
-                        conversation_id: topicId,
-                        title: title || 'Tour Communications'
-                    });
-                }
+                // 1. Get or create topic using the securely elevated Server Action
+                let topic = await initOrCreateChatTopicAction(topicId, title);
                 if (!isMounted) return;
 
                 setDbTopicId(topic.id);
@@ -85,7 +80,7 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
                     id: m.id,
                     senderId: m.sender_id,
                     senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
-                    senderName: m.sender_id === currentUserId ? 'You' : (m.sender_id?.includes('agent') ? 'Agent' : 'Tourist'),
+                    senderName: m.sender_id === currentUserId ? 'You' : (currentUserType === 'tourist' ? 'Travel Agent' : 'Tourist'),
                     content: m.content,
                     timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     read: true
@@ -93,8 +88,26 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
 
                 setMessages(mappedHistory);
 
-                // 3. Subscribe to realtime
+                // 3. Fallback Polling & Realtime
                 const supabase = createClient();
+
+                // Fallback polling every 3 seconds to guarantee sync
+                const pollInterval = window.setInterval(async () => {
+                    if (!isMounted) return;
+                    try {
+                        const latest = await ChatService.getMessages(topic.id);
+                        setMessages(latest.map((m: any) => ({
+                            id: m.id,
+                            senderId: m.sender_id,
+                            senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
+                            senderName: m.sender_id === currentUserId ? 'You' : (currentUserType === 'tourist' ? 'Travel Agent' : 'Tourist'),
+                            content: m.content,
+                            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            read: true
+                        })));
+                    } catch (e) { }
+                }, 3000);
+
                 channel = supabase.channel(`messages:${topic.id}`)
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `topic_id=eq.${topic.id}` }, (payload) => {
                         if (isMounted) {
@@ -105,7 +118,7 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
                                     id: m.id,
                                     senderId: m.sender_id,
                                     senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
-                                    senderName: m.sender_id === currentUserId ? 'You' : (m.sender_id?.includes('agent') ? 'Agent' : 'Tourist'),
+                                    senderName: m.sender_id === currentUserId ? 'You' : (currentUserType === 'tourist' ? 'Travel Agent' : 'Tourist'),
                                     content: m.content,
                                     timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                                     read: true
@@ -114,6 +127,9 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
                         }
                     })
                     .subscribe();
+
+                // Store interval on channel to clean it up
+                (channel as any)._pollInterval = pollInterval;
             } catch (error) {
                 console.error("Failed to initialize chat", error);
             }
@@ -126,6 +142,7 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
         return () => {
             isMounted = false;
             if (channel) {
+                if ((channel as any)._pollInterval) clearInterval((channel as any)._pollInterval);
                 const supabase = createClient();
                 supabase.removeChannel(channel);
             }

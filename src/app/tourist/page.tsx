@@ -54,59 +54,57 @@ export default function TouristDashboard() {
                         <p className="text-sm text-center">Your travel specialist is curating your perfect itinerary. It will appear here once ready for your review.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="space-y-4">
                         {tours.map((tour) => {
-                            const isActive = tour.status === 'Active' || tour.status === 'Assigned' || tour.status === 'Pending';
+                            const isActive = tour.status === 'Active' || tour.status === 'Assigned' || tour.status === 'Pending' || tour.status === 'Review Ready';
                             return (
                                 <Link
                                     key={tour.id}
                                     href={`/tourist/tour/${tour.id}`}
-                                    className="group bg-white rounded-2xl border border-neutral-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col"
+                                    className="group bg-white rounded-2xl border border-neutral-200 shadow-sm hover:border-brand-gold/40 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col md:flex-row items-center relative"
                                 >
-                                    {/* Card Header & Status */}
-                                    <div className="p-6 border-b border-neutral-100 relative">
-                                        <div className={`absolute top-0 left-0 w-full h-1 ${isActive ? 'bg-brand-gold' : 'bg-neutral-300'}`} />
-                                        <div className="flex justify-between items-start mb-4">
-                                            <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border ${isActive
-                                                ? 'bg-brand-gold/10 text-brand-gold border-brand-gold/20'
-                                                : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-                                                }`}>
-                                                {tour.status}
-                                            </span>
-                                            {tour.invoicesSummary?.pendingCount > 0 && (
-                                                <span className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">
-                                                    <FileText size={12} /> {tour.invoicesSummary.pendingCount} Pending Invoice
+                                    {/* Left Accent Bar */}
+                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${isActive ? 'bg-brand-gold' : 'bg-neutral-300'}`} />
+
+                                    {/* Content Area */}
+                                    <div className="p-6 flex-1 flex flex-col md:flex-row md:items-center gap-6 w-full pl-8">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full border ${isActive
+                                                    ? 'bg-brand-gold/10 text-brand-gold border-brand-gold/20'
+                                                    : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+                                                    }`}>
+                                                    {tour.status}
                                                 </span>
-                                            )}
-                                        </div>
-                                        <h3 className="text-xl font-bold text-brand-charcoal group-hover:text-brand-green transition-colors">{tour.title}</h3>
-                                        <div className="flex items-center gap-4 mt-3 text-sm text-neutral-500">
-                                            <span className="flex items-center gap-1"><Calendar size={14} /> {tour.startDate ? new Date(tour.startDate).toLocaleDateString() : 'TBD'}</span>
-                                            <span className="flex items-center gap-1"><Clock size={14} /> TBD</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Destinations Summary */}
-                                    {tour.locations && tour.locations.length > 0 && (
-                                        <div className="px-6 py-4 bg-neutral-50/50 flex flex-wrap gap-2 text-xs text-neutral-500 border-b border-neutral-100">
-                                            <MapPin size={14} className="text-brand-gold" />
-                                            {tour.locations.join(' · ')}
-                                        </div>
-                                    )}
-
-                                    {/* Agent Info Card embedded */}
-                                    <div className="p-6 mt-auto bg-neutral-50">
-                                        <p className="text-xs uppercase tracking-widest text-neutral-400 font-bold mb-3">Your Dedicated Specialist</p>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold text-lg">
-                                                {tour.agent?.name?.charAt(0) || '?'}
+                                                {tour.invoicesSummary?.pendingCount > 0 && (
+                                                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 px-2 py-1 rounded-full">
+                                                        <FileText size={12} /> {tour.invoicesSummary.pendingCount} Pending Invoice
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-brand-charcoal text-sm">{tour.agent?.name || 'Agent'}</h4>
-                                                <div className="flex text-neutral-500 justify-between items-center w-full">
-                                                    <span className="text-xs flex items-center gap-1"><Phone size={10} /> {tour.agent?.phone || 'N/A'}</span>
-                                                    <ArrowRight size={16} className="text-brand-gold opacity-0 group-hover:opacity-100 transition-opacity -translate-x-4 group-hover:translate-x-0 duration-300" />
+                                            <h3 className="text-xl font-bold font-serif text-brand-charcoal group-hover:text-brand-green transition-colors">{tour.title}</h3>
+                                            <div className="flex items-center gap-4 mt-2 text-sm text-neutral-500 font-medium">
+                                                <span className="flex items-center gap-1.5"><Calendar size={14} className="text-brand-gold" /> {tour.startDate ? new Date(tour.startDate).toLocaleDateString() : 'TBD'}</span>
+                                                {tour.locations && tour.locations.length > 0 && (
+                                                    <span className="flex items-center gap-1.5"><MapPin size={14} className="text-brand-gold" /> {tour.locations.join(' · ')}</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="w-full md:w-px md:h-16 bg-neutral-100 hidden md:block" />
+
+                                        <div className="flex items-center gap-4 md:min-w-[280px] justify-between md:justify-start">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold text-lg">
+                                                    {tour.agent?.name?.charAt(0) || '?'}
                                                 </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-0.5">Specialist</p>
+                                                    <h4 className="font-bold text-brand-charcoal text-sm">{tour.agent?.name || 'Agent'}</h4>
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-brand-gold group-hover:bg-brand-gold group-hover:text-white transition-colors ml-auto md:ml-4">
+                                                <ArrowRight size={18} />
                                             </div>
                                         </div>
                                     </div>

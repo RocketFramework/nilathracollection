@@ -437,7 +437,7 @@ export class TourService {
                 }
 
                 activitiesToInsert.push({
-                    id: b.id, // Use the stable UUID from the frontend/itinerary block
+                    id: crypto.randomUUID(), // Always generate a fresh relational ID to prevent crashes from cloned JSON blocks
                     itinerary_id: dbItin.id,
                     title: b.name,
                     location_name: b.locationName || null,

@@ -60,6 +60,25 @@ function TimeInput({ value, onChange }: { value: string, onChange: (val: string)
     );
 }
 
+function DebouncedInput({ value, onChange, className, placeholder }: { value: string, onChange: (val: string) => void, className?: string, placeholder?: string }) {
+    const [localVal, setLocalVal] = useState(value);
+
+    useEffect(() => {
+        setLocalVal(value);
+    }, [value]);
+
+    return (
+        <input
+            value={localVal}
+            onChange={e => setLocalVal(e.target.value)}
+            onBlur={() => { if (localVal !== value) onChange(localVal) }}
+            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+            className={className}
+            placeholder={placeholder}
+        />
+    );
+}
+
 export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [optScore, setOptScore] = useState<number | null>(null);
@@ -1025,15 +1044,15 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-2">
-                                                                <input value={block.name} onChange={e => updateBlock(block.id, { name: e.target.value })} className="font-bold text-neutral-800 bg-transparent border-none p-0 focus:ring-0 w-full" />
+                                                                <DebouncedInput value={block.name} onChange={v => updateBlock(block.id, { name: v })} className="font-bold text-neutral-800 bg-transparent border-none p-0 focus:ring-0 w-full" />
                                                             </div>
                                                             {block.type !== 'guide' && (
                                                                 <div className="flex items-center gap-2 mt-1">
                                                                     <div className="flex items-center gap-1 flex-1 bg-neutral-50/50 rounded-md px-2 py-1 border border-transparent focus-within:border-neutral-200 focus-within:bg-white transition-colors">
                                                                         <MapPin size={10} className="text-neutral-400 shrink-0" />
-                                                                        <input
+                                                                        <DebouncedInput
                                                                             value={block.locationName || ''}
-                                                                            onChange={e => updateBlock(block.id, { locationName: e.target.value })}
+                                                                            onChange={v => updateBlock(block.id, { locationName: v })}
                                                                             placeholder="Location"
                                                                             className="text-[10px] text-neutral-500 bg-transparent border-none p-0 focus:ring-0 w-full placeholder:text-neutral-300"
                                                                         />
@@ -1041,9 +1060,9 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                     {block.type === 'travel' && (
                                                                         <div className="flex items-center gap-1 w-24 bg-neutral-50/50 rounded-md px-2 py-1 border border-transparent focus-within:border-neutral-200 focus-within:bg-white transition-colors">
                                                                             <Navigation size={10} className="text-neutral-400 shrink-0" />
-                                                                            <input
+                                                                            <DebouncedInput
                                                                                 value={block.distance || ''}
-                                                                                onChange={e => updateBlock(block.id, { distance: e.target.value })}
+                                                                                onChange={v => updateBlock(block.id, { distance: v })}
                                                                                 placeholder="Distance"
                                                                                 className="text-[10px] text-neutral-500 bg-transparent border-none p-0 focus:ring-0 w-full placeholder:text-neutral-300"
                                                                             />

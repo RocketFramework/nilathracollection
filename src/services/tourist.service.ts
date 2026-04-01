@@ -25,11 +25,12 @@ export class TouristService {
                 planner_data,
                 agent:users!tours_agent_id_fkey(
                     email,
-                    staff_profile:staff_profiles(first_name, last_name, phone)
+                    admin_profile:admin_profiles(first_name, last_name),
+                    agent_profile:agent_profiles(first_name, last_name, phone)
                 )
             `)
             .eq('tourist_id', user.id)
-            .in('status', ['Review Ready', 'Active', 'Completed'])
+            .in('status', ['Draft', 'Review Ready', 'Active', 'Completed'])
             .order('start_date', { ascending: true });
 
         if (error) throw error;
@@ -37,7 +38,7 @@ export class TouristService {
         // Map to UI friendly format
         return data.map(tour => {
             const agentData = Array.isArray(tour.agent) ? tour.agent[0] : tour.agent;
-            const agentProfile = agentData?.staff_profile?.[0] || {};
+            const agentProfile = agentData?.agent_profile?.[0] || agentData?.admin_profile?.[0] || {};
             const tripData = tour.planner_data as unknown as TripData || {};
 
             // Extract locations from planner data or fallback
@@ -77,7 +78,8 @@ export class TouristService {
                 *,
                 agent:users!tours_agent_id_fkey(
                     email,
-                    staff_profile:staff_profiles(first_name, last_name, phone)
+                    admin_profile:admin_profiles(first_name, last_name),
+                    agent_profile:agent_profiles(first_name, last_name, phone)
                 ),
                 itineraries:tour_itineraries(
                     day_number,
@@ -93,7 +95,7 @@ export class TouristService {
 
         // Map data to match the UI expectations
         const agentData = Array.isArray(data.agent) ? data.agent[0] : data.agent;
-        const agentProfile = agentData?.staff_profile?.[0] || {};
+        const agentProfile = agentData?.agent_profile?.[0] || agentData?.admin_profile?.[0] || {};
         const tripData = data.planner_data as unknown as TripData || {};
 
         // Sort itineraries by day
@@ -127,7 +129,9 @@ export class TouristService {
                 photoInitials: agentProfile.first_name ? agentProfile.first_name.charAt(0) : 'A'
             },
             invoices: [], // Requires invoices integration
-            itinerarySummary: summary
+            itinerarySummary: summary,
+            detailedItinerary: tripData.itinerary || [],
+            accommodations: tripData.accommodations || []
         };
     }
 }

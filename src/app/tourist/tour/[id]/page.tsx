@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRight, BedDouble, Calendar, ArrowLeft, ReceiptText } from "lucide-react";
+import { ChatInterface } from "@/components/chat/ChatInterface";
+import { createClient } from "@/utils/supabase/client";
 
 export default function TourDetailsPage() {
     const params = useParams();
@@ -11,11 +13,16 @@ export default function TourDetailsPage() {
 
     const [tour, setTour] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
             setIsLoading(true);
             try {
+                const supabase = createClient();
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) setUserId(user.id);
+
                 const { TouristService } = await import('@/services/tourist.service');
                 const data = await TouristService.getTourDetails(id);
                 setTour(data);
@@ -111,7 +118,49 @@ export default function TourDetailsPage() {
                         </div>
 
                         <div className="space-y-6">
-                            {tour.itinerarySummary.length === 0 ? (
+                            {tour.detailedItinerary && tour.detailedItinerary.length > 0 ? (
+                                Object.entries(
+                                    tour.detailedItinerary.reduce((acc: any, block: any) => {
+                                        if (block.dayNumber > 0) {
+                                            if (!acc[block.dayNumber]) acc[block.dayNumber] = [];
+                                            acc[block.dayNumber].push(block);
+                                        }
+                                        return acc;
+                                    }, {})
+                                ).map(([dayStr, blocks]: [string, any]) => (
+                                    <div key={dayStr} className="mb-8 last:mb-0">
+                                        <h3 className="text-xl font-bold font-serif text-brand-charcoal mb-4 flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold text-sm">
+                                                {dayStr}
+                                            </div>
+                                            Day {dayStr}
+                                        </h3>
+                                        <div className="space-y-3">
+                                            {blocks.map((block: any) => (
+                                                <div key={block.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-neutral-100 shadow-sm hover:border-brand-gold/30 transition-colors">
+                                                    <div className="text-xs font-bold text-neutral-400 w-16 pt-1 text-right shrink-0">
+                                                        {block.startTime}
+                                                    </div>
+                                                    <div className="w-px bg-neutral-100 shrink-0"></div>
+                                                    <div className="flex-1">
+                                                        <p className="font-bold text-brand-charcoal">{block.name}</p>
+                                                        {block.locationName && (
+                                                            <p className="text-[11px] font-bold uppercase tracking-wider text-brand-gold mt-1 flex items-center gap-1">
+                                                                <MapPin size={12} /> {block.locationName}
+                                                            </p>
+                                                        )}
+                                                        {block.clientVisibleNotes && (
+                                                            <p className="text-sm text-neutral-600 mt-2 bg-neutral-50 p-3 rounded-xl border border-neutral-100 leading-relaxed">
+                                                                {block.clientVisibleNotes}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : tour.itinerarySummary.length === 0 ? (
                                 <p className="text-neutral-500 italic">Your agent is currently building your day-by-day itinerary.</p>
                             ) : (
                                 tour.itinerarySummary.map((day: any) => (
@@ -151,14 +200,24 @@ export default function TourDetailsPage() {
                                 <p className="text-white/60 text-sm">Travel Consultant</p>
                             </div>
                         </div>
-                        <div className="space-y-3 text-sm text-white/80 mb-6 font-medium">
+                        <div className="space-y-3 text-sm text-white/80 font-medium">
                             <p className="flex items-center gap-3"><Phone size={16} className="text-[#D4AF37]" /> {tour.agent.phone}</p>
                             <p className="flex items-center gap-3"><Mail size={16} className="text-[#D4AF37]" /> {tour.agent.email}</p>
                         </div>
-                        <Link href={`/tourist/tour/${id}/chat`} className="w-full py-3 bg-brand-gold hover:bg-[#B3932F] text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
-                            <MessageSquare size={18} /> Open Tour Chat
-                        </Link>
                     </div>
+
+                    {/* Embedded Direct Chat */}
+                    {userId && (
+                        <div className="h-[500px] xl:h-[600px]">
+                            <ChatInterface
+                                topicId={id}
+                                currentUserId={userId}
+                                currentUserType="tourist"
+                                title="Live Collaboration"
+                                subtitle={`Chat instantly with ${tour.agent.name}`}
+                            />
+                        </div>
+                    )}
 
                     {/* Financial Summary */}
                     <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-sm">
