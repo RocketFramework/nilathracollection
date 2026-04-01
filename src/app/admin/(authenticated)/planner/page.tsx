@@ -13,7 +13,7 @@ import { OperationalReadiness } from "./components/OperationalReadiness";
 import { Save, FileCheck, CheckSquare, Users, Plane, Compass, BedDouble, CarFront, CalendarDays, Calculator, Activity, Loader2, MessageSquare, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { ChatInterface } from "@/components/chat/ChatInterface";
-import { initOrCreateChatTopicAction } from "@/actions/chat.actions";
+import { initOrCreateChatTopicAction, checkUnreadMessagesAction } from "@/actions/chat.actions";
 const initialData: TripData = {
     clientName: 'New Client Inquiry',
     clientEmail: '',
@@ -96,37 +96,29 @@ function PlannerWorkspace() {
 
                 const supabase = createClient();
 
-                // Active check for recent messages from others
-                const { data } = await supabase
-                    .from('messages')
-                    .select('id')
-                    .eq('topic_id', topic.id)
-                    .neq('sender_id', currentUserId)
-                    .limit(1);
+                const lastRead = localStorage.getItem(`lastReadChat_${tourId}`);
 
-                if (isMounted && data && data.length > 0) {
+                // Active check for recent messages from others
+                const hasUnread = await checkUnreadMessagesAction(topic.id, currentUserId, lastRead || undefined);
+                if (isMounted && hasUnread && !showChat) {
                     setUnreadChat(true);
                 }
 
                 // Fallback polling for notifications every 10 seconds
                 // Uses the same `channel` variable slot to attach the interval for cleanup
                 const pollInterval = window.setInterval(async () => {
-                    if (!isMounted) return;
+                    if (!isMounted || showChat) return;
                     try {
-                        const { data: latestUnread } = await supabase
-                            .from('messages')
-                            .select('id')
-                            .eq('topic_id', topic.id)
-                            .neq('sender_id', currentUserId)
-                            .limit(1);
-                        if (latestUnread && latestUnread.length > 0) setUnreadChat(true);
+                        const currentLastRead = localStorage.getItem(`lastReadChat_${tourId}`);
+                        const hasUnreadPoll = await checkUnreadMessagesAction(topic.id, currentUserId, currentLastRead || undefined);
+                        if (hasUnreadPoll) setUnreadChat(true);
                     } catch (e) { }
                 }, 10000);
 
                 channel = supabase.channel(`notification:${topic.id}`)
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `topic_id=eq.${topic.id}` }, (payload) => {
                         const m = payload.new;
-                        if (isMounted && m.sender_id !== currentUserId) {
+                        if (isMounted && m.sender_id !== currentUserId && !showChat) {
                             setUnreadChat(true);
                         }
                     })
@@ -153,6 +145,14 @@ function PlannerWorkspace() {
             }
         };
     }, [tourId, currentUserId, showChat]);
+
+    // Local Storage Read Receipt sync
+    useEffect(() => {
+        if (showChat && tourId) {
+            setUnreadChat(false);
+            localStorage.setItem(`lastReadChat_${tourId}`, new Date().toISOString());
+        }
+    }, [showChat, tourId]);
 
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {

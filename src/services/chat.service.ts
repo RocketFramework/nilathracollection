@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/client';
 import { ChatMessageDTO, CreateTopicDTO } from '../dtos/chat.dto';
-import { sendChatMessageAction } from '@/actions/chat.actions';
+import { sendChatMessageAction, getChatMessagesAction } from '@/actions/chat.actions';
 
 export class ChatService {
     static async sendMessage(dto: ChatMessageDTO, senderId: string) {
@@ -8,14 +8,7 @@ export class ChatService {
     }
 
     static async getMessages(topicId: string) {
-        const supabase = createClient();
-        const { data, error } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('topic_id', topicId)
-            .order('created_at', { ascending: true });
-        if (error) throw error;
-        return data || [];
+        return await getChatMessagesAction(topicId);
     }
 
     // To support realtime, the UI will subscribe directly to Supabase channels

@@ -64,3 +64,36 @@ export async function sendChatMessageAction(topicId: string, content: string, se
     if (error) throw error;
     return created;
 }
+
+export async function getChatMessagesAction(topicId: string) {
+    const supabaseAction = createAdminClient();
+
+    const { data: messages, error } = await supabaseAction
+        .from('messages')
+        .select('*')
+        .eq('topic_id', topicId)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return messages || [];
+}
+
+export async function checkUnreadMessagesAction(topicId: string, currentUserId: string, sinceIso?: string) {
+    const supabaseAction = createAdminClient();
+
+    let query = supabaseAction
+        .from('messages')
+        .select('id')
+        .eq('topic_id', topicId)
+        .neq('sender_id', currentUserId)
+        .limit(1);
+
+    if (sinceIso) {
+        query = query.gt('created_at', sinceIso);
+    }
+
+    const { data: latestUnread, error } = await query;
+    if (error) throw error;
+
+    return latestUnread && latestUnread.length > 0;
+}
