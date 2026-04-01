@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, Paperclip, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
+import { Send, Paperclip, Image as ImageIcon, Check, CheckCheck, RefreshCcw } from "lucide-react";
 import { ChatService } from "@/services/chat.service";
 import { createClient } from "@/utils/supabase/client";
 import { initOrCreateChatTopicAction } from "@/actions/chat.actions";
@@ -50,7 +50,30 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [dbTopicId, setDbTopicId] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const handleRefresh = async () => {
+        if (!dbTopicId) return;
+        setIsRefreshing(true);
+        try {
+            const history = await ChatService.getMessages(dbTopicId);
+            const mappedHistory = history.map((m: any) => ({
+                id: m.id,
+                senderId: m.sender_id,
+                senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
+                senderName: m.sender_id === currentUserId ? 'You' : (currentUserType === 'tourist' ? 'Travel Agent' : 'Tourist'),
+                content: m.content,
+                timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                read: true
+            }));
+            setMessages(mappedHistory);
+        } catch (error) {
+            console.error("Failed to refresh messages", error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const scrollToBottom = () => {
         if (scrollContainerRef.current) {
@@ -90,25 +113,8 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
 
                 setMessages(mappedHistory);
 
-                // 3. Fallback Polling & Realtime
+                // 3. Native Realtime (Assuming native websockets are active)
                 const supabase = createClient();
-
-                // Fallback polling every 3 seconds to guarantee sync
-                const pollInterval = window.setInterval(async () => {
-                    if (!isMounted) return;
-                    try {
-                        const latest = await ChatService.getMessages(topic.id);
-                        setMessages(latest.map((m: any) => ({
-                            id: m.id,
-                            senderId: m.sender_id,
-                            senderType: m.sender_id === currentUserId ? currentUserType : (currentUserType === 'tourist' ? 'agent' : 'tourist'),
-                            senderName: m.sender_id === currentUserId ? 'You' : (currentUserType === 'tourist' ? 'Travel Agent' : 'Tourist'),
-                            content: m.content,
-                            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            read: true
-                        })));
-                    } catch (e) { }
-                }, 3000);
 
                 channel = supabase.channel(`messages:${topic.id}`)
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `topic_id=eq.${topic.id}` }, (payload) => {
@@ -130,8 +136,6 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
                     })
                     .subscribe();
 
-                // Store interval on channel to clean it up
-                (channel as any)._pollInterval = pollInterval;
             } catch (error) {
                 console.error("Failed to initialize chat", error);
             }
@@ -144,7 +148,6 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
         return () => {
             isMounted = false;
             if (channel) {
-                if ((channel as any)._pollInterval) clearInterval((channel as any)._pollInterval);
                 const supabase = createClient();
                 supabase.removeChannel(channel);
             }
@@ -187,9 +190,19 @@ export function ChatInterface({ topicId, currentUserId, currentUserType, title, 
             {/* Chat Header */}
             <div className="p-4 md:p-6 bg-brand-green text-white flex justify-between items-center relative z-10">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                <div className="relative z-10">
-                    <h2 className="text-xl font-bold font-playfair">{title}</h2>
-                    {subtitle && <p className="text-white/80 text-sm mt-1">{subtitle}</p>}
+                <div className="relative z-10 flex w-full justify-between items-center">
+                    <div>
+                        <h2 className="text-xl font-bold font-playfair">{title}</h2>
+                        {subtitle && <p className="text-white/80 text-sm mt-1">{subtitle}</p>}
+                    </div>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing || !dbTopicId}
+                        className="p-2 bg-white/10 hover:bg-white/20 transition-colors rounded-full text-white disabled:opacity-50"
+                        title="Refresh Messages"
+                    >
+                        <RefreshCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
             </div>
 
