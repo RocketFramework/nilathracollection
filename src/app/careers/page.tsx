@@ -23,6 +23,10 @@ const vacancies = [
             "Strong communication and organizational skills",
             "Passion for luxury travel and personalized service",
             "Excellent English communication skills"
+        ],
+        qualifications: [
+            "Bachelor's Degree in Tourism & Hospitality Management, Leisure Management from a recognized university or equivalent professional qualification",
+            "Minimum 3 passes in GCE Advanced Level (A/L) and excellent passes for English and Mathematics in GCE Ordinary Level (O/L)"
         ]
     },
     {
@@ -41,6 +45,11 @@ const vacancies = [
             "Strong international network in the travel industry",
             "Excellent negotiation and relationship-building skills",
             "Ability to represent a luxury brand at global events"
+        ],
+        qualifications: [
+            "Bachelor's Degree in Business Administration, Marketing, or International Business",
+            "Full or partial qualification in CIM (Chartered Institute of Marketing) or SLIM is highly advantageous",
+            "Minimum 3 passes in GCE Advanced Level (A/L)"
         ]
     },
     {
@@ -59,6 +68,11 @@ const vacancies = [
             "Exceptional interpersonal and communication skills",
             "Ability to handle high-profile clients with professionalism and discretion",
             "Strong problem-solving skills"
+        ],
+        qualifications: [
+            "Bachelor's Degree or Higher National Diploma (HND) in Hospitality Management, Public Relations, or Communications",
+            "Diploma or certification in Customer Relationship Management or relevant field",
+            "Excellent command of English language (spoken and written); fluency in another foreign language is a distinct advantage"
         ]
     },
     {
@@ -77,6 +91,11 @@ const vacancies = [
             "Strong organizational and coordination skills",
             "Experience managing suppliers and travel logistics",
             "Attention to detail and ability to work under pressure"
+        ],
+        qualifications: [
+            "Bachelor's Degree or Diploma in Tourism & Travel Management, Business Administration, or Logistics",
+            "Valid certificate in a ticketing/GDS system (e.g., Amadeus) is an added advantage",
+            "Minimum 3 passes in GCE Advanced Level (A/L)"
         ]
     },
     {
@@ -95,6 +114,11 @@ const vacancies = [
             "Strong understanding of SEO and online advertising",
             "Creative storytelling and content development skills",
             "Knowledge of international tourism markets"
+        ],
+        qualifications: [
+            "Bachelor's Degree in Marketing, Information Technology, or Media/Communications",
+            "Professional qualification in Digital Marketing (e.g., SLIM DDM, CIM, or similar)",
+            "Google Analytics and Ads certifications are strongly preferred"
         ]
     },
     {
@@ -112,6 +136,10 @@ const vacancies = [
             "Experience in hospitality partnerships or supplier management",
             "Strong negotiation and relationship management skills",
             "Knowledge of Sri Lanka’s luxury hospitality sector"
+        ],
+        qualifications: [
+            "Bachelor's Degree or Professional Diploma in Business Management, Hospitality Management, or related field",
+            "Minimum 3 passes in GCE Advanced Level (A/L) and excellent passes for English and Mathematics in GCE Ordinary Level (O/L)"
         ]
     }
 ];
@@ -198,16 +226,29 @@ export default function CareersPage() {
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h4 className="text-xs uppercase font-black tracking-widest text-brand-charcoal/40 mb-3">Requirements</h4>
-                                        <ul className="space-y-3">
-                                            {vacancy.requirements.map((req, i) => (
-                                                <li key={i} className="flex gap-3 text-brand-charcoal/70 text-sm font-light leading-relaxed">
-                                                    <CheckCircle2 className="text-brand-gold shrink-0 mt-1" size={16} />
-                                                    {req}
-                                                </li>
-                                            ))}
-                                        </ul>
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h4 className="text-xs uppercase font-black tracking-widest text-brand-charcoal/40 mb-3">Requirements</h4>
+                                            <ul className="space-y-3">
+                                                {vacancy.requirements.map((req, i) => (
+                                                    <li key={i} className="flex gap-3 text-brand-charcoal/70 text-sm font-light leading-relaxed">
+                                                        <CheckCircle2 className="text-brand-gold shrink-0 mt-1" size={16} />
+                                                        {req}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs uppercase font-black tracking-widest text-brand-charcoal/40 mb-3">Education & Qualifications</h4>
+                                            <ul className="space-y-3">
+                                                {vacancy.qualifications.map((qual, i) => (
+                                                    <li key={i} className="flex gap-3 text-brand-charcoal/70 text-sm font-light leading-relaxed">
+                                                        <CheckCircle2 className="text-brand-gold shrink-0 mt-1" size={16} />
+                                                        {qual}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
