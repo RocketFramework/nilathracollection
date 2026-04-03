@@ -436,8 +436,8 @@ export class TourService {
                     }
                 }
 
-                activitiesToInsert.push({
-                    id: crypto.randomUUID(), // Always generate a fresh relational ID to prevent crashes from cloned JSON blocks
+                let basePayload = {
+                    id: crypto.randomUUID(), // Will override for multi-rooms
                     itinerary_id: dbItin.id,
                     title: b.name,
                     location_name: b.locationName || null,
@@ -454,11 +454,60 @@ export class TourService {
                     driver_id: (b.driverId && b.driverId.includes('-')) ? b.driverId : (tripData.defaultDriverId || null),
                     guide_id: (b.guideId && b.guideId.includes('-')) ? b.guideId : (tripData.defaultGuideId || null),
                     restaurant_id: (b.restaurantId && b.restaurantId.includes('-')) ? b.restaurantId : null,
+                    hotel_id: (b.hotelId && b.hotelId.includes('-')) ? b.hotelId : null,
                     driver_meal_included: b.driverMealIncluded || false,
                     driver_acc_included: b.driverAccIncluded || false,
                     guide_room_discount: b.guideRoomDiscount || null,
                     parking_included: b.parkingIncluded || false
-                });
+                };
+
+                if (b.type === 'sleep') {
+                    const acc = tripData.accommodations?.find(a => a.nightIndex === day);
+                    if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
+                        for (const room of acc.selectedRooms) {
+                            activitiesToInsert.push({
+                                ...basePayload,
+                                id: crypto.randomUUID(), // Parallel unique row
+                                hotel_room_id: room.roomId && room.roomId.includes('-') ? room.roomId : null,
+                                quantity: room.quantity || 1,
+                                agreed_unit_price: room.pricePerNight || null,
+                                agreed_total_price: (room.pricePerNight && room.quantity) ? room.pricePerNight * room.quantity : null,
+                                meal_plan: room.mealPlan || null
+                            });
+                        }
+                    } else if (acc) {
+                        // Legacy single-room mapping
+                        let quantity = acc.numberOfRooms || 1;
+                        let agreedUnitPrice = acc.pricePerNight || null;
+                        activitiesToInsert.push({
+                            ...basePayload,
+                            id: crypto.randomUUID(),
+                            hotel_room_id: acc.roomId && acc.roomId.includes('-') ? acc.roomId : null,
+                            quantity: quantity,
+                            agreed_unit_price: agreedUnitPrice,
+                            agreed_total_price: (agreedUnitPrice && quantity) ? agreedUnitPrice * quantity : null,
+                            meal_plan: acc.mealPlan || null
+                        });
+                    } else {
+                        // Sleep block with no accommodation set
+                        activitiesToInsert.push({
+                            ...basePayload,
+                            id: crypto.randomUUID(),
+                            quantity: 1
+                        });
+                    }
+                } else {
+                    let quantity = b.transportQuantity || tripData.profile?.adults || 1;
+                    let agreedUnitPrice = b.agreedPrice || null;
+                    activitiesToInsert.push({
+                        ...basePayload,
+                        id: crypto.randomUUID(),
+                        quantity: quantity,
+                        agreed_unit_price: agreedUnitPrice,
+                        agreed_total_price: agreedUnitPrice,
+                        meal_plan: b.mealType || null
+                    });
+                }
             }
 
             if (activitiesToInsert.length > 0) {

@@ -79,13 +79,24 @@ export interface AccommodationBooking {
     contactNumber: string;
     email: string;
     rateCardUrl: string;
+    // Legacy flat bindings (kept for compatibility)
     roomId?: string;
     roomName?: string;
-    roomStandard: string;
-    numberOfRooms: number;
-    numberOfGuests?: number;
-    pricePerNight: number;
-    mealPlan: 'BB' | 'HB' | 'FB' | 'AI';
+    roomStandard?: string;
+    numberOfRooms?: number;
+    pricePerNight?: number;
+    mealPlan?: 'BB' | 'HB' | 'FB' | 'AI' | string;
+
+    // Next-Gen Multi-Room Schema Sync
+    selectedRooms?: {
+        roomId: string;
+        roomName: string;
+        roomStandard: string;
+        quantity: number;
+        pricePerNight: number;
+        mealPlan: 'BB' | 'HB' | 'FB' | 'AI' | string;
+    }[];
+
     status: 'Tentative' | 'Confirmed';
     confirmationReference: string;
     paymentStatus: 'Pending' | 'Paid';

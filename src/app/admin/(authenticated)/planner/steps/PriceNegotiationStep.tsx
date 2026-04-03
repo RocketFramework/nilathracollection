@@ -75,7 +75,13 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             const hotel = masterHotels.find(h => h.id === hId);
             if (hotel) vendorName = hotel.name;
             const acc = tripData.accommodations?.find(a => a.nightIndex === b.dayNumber && (a.hotelId === hId || a.hotelName === hotel?.name));
-            if (acc) referencePrice = acc.pricePerNight * acc.numberOfRooms;
+            if (acc) {
+                if (acc.selectedRooms && acc.selectedRooms.length > 0) {
+                    referencePrice = acc.selectedRooms.reduce((sum, r) => sum + ((r.pricePerNight || 0) * (r.quantity || 1)), 0);
+                } else {
+                    referencePrice = (acc.pricePerNight || 0) * (acc.numberOfRooms || 1);
+                }
+            }
             icon = <Building2 size={18} className="text-blue-500" />;
         } else if (b.type === 'meal') {
             const rId = b.restaurantId;
