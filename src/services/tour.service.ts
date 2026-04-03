@@ -453,7 +453,11 @@ export class TourService {
                     vehicle_id: (b.vehicleId && b.vehicleId.includes('-')) ? b.vehicleId : (tripData.defaultVehicleId || null),
                     driver_id: (b.driverId && b.driverId.includes('-')) ? b.driverId : (tripData.defaultDriverId || null),
                     guide_id: (b.guideId && b.guideId.includes('-')) ? b.guideId : (tripData.defaultGuideId || null),
-                    restaurant_id: (b.restaurantId && b.restaurantId.includes('-')) ? b.restaurantId : null
+                    restaurant_id: (b.restaurantId && b.restaurantId.includes('-')) ? b.restaurantId : null,
+                    driver_meal_included: b.driverMealIncluded || false,
+                    driver_acc_included: b.driverAccIncluded || false,
+                    guide_room_discount: b.guideRoomDiscount || null,
+                    parking_included: b.parkingIncluded || false
                 });
             }
 

@@ -173,6 +173,12 @@ export interface InternalItineraryBlock {
     guideId?: string;
     restaurantId?: string;
 
+    // Negotiation Flags
+    driverMealIncluded?: boolean;
+    driverAccIncluded?: boolean;
+    guideRoomDiscount?: 'Free' | 'Half Price' | 'None' | '';
+    parkingIncluded?: boolean;
+
     linkedSupplierId?: string; // Legacy field - to be phased out or used as label
     confirmationStatus: 'Pending' | 'Confirmed';
     paymentStatus: 'Pending' | 'Paid';

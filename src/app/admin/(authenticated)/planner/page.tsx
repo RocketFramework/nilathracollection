@@ -10,8 +10,9 @@ import { ActivitiesStep } from "./steps/ActivitiesStep";
 import { ItineraryBuilder } from "./steps/ItineraryBuilder";
 import { FinanceAndBookingStep } from "./steps/FinanceAndBookingStep";
 import { OperationalReadiness } from "./components/OperationalReadiness";
-import { Save, FileCheck, CheckSquare, Users, Plane, Compass, BedDouble, CarFront, CalendarDays, Calculator, Activity, Loader2, MessageSquare, X } from "lucide-react";
+import { Save, FileCheck, CheckSquare, Users, Plane, Compass, BedDouble, CarFront, CalendarDays, Calculator, Activity, Loader2, MessageSquare, X, Handshake } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { PriceNegotiationStep } from "./steps/PriceNegotiationStep";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { initOrCreateChatTopicAction, checkUnreadMessagesAction } from "@/actions/chat.actions";
 const initialData: TripData = {
@@ -56,6 +57,7 @@ const STEPS = [
     { id: 'flights', label: 'Flights', icon: Plane },
     { id: 'activities', label: 'Activities', icon: Compass },
     { id: 'itinerary', label: 'Builder Engine', icon: CalendarDays },
+    { id: 'negotiation', label: 'Negotiation', icon: Handshake },
     { id: 'finance', label: 'Bookings & Finance', icon: Calculator }
 ];
 
@@ -315,6 +317,11 @@ function PlannerWorkspace() {
                     {activeTab === 'itinerary' && (
                         <div className="space-y-8">
                             <ItineraryBuilder tripData={tripData} updateData={updateData} />
+                        </div>
+                    )}
+                    {activeTab === 'negotiation' && (
+                        <div className="space-y-8">
+                            <PriceNegotiationStep tripData={tripData} updateData={updateData} />
                         </div>
                     )}
                     {activeTab === 'finance' && (
