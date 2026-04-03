@@ -436,8 +436,8 @@ export class TourService {
                     }
                 }
 
-                let basePayload = {
-                    id: crypto.randomUUID(), // Will override for multi-rooms
+                let basePayload: any = {
+                    id: crypto.randomUUID(),
                     itinerary_id: dbItin.id,
                     title: b.name,
                     location_name: b.locationName || null,
@@ -464,46 +464,59 @@ export class TourService {
                 if (b.type === 'sleep') {
                     const acc = tripData.accommodations?.find(a => a.nightIndex === day);
                     if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
-                        for (const room of acc.selectedRooms) {
-                            activitiesToInsert.push({
-                                ...basePayload,
-                                id: crypto.randomUUID(), // Parallel unique row
-                                hotel_room_id: room.roomId && room.roomId.includes('-') ? room.roomId : null,
-                                quantity: room.quantity || 1,
-                                agreed_unit_price: room.pricePerNight || null,
-                                agreed_total_price: (room.pricePerNight && room.quantity) ? room.pricePerNight * room.quantity : null,
-                                meal_plan: room.mealPlan || null
-                            });
+                        let totalAgreedPrice = 0;
+                        let mealPlan = null;
+
+                        if (!basePayload.hotel_id && acc.hotelId?.includes('-')) {
+                            basePayload.hotel_id = acc.hotelId;
                         }
+
+                        for (const room of acc.selectedRooms) {
+                            const reqType = room.reqId?.split('-')[0]; // Extract 'Single', 'Double', 'Family' etc.
+                            const validRoomId = room.roomId?.includes('-') ? room.roomId : null;
+
+                            if (reqType === 'Single') {
+                                basePayload.single_room_id = validRoomId;
+                                basePayload.single_room_count = room.quantity;
+                            } else if (reqType === 'Double') {
+                                basePayload.double_room_id = validRoomId;
+                                basePayload.double_room_count = room.quantity;
+                            } else if (reqType === 'Twin') {
+                                basePayload.twin_room_id = validRoomId;
+                                basePayload.twin_room_count = room.quantity;
+                            } else if (reqType === 'Triple') {
+                                basePayload.triple_room_id = validRoomId;
+                                basePayload.triple_room_count = room.quantity;
+                            } else if (reqType === 'Family') {
+                                basePayload.family_room_id = validRoomId;
+                                basePayload.family_room_count = room.quantity;
+                            }
+
+                            if (room.pricePerNight && room.quantity) totalAgreedPrice += room.pricePerNight * room.quantity;
+                            if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
+                        }
+
+                        basePayload.agreed_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
+                        basePayload.meal_plan = mealPlan;
+                        activitiesToInsert.push(basePayload);
                     } else if (acc) {
-                        // Legacy single-room mapping
-                        let quantity = acc.numberOfRooms || 1;
-                        let agreedUnitPrice = acc.pricePerNight || null;
-                        activitiesToInsert.push({
-                            ...basePayload,
-                            id: crypto.randomUUID(),
-                            hotel_room_id: acc.roomId && acc.roomId.includes('-') ? acc.roomId : null,
-                            quantity: quantity,
-                            agreed_unit_price: agreedUnitPrice,
-                            agreed_total_price: (agreedUnitPrice && quantity) ? agreedUnitPrice * quantity : null,
-                            meal_plan: acc.mealPlan || null
-                        });
+                        // Legacy single-room fallback mapping targeting standard double default
+                        const assumedRoomId = acc.roomId && acc.roomId.includes('-') ? acc.roomId : null;
+                        const assumedQty = acc.numberOfRooms || 1;
+                        basePayload.double_room_id = assumedRoomId;
+                        basePayload.double_room_count = assumedQty;
+                        basePayload.agreed_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
+                        basePayload.meal_plan = acc.mealPlan || null;
+                        activitiesToInsert.push(basePayload);
                     } else {
-                        // Sleep block with no accommodation set
-                        activitiesToInsert.push({
-                            ...basePayload,
-                            id: crypto.randomUUID(),
-                            quantity: 1
-                        });
+                        activitiesToInsert.push(basePayload);
                     }
                 } else {
                     let quantity = b.transportQuantity || tripData.profile?.adults || 1;
                     let agreedUnitPrice = b.agreedPrice || null;
                     activitiesToInsert.push({
                         ...basePayload,
-                        id: crypto.randomUUID(),
-                        quantity: quantity,
-                        agreed_unit_price: agreedUnitPrice,
+                        single_room_count: quantity, // Fallback alias
                         agreed_total_price: agreedUnitPrice,
                         meal_plan: b.mealType || null
                     });
