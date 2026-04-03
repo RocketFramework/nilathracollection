@@ -472,7 +472,7 @@ export class TourService {
                         }
 
                         for (const room of acc.selectedRooms) {
-                            const reqType = room.reqId?.split('-')[0]; // Extract 'Single', 'Double', 'Family' etc.
+                            const reqType = (room as any).reqId?.split('-')[0]; // Extract 'Single', 'Double', 'Family' etc.
                             const validRoomId = room.roomId?.includes('-') ? room.roomId : null;
 
                             if (reqType === 'Single') {
@@ -492,7 +492,8 @@ export class TourService {
                                 basePayload.family_room_count = room.quantity;
                             }
 
-                            if (room.pricePerNight && room.quantity) totalAgreedPrice += room.pricePerNight * room.quantity;
+                            const roomTotal = (room as any).agreedTotal !== undefined ? (room as any).agreedTotal : (room.pricePerNight * room.quantity);
+                            if (roomTotal !== undefined) totalAgreedPrice += roomTotal;
                             if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
                         }
 

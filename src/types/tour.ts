@@ -89,11 +89,13 @@ export interface AccommodationBooking {
 
     // Next-Gen Multi-Room Schema Sync
     selectedRooms?: {
-        roomId: string;
+        reqId?: string; // e.g. Single-0
+        roomId: string; // The physical database UUID for the room category
         roomName: string;
         roomStandard: string;
         quantity: number;
         pricePerNight: number;
+        agreedTotal?: number; // The dynamically negotiated total rate for this exact room category
         mealPlan: 'BB' | 'HB' | 'FB' | 'AI' | string;
     }[];
 

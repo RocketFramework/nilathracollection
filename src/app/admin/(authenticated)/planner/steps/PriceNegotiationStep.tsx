@@ -46,17 +46,91 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         fetchMasterData();
     }, []);
 
-    const negotiableBlocks = useMemo(() => {
-        return tripData.itinerary.filter(b => {
-            if (b.type === 'sleep' && b.hotelId) return true;
-            if (b.type === 'meal' && b.restaurantId) return true;
-            if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) return true;
-            if (b.type === 'travel' && (b.transportId || b.vehicleId || b.driverId || tripData.defaultTransportId || tripData.defaultVehicleId || tripData.defaultDriverId)) return true;
-            if (b.type === 'guide' && (b.guideId || tripData.defaultGuideId)) return true;
-            return false;
-        });
-    }, [tripData.itinerary, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId]);
+    const negotiableItems = useMemo(() => {
+        let items: any[] = [];
+        tripData.itinerary.forEach(b => {
+            let vendorName = "Unknown Vendor";
+            let unitPrice = 0;
+            let quantity = 1;
+            let referenceTotal = 0;
+            let icon: React.ReactNode = <Compass size={18} />;
 
+            if (b.type === 'sleep' && b.hotelId) {
+                const hId = b.hotelId;
+                const hotel = masterHotels.find(h => h.id === hId);
+                if (hotel) vendorName = hotel.name;
+                const accIndex = tripData.accommodations?.findIndex(a => a.nightIndex === b.dayNumber && (a.hotelId === hId || a.hotelName === hotel?.name)) ?? -1;
+                const acc = accIndex !== -1 ? tripData.accommodations![accIndex] : null;
+
+                if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
+                    items.push({
+                        id: b.id,
+                        block: b,
+                        title: b.name,
+                        vendorName,
+                        icon: <Building2 size={18} className="text-blue-500" />,
+                        isHotelWithRooms: true,
+                        accIndex,
+                        rooms: acc.selectedRooms
+                    });
+                    return; // Skip normal block push
+                } else if (acc) {
+                    unitPrice = acc.pricePerNight || 0;
+                    quantity = acc.numberOfRooms || 1;
+                    referenceTotal = unitPrice * quantity;
+                    items.push({
+                        id: b.id, block: b, title: b.name, vendorName, icon: <Building2 size={18} className="text-blue-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice
+                    });
+                    return;
+                }
+            } else if (b.type === 'meal' && b.restaurantId) {
+                const rId = b.restaurantId;
+                const rest = masterRestaurants.find(r => r.id === rId);
+                if (rest) {
+                    vendorName = rest.name;
+                    unitPrice = rest.lunch_rate_per_head || 0;
+                }
+                quantity = (tripData.profile?.adults || 1) + (tripData.profile?.children || 0);
+                referenceTotal = unitPrice * quantity;
+                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Utensils size={18} className="text-orange-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+            } else if (b.type === 'travel' && (b.transportId || b.vehicleId || b.driverId || tripData.defaultTransportId || tripData.defaultVehicleId || tripData.defaultDriverId)) {
+                const tId = b.transportId || tripData.defaultTransportId;
+                const trans = masterTransports.find(t => t.id === tId);
+                if (trans) {
+                    vendorName = trans.name;
+                    const vId = b.vehicleId || tripData.defaultVehicleId;
+                    const veh = trans.transport_vehicles?.find((v: any) => v.id === vId);
+                    if (veh) unitPrice = veh.per_km_rate || veh.day_rate || 0;
+                }
+                const parsedDistance = parseFloat(b.distance?.replace(/[^0-9.]/g, '') || '0');
+                quantity = parsedDistance > 0 ? parsedDistance : 1;
+                referenceTotal = unitPrice * quantity;
+                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Car size={18} className="text-indigo-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+            } else if (b.type === 'guide' && (b.guideId || tripData.defaultGuideId)) {
+                const gId = b.guideId || tripData.defaultGuideId;
+                const guide = masterGuides.find(g => g.id === gId);
+                if (guide) {
+                    vendorName = `${guide.first_name} ${guide.last_name || ''}`.trim();
+                    unitPrice = guide.per_day_rate || 0;
+                }
+                quantity = 1;
+                referenceTotal = unitPrice * quantity;
+                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <UserCheck size={18} className="text-purple-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+            } else if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
+                const vId = b.vendorId;
+                const vend = masterVendors.find(v => v.id === vId);
+                if (vend) vendorName = vend.name;
+                const actBooking = tripData.activities.find(a => a.activityId === b.activityId);
+                if (actBooking && (actBooking.activityData as any).price) {
+                    unitPrice = (actBooking.activityData as any).price;
+                }
+                quantity = b.transportQuantity || ((tripData.profile?.adults || 1) + (tripData.profile?.children || 0));
+                referenceTotal = unitPrice * quantity;
+                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Compass size={18} className="text-green-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+            }
+        });
+        return items;
+    }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotels, masterRestaurants, masterTransports, masterGuides, masterVendors]);
 
     const handleBlockUpdate = (blockId: string, updates: Partial<InternalItineraryBlock>) => {
         const updatedItinerary = tripData.itinerary.map(b =>
@@ -65,66 +139,18 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         updateData({ itinerary: updatedItinerary });
     };
 
-    const getVendorDetails = (b: InternalItineraryBlock) => {
-        let referencePrice = 0;
-        let vendorName = "Unknown Vendor";
-        let icon = <Compass size={18} />;
-
-        if (b.type === 'sleep') {
-            const hId = b.hotelId;
-            const hotel = masterHotels.find(h => h.id === hId);
-            if (hotel) vendorName = hotel.name;
-            const acc = tripData.accommodations?.find(a => a.nightIndex === b.dayNumber && (a.hotelId === hId || a.hotelName === hotel?.name));
-            if (acc) {
-                if (acc.selectedRooms && acc.selectedRooms.length > 0) {
-                    referencePrice = acc.selectedRooms.reduce((sum, r) => sum + ((r.pricePerNight || 0) * (r.quantity || 1)), 0);
-                } else {
-                    referencePrice = (acc.pricePerNight || 0) * (acc.numberOfRooms || 1);
-                }
-            }
-            icon = <Building2 size={18} className="text-blue-500" />;
-        } else if (b.type === 'meal') {
-            const rId = b.restaurantId;
-            const rest = masterRestaurants.find(r => r.id === rId);
-            if (rest) {
-                vendorName = rest.name;
-                referencePrice = rest.lunch_rate_per_head || 0; // standard roughly
-            }
-            icon = <Utensils size={18} className="text-orange-500" />;
-        } else if (b.type === 'travel') {
-            const tId = b.transportId || tripData.defaultTransportId;
-            const trans = masterTransports.find(t => t.id === tId);
-            if (trans) {
-                vendorName = trans.name;
-                const vId = b.vehicleId || tripData.defaultVehicleId;
-                const veh = trans.transport_vehicles?.find((v: any) => v.id === vId);
-                if (veh) referencePrice = veh.day_rate || 0;
-            }
-            icon = <Car size={18} className="text-indigo-500" />;
-        } else if (b.type === 'guide') {
-            const gId = b.guideId || tripData.defaultGuideId;
-            const guide = masterGuides.find(g => g.id === gId);
-            if (guide) {
-                vendorName = `${guide.first_name} ${guide.last_name || ''}`.trim();
-                referencePrice = guide.per_day_rate || 0;
-            }
-            icon = <UserCheck size={18} className="text-purple-500" />;
-        } else if (b.type === 'activity') {
-            const vId = b.vendorId;
-            const vend = masterVendors.find(v => v.id === vId);
-            if (vend) {
-                vendorName = vend.name;
-            }
-            icon = <Compass size={18} className="text-green-500" />;
-            // To get reference price for activities, it's typically in the booking or we use 0
-            const actBooking = tripData.activities.find(a => a.activityId === b.activityId);
-            if (actBooking && (actBooking.activityData as any).price) {
-                referencePrice = (actBooking.activityData as any).price;
-            }
+    const handleRoomUpdate = (accIndex: number, roomIndex: number, agreedTotal: number | undefined) => {
+        if (!tripData.accommodations) return;
+        const updatedAccs = [...tripData.accommodations];
+        const acc = updatedAccs[accIndex];
+        if (acc && acc.selectedRooms) {
+            const rooms = [...acc.selectedRooms];
+            rooms[roomIndex] = { ...rooms[roomIndex], agreedTotal };
+            updatedAccs[accIndex] = { ...acc, selectedRooms: rooms };
+            updateData({ accommodations: updatedAccs });
         }
-
-        return { vendorName, referencePrice, icon };
     };
+
 
     if (isLoading) {
         return (
@@ -149,26 +175,26 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             <div className="bg-white rounded-3xl border border-neutral-200 shadow-sm overflow-hidden">
                 <div className="bg-neutral-50 p-6 border-b border-neutral-200 flex justify-between items-center">
                     <h4 className="font-semibold text-neutral-800 text-sm uppercase tracking-wide">Assigned Services</h4>
-                    <span className="text-xs font-bold bg-brand-gold/10 text-brand-gold px-3 py-1 rounded-full uppercase tracking-widest">{negotiableBlocks.length} Items</span>
+                    <span className="text-xs font-bold bg-brand-gold/10 text-brand-gold px-3 py-1 rounded-full uppercase tracking-widest">{negotiableItems.length} Items</span>
                 </div>
 
                 <div className="divide-y divide-neutral-100">
-                    {negotiableBlocks.length === 0 ? (
+                    {negotiableItems.length === 0 ? (
                         <div className="p-12 text-center flex flex-col items-center justify-center opacity-70">
                             <AlertTriangle className="text-neutral-400 w-12 h-12 mb-4" />
                             <p className="text-neutral-500 font-medium">No assigned vendors found.</p>
                             <p className="text-sm text-neutral-400 mt-1">Assign vendors in the Itinerary Builder first.</p>
                         </div>
                     ) : (
-                        negotiableBlocks.map(b => {
-                            const { vendorName, referencePrice, icon } = getVendorDetails(b);
+                        negotiableItems.map(item => {
+                            const { id, block: b, title, vendorName, unitPrice, quantity, referenceTotal, icon, isHotelWithRooms, accIndex, rooms, agreedPrice } = item;
 
                             return (
-                                <div key={b.id} className="p-6 hover:bg-neutral-50/50 transition-colors">
+                                <div key={id} className="p-6 hover:bg-neutral-50/50 transition-colors">
                                     <div className="flex flex-col lg:flex-row gap-6 justify-between">
 
                                         {/* Left: Info */}
-                                        <div className="flex gap-4 flex-1">
+                                        <div className="flex gap-4 w-full lg:w-1/4 shrink-0">
                                             <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 shadow-sm flex items-center justify-center shrink-0">
                                                 {icon}
                                             </div>
@@ -177,7 +203,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                     <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded uppercase tracking-wider">Day {b.dayNumber}</span>
                                                     <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded uppercase tracking-wider">{b.type}</span>
                                                 </div>
-                                                <h5 className="font-bold text-brand-charcoal text-base">{b.name}</h5>
+                                                <h5 className="font-bold text-brand-charcoal text-base">{title}</h5>
                                                 <p className="text-sm text-neutral-500 mt-0.5 flex items-center gap-1">
                                                     <Building2 size={12} className="inline opacity-50" /> {vendorName}
                                                 </p>
@@ -185,94 +211,168 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                         </div>
 
                                         {/* Center/Right: Pricing & Negotiation */}
-                                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 lg:w-2/3 shrink-0">
+                                        <div className="flex flex-col flex-1 shrink-0 gap-4">
+                                            {isHotelWithRooms ? (
+                                                <div className="space-y-4">
+                                                    {rooms.map((room: any, rIdx: number) => {
+                                                        const roomRefTotal = (room.pricePerNight || 0) * (room.quantity || 1);
+                                                        const roomAgreedPrice = room.agreedTotal;
+                                                        const parsedReqType = room.reqId?.split('-')[0] || '';
+                                                        return (
+                                                            <div key={rIdx} className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-4 border-b border-neutral-100 last:border-0 last:pb-0">
+                                                                <div className="flex-1 min-w-[120px]">
+                                                                    <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Room Setup</span>
+                                                                    <span className="block font-mono font-bold text-neutral-700 text-sm">{parsedReqType} ({room.roomName})</span>
+                                                                </div>
 
-                                            {/* Reference Price */}
-                                            <div className="bg-neutral-50 px-4 py-2.5 rounded-xl border border-neutral-200 min-w[120px]">
-                                                <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Rate</span>
-                                                <span className="block font-mono font-bold text-neutral-600">
-                                                    {referencePrice > 0 ? (b.type === 'meal' ? `${referencePrice}/pax` : referencePrice) : 'N/A'}
-                                                </span>
-                                            </div>
+                                                                <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
+                                                                    <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
+                                                                    <div className="flex items-center gap-2 text-sm justify-between w-full">
+                                                                        <span className="font-mono text-neutral-500">{room.pricePerNight > 0 ? room.pricePerNight.toLocaleString() : '-'}</span>
+                                                                        <span className="text-neutral-400 text-xs font-bold">× {room.quantity}</span>
+                                                                        <span className="text-neutral-300 font-bold">=</span>
+                                                                        <span className="font-mono font-bold text-brand-charcoal">{roomRefTotal > 0 ? roomRefTotal.toLocaleString() : '-'}</span>
+                                                                    </div>
+                                                                </div>
 
-                                            {/* Negotiated Price Input */}
-                                            <div className="flex-1 min-w[150px]">
-                                                <label className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Negotiated Final Price</label>
-                                                <div className="relative">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">LKR</span>
-                                                    <input
-                                                        type="number"
-                                                        value={b.agreedPrice || ''}
-                                                        onChange={(e) => handleBlockUpdate(b.id, { agreedPrice: e.target.value ? Number(e.target.value) : undefined })}
-                                                        className="w-full pl-12 pr-4 py-2.5 bg-white border border-neutral-300 rounded-xl text-sm font-bold text-brand-charcoal focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold outline-none transition-all shadow-sm"
-                                                        placeholder="Enter agreed amount..."
-                                                    />
+                                                                <div className="w-[140px] shrink-0">
+                                                                    <label className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Final Price</label>
+                                                                    <div className="relative">
+                                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">LKR</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={roomAgreedPrice || ''}
+                                                                            onChange={(e) => handleRoomUpdate(accIndex, rIdx, e.target.value ? Number(e.target.value) : undefined)}
+                                                                            className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal outline-none transition-all shadow-sm"
+                                                                            placeholder="Total agreed..."
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                {/* Discount Delta per Room */}
+                                                                {roomAgreedPrice && roomAgreedPrice < roomRefTotal ? (
+                                                                    <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 w-full md:w-auto flex flex-col justify-center">
+                                                                        <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
+                                                                        <span className="block font-mono font-bold text-green-700">- {(roomRefTotal - roomAgreedPrice).toLocaleString()}</span>
+                                                                    </div>
+                                                                ) : roomAgreedPrice && roomAgreedPrice > roomRefTotal ? (
+                                                                    <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 w-full md:w-auto flex flex-col justify-center">
+                                                                        <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
+                                                                        <span className="block font-mono font-bold text-red-700">+ {(roomAgreedPrice - roomRefTotal).toLocaleString()}</span>
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-2">
+                                                    <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
+                                                        <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
+                                                        <div className="flex items-center gap-2 text-sm justify-between w-full">
+                                                            <span className="font-mono text-neutral-500">{unitPrice === 'Mixed' ? 'Mixed' : (unitPrice > 0 ? unitPrice.toLocaleString() : '-')}</span>
+                                                            <span className="text-neutral-400 text-xs font-bold">× {quantity}</span>
+                                                            <span className="text-neutral-300 font-bold">=</span>
+                                                            <span className="font-mono font-bold text-brand-charcoal">{referenceTotal > 0 ? referenceTotal.toLocaleString() : '-'}</span>
+                                                        </div>
+                                                    </div>
 
-                                            {/* Specialized Flags */}
-                                            <div className="flex-1 flex flex-col gap-2 border-l border-neutral-200 pl-6">
-                                                {/* Meal Flags */}
-                                                {(b.type === 'meal' || b.type === 'sleep' || b.type === 'activity') && (
+                                                    {/* Negotiated Price Input */}
+                                                    <div className="w-[140px] shrink-0">
+                                                        <label className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Final Price</label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">LKR</span>
+                                                            <input
+                                                                type="number"
+                                                                value={agreedPrice || ''}
+                                                                onChange={(e) => handleBlockUpdate(b.id, { agreedPrice: e.target.value ? Number(e.target.value) : undefined })}
+                                                                className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold outline-none transition-all shadow-sm"
+                                                                placeholder="Enter total agreed..."
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Discount Delta */}
+                                                    {agreedPrice && agreedPrice < referenceTotal ? (
+                                                        <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 flex flex-col justify-center">
+                                                            <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
+                                                            <span className="block font-mono font-bold text-green-700">
+                                                                - {(referenceTotal - agreedPrice).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    ) : agreedPrice && agreedPrice > referenceTotal ? (
+                                                        <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 flex flex-col justify-center">
+                                                            <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
+                                                            <span className="block font-mono font-bold text-red-700">
+                                                                + {(agreedPrice - referenceTotal).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Specialized Flags */}
+                                        <div className="w-full lg:w-[250px] shrink-0 flex flex-col gap-2 lg:border-l border-neutral-200 lg:pl-6">
+                                            {/* Meal Flags */}
+                                            {(b.type === 'meal' || b.type === 'sleep' || b.type === 'activity') && (
+                                                <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!b.driverMealIncluded}
+                                                        onChange={(e) => handleBlockUpdate(b.id, { driverMealIncluded: e.target.checked })}
+                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                    />
+                                                    <span className="font-medium">Driver Meal Included</span>
+                                                </label>
+                                            )}
+
+                                            {/* Sleep/Hotel Flags */}
+                                            {b.type === 'sleep' && (
+                                                <>
                                                     <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
                                                         <input
                                                             type="checkbox"
-                                                            checked={!!b.driverMealIncluded}
-                                                            onChange={(e) => handleBlockUpdate(b.id, { driverMealIncluded: e.target.checked })}
+                                                            checked={!!b.driverAccIncluded}
+                                                            onChange={(e) => handleBlockUpdate(b.id, { driverAccIncluded: e.target.checked })}
                                                             className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
                                                         />
-                                                        <span className="font-medium">Driver Meal Included</span>
+                                                        <span className="font-medium">Driver Accom. (FOC)</span>
                                                     </label>
-                                                )}
 
-                                                {/* Sleep/Hotel Flags */}
-                                                {b.type === 'sleep' && (
-                                                    <>
-                                                        <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={!!b.driverAccIncluded}
-                                                                onChange={(e) => handleBlockUpdate(b.id, { driverAccIncluded: e.target.checked })}
-                                                                className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
-                                                            />
-                                                            <span className="font-medium">Driver Accom. (FOC)</span>
-                                                        </label>
+                                                    <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!b.parkingIncluded}
+                                                            onChange={(e) => handleBlockUpdate(b.id, { parkingIncluded: e.target.checked })}
+                                                            className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                        />
+                                                        <span className="font-medium">Parking Included</span>
+                                                    </label>
 
-                                                        <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={!!b.parkingIncluded}
-                                                                onChange={(e) => handleBlockUpdate(b.id, { parkingIncluded: e.target.checked })}
-                                                                className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
-                                                            />
-                                                            <span className="font-medium">Parking Included</span>
-                                                        </label>
-
-                                                        <div className="mt-1 pt-2 border-t border-neutral-100">
-                                                            <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1.5">Guide Room Option</span>
-                                                            <div className="flex gap-2">
-                                                                {['Free', 'Half Price', 'None'].map(opt => (
-                                                                    <button
-                                                                        key={opt}
-                                                                        onClick={() => handleBlockUpdate(b.id, { guideRoomDiscount: opt as any })}
-                                                                        className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${b.guideRoomDiscount === opt ? 'bg-brand-gold text-white border-brand-gold' : 'bg-white text-neutral-500 border-neutral-200 hover:border-brand-gold/50'}`}
-                                                                    >
-                                                                        {opt}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
+                                                    <div className="mt-1 pt-2 border-t border-neutral-100">
+                                                        <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1.5">Guide Room Option</span>
+                                                        <div className="flex gap-2">
+                                                            {['Free', 'Half Price', 'None'].map(opt => (
+                                                                <button
+                                                                    key={opt}
+                                                                    onClick={() => handleBlockUpdate(b.id, { guideRoomDiscount: opt as any })}
+                                                                    className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${b.guideRoomDiscount === opt ? 'bg-brand-gold text-white border-brand-gold' : 'bg-white text-neutral-500 border-neutral-200 hover:border-brand-gold/50'}`}
+                                                                >
+                                                                    {opt}
+                                                                </button>
+                                                            ))}
                                                         </div>
-                                                    </>
-                                                )}
+                                                    </div>
+                                                </>
+                                            )}
 
-                                                {b.type !== 'meal' && b.type !== 'sleep' && b.type !== 'activity' && (
-                                                    <span className="text-xs text-neutral-400 italic flex items-center gap-1">
-                                                        <Info size={12} /> No specialized flags for this category.
-                                                    </span>
-                                                )}
-                                            </div>
-
+                                            {b.type !== 'meal' && b.type !== 'sleep' && b.type !== 'activity' && (
+                                                <span className="text-xs text-neutral-400 italic flex items-center gap-1">
+                                                    <Info size={12} /> No specialized flags for this category.
+                                                </span>
+                                            )}
                                         </div>
+
                                     </div>
                                 </div>
                             );
