@@ -674,11 +674,21 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
         switch (activeAssignment.type) {
             case 'sleep':
-                return masterData.hotels.filter(h => h.name.toLowerCase().includes(term) || h.closest_city?.toLowerCase().includes(term));
+                return masterData.hotels.filter(h =>
+                    h.name.toLowerCase().includes(term) ||
+                    (h.closest_city || '').toLowerCase().includes(term) ||
+                    (h.location_address || '').toLowerCase().includes(term)
+                );
             case 'activity':
-                return masterData.vendors.filter(v => v.name.toLowerCase().includes(term));
+                return masterData.vendors.filter(v =>
+                    v.name.toLowerCase().includes(term) ||
+                    (v.address || '').toLowerCase().includes(term)
+                );
             case 'meal':
-                return masterData.restaurants.filter(r => r.name.toLowerCase().includes(term));
+                return masterData.restaurants.filter(r =>
+                    r.name.toLowerCase().includes(term) ||
+                    (r.address || '').toLowerCase().includes(term)
+                );
             case 'travel':
                 return {
                     providers: masterData.transportProviders.filter(p => p.name.toLowerCase().includes(term)),
