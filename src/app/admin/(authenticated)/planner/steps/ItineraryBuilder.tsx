@@ -1303,157 +1303,139 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                 </button>
 
                                                                 {isSelected && (
-                                                                    <div className="space-y-4 px-1 pb-2">
-                                                                        {/* Meal Plan Selector */}
-                                                                        <div className="space-y-1.5">
-                                                                            <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider ml-1">Select Meal Plan</label>
-                                                                            <div className="flex bg-neutral-100/80 p-1 rounded-xl gap-1">
-                                                                                {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => {
-                                                                                    const acc = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber);
-                                                                                    const isSelectedMp = (acc?.mealPlan || 'BB') === mp;
-                                                                                    return (
-                                                                                        <button
-                                                                                            key={mp}
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                updateData({
-                                                                                                    accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? { ...a, mealPlan: mp } : a)
-                                                                                                });
-                                                                                            }}
-                                                                                            className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${isSelectedMp ? 'bg-white text-brand-green shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
-                                                                                        >
-                                                                                            {mp}
-                                                                                        </button>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        </div>
+                                                                    <div className="space-y-4 px-1 pb-4 pt-2">
+                                                                        {(() => {
+                                                                            // Calculate explicit room requirements
+                                                                            const requirements: { type: string, count: number }[] = [];
+                                                                            ['Single', 'Double', 'Twin', 'Triple', 'Family'].forEach(rType => {
+                                                                                const matchTravelers = (tripData.travelers || []).filter(t => t.roomPreference === rType);
+                                                                                if (matchTravelers.length === 0) return;
+                                                                                const roomCount = matchTravelers.reduce((acc, t) => {
+                                                                                    const validLinks = (t.sharedWithIds || []).filter(id => matchTravelers.some(mt => mt.id === id));
+                                                                                    return acc + (1 / (1 + validLinks.length));
+                                                                                }, 0);
+                                                                                if (roomCount > 0) requirements.push({ type: rType, count: Math.ceil(roomCount) });
+                                                                            });
+                                                                            if (requirements.length === 0) requirements.push({ type: 'Double', count: 1 });
 
-                                                                        <div className="grid grid-cols-1 gap-2">
-                                                                            {h.hotel_rooms?.map((room: any) => {
-                                                                                const currentStay = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber);
-                                                                                const isRoomSelected = currentStay?.roomId === room.id;
+                                                                            const currentAcc = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber) || {} as any;
+                                                                            const selectedRooms = currentAcc.selectedRooms || [];
 
-                                                                                const currentAcc = tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber);
-                                                                                const currentMealPlan = currentAcc?.mealPlan || 'BB';
+                                                                            return (
+                                                                                <div className="space-y-4">
+                                                                                    {requirements.map((req, rIdx) => {
+                                                                                        const reqId = `${req.type}-${rIdx}`;
+                                                                                        const isReqMet = selectedRooms.some((sr: any) => sr.reqId === reqId);
+                                                                                        const assignedRoom = selectedRooms.find((sr: any) => sr.reqId === reqId);
+                                                                                        const currentMealPlan = assignedRoom?.mealPlan || 'BB';
 
-                                                                                const calculateRoomPrice = (hotel: any, room: any, mealPlan: string) => {
-                                                                                    let baseRate = room.summer_bb_rate || room.winter_bb_rate;
-                                                                                    let seasonLabel = "Standard";
+                                                                                        // Try to derive occupants for pricing display approximations
+                                                                                        let assumedAdults = 2;
+                                                                                        if (req.type === 'Single') assumedAdults = 1;
+                                                                                        if (req.type === 'Triple') assumedAdults = 3;
+                                                                                        if (req.type === 'Family') assumedAdults = 2; // + children usually
 
-                                                                                    if (stayDate && room.summer_start_date && room.summer_end_date && stayDate >= room.summer_start_date && stayDate <= room.summer_end_date) {
-                                                                                        if (mealPlan === 'HB') baseRate = room.summer_hb_rate || baseRate;
-                                                                                        else if (mealPlan === 'FB') baseRate = room.summer_fb_rate || baseRate;
-                                                                                        else baseRate = room.summer_bb_rate;
-                                                                                        seasonLabel = "Summer";
-                                                                                    } else if (stayDate && room.winter_start_date && room.winter_end_date && stayDate >= room.winter_start_date && stayDate <= room.winter_end_date) {
-                                                                                        if (mealPlan === 'HB') baseRate = room.winter_hb_rate || baseRate;
-                                                                                        else if (mealPlan === 'FB') baseRate = room.winter_fb_rate || baseRate;
-                                                                                        else baseRate = room.winter_bb_rate;
-                                                                                        seasonLabel = "Winter";
-                                                                                    }
+                                                                                        return (
+                                                                                            <div key={reqId} className="border border-neutral-200 rounded-xl overflow-hidden shadow-sm bg-neutral-50/50">
+                                                                                                <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center">
+                                                                                                    <span className="text-[10px] font-bold text-neutral-600 uppercase w-full">Requirement: {req.count}x {req.type} <span className="lowercase text-neutral-400">room{req.count > 1 ? 's' : ''}</span></span>
+                                                                                                    {isReqMet ? <span className="text-[9px] font-black text-brand-green px-1.5 py-0.5 bg-brand-green/10 rounded tracking-tight">ASSIGNED</span> : <span className="text-[9px] font-bold text-amber-600 px-1.5 py-0.5 bg-amber-50 rounded border border-amber-200 tracking-tight">PENDING</span>}
+                                                                                                </div>
 
-                                                                                    const { adults, children } = tripData.profile;
-                                                                                    const perGuestRate = baseRate / (room.max_guests || 1);
-                                                                                    const childHalfPricePercentage = hotel.child_half_price_percentage ?? 50;
-
-                                                                                    const adultTotal = adults * perGuestRate;
-                                                                                    const childTotal = children * perGuestRate * (childHalfPricePercentage / 100);
-
-                                                                                    return {
-                                                                                        total: adultTotal + childTotal,
-                                                                                        adultTotal,
-                                                                                        childTotal,
-                                                                                        perGuestRate,
-                                                                                        halfRate: perGuestRate * (childHalfPricePercentage / 100),
-                                                                                        seasonLabel
-                                                                                    };
-                                                                                };
-
-                                                                                const pricing = calculateRoomPrice(h, room, currentMealPlan);
-                                                                                const roomRate = pricing.total;
-                                                                                const seasonLabel = pricing.seasonLabel;
-
-                                                                                return (
-                                                                                    <button
-                                                                                        key={room.id}
-                                                                                        onClick={() => {
-                                                                                            updateData({
-                                                                                                accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? {
-                                                                                                    ...a,
-                                                                                                    roomId: room.id,
-                                                                                                    roomName: room.room_name,
-                                                                                                    roomStandard: room.room_standard,
-                                                                                                    pricePerNight: pricing.total,
-                                                                                                    mealPlan: currentMealPlan
-                                                                                                } : a)
-                                                                                            });
-                                                                                        }}
-                                                                                        className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${isRoomSelected ? 'border-brand-green bg-brand-green/5 shadow-sm' : 'border-neutral-100 hover:border-neutral-200'}`}
-                                                                                    >
-                                                                                        <div className="flex-1">
-                                                                                            <div className="flex items-center gap-2">
-                                                                                                <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
-                                                                                                <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests}</span>
-                                                                                            </div>
-                                                                                            <div className="flex flex-col mt-1 space-y-0.5">
-                                                                                                <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} • {seasonLabel}</span>
-                                                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] font-bold">
-                                                                                                    <span className="text-neutral-500">Adults: {tripData.profile.adults} x ${pricing.perGuestRate.toFixed(0)}</span>
-                                                                                                    {tripData.profile.children > 0 && (
-                                                                                                        <span className="text-brand-gold">Children: {tripData.profile.children} x ${pricing.halfRate.toFixed(0)}</span>
+                                                                                                <div className="p-2 space-y-2">
+                                                                                                    {/* Assigned Room Meal Plan Toggle Header */}
+                                                                                                    {assignedRoom && (
+                                                                                                        <div className="flex bg-neutral-200/50 p-1 rounded-xl gap-1 mb-2">
+                                                                                                            {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => (
+                                                                                                                <button
+                                                                                                                    key={mp}
+                                                                                                                    onClick={(e) => {
+                                                                                                                        e.stopPropagation();
+                                                                                                                        const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
+                                                                                                                        updateData({
+                                                                                                                            accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? { ...a, selectedRooms: newSelected } : a)
+                                                                                                                        });
+                                                                                                                    }}
+                                                                                                                    className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${currentMealPlan === mp ? 'bg-white text-brand-green shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
+                                                                                                                >
+                                                                                                                    {mp}
+                                                                                                                </button>
+                                                                                                            ))}
+                                                                                                        </div>
                                                                                                     )}
-                                                                                                    {tripData.profile.infants > 0 && (
-                                                                                                        <span className="text-blue-500">Infants: {tripData.profile.infants} x $0</span>
-                                                                                                    )}
+
+                                                                                                    <div className="grid grid-cols-1 gap-2">
+                                                                                                        {h.hotel_rooms?.map((room: any) => {
+                                                                                                            const isRoomSelectedHere = assignedRoom?.roomId === room.id;
+
+                                                                                                            const calculateRoomPrice = (hotel: any, room: any, mealPlan: string) => {
+                                                                                                                let baseRate = room.summer_bb_rate || room.winter_bb_rate;
+                                                                                                                let seasonLabel = "Standard";
+                                                                                                                if (stayDate && room.summer_start_date && room.summer_end_date && stayDate >= room.summer_start_date && stayDate <= room.summer_end_date) {
+                                                                                                                    if (mealPlan === 'HB') baseRate = room.summer_hb_rate || baseRate;
+                                                                                                                    else if (mealPlan === 'FB') baseRate = room.summer_fb_rate || baseRate;
+                                                                                                                    else baseRate = room.summer_bb_rate;
+                                                                                                                    seasonLabel = "Summer";
+                                                                                                                } else if (stayDate && room.winter_start_date && room.winter_end_date && stayDate >= room.winter_start_date && stayDate <= room.winter_end_date) {
+                                                                                                                    if (mealPlan === 'HB') baseRate = room.winter_hb_rate || baseRate;
+                                                                                                                    else if (mealPlan === 'FB') baseRate = room.winter_fb_rate || baseRate;
+                                                                                                                    else baseRate = room.winter_bb_rate;
+                                                                                                                    seasonLabel = "Winter";
+                                                                                                                }
+                                                                                                                return { total: baseRate, seasonLabel }; // The rate is for 1 room instance
+                                                                                                            };
+
+                                                                                                            const pricing = calculateRoomPrice(h, room, currentMealPlan);
+
+                                                                                                            return (
+                                                                                                                <button
+                                                                                                                    key={room.id}
+                                                                                                                    onClick={() => {
+                                                                                                                        const newSelected = [...selectedRooms.filter((sr: any) => sr.reqId !== reqId)];
+                                                                                                                        newSelected.push({
+                                                                                                                            reqId: reqId,
+                                                                                                                            roomId: room.id,
+                                                                                                                            roomName: room.room_name,
+                                                                                                                            roomStandard: room.room_standard,
+                                                                                                                            quantity: req.count, // Maps directly to DB
+                                                                                                                            pricePerNight: pricing.total,
+                                                                                                                            mealPlan: currentMealPlan
+                                                                                                                        });
+                                                                                                                        // Overwrite legacy params dynamically for hybrid compatibility
+                                                                                                                        updateData({
+                                                                                                                            accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? {
+                                                                                                                                ...a,
+                                                                                                                                selectedRooms: newSelected,
+                                                                                                                                roomId: room.id,
+                                                                                                                            } : a)
+                                                                                                                        });
+                                                                                                                    }}
+                                                                                                                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isRoomSelectedHere ? 'border-brand-green bg-brand-green/5 shadow-sm ring-1 ring-brand-green/20' : 'border-neutral-100 hover:border-neutral-200'}`}
+                                                                                                                >
+                                                                                                                    <div className="flex-1">
+                                                                                                                        <div className="flex items-center gap-2">
+                                                                                                                            <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
+                                                                                                                            <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests} Pax</span>
+                                                                                                                        </div>
+                                                                                                                        <div className="flex flex-col mt-1 space-y-0.5">
+                                                                                                                            <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} • {pricing.seasonLabel}</span>
+                                                                                                                        </div>
+                                                                                                                    </div>
+                                                                                                                    <div className="text-right">
+                                                                                                                        <p className="text-sm font-black text-brand-charcoal">${pricing.total?.toFixed(0)}</p>
+                                                                                                                        <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">{req.count > 1 ? `Per Room (${req.count}x)` : 'Per Night'}</p>
+                                                                                                                    </div>
+                                                                                                                </button>
+                                                                                                            );
+                                                                                                        })}
+                                                                                                    </div>
                                                                                                 </div>
                                                                                             </div>
-                                                                                        </div>
-                                                                                        <div className="text-right">
-                                                                                            <p className="text-sm font-black text-brand-charcoal">${pricing.total.toFixed(0)}</p>
-                                                                                            <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Total Per Night</p>
-                                                                                        </div>
-                                                                                    </button>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-
-                                                                        <div className="pt-2 border-t border-neutral-200/50 flex items-center justify-between">
-                                                                            <label className="text-[10px] font-bold text-neutral-500 uppercase">Rooms Required</label>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <button
-                                                                                    onClick={() => {
-                                                                                        const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
-                                                                                        if (!block) return;
-                                                                                        updateData({
-                                                                                            accommodations: tripData.accommodations.map(a => a.nightIndex === block.dayNumber ? {
-                                                                                                ...a,
-                                                                                                numberOfRooms: Math.max(1, (a.numberOfRooms || 1) - 1)
-                                                                                            } : a)
-                                                                                        });
-                                                                                    }}
-                                                                                    className="w-6 h-6 rounded-lg bg-white border border-neutral-200 flex items-center justify-center text-neutral-400">
-                                                                                    <PlusCircle size={14} className="rotate-45" />
-                                                                                </button>
-                                                                                <span className="text-xs font-black text-neutral-800 w-4 text-center">
-                                                                                    {tripData.accommodations.find(a => a.nightIndex === activeBlock?.dayNumber)?.numberOfRooms || 1}
-                                                                                </span>
-                                                                                <button
-                                                                                    onClick={() => {
-                                                                                        const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
-                                                                                        if (!block) return;
-                                                                                        updateData({
-                                                                                            accommodations: tripData.accommodations.map(a => a.nightIndex === block.dayNumber ? {
-                                                                                                ...a,
-                                                                                                numberOfRooms: (a.numberOfRooms || 1) + 1
-                                                                                            } : a)
-                                                                                        });
-                                                                                    }}
-                                                                                    className="w-6 h-6 rounded-lg bg-white border border-neutral-200 flex items-center justify-center text-neutral-400">
-                                                                                    <PlusCircle size={14} />
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
+                                                                                        )
+                                                                                    })}
+                                                                                </div>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 )}
                                                             </div>

@@ -76,7 +76,6 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
             rateCardUrl: '',
             roomStandard: '',
             numberOfRooms: Math.ceil((tripData.profile.adults + tripData.profile.children) / 2) || 1,
-            numberOfGuests: tripData.profile.adults + tripData.profile.children + tripData.profile.infants,
             pricePerNight: 0,
             mealPlan: 'BB',
             status: 'Tentative',
@@ -126,7 +125,7 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
                         const currentRoom = rooms.find((r: any) => r.room_standard === newData.roomStandard);
                         if (currentRoom) {
                             const stayDate = getStayDate(newData.nightIndex);
-                            newData.pricePerNight = calculateStayRate(currentRoom, newData.mealPlan, stayDate);
+                            newData.pricePerNight = calculateStayRate(currentRoom, newData.mealPlan || 'BB', stayDate);
                         }
                     }
                 }
@@ -277,10 +276,7 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
                                             <label className="text-xs font-bold text-neutral-600 block mb-1">Total Rooms</label>
                                             <input type="number" min="1" value={hotel.numberOfRooms} onChange={e => updateHotelField(hotel.id, 'numberOfRooms', Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 font-bold text-center border-neutral-300 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />
                                         </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-neutral-600 block mb-1">Total Guests</label>
-                                            <input type="number" min="1" value={hotel.numberOfGuests || 1} onChange={e => updateHotelField(hotel.id, 'numberOfGuests', Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 font-bold text-center border-neutral-300 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />
-                                        </div>
+
                                         <div>
                                             <label className="text-xs font-bold text-neutral-600 block mb-1">Rate Per Night ($)</label>
                                             <input type="number" min="0" value={hotel.pricePerNight} onChange={e => updateHotelField(hotel.id, 'pricePerNight', Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 font-bold text-center border-neutral-300 focus:bg-white focus:border-brand-gold focus:ring-1 focus:ring-brand-gold" />

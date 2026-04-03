@@ -323,6 +323,13 @@ CREATE TABLE daily_activities (
     transport_id UUID REFERENCES transport_providers(id),
     driver_id UUID REFERENCES drivers(id),
     guide_id UUID REFERENCES tour_guides(id),
+    restaurant_id UUID REFERENCES restaurants(id),
+    hotel_id UUID REFERENCES hotels(id),
+    hotel_room_id UUID REFERENCES hotel_rooms(id),
+    quantity INTEGER DEFAULT 1,
+    agreed_unit_price NUMERIC(10, 2),
+    agreed_total_price NUMERIC(10, 2),
+    meal_plan VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
