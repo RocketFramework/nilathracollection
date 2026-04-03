@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { getTourDataAction, saveTourAction } from "@/actions/admin.actions";
 import { TripData, Financials } from "./types";
@@ -104,16 +104,6 @@ function PlannerWorkspace() {
                     setUnreadChat(true);
                 }
 
-                // Fallback polling for notifications every 10 seconds
-                // Uses the same `channel` variable slot to attach the interval for cleanup
-                const pollInterval = window.setInterval(async () => {
-                    if (!isMounted || showChat) return;
-                    try {
-                        const currentLastRead = localStorage.getItem(`lastReadChat_${tourId}`);
-                        const hasUnreadPoll = await checkUnreadMessagesAction(topic.id, currentUserId, currentLastRead || undefined);
-                        if (hasUnreadPoll) setUnreadChat(true);
-                    } catch (e) { }
-                }, 10000);
 
                 channel = supabase.channel(`notification:${topic.id}`)
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `topic_id=eq.${topic.id}` }, (payload) => {
@@ -123,8 +113,6 @@ function PlannerWorkspace() {
                         }
                     })
                     .subscribe();
-
-                (channel as any)._pollInterval = pollInterval;
 
             } catch (e) {
                 console.error("Notification listener error", e);
@@ -140,7 +128,6 @@ function PlannerWorkspace() {
         return () => {
             isMounted = false;
             if (channel) {
-                if ((channel as any)._pollInterval) clearInterval((channel as any)._pollInterval);
                 createClient().removeChannel(channel);
             }
         };
@@ -165,12 +152,12 @@ function PlannerWorkspace() {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isDirty]);
 
-    const updateData = (d: Partial<TripData>) => {
+    const updateData = useCallback((d: Partial<TripData>) => {
         setTripData(prev => {
             setIsDirty(true);
             return { ...prev, ...d };
         });
-    };
+    }, []);
 
     useEffect(() => {
         const loadTour = async () => {
