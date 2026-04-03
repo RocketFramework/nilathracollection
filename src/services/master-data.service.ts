@@ -109,6 +109,9 @@ export interface Restaurant {
     id?: string;
     name: string;
     address?: string;
+    city?: string;
+    district?: string;
+    cuisine_type?: string;
     contact_name?: string;
     contact_number?: string;
     email?: string;
@@ -232,7 +235,9 @@ export class MasterDataService {
                 .select(`
                     *,
                     activities:activities (
-                        activity_name
+                        activity_name,
+                        location_name,
+                        district
                     )
                 `)
                 .in('vendor_id', vendorIds);

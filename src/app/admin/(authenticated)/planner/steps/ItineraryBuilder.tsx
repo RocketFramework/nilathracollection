@@ -682,9 +682,19 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             case 'sleep':
                 return masterData.hotels.filter(h => checkMatch([h.name, h.closest_city, h.location_address]));
             case 'activity':
-                return masterData.vendors.filter(v => checkMatch([v.name, v.address]));
+                return masterData.vendors.filter(v => {
+                    const activityStrings = v.vendor_activities?.flatMap(va => {
+                        const actData = (va as any).activities || (va as any).activity;
+                        return [
+                            va.activity_name,
+                            actData?.location_name,
+                            actData?.district
+                        ];
+                    }) || [];
+                    return checkMatch([v.name, v.address, ...activityStrings]);
+                });
             case 'meal':
-                return masterData.restaurants.filter(r => checkMatch([r.name, r.address]));
+                return masterData.restaurants.filter(r => checkMatch([r.name, r.address, r.city, r.district]));
             case 'travel':
                 return {
                     providers: masterData.transportProviders.filter(p => checkMatch([p.name, p.address])),
@@ -1464,8 +1474,19 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                         const currentBlock = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
                                         const baseActivity = masterData.activities.find(a => a.id === currentBlock?.activityId) ||
                                             tripData.activities.find(a => a.activityId === currentBlock?.activityId)?.activityData;
-                                        const specializedVendors = masterData.vendors.filter(v =>
+
+                                        const specializedVendorsUnfiltered = masterData.vendors.filter(v =>
                                             v.vendor_activities?.some(va => va.activity_id === currentBlock?.activityId)
+                                        );
+
+                                        // Apply global search filter to specialized vendors
+                                        const specializedVendors = specializedVendorsUnfiltered.filter(v =>
+                                            (filteredMasterData as any[]).some(fv => fv.id === v.id)
+                                        );
+
+                                        // Compute remaining globally matching vendors (if user is specifically looking for an untracked vendor)
+                                        const otherVendors = (filteredMasterData as any[]).filter(v =>
+                                            !specializedVendorsUnfiltered.some(sv => sv.id === v.id)
                                         );
 
                                         return (
@@ -1506,6 +1527,30 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                         );
                                                     })}
                                                 </div>
+
+                                                {otherVendors.length > 0 && (
+                                                    <>
+                                                        <div className="p-3 bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-2 transition-opacity">
+                                                            Other Matching Vendors ({otherVendors.length})
+                                                        </div>
+                                                        <div className="grid grid-cols-1 gap-3 p-4">
+                                                            {otherVendors.map(v => {
+                                                                const isSelected = currentBlock?.vendorId === v.id;
+                                                                return (
+                                                                    <button key={'other-' + v.id} onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
+                                                                        className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between opacity-80 hover:opacity-100 ${isSelected ? 'border-brand-green bg-brand-green/5' : 'border-neutral-200 bg-white hover:border-brand-green/30'}`}>
+                                                                        <div className="flex-1">
+                                                                            <p className="font-bold text-sm text-neutral-800">{v.name}</p>
+                                                                            <p className="text-xs font-black text-neutral-400 mt-1 flex items-center gap-1"><MapPin size={10} /> {v.address || 'Address Unknown'}</p>
+                                                                        </div>
+                                                                        <div className="text-[10px] uppercase font-bold text-neutral-400 px-2 py-1 bg-neutral-100 rounded-md">General Vendor</div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </>
+                                                )}
+
                                                 <div className="p-6 sticky bottom-0 bg-white border-t">
                                                     <button onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
                                                         className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2">
@@ -1624,8 +1669,21 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                             <button onClick={() => bindProvider(activeAssignment.blockId, 'restaurantId', r.id)}
                                                                 className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-brand-green bg-brand-green/5' : 'border-neutral-200 bg-white hover:border-brand-green/30'}`}>
                                                                 <div>
-                                                                    <p className="font-bold text-sm text-neutral-800">{r.name}</p>
-                                                                    <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight">{r.cuisine_type} • {r.is_buffet ? 'Buffet' : 'A La Carte'}</p>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className="font-bold text-sm text-neutral-800">{r.name}</p>
+                                                                        {r.city && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-500 rounded text-[9px] uppercase font-bold tracking-tight">{r.city}</span>}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight mt-1 flex flex-wrap gap-2 items-center">
+                                                                        <span>{r.cuisine_type || 'General'} Cuisine</span>
+                                                                        <span>•</span>
+                                                                        <span>{r.is_buffet ? 'Buffet Available' : 'A La Carte Only'}</span>
+                                                                        {r.total_capacity && (
+                                                                            <>
+                                                                                <span>•</span>
+                                                                                <span>{r.total_capacity} Pax Capacity</span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                                 {isSelected && <div className="w-2 h-2 bg-brand-green rounded-full" />}
                                                             </button>
