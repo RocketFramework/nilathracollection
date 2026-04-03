@@ -193,8 +193,12 @@ export interface Traveler {
     fullName: string;
     passportNumber?: string;
     nationality?: string;
+    dateOfBirth?: string;
+    gender?: 'Male' | 'Female' | 'Other';
     dietaryPreferences?: string;
-    roomPreference?: 'Single' | 'Double' | 'Twin' | 'Family';
+    mealPreference?: string;
+    roomPreference?: 'Single' | 'Double' | 'Twin' | 'Triple' | 'Family';
+    sharedWithIds?: string[];
     medicalNotes?: string;
 }
 
