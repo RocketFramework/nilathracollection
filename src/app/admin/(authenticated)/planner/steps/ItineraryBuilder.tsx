@@ -670,32 +670,28 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
     const filteredMasterData = useMemo(() => {
         if (!activeAssignment) return [];
-        const term = searchTerm.toLowerCase();
+        const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+
+        const checkMatch = (fields: (string | undefined | null)[]) => {
+            if (terms.length === 0) return true;
+            const combined = fields.filter(f => f).map(f => f!.toLowerCase()).join(' ');
+            return terms.every(t => combined.includes(t));
+        };
 
         switch (activeAssignment.type) {
             case 'sleep':
-                return masterData.hotels.filter(h =>
-                    h.name.toLowerCase().includes(term) ||
-                    (h.closest_city || '').toLowerCase().includes(term) ||
-                    (h.location_address || '').toLowerCase().includes(term)
-                );
+                return masterData.hotels.filter(h => checkMatch([h.name, h.closest_city, h.location_address]));
             case 'activity':
-                return masterData.vendors.filter(v =>
-                    v.name.toLowerCase().includes(term) ||
-                    (v.address || '').toLowerCase().includes(term)
-                );
+                return masterData.vendors.filter(v => checkMatch([v.name, v.address]));
             case 'meal':
-                return masterData.restaurants.filter(r =>
-                    r.name.toLowerCase().includes(term) ||
-                    (r.address || '').toLowerCase().includes(term)
-                );
+                return masterData.restaurants.filter(r => checkMatch([r.name, r.address]));
             case 'travel':
                 return {
-                    providers: masterData.transportProviders.filter(p => p.name.toLowerCase().includes(term)),
-                    drivers: masterData.drivers.filter(d => d.first_name.toLowerCase().includes(term) || (d.last_name || '').toLowerCase().includes(term))
+                    providers: masterData.transportProviders.filter(p => checkMatch([p.name, p.address])),
+                    drivers: masterData.drivers.filter(d => checkMatch([d.first_name, d.last_name]))
                 };
             case 'guide':
-                return masterData.guides.filter(g => g.first_name.toLowerCase().includes(term) || (g.last_name || '').toLowerCase().includes(term));
+                return masterData.guides.filter(g => checkMatch([g.first_name, g.last_name]));
             default:
                 return [];
         }

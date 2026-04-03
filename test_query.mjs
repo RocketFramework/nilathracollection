@@ -1,0 +1,1 @@
+import { createClient } from '@supabase/supabase-js'; const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY); async function check() { const { data } = await supabase.from('restaurants').select('name, address'); console.log('Returned rows:', data.length); console.log(data.slice(0, 5)); } check();
