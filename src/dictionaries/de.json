@@ -1,0 +1,50 @@
+{
+    "hero": {
+        "subtitle": "Exklusiv in Sri Lanka",
+        "title_part1": "Sri Lankas bestes Reisebüro für",
+        "title_part2": "Kuratierte Luxusreisen",
+        "description": "Erleben Sie die Spitze der Gastfreundschaft im Herzen des Indischen Ozeans. Von privaten Villen bis hin zum VIP-Service, Nilathra Travels definiert sri-lankischen Luxus.",
+        "btn_design": "Mein Luxus-Erlebnis gestalten",
+        "btn_explore": "Reiseziele entdecken",
+        "scroll": "Scrollen"
+    },
+    "home": {
+        "brand_subtitle": "Ein Team von Hoteliers und Plantern, aktiv seit 2012",
+        "brand_title": "Luxus Ungefiltert",
+        "brand_p1": "Die Vision von „Nilathra“ entstand aus der Leidenschaft, Sri Lanka in seiner reinsten, elegantesten Form zu präsentieren. Wir glauben, dass wahrer Luxus nicht nur in den besten Hotels oder teuersten Autos besteht – es geht um den Zugang zu authentischen, herzerwärmenden Erlebnissen, die im Gedächtnis bleiben.",
+        "brand_p2": "Unser Name, Nilathra, bedeutet „Blauer Horizont“, wo der Himmel auf den Indischen Ozean trifft – ein Symbol für die unendlichen Möglichkeiten, die unser Team für jeden Gast schafft. Mit Sitz in Colombo haben wir uns von einem Boutique-Concierge zu einem Weltklasse-Reisearchitekten entwickelt, der einer globalen Elite dient, die Authentizität, Privatsphäre und makellose Sicherheit fordert.",
+        "brand_p3": "Wir buchen nicht nur Hotels; wir bauen Beziehungen auf. Wir planen nicht nur Routen; wir kuratieren Erzählungen. Jede von uns entworfene Reiseroute ist ein lebendiger Masterplan, der die Persönlichkeit des Reisenden bis ins kleinste Detail analysiert.",
+        "years": "Jahre der Exzellenz",
+        "stand_subtitle": "Unsere Werte",
+        "stand_title": "Der Nilathra Standard",
+        "stand_desc": "Entdecken Sie die drei Säulen, die unser Engagement für erstklassige Gastfreundschaft und kompromisslose Service-Exzellenz definieren.",
+        "seo_subtitle": "Die Architektur der feinsten",
+        "seo_title2": "Sri Lankischen Odysseen",
+        "seo_p1": "Als führendes Luxus-Reisebüro in Sri Lanka hat sich die Nilathra Collection darauf spezialisiert, Erlebnisse zu kuratieren, die über das Gewöhnliche hinausgehen. Unsere tief verwurzelte Tradition im Gastgewerbe der Insel ermöglicht es uns, Türen zu öffnen, die für andere verschlossen bleiben.",
+        "seo_p2": "Ob Sie das wilde Herz des Yala-Nationalparks für eine Leoparden-Safari oder die koloniale Eleganz des Galle Forts suchen, unsere Reisearchitekten entwerfen jeden Moment mit Präzision. Zeit ist die ultimative Währung.",
+        "seo_p3": "Unsere Kollektionen – Ultra VIP, Luxus und Premium – sind so konzipiert, dass sie verschiedenen Ebenen an Intensität gerecht werden. Lassen Sie die Nilathra Collection Ihr Kompass zur Perle des Indischen Ozeans sein.",
+        "read_journal": "Lesen Sie unsere neuesten Journaleinträge",
+        "faq_subtitle": "Ihre Fragen",
+        "faq_title": "Reise-Exzellenz FAQ",
+        "faq_desc": "Alles, was Sie über die Planung Ihrer Luxus-Odyssee in Sri Lanka wissen müssen.",
+        "quote": "\"Eine beispiellose Erfahrung. Von der privaten Villa in Ella bis zum reibungslosen VIP-Handling in Colombo hat die Nilathra Collection alle Erwartungen übertroffen. Wahrer sri-lankischer Luxus.\"",
+        "cta_subtitle": "Beginnen Sie Ihre Reise mit den Besten",
+        "cta_title": "Planen Sie Ihre Flucht nach Sri Lanka",
+        "cta_desc": "Jede Reiseroute ist eine leere Leinwand. Lassen Sie das Top-Reisebüro in Sri Lanka Ihre perfekte private Reise entwerfen.",
+        "cta_btn1": "Private Beratung",
+        "cta_btn2": "Bestes Reisebüro kontaktieren"
+    },
+    "packages": {
+        "subtitle": "Unsere Stufen",
+        "title": "Die Kunst des Reisens",
+        "desc": "Wählen Sie das perfekte Maß an Exklusivität für Ihre Odyssee in Sri Lanka. Jede Stufe ist akribisch ausgearbeitet, um ein unvergleichliches Erlebnis zu bieten.",
+        "learn_more": "Mehr Erfahren"
+    },
+    "destinations": {
+        "subtitle": "Exquisite Orte",
+        "title": "Ikonische Reiseziele",
+        "desc": "Von den nebligen Hochlanden bis zur unberührten Südküste – erkunden Sie Sri Lankas prestigeträchtigste Orte durch die Linse von Luxus und Exklusivität.",
+        "all_destinations": "Alle Reiseziele",
+        "explore": "Entdecken"
+    }
+}

@@ -1,0 +1,50 @@
+{
+    "hero": {
+        "subtitle": "Exclusively Sri Lanka",
+        "title_part1": "Sri Lanka's Best Travel Agency for",
+        "title_part2": "Curated Luxury Journeys",
+        "description": "Experience the pinnacle of hospitality in the heart of the Indian Ocean. From private villas to VIP handling, Nilathra Travels defines Sri Lankan luxury.",
+        "btn_design": "Design My Luxury Experience",
+        "btn_explore": "Explore Destinations",
+        "scroll": "Scroll"
+    },
+    "home": {
+        "brand_subtitle": "A team of hoteliers and planters operating since 2012",
+        "brand_title": "Luxury Unfiltered",
+        "brand_p1": "The \"Nilathra\" vision was born from a passion to showcase Sri Lanka in its purest, most elegant form. We believe that true luxury is not just about the finest hotels or the most expensive cars—it's about the access to authentic, soul-stirring experiences that remain etched in memory.",
+        "brand_p2": "Our name, Nilathra, signifies the \"Blue Horizon\" where the sky meets the Indian Ocean—a symbol of the infinite possibilities our team of hoteliers and planters creates for every guest. Based in Colombo, we have evolved from a boutique concierge to a world-class travel architect, serving a global elite who demand authenticity, privacy, and impeccable security.",
+        "brand_p3": "We don't just book hotels; we build relationships. We don't just plan routes; we curate narratives. Every itinerary we design is a living masterplan, analyzing traveler personas down to the finest detail to architect the perfect memory of the island.",
+        "years": "Years of Excellence",
+        "stand_subtitle": "Our Values",
+        "stand_title": "The Nilathra Standard",
+        "stand_desc": "Discover the three core pillars that define our commitment to world-class hospitality and uncompromising service excellence.",
+        "seo_subtitle": "Architecting the Finest",
+        "seo_title2": "Sri Lankan Odysseys",
+        "seo_p1": "As the leading luxury travel agency in Sri Lanka, Nilathra Collection specializes in curating experiences that transcend the ordinary. Our deep-rooted heritage in the island's hospitality sector allows us to open doors that remain closed to others, from private sunset viewings at the Sigiriya Rock Fortress to exclusive tea tastings in the misty valleys of Nuwara Eliya.",
+        "seo_p2": "Whether you are seeking the wild heart of Yala National Park for a leopard safari or the colonial elegance of Galle Fort, our travel architects design every moment with precision. We understand that for the high-net-worth traveler, time is the ultimate currency. That is why our itineraries prioritize efficiency without sacrificing depth.",
+        "seo_p3": "Our collections—Ultra VIP, Luxury, and Premium—are designed to cater to varying levels of intensity and exclusivity. We invite you to explore our bespoke Sri Lanka tour packages, each a blank canvas ready to be painted with your specific desires. Let Nilathra Collection be your compass to the Pearl of the Indian Ocean.",
+        "read_journal": "Read our latest journal entries",
+        "faq_subtitle": "Your Questions",
+        "faq_title": "Travel Excellence FAQ",
+        "faq_desc": "Everything you need to know about planning your luxury odyssey in Sri Lanka.",
+        "quote": "\"An unparalleled experience. From the private villa in Ella to the seamless VIP handling at Colombo, Nilathra Collection exceeded every expectation. True Sri Lankan luxury.\"",
+        "cta_subtitle": "Begin Your Journey with the Best",
+        "cta_title": "Plan Your Sri Lankan Escape",
+        "cta_desc": "Each itinerary is a blank canvas. Let the top travel agency in Sri Lanka design your perfect private escape.",
+        "cta_btn1": "Private Consultation",
+        "cta_btn2": "Contact Best Travel Agency"
+    },
+    "packages": {
+        "subtitle": "Our Tiers",
+        "title": "The Art of Travel",
+        "desc": "Select the perfect level of exclusivity for your Sri Lankan odyssey. Each tier is meticulously architected to provide a peerless experience.",
+        "learn_more": "Learn More"
+    },
+    "destinations": {
+        "subtitle": "Exquisite Locations",
+        "title": "Iconic Destinations",
+        "desc": "From the misty Highlands to the pristine Southern coast, explore Sri Lanka's most prestigious locations through the lens of luxury and exclusivity.",
+        "all_destinations": "All Destinations",
+        "explore": "Explore"
+    }
+}

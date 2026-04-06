@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check, Star, Gem, ArrowRight, Crown, LayoutList } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslation } from "@/components/I18nProvider";
 
 const packages = [
     {
@@ -78,14 +79,15 @@ const packages = [
 ];
 
 export default function PackagesSection() {
+    const t = useTranslation();
     return (
         <section className="py-24 px-6 md:px-12 bg-brand-sand">
             <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-20">
-                    <span className="section-subtitle">Our Tiers</span>
-                    <h2 className="section-title">The Art of Travel</h2>
+                    <span className="section-subtitle">{t.packages.subtitle}</span>
+                    <h2 className="section-title">{t.packages.title}</h2>
                     <p className="text-brand-charcoal/60 max-w-2xl mx-auto font-light leading-relaxed">
-                        Select the perfect level of exclusivity for your Sri Lankan odyssey. Each tier is meticulously architected to provide a peerless experience.
+                        {t.packages.desc}
                     </p>
                 </div>
 
@@ -132,7 +134,7 @@ export default function PackagesSection() {
                                     href={pkg.href}
                                     className={`flex items-center gap-2 text-sm font-medium tracking-widest uppercase transition-all group-hover:gap-4 ${pkg.accent}`}
                                 >
-                                    Learn More <ArrowRight size={16} />
+                                    {t.packages.learn_more} <ArrowRight size={16} />
                                 </Link>
                             </div>
                         </motion.div>

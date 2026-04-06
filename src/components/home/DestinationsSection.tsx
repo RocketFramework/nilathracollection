@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { useTranslation } from "@/components/I18nProvider";
 
 const destinations = [
     {
@@ -33,22 +34,23 @@ const destinations = [
 ];
 
 export default function DestinationsSection() {
+    const t = useTranslation();
     return (
         <section className="py-24 px-6 md:px-12 bg-white">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-8">
                     <div className="max-w-2xl">
-                        <span className="section-subtitle">Exquisite Locations</span>
-                        <h2 className="section-title">Iconic Destinations</h2>
+                        <span className="section-subtitle">{t.destinations.subtitle}</span>
+                        <h2 className="section-title">{t.destinations.title}</h2>
                         <p className="text-brand-charcoal/60 font-light leading-relaxed">
-                            From the misty Highlands to the pristine Southern coast, explore Sri Lanka's most prestigious locations through the lens of luxury and exclusivity.
+                            {t.destinations.desc}
                         </p>
                     </div>
                     <Link
                         href="/destinations"
                         className="flex items-center gap-3 text-brand-green font-medium tracking-widest uppercase hover:gap-5 transition-all"
                     >
-                        All Destinations <ArrowRight size={20} />
+                        {t.destinations.all_destinations} <ArrowRight size={20} />
                     </Link>
                 </div>
 
@@ -71,7 +73,7 @@ export default function DestinationsSection() {
                             <div className="absolute inset-0 bg-gradient-to-t from-brand-green/90 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
                             <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                <span className="text-brand-gold text-xs uppercase tracking-[0.3em] block mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-700">Explore</span>
+                                <span className="text-brand-gold text-xs uppercase tracking-[0.3em] block mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-700">{t.destinations.explore}</span>
                                 <h3 className="text-white font-serif text-3xl mb-2">{dest.name}</h3>
                                 <p className="text-white/70 text-sm font-light mb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-700">{dest.tagline}</p>
 
