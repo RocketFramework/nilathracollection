@@ -29,6 +29,29 @@ export default function ContactPage() {
     });
 
     useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const plan = params.get("plan");
+            const nights = params.get("nights");
+            const travelers = params.get("travelers");
+
+            setForm(prev => {
+                let inquiryType = prev.inquiryType;
+                if (plan === "ultra-vip") inquiryType = "Ultra VIP Plan";
+                else if (plan === "luxury") inquiryType = "Luxury Plan";
+                else if (plan === "premium") inquiryType = "Premium Plan";
+                else if (plan === "regular") inquiryType = "Regular Plan";
+                else if (plan === "mixed") inquiryType = "Custom Mixed Plan";
+
+                return {
+                    ...prev,
+                    inquiryType,
+                    durationNights: nights ? parseInt(nights) || prev.durationNights : prev.durationNights,
+                    adults: travelers ? parseInt(travelers) || prev.adults : prev.adults
+                };
+            });
+        }
+
         const fetchLocation = async () => {
             try {
                 const response = await fetch("https://ipapi.co/json/");
@@ -280,9 +303,15 @@ export default function ContactPage() {
                                                     className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 outline-none focus:border-brand-gold transition-colors appearance-none"
                                                 >
                                                     <option>Super Luxury VIP Experience</option>
+                                                    <option>Ultra VIP Plan</option>
+                                                    <option>Luxury Plan</option>
+                                                    <option>Premium Plan</option>
+                                                    <option>Regular Plan</option>
+                                                    <option>Custom Mixed Plan</option>
                                                     <option>Deluxe Collection Package</option>
                                                     <option>Standard Premium Plan</option>
                                                     <option>Custom Mix Itinerary</option>
+                                                    <option>General Inquiry</option>
                                                 </select>
                                             </div>
                                         </div>

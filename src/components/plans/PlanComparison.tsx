@@ -160,7 +160,7 @@ export default function PlanComparison() {
         {tiers.map(tier => (
           <Link
             key={tier.id}
-            href={`/plans/${tier.id === 'mixed' ? 'mixed' : tier.id === 'ultra-vip' ? 'ultra-vip' : tier.id.toLowerCase()}`}
+            href={tier.id === 'mixed' ? '/custom-plan' : `/plans/${tier.id === 'ultra-vip' ? 'ultra-vip' : tier.id.toLowerCase()}`}
             className="flex flex-col items-center p-4 rounded-2xl hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all group"
           >
             <span className={`text-xs font-black uppercase tracking-widest mb-2 ${tier.color}`}>Explore</span>
