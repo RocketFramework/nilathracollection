@@ -1027,11 +1027,220 @@
         }
     },
     "destinations": {
-        "subtitle": "Exquisite Orte",
-        "title": "Ikonische Reiseziele",
-        "desc": "Von den nebligen Hochlanden bis zur unberührten Südküste – erkunden Sie Sri Lankas prestigeträchtigste Orte durch die Linse von Luxus und Exklusivität.",
-        "all_destinations": "Alle Reiseziele",
-        "explore": "Entdecken"
+        "overview": {
+            "subtitle": "Exquisite Standorte",
+            "title": "Die Kollektion der Reiseziele",
+            "desc": "Erkunden Sie die vielfältigen Landschaften Sri Lankas, von historischen Stätten bis zur ungezähmten Wildnis, alles erlebt in absolutem Luxus.",
+            "items": [
+                {
+                    "slug": "colombo",
+                    "name": "Colombo",
+                    "type": "Handel & Kultur",
+                    "desc": "Das Herzstück der Insel, wo koloniales Erbe auf modernen Luxus trifft."
+                },
+                {
+                    "slug": "galle",
+                    "name": "Galle",
+                    "type": "Koloniale Geschichte",
+                    "desc": "Ein UNESCO-Weltkulturerbe, berühmt für sein holländisches Fort und goldene Strände."
+                },
+                {
+                    "slug": "sigiriya",
+                    "name": "Sigiriya",
+                    "type": "Erbe & Geschichte",
+                    "desc": "Die ikonische Löwenfelsen-Festung, ein Zeugnis alter sri-lankischer Ingenieurskunst."
+                },
+                {
+                    "slug": "ella",
+                    "name": "Ella",
+                    "type": "Natur & Hochland",
+                    "desc": "Neblige Berge, Teeplantagen und die berühmte Neun-Bogen-Brücke."
+                },
+                {
+                    "slug": "kandy",
+                    "name": "Kandy",
+                    "type": "Kultur & Königshaus",
+                    "desc": "Die heilige Stadt, Heimat des Zahntempels und traditioneller Festlichkeiten."
+                },
+                {
+                    "slug": "yala",
+                    "name": "Yala",
+                    "type": "Wildtiere & Safari",
+                    "desc": "Erstklassiges Naturschutzgebiet, berühmt für die höchste Dichte an Leoparden."
+                },
+                {
+                    "slug": "nuwara-eliya",
+                    "name": "Nuwara Eliya",
+                    "type": "Tee & Entspannung",
+                    "desc": "Little England, ein Rückzugsort im kühlen Klima, bekannt für erstklassigen Ceylon-Tee."
+                },
+                {
+                    "slug": "weligama-mirissa",
+                    "name": "Weligama & Mirissa",
+                    "type": "Küsten-Synergie",
+                    "desc": "Das Herz der Südküste, das Surfkultur mit luxuriöser Walbeobachtung verbindet."
+                },
+                {
+                    "slug": "trincomalee",
+                    "name": "Trincomalee",
+                    "type": "Charme der Ostküste",
+                    "desc": "Tiefseehäfen, Walbeobachtung und unberührte östliche Schönheit."
+                }
+            ]
+        },
+        "colombo": {
+            "subtitle": "Urbanes Meisterwerk",
+            "title": "Die Architektur der Ambitionen",
+            "desc_1": "Colombo ist nicht nur ein Zwischenstopp; es ist ein Ziel, das eine atemberaubende Transformation durchmacht. Vom kolonialen Charme des Fort-Viertels – wo ehrwürdige Gebäude heute schicke Boutiquen beherbergen – bis zur futuristischen Skyline, die sich über den Indischen Ozean erhebt, erzählt jede Ecke eine Geschichte von Widerstandsfähigkeit und Neuerfindung.",
+            "desc_2": "Mit Nilathra erleben Sie die Stadt hinter der Kulisse. Wir bieten exklusiven Zugang zu privaten Kunstgalerien, architektonischen Meisterwerken von Geoffrey Bawa und Dachterrassen, welche die filmischsten Ausblicke auf die Entwicklung der Port City bieten. Das ist Colombo ungefiltert – raffiniert, gefühlvoll und unerbittlich modern.",
+            "stats": [
+                {
+                    "val": "15+",
+                    "label": "Historische Wahrzeichen"
+                },
+                {
+                    "val": "20+",
+                    "label": "Gourmet-Locations"
+                }
+            ],
+            "hero_badge": "Perspektive",
+            "hero_title": "Das Morgendliche Panorama"
+        },
+        "ella": {
+            "subtitle": "Nebliges Hochland",
+            "title": "Über den Wolken",
+            "desc_1": "In Ella liegt die Seele des sri-lankischen Hügellands. Das am Rande einer Bergkette gelegene, nebelverhangene Dorf bietet einige der dramatischsten Landschaften der Insel. Von dem architektonischen Wunder der Neun-Bogen-Brücke bis zu den weiten Ausblicken vom Ella Rock fühlt sich hier jeder Moment wie eine Szene aus einem Traum an.",
+            "desc_2": "Mit Nilathra wird Ihr Aufenthalt in Ella über die üblichen Pfade von Rucksacktouristen hinaus aufgewertet. Wir arrangieren private geführte Wanderungen zu abgelegenen Aussichtspunkten, exklusive Teeverkostungen in historischen Fabriken und luxuriöse Aufenthalte in Boutique-Lodges. Das ist das Leben im Hügelland in seiner ruhigsten und anspruchsvollsten Form.",
+            "stats": [
+                {
+                    "val": "1.000m+",
+                    "label": "Höhe"
+                },
+                {
+                    "val": "9",
+                    "label": "Historische Bögen"
+                }
+            ],
+            "hero_badge": "Hochland",
+            "hero_title": "Die Neblige Lücke"
+        },
+        "galle": {
+            "subtitle": "Erbe & Geschichte",
+            "title": "Die Lebendige Festung",
+            "desc_1": "Das Galle Fort ist nicht nur ein Denkmal; es ist ein lebendiges Zeugnis der facettenreichen Geschichte Sri Lankas. Innerhalb der massiven Granitwälle verbindet sich koloniale Architektur nahtlos mit modernem tropischen Leben. Die Luft trägt hier den Duft von Meeresbrise und Geschichte.",
+            "desc_2": "Mit Nilathra übertrifft Ihre Erfahrung in Galle den typischen Touristen-Spaziergang. Wir betreuen private Begegnungen mit lokalen Historikern, organisieren exklusive Momente bei Sonnenuntergang und gewähren Zugang zu privaten Kolonialvillen, die normalerweise für die Öffentlichkeit geschlossen sind. Dies ist die Seele des Südens in ihrer edelsten Form.",
+            "stats": [
+                {
+                    "val": "400+",
+                    "label": "Jahre Geschichte"
+                },
+                {
+                    "val": "UNESCO",
+                    "label": "Weltkulturerbe"
+                }
+            ],
+            "hero_badge": "Erbe",
+            "hero_title": "Die Uhrenturm-Aussicht"
+        },
+        "nuwara_eliya": {
+            "subtitle": "Little England",
+            "title": "Das Herz des Teelandes",
+            "desc_1": "Nuwara Eliya ist ein zeitloses Refugium kühler Brisen und smaragdgrüner Teeplantagen. Wegen der kolonialen Architektur und des milden Klimas oft „Little England“ genannt, bietet dieser Rückzugsort im Hochland ein Lebenstritt, der elegant langsam ist. In jedem Winkel verströmt die Stadt eine raffinierte Nostalgie.",
+            "desc_2": "Mit Nilathra tauchen Sie in den authentischen Tee-Lebensstil ein. Wir kuratieren private Nachmittagstee-Erlebnisse in jahrhundertealten Bungalows, veranstalten exklusive Touren in hochklassigen Teefabriken, wo der feinste Ceylon-Tee der Welt hergestellt wird, und organisieren maßgeschneiderte Ausritte.",
+            "stats": [
+                {
+                    "val": "1.889m",
+                    "label": "Höchstgelegene Höhe"
+                },
+                {
+                    "val": "1867",
+                    "label": "Gegr. Kolonialzeit"
+                }
+            ],
+            "hero_badge": "Erbe",
+            "hero_title": "Little England"
+        },
+        "sigiriya": {
+            "subtitle": "Antikes Wunder",
+            "title": "Eine Festung im Himmel",
+            "desc_1": "Sigiriya, der „Löwenfelsen“, ist ein monumentales Zeugnis der architektonischen Brillanz und des Überlebensgeistes des antiken Sri Lanka. Diese monolithische Felsenfestung erhebt sich fast 200 Meter über die üppigen Dschungelebenen und diente im 5. Jahrhundert als Palast des Königs Kashyapa.",
+            "desc_2": "Mit Nilathra wird Ihre Reise zum Gipfel zu einer Erzählung über Königtum und Rebellion. Wir arrangieren private Wanderungen im Morgengrauen mit Archäologen, um den Menschenmassen zu entgehen, gefolgt von luxuriösen Wald-Frühstücken mit Blick auf die Festung.",
+            "stats": [
+                {
+                    "val": "1.200+",
+                    "label": "Stufen zum Gipfel"
+                },
+                {
+                    "val": "5.",
+                    "label": "Jahrhundert-Meisterwerk"
+                }
+            ],
+            "hero_badge": "Erbe",
+            "hero_title": "Das Achte Weltwunder"
+        },
+        "weligama": {
+            "subtitle": "Synergie der Südküste",
+            "title": "Weligama & Mirissa",
+            "desc_1": "Weligama und Mirissa repräsentieren die perfekte Synergie der Südküste. Weligama, mit seiner weitläufigen Bucht, ist ein Paradies für Surfer und Luxusliebhaber. Nur eine kurze Fahrt entfernt fasziniert Mirissa mit seinen intimen Buchten, pulsierenden Sonnenuntergangspunkten und seinem Ruf als einer der weltweit besten Orte zur Walbeobachtung.",
+            "desc_2": "Mit Nilathra erleben Sie dieses Küsten-Duo in beispiellosem Luxus. Wir organisieren private Yachtcharter zur Walbeobachtung, exklusive Surfkurse sowie Cocktailstunden bei Sonnenuntergang an den abgelegensten Strandlocations. Dies ist das Herzstück des Südens—entspannt, doch makellos vornehm.",
+            "stats": [
+                {
+                    "val": "Blauwale",
+                    "label": "Expeditionen"
+                },
+                {
+                    "val": "Makellose",
+                    "label": "Buchten & Strände"
+                }
+            ],
+            "hero_badge": "Synergie",
+            "hero_title": "Der Südliche Rhythmus"
+        },
+        "yala": {
+            "subtitle": "Das Safari-Erlebnis",
+            "title": "Der wilde Kern von {Yala}",
+            "desc_1": "Yala ist nicht nur ein Park; es ist eine Urlandschaft, in der sich täglich das Drama der Dschungelnatur entfaltet. Bei Nilathra bieten wir exklusiven Zugang zu den ruhigsten Ecken des Parks mit erstklassigen Fährtenlesern und luxuriösen mobilen Camps.",
+            "stats": [
+                {
+                    "val": "Nr. 1",
+                    "label": "Leoparden-Dichte"
+                },
+                {
+                    "val": "40+",
+                    "label": "Säugetierarten"
+                }
+            ],
+            "wildlife": [
+                {
+                    "title": "Der Scheue Leopard",
+                    "desc": "Yala weist eine der höchsten Leopardendichten der Welt auf. Beobachten Sie das höchste Raubtier der Insel in seinem natürlichen Lebensraum.",
+                    "badge": "Prioritätsblick"
+                },
+                {
+                    "title": "Sanfte Riesen",
+                    "desc": "Große Herden asiatischer Elefanten streifen durch die Ebenen von Yala, oft in der Nähe alter Wasserreservoirs.",
+                    "badge": "Prioritätsblick"
+                },
+                {
+                    "title": "Der Zottelige Einsiedler",
+                    "desc": "Der seltene sri-lankische Lippenbär ist ein begehrter Anblick, der oft während der Palu-Fruchtsaison anzutreffen ist.",
+                    "badge": "Prioritätsblick"
+                },
+                {
+                    "title": "Lagunen-Wächter",
+                    "desc": "Wilde Wasserbüffel und eine vielfältige Vogelwelt gedeihen in dem verzweigten Netzwerk aus Lagunen und Feuchtgebieten.",
+                    "badge": "Prioritätsblick"
+                }
+            ],
+            "expedition": {
+                "title": "Private Expeditionen mit erfahrenen Rangern",
+                "desc": "Entfliehen Sie den Menschenmassen. Nilathra arrangiert den privaten Zugang in die weniger bereisten Bereiche von Yala, begleitet von erfahrenen Naturforschern und Fotografen.",
+                "badges": [
+                    "Profi-Fotoausrüstung",
+                    "Abseits der Pfade"
+                ]
+            }
+        }
     },
     "vip": {
         "play_start": "In die Geschichte eintauchen",
@@ -1113,5 +1322,358 @@
             "title": "Sind Sie nicht sicher, welcher Plan der richtige für Sie ist? Unsere lokalen Reisespezialisten helfen Ihnen gerne weiter.",
             "btn": "Vereinbaren Sie eine private Beratung"
         }
+    },
+    "destination_slugs": {
+        "sigiriya": {
+            "name": "Sigiriya",
+            "tagline": "Die Löwenfelsen-Festung",
+            "description": "Sigiriya ragt 200 Meter über den Dschungel hinaus und ist eine alte Palastfestung von unvergleichlicher Majestät. Dieses UNESCO-Weltkulturerbe, der „Löwenfelsen“, ist ein Meisterwerk der Stadtplanung, Wasserbaukunst und des künstlerischen Ausdrucks aus dem 5. Jahrhundert. Von den antiken Graffiti der Spiegelwand bis hin zu den lebendigen Fresken und den massiven Löwenpfoten, die den letzten Aufstieg bewachen, bietet Sigiriya eine tiefgreifende Begegnung mit dem königlichen Erbe Sri Lankas.",
+            "highlights": [
+                "Privater Aufstieg im Morgengrauen mit einem erfahrenen Archäologen",
+                "Besichtigung der antiken Fresken der „Sigiriya-Mädchen“",
+                "Erkundung der ältesten angelegten Wassergärten der Welt",
+                "Luxuriöses Dschungelfrühstück mit Blick auf die Festung",
+                "Private „Elefantenkorridor“-Jeepsafari in der Nähe"
+            ],
+            "bestTime": "Januar bis April",
+            "experiences": [
+                {
+                    "name": "Private Führung"
+                },
+                {
+                    "name": "Luxuriöses Dschungelpicknick"
+                },
+                {
+                    "name": "Kulturerbe-Fotografie"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "Boutique Heritage Suite (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Forest Pavilion (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Rock View Lodge (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "galle": {
+            "name": "Galle",
+            "tagline": "Kolonialer Charme & Meeresbrise",
+            "description": "Galle ist ein Juwel, wo Geschichte auf den Horizont trifft. Die Stadt, ein UNESCO-Weltkulturerbe, ist ein kunstvolles Mosaik aus kolonialer Architektur und tropischer Eleganz. Das holländische Fort ist das Herz von Galle und beherbergt luxuriöse Boutique-Villen, vielseitige Designer-Shops und handwerkliche Cafés innerhalb seiner alten Granitmauern. Jede Kopfsteinpflasterstraße erzählt eine Geschichte aus der VOC-Ära, die heute als gehobener Zufluchtsort für den modernen Reisenden neu interpretiert wird.",
+            "highlights": [
+                "Privater Kulturerbespaziergang mit einem lokalen Historiker",
+                "Champagner zum Sonnenuntergang an der Triton-Bastion",
+                "Walbeobachtungsexpedition vom Hafen aus",
+                "Aufenthalt in einer Luxusvilla im historischen Fort",
+                "Kuratirtes „Chef's Table“-Speiseerlebnis"
+            ],
+            "bestTime": "Dezember bis März",
+            "experiences": [
+                {
+                    "name": "Fort Kulturerbespaziergang"
+                },
+                {
+                    "name": "Segeln an der Küste"
+                },
+                {
+                    "name": "Kolonialer Nachmittagstee"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "The Governor's Mansion (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Fort Bliss Boutique (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Lighthouse Inn (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "yala": {
+            "name": "Yala",
+            "tagline": "Wilde Safaris & Leoparden",
+            "description": "Der Yala-Nationalpark ist der meistbesuchte und zweitgrößte Nationalpark in Sri Lanka. Der Park ist vor allem für seine Vielfalt an Wildtieren bekannt. Er ist wichtig für die Erhaltung sri-lankischer Elefanten, Leoparden und Wasservögel.",
+            "highlights": [
+                "Exklusive Leopardensafari im Morgengrauen",
+                "Elefanten an den Wasserlöchern",
+                "Vogelbeobachtung in den Feuchtgebieten",
+                "Strandspaziergang entlang der Küste des Parks"
+            ],
+            "bestTime": "Februar bis Juni",
+            "experiences": [
+                {
+                    "name": "Private Fotografen-Safari"
+                },
+                {
+                    "name": "Luxuriöses Zeltlager"
+                },
+                {
+                    "name": "Erfahrener Wildhüter"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "Wild Coast Tented Lodge (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Safari Heritage Camp (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Nature's Edge Lodge (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "kandy": {
+            "name": "Kandy",
+            "tagline": "Die heilige Hauptstadt im Hügelland",
+            "description": "Eingebettet in neblig-grüne Hügel ist Kandy die kulturelle Seele Sri Lankas. Die Stadt beheimatet den heiligen Zahntempel und bietet eine Mischung aus Spiritualität, Geschichte und natürlicher Schönheit.",
+            "highlights": [
+                "Besuch des Zahntempels",
+                "Morgenspaziergang um den Kandy-See",
+                "Erkundung der Königlichen Botanischen Gärten",
+                "Abendliche Aufführung von Kandy-Tänzen"
+            ],
+            "bestTime": "Januar bis April",
+            "experiences": [
+                {
+                    "name": "Kuratirter Tempelbesuch"
+                },
+                {
+                    "name": "Königliche Botanische Tour"
+                },
+                {
+                    "name": "Einblicke in die Denkmalpflege"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "The King's Pavilion (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Misty Mountain Resort (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "City Heritage Lodge (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "colombo": {
+            "name": "Colombo",
+            "tagline": "Luxuriöses Kosmopolitisches Zentrum",
+            "description": "Als lebendige Verschmelzung von kolonialem Erbe und hochmodernen Ambitionen ist Colombo der dynamische Herzschlag Sri Lankas. Als Wirtschaftsmetropole und aufstrebendes globales Zentrum bietet die Stadt eine gehobene Mischung aus Weltklasse-Shopping im One Galle Face, exquisitem Fine Dining und sorgfältig erhaltener Architektur. Vom ikonenhaften Lotus Tower bis zur historischen Pracht des Galle Face Hotels bietet Colombo ein facettenreiches Luxuserlebnis – perfekt als Auftakt oder Abschluss Ihrer Reise durch Sri Lanka.",
+            "highlights": [
+                "Filmreife Sonnenuntergänge vom Dach des Lotus Tower",
+                "Gourmet 'Seafood Symphony' Dinner bei Minister of Crab",
+                "Private Architekturtour durch Geoffrey Bawas 'No. 11'",
+                "Oldtimer-Citytour durch das koloniale Fort-Viertel",
+                "Kuratierte Shopping-Erlebnisse in exklusiven Designer-Boutiquen"
+            ],
+            "bestTime": "Dezember bis März",
+            "experiences": [
+                {
+                    "name": "Urbaner Heritage Walk"
+                },
+                {
+                    "name": "Fine Dining Erlebnis"
+                },
+                {
+                    "name": "Kunst- & Architekturtour"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "Shangri-La Horizon (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Cinnamon Grand (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Jetwing Urban (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "ella": {
+            "name": "Ella",
+            "tagline": "Das neblige Hochland-Schutzgebiet",
+            "description": "Inmitten der smaragdgrünen Gipfel der zentralen Highlands gelegen, ist Ella ein nebelverhangenes Refugium für Naturliebhaber und Ruhesuchende. Berühmt für seine weiten Bergpanoramen und die ikonische Nine Arch Bridge, bietet dieses charmante Dorf eine erfrischende Flucht vor der tropischen Hitze. Mit seinen üppigen Teeplantagen, versteckten Wasserfällen und dramatischen Felsformationen bietet Ella eine intensive Begegnung mit der rauen Schönheit der sri-lankischen Bergregion.",
+            "highlights": [
+                "Malerische Privatwanderung auf den Little Adam's Peak",
+                "Sonnenuntergang an der legendären Nine Arch Bridge",
+                "Kuratierte Teeverkostung in einer historischen Kolonialfabrik",
+                "Aufenthalt in einer Luxusvilla mit Panoramablick auf das Ella Gap",
+                "Privates Wasserfall-Picknick an den Ravana Falls"
+            ],
+            "bestTime": "Januar bis Mai",
+            "experiences": [
+                {
+                    "name": "Private Wanderung mit Naturalisten"
+                },
+                {
+                    "name": "Ceylon Tee Masterclass"
+                },
+                {
+                    "name": "Privates Wasserfall-Picknick"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "The Tea Estate Reserve (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Mountain View Boutique (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Mist Valley Inn (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "weligama-mirissa": {
+            "name": "Weligama & Mirissa",
+            "tagline": "Der Rhythmus des Südens",
+            "description": "Erleben Sie die ultimative Küstensynergie, wo die goldenen Strände von Weligama auf die lebendigen Buchten von Mirissa treffen. Dieses südliche Duo bietet eine gehobene Mischung aus Weltklasse-Surfen, intimen Küstenbuchten und den herausragendsten Walbeobachtungs-Expeditionen der Insel. Egal, ob Sie die Wellen in der Bucht von Weligama reiten oder den Sonnenuntergang vom Parrot Rock in Mirissa beobachten – die Südküste pulsiert mit einer raffinierten Energie, die Sie nirgendwo sonst finden.",
+            "highlights": [
+                "Private Yacht-Charter zur Walbeobachtung",
+                "Luxus-Surfcamp-Erlebnis in der Weligama Bucht",
+                "Sonnenuntergangs-Cocktails in abgelegenen Strandclubs von Mirissa",
+                "Gourmet-Meeresfrüchte-Dinner am Indischen Ozean",
+                "Private geführte Tour entlang der Südküste"
+            ],
+            "bestTime": "November bis April",
+            "experiences": [
+                {
+                    "name": "Bogenschießen & Wassersport"
+                },
+                {
+                    "name": "Besuch einer Schildkrötenaufzuchtstation"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "Saman Villas Exclusive (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Vivanta by Taj (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Bentota Beach Hotel (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "nuwara-eliya": {
+            "name": "Nuwara Eliya",
+            "tagline": "Das Little England von Sri Lanka",
+            "description": "Elegant, nostalgisch und immer angenehm kühl – Nuwara Eliya ist das typische Hochlandrefugium. Bekannt als 'Little England' wegen seines kolonialen Charmes und der gepflegten Gärten, ist die Stadt von einigen der berühmtesten Teeplantagen der Welt umgeben. Vom malerischen Gregory-See bis zum historischen Hill Club bietet Nuwara Eliya eine kultivierte Zuflucht, bei der die Luft frisch ist und das Leben an Eleganz gewinnt.",
+            "highlights": [
+                "Privater High-Tea in einem historischen Kolonialbungalow",
+                "Geführte Tour durch eine prämierten Ceylon-Teefabrik",
+                "Ausritte durch die nebligen Ebenen des Hochlandes",
+                "Maßgeschneidertes Dinner-Erlebnis mit Blick auf den Gregory Lake",
+                "Exklusiver Zugang zu den Elite-Clubs im Hügelland"
+            ],
+            "bestTime": "Februar bis Mai",
+            "experiences": [
+                {
+                    "name": "Tee Masterclass"
+                },
+                {
+                    "name": "Private Wanderung durch die Horton Plains"
+                },
+                {
+                    "name": "Kolonialer Heritage Walk"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "Ceylon Tea Trails (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "The Grand Hotel (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Jetwing St. Andrew's (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        },
+        "trincomalee": {
+            "name": "Trincomalee",
+            "tagline": "Ostküstencharme & blaues Meer",
+            "description": "Trincomalee, an der Ostküste Sri Lankas gelegen, beherbergt einen der besten natürlichen Tiefseehäfen der Welt. Es bietet unberührte Sandstrände, heilige Hindu-Tempel und erstklassige Möglichkeiten zur Walbeobachtung.",
+            "highlights": [
+                "Private Wal- und Delfinbeobachtung",
+                "Besuch des heiligen Koneswaram-Tempels",
+                "Schnorcheln an der Pigeon Island (Taubeninsel)",
+                "Entspannen am Nilaveli-Strand"
+            ],
+            "bestTime": "Mai bis Oktober",
+            "experiences": [
+                {
+                    "name": "Tiefsee-Walsafari"
+                },
+                {
+                    "name": "Tempel-Kulturerbe-Tour"
+                },
+                {
+                    "name": "Erkundung der Unterwasserwelt"
+                }
+            ],
+            "accommodations": [
+                {
+                    "name": "Jungle Beach by Uga (VIP)",
+                    "type": "Super Luxus"
+                },
+                {
+                    "name": "Trinco Blu by Cinnamon (Deluxe)",
+                    "type": "Premium"
+                },
+                {
+                    "name": "Nilaveli Beach Hotel (Standard)",
+                    "type": "Komfort"
+                }
+            ]
+        }
+    },
+    "destination_layout": {
+        "back_to": "Zurück zu Reisezielen",
+        "the_dest": "Das Reiseziel",
+        "overview": "Überblick",
+        "experience_highlights": "Erlebnis-Highlights",
+        "essential_info": "Wichtige Informationen",
+        "best_time": "Beste Reisezeit",
+        "exclusive_offering": "Exklusives Angebot",
+        "acc_suggestions": "Unterkunftsvorschläge",
+        "inquire": "Anfrage für Aufenthalt",
+        "custom_itin": "Entwerfen Sie eine individuelle Reiseroute, die {name} und andere Premium-Reiseziele beinhaltet.",
+        "include": "Bringen Sie {name} in Ihre Luxusflucht ein",
+        "specialists": "Unsere Spezialisten können {name} mit anderen ikonischen Zielen auf Sri Lanka verbinden, um eine nahtlose Entdeckungsreise zu gestalten.",
+        "plan_my": "Planen Sie mein {name}-Erlebnis"
     }
 }

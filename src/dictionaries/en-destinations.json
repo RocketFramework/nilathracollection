@@ -1,0 +1,218 @@
+{
+    "destinations": {
+        "overview": {
+            "subtitle": "Exquisite Locations",
+            "title": "The Collection of Destinations",
+            "desc": "Explore the diverse landscapes of Sri Lanka, from heritage sites to untamed wilderness, all experienced in absolute luxury.",
+            "items": [
+                {
+                    "slug": "colombo",
+                    "name": "Colombo",
+                    "type": "Commerce & Culture",
+                    "desc": "The heartbeat of the island, where colonial heritage meets modern luxury."
+                },
+                {
+                    "slug": "galle",
+                    "name": "Galle",
+                    "type": "Colonial History",
+                    "desc": "A UNESCO World Heritage site, famous for its Dutch Fort and golden beaches."
+                },
+                {
+                    "slug": "sigiriya",
+                    "name": "Sigiriya",
+                    "type": "Heritage & History",
+                    "desc": "The iconic Lion Rock fortress, a testament to ancient Sri Lankan engineering."
+                },
+                {
+                    "slug": "ella",
+                    "name": "Ella",
+                    "type": "Nature & Highlands",
+                    "desc": "Mist-covered mountains, tea plantations, and the famous Nine Arch Bridge."
+                },
+                {
+                    "slug": "kandy",
+                    "name": "Kandy",
+                    "type": "Culture & Royalty",
+                    "desc": "The sacred city, home to the Temple of the Tooth and traditional festivities."
+                },
+                {
+                    "slug": "yala",
+                    "name": "Yala",
+                    "type": "Wildlife & Safari",
+                    "desc": "Prime wildlife sanctuary famous for the highest concentration of leopards."
+                },
+                {
+                    "slug": "nuwara-eliya",
+                    "name": "Nuwara Eliya",
+                    "type": "Tea & Relaxation",
+                    "desc": "Little England, a cool-climate retreat known for premium Ceylon tea."
+                },
+                {
+                    "slug": "weligama-mirissa",
+                    "name": "Weligama & Mirissa",
+                    "type": "Coastal Synergy",
+                    "desc": "The heartbeat of the south coast, combining surf culture with luxury whale watching."
+                },
+                {
+                    "slug": "trincomalee",
+                    "name": "Trincomalee",
+                    "type": "East Coast Charm",
+                    "desc": "Deep-sea harbors, whale watching, and untouched eastern beauty."
+                }
+            ]
+        },
+        "colombo": {
+            "subtitle": "Urban Masterpiece",
+            "title": "The Architecture of Ambition",
+            "desc_1": "Colombo is not merely a stopover; it is a destination undergoing a breathtaking transformation. From the colonial-era charm of the Fort district—where venerable buildings now house chic boutiques—to the futuristic skyline rising over the Indian Ocean, every corner tells a story of resilience and reinvention.",
+            "desc_2": "With Nilathra, you experience the city beyond the surface. We provide exclusive access to private art galleries, architectural masterpieces designed by Geoffrey Bawa, and rooftop venues that offer the most cinematic views of the Port City development. This is Colombo unfiltered—sophisticated, soulful, and relentlessly modern.",
+            "stats": [
+                {
+                    "val": "15+",
+                    "label": "Heritage Landmarks"
+                },
+                {
+                    "val": "20+",
+                    "label": "Gourmet Venues"
+                }
+            ],
+            "hero_badge": "Perspective",
+            "hero_title": "The Morning Vista"
+        },
+        "ella": {
+            "subtitle": "Misty Highlands",
+            "title": "Above the Clouds",
+            "desc_1": "Ella is where the soul of Sri Lanka's hill country resides. Perched on the edge of a mountain range, this mist-shrouded village offers some of the most dramatic landscapes on the island. From the iconic architectural marvel of the Nine Arch Bridge to the sweeping vistas of Ella Rock, every moment here feels like a scene from a dream.",
+            "desc_2": "With Nilathra, your Ella experience is elevated beyond the backpacker trail. We arrange private guided hikes to secluded viewpoints, exclusive tea-tasting sessions in colonial-era factories, and luxury stays in boutique lodges that offer panoramic views of the Ella Gap. This is hill country living at its most serene and sophisticated.",
+            "stats": [
+                {
+                    "val": "1,000m+",
+                    "label": "Elevation"
+                },
+                {
+                    "val": "9",
+                    "label": "Historic Arches"
+                }
+            ],
+            "hero_badge": "Highlands",
+            "hero_title": "The Misty Gap"
+        },
+        "galle": {
+            "subtitle": "Heritage & History",
+            "title": "The Living Fortress",
+            "desc_1": "Galle Fort is not just a monument; it is a living, breathing testament to Sri Lanka's multifaceted history. Within its massive granite ramparts, colonial-era architecture seamlessly blends with modern tropical living. The air here carries the scent of salt spray and history, as narrow cobblestone streets reveal hidden boutique courtyards and world-class culinary gems.",
+            "desc_2": "With Nilathra, your experience of Galle transcends the typical tourist walk. We curate private encounters with local historians who reveal the secrets of the VOC era, arrange exclusive sunset champagne moments atop the ramparts, and provide access to private colonial villas that are usually closed to the public. This is the soul of the south, experienced in its most refined form.",
+            "stats": [
+                {
+                    "val": "400+",
+                    "label": "Years of History"
+                },
+                {
+                    "val": "UNESCO",
+                    "label": "World Heritage"
+                }
+            ],
+            "hero_badge": "Heritage",
+            "hero_title": "The Clock Tower Vista"
+        },
+        "nuwara_eliya": {
+            "subtitle": "Little England",
+            "title": "The Heart of Tea Country",
+            "desc_1": "Nuwara Eliya is a timeless sanctuary of cool breezes and emerald-green tea estates. Often called \"Little England\" for its colonial-era architecture and temperate climate, this highland retreat offers a pace of life that is elegantly slow. From the manicured lawns of the Hill Club to the tranquil waters of Gregory Lake, the city exudes a refined nostalgia.",
+            "desc_2": "With Nilathra, you immerse yourself in the authentic tea lifestyle. We curate private high-tea experiences in century-old bungalows, arrange exclusive tours of premier tea factories where the world's finest Ceylon tea is crafted, and organize bespoke horseback rides through the misty hills. This is the quintessence of luxury in the highlands.",
+            "stats": [
+                {
+                    "val": "1,889m",
+                    "label": "Peak Altitude"
+                },
+                {
+                    "val": "1867",
+                    "label": "Est. Colonial Era"
+                }
+            ],
+            "hero_badge": "Heritage",
+            "hero_title": "Little England"
+        },
+        "sigiriya": {
+            "subtitle": "Ancient Marvel",
+            "title": "A Fortress in the Sky",
+            "desc_1": "Sigiriya, the \"Lion Rock,\" is a monumental testament to the architectural brilliance and survivalist ingenuity of ancient Sri Lanka. Rising nearly 200 meters from the lush jungle plains, this monolithic rock fortress served as the palace-citadel of King Kashyapa in the 5th century. It is a mosaic of intricate gardens, advanced hydraulic engineering, and some of the world's most exquisite ancient frescoes.",
+            "desc_2": "With Nilathra, your journey to the summit is a curated narrative of royalty and rebellion. We arrange private, early-dawn climbs with archaeological experts to avoid the crowds, followed by luxury jungle breakfasts overlooking the fortress. Experience the spiritual and historical gravity of this UNESCO World Heritage site in absolute serenity and comfort.",
+            "stats": [
+                {
+                    "val": "1,200+",
+                    "label": "Steps to the Summit"
+                },
+                {
+                    "val": "5th",
+                    "label": "Century Masterpiece"
+                }
+            ],
+            "hero_badge": "Heritage",
+            "hero_title": "The Eighth Wonder"
+        },
+        "weligama": {
+            "subtitle": "Southern Coast Synergy",
+            "title": "Weligama & Mirissa",
+            "desc_1": "Weligama and Mirissa represent the perfect synergy of the southern coast. Weligama, with its expansive crescent bay, is a haven for surfers and luxury seekers alike, offering a sophisticated beach lifestyle. Just a short drive away, Mirissa captivates with its intimate coves, vibrant sunset points, and its reputation as one of the world's premier locations for whale watching.",
+            "desc_2": "With Nilathra, you experience this coastal duo in unparalleled luxury. We arrange private yacht charters for whale watching expeditions, exclusive surf lessons with pro instructors in Weligama's gentle breaks, and sunset cocktail sessions at the most secluded beachfront venues. This is the heart of the southern rhythm—laid-back, yet impeccably refined.",
+            "stats": [
+                {
+                    "val": "Blue Whale",
+                    "label": "Expeditions"
+                },
+                {
+                    "val": "Pristine",
+                    "label": "Bays & Breaks"
+                }
+            ],
+            "hero_badge": "Synergy",
+            "hero_title": "The Southern Rhythm"
+        },
+        "yala": {
+            "subtitle": "The Safari Experience",
+            "title": "The Wild Core of {Yala}",
+            "desc_1": "Yala is not just a park; it's a primal landscape where the drama of nature unfolds daily. At Nilathra, we provide exclusive access to the quietest corners of the park with elite trackers and luxury mobile camps.",
+            "stats": [
+                {
+                    "val": "#1",
+                    "label": "Leopard Density"
+                },
+                {
+                    "val": "40+",
+                    "label": "Mammal Species"
+                }
+            ],
+            "wildlife": [
+                {
+                    "title": "The Elusive Leopard",
+                    "desc": "Yala boasts one of the highest leopard densities in the world. Witness the apex predator of the island in its natural habitat.",
+                    "badge": "Priority View"
+                },
+                {
+                    "title": "Gentle Giants",
+                    "desc": "Large herds of Asian elephants roam the plains of Yala, often seen congregating around ancient water reservoirs.",
+                    "badge": "Priority View"
+                },
+                {
+                    "title": "The Shaggy Recluse",
+                    "desc": "The rare Sri Lankan sloth bear is a prized sighting, often found during the Palu fruit season.",
+                    "badge": "Priority View"
+                },
+                {
+                    "title": "Lagoon Sentinels",
+                    "desc": "Wild water buffaloes and diverse birdlife thrive in the intricate network of lagoons and wetlands.",
+                    "badge": "Priority View"
+                }
+            ],
+            "expedition": {
+                "title": "Private Ranger-Led Expeditions",
+                "desc": "Escape the crowds. Nilathra arranges private entry into the less-traversed blocks of Yala, accompanied by senior wildlife naturalists and photographers. Experience the wild in absolute exclusivity.",
+                "badges": [
+                    "Pro Photography Gear",
+                    "Off-track Permits"
+                ]
+            }
+        }
+    }
+}

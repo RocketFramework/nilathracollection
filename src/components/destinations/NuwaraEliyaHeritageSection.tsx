@@ -2,8 +2,12 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { useTranslation } from "@/components/I18nProvider";
 
 export default function NuwaraEliyaHeritageSection() {
+    const t = useTranslation();
+    const tNuwara = t.destinations.nuwara_eliya;
+
     return (
         <section className="py-24 px-6 md:px-12 bg-neutral-50" id="nuwara-eliya-heritage">
             <div className="max-w-7xl mx-auto">
@@ -22,8 +26,8 @@ export default function NuwaraEliyaHeritageSection() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-brand-green/40 to-transparent" />
                         <div className="absolute bottom-10 left-10 text-white">
-                            <p className="text-sm uppercase tracking-[0.3em] font-bold mb-2">Heritage</p>
-                            <h3 className="text-3xl font-serif">Little England</h3>
+                            <p className="text-sm uppercase tracking-[0.3em] font-bold mb-2">{tNuwara.hero_badge}</p>
+                            <h3 className="text-3xl font-serif">{tNuwara.hero_title}</h3>
                         </div>
                     </motion.div>
                     <motion.div
@@ -33,25 +37,25 @@ export default function NuwaraEliyaHeritageSection() {
                         className="space-y-8 lg:order-1"
                     >
                         <div>
-                            <span className="section-subtitle">Little England</span>
-                            <h2 className="section-title">The Heart of Tea Country</h2>
+                            <span className="section-subtitle">{tNuwara.subtitle}</span>
+                            <h2 className="section-title">{tNuwara.title}</h2>
                         </div>
                         <div className="space-y-6 text-brand-charcoal/70 leading-relaxed font-light">
                             <p>
-                                Nuwara Eliya is a timeless sanctuary of cool breezes and emerald-green tea estates. Often called "Little England" for its colonial-era architecture and temperate climate, this highland retreat offers a pace of life that is elegantly slow. From the manicured lawns of the Hill Club to the tranquil waters of Gregory Lake, the city exudes a refined nostalgia.
+                                {tNuwara.desc_1}
                             </p>
                             <p>
-                                With Nilathra, you immerse yourself in the authentic tea lifestyle. We curate private high-tea experiences in century-old bungalows, arrange exclusive tours of premier tea factories where the world's finest Ceylon tea is crafted, and organize bespoke horseback rides through the misty hills. This is the quintessence of luxury in the highlands.
+                                {tNuwara.desc_2}
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-8 pt-4">
                             <div>
-                                <p className="text-3xl font-serif text-brand-green">1,889m</p>
-                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">Peak Altitude</p>
+                                <p className="text-3xl font-serif text-brand-green">{tNuwara.stats[0].val}</p>
+                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">{tNuwara.stats[0].label}</p>
                             </div>
                             <div>
-                                <p className="text-3xl font-serif text-brand-green">1867</p>
-                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">Est. Colonial Era</p>
+                                <p className="text-3xl font-serif text-brand-green">{tNuwara.stats[1].val}</p>
+                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">{tNuwara.stats[1].label}</p>
                             </div>
                         </div>
                     </motion.div>

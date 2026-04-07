@@ -2,8 +2,12 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { useTranslation } from "@/components/I18nProvider";
 
 export default function ColomboUrbanSection() {
+    const t = useTranslation();
+    const tCol = t.destinations.colombo;
+
     return (
         <section className="py-24 px-6 md:px-12 bg-neutral-50" id="colombo-urban">
             <div className="max-w-7xl mx-auto">
@@ -15,25 +19,25 @@ export default function ColomboUrbanSection() {
                         className="space-y-8"
                     >
                         <div>
-                            <span className="section-subtitle">Urban Masterpiece</span>
-                            <h2 className="section-title">The Architecture of Ambition</h2>
+                            <span className="section-subtitle">{tCol.subtitle}</span>
+                            <h2 className="section-title">{tCol.title}</h2>
                         </div>
                         <div className="space-y-6 text-brand-charcoal/70 leading-relaxed font-light">
                             <p>
-                                Colombo is not merely a stopover; it is a destination undergoing a breathtaking transformation. From the colonial-era charm of the Fort district—where venerable buildings now house chic boutiques—to the futuristic skyline rising over the Indian Ocean, every corner tells a story of resilience and reinvention.
+                                {tCol.desc_1}
                             </p>
                             <p>
-                                With Nilathra, you experience the city beyond the surface. We provide exclusive access to private art galleries, architectural masterpieces designed by Geoffrey Bawa, and rooftop venues that offer the most cinematic views of the Port City development. This is Colombo unfiltered—sophisticated, soulful, and relentlessly modern.
+                                {tCol.desc_2}
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-8 pt-4">
                             <div>
-                                <p className="text-3xl font-serif text-brand-green">15+</p>
-                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">Heritage Landmarks</p>
+                                <p className="text-3xl font-serif text-brand-green">{tCol.stats[0].val}</p>
+                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">{tCol.stats[0].label}</p>
                             </div>
                             <div>
-                                <p className="text-3xl font-serif text-brand-green">20+</p>
-                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">Gourmet Venues</p>
+                                <p className="text-3xl font-serif text-brand-green">{tCol.stats[1].val}</p>
+                                <p className="text-xs uppercase tracking-widest text-brand-gold mt-2">{tCol.stats[1].label}</p>
                             </div>
                         </div>
                     </motion.div>
@@ -51,8 +55,8 @@ export default function ColomboUrbanSection() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-brand-green/40 to-transparent" />
                         <div className="absolute bottom-10 left-10 text-white">
-                            <p className="text-sm uppercase tracking-[0.3em] font-bold mb-2">Perspective</p>
-                            <h3 className="text-3xl font-serif">The Morning Vista</h3>
+                            <p className="text-sm uppercase tracking-[0.3em] font-bold mb-2">{tCol.hero_badge}</p>
+                            <h3 className="text-3xl font-serif">{tCol.hero_title}</h3>
                         </div>
                     </motion.div>
                 </div>
