@@ -1,0 +1,303 @@
+{
+    "badge": "The Sapphire Collection",
+    "title": "Luxury Collection",
+    "desc_1": "An elevated journey through Sri Lanka's most iconic destinations,",
+    "desc_2": "featuring 5-star comfort and professional local expertise.",
+    "quote": {
+        "sig": "Flagship Quote",
+        "sig_det": "7 Nights · 2 Travelers",
+        "daily": "Daily Investment",
+        "daily_det": "Per Person / Per Day"
+    },
+    "epicurean": {
+        "desc": "A curated sequence of discovery and comfort. From standard express handling to final sunset, every moment is hand-crafted for excellence.",
+        "phase": "Phase",
+        "itinerary": [
+            {
+                "title": "Private Arrival: Express",
+                "description": "Personalized greeting at the arrival terminal. Direct assistance with baggage and a smooth transition to your waiting private vehicle.",
+                "details": "Arrival Greeting + Logistics Support"
+            },
+            {
+                "title": "Elite Chauffeur Transit",
+                "description": "Direct transfer via premium SUV to your first destination. Refreshments and Wi-Fi provided for a seamless transition.",
+                "details": "Premium SUV x 24/7 Availability"
+            },
+            {
+                "title": "5-Star Collection",
+                "description": "Check-in to the island's most iconic signature resorts. Reliable 5-star comfort with ocean or jungle views and personalized welcomes.",
+                "details": "Iconic 5-Star Resorts"
+            },
+            {
+                "title": "Signature Gastronomy (HB)",
+                "description": "Half-Board (HB) dining featuring signature breakfasts and sought-after dinner reservations. Enjoy private beachfront dinners and local organic delicacies.",
+                "details": "Signature Half-Board (HB)"
+            },
+            {
+                "title": "Immersive Discovery",
+                "description": "Explore sacred sites and hidden gems with an elite National Guide. Private after-hours access to selected monuments.",
+                "details": "Expert Guide + Exclusive Access"
+            },
+            {
+                "title": "Elegant Departure",
+                "description": "Leisurely morning at your resort followed by a direct premium transfer to the airport for your stress-free departure.",
+                "details": "Premium Transfer + Departure Support"
+            }
+        ]
+    },
+    "signature": {
+        "desc": "Seven days. Seven chapters of the real Sri Lanka — ancient cities, misty highlands, surf, and the warmth of Galle Fort.",
+        "day": "Day",
+        "highlights": "Highlights",
+        "stay": "Stay",
+        "estimate": {
+            "badge": "Estimated Price",
+            "price": "$3,500",
+            "sub": "Per Person · 7 Days ($500 / day)",
+            "min": "Minimum 2 People · From $7,000 Total",
+            "cols": [
+                {
+                    "label": "Includes",
+                    "items": [
+                        "Premium SUV transport",
+                        "Boutique 5-star stays",
+                        "Half-board dining"
+                    ]
+                },
+                {
+                    "label": "Experiences",
+                    "items": [
+                        "Hot air balloon ride",
+                        "Surf lesson in Weligama",
+                        "Sigiriya & Galle Fort"
+                    ]
+                },
+                {
+                    "label": "Ideal for",
+                    "items": [
+                        "Couples",
+                        "Family groups",
+                        "Solo luxury travelers"
+                    ]
+                }
+            ]
+        },
+        "itinerary": [
+            {
+                "title": "Arrival in Colombo",
+                "location": "Colombo",
+                "experience": "Welcome to Sri Lanka. The city greets you with colour, energy, and flavour.",
+                "highlights": [
+                    "Arrival & hotel check-in",
+                    "Galle Face Green sunset stroll",
+                    "Colombo city tour by private SUV",
+                    "Street food tasting in Pettah market"
+                ],
+                "stay": "Boutique city hotel",
+                "optional": [
+                    "Rooftop dinner with city views"
+                ],
+                "note": "Ease into the island. Let Colombo come to you."
+            },
+            {
+                "title": "Drive North to the Ancient Kingdom",
+                "location": "Sigiriya & Minneriya",
+                "experience": "A scenic morning drive into the heart of the Cultural Triangle.",
+                "highlights": [
+                    "Morning premium SUV ride to Sigiriya",
+                    "Boat ride on a local village lake",
+                    "Traditional village lunch on the water",
+                    "Evening elephant gathering at Minneriya"
+                ],
+                "stay": "Jungle lodge near Sigiriya",
+                "optional": [
+                    "Village cycling tour"
+                ],
+                "note": null
+            },
+            {
+                "title": "Sunrise, Rock & Sky",
+                "location": "Pidurangala & Sigiriya",
+                "experience": "The most unforgettable day — from the sky to the summit.",
+                "highlights": [
+                    "Pre-dawn hike to Pidurangala for sunrise",
+                    "Walking breakfast in the jungle",
+                    "Private guided climb of Sigiriya Lion Rock",
+                    "Hot air balloon ride & sky lunch"
+                ],
+                "stay": "Boutique resort",
+                "optional": [
+                    "Sunset photography session"
+                ],
+                "note": "This day is the heart of the journey."
+            },
+            {
+                "title": "The Sacred Hill Capital",
+                "location": "Kandy",
+                "experience": "Kandy — where history, faith, and beauty converge.",
+                "highlights": [
+                    "Drive to Kandy via cultural sites",
+                    "Archaeological museum visit",
+                    "Private guided visit to the Temple of the Sacred Tooth",
+                    "Evening Kandyan cultural show"
+                ],
+                "stay": "Heritage hotel overlooking Kandy Lake",
+                "optional": [
+                    "Royal Botanical Gardens visit"
+                ],
+                "note": null
+            },
+            {
+                "title": "The Scenic Train to Ella",
+                "location": "Ella",
+                "experience": "One of the world's most beautiful train journeys — through mist, tea, and cloud.",
+                "highlights": [
+                    "Scenic railway journey through the highlands",
+                    "Check-in at Ella boutique property",
+                    "Afternoon relaxation and leisurely stroll",
+                    "Evening hike to Little Adam's Peak"
+                ],
+                "stay": "Boutique mountain retreat, Ella",
+                "optional": [
+                    "Sunset rooftop dinner"
+                ],
+                "note": "Let the highlands slow you down."
+            },
+            {
+                "title": "Waves, Surf & Soul",
+                "location": "Weligama",
+                "experience": "The south coast in all its laid-back, sun-soaked glory.",
+                "highlights": [
+                    "Drive down to Weligama Bay",
+                    "Private surf lesson on the bay",
+                    "Fresh seafood lunch by the ocean",
+                    "Evening yoga and meditation session"
+                ],
+                "stay": "Beachfront boutique villa",
+                "optional": [
+                    "Sunset catamaran cruise"
+                ],
+                "note": "This day is about presence, not pace."
+            },
+            {
+                "title": "Homeward via the Fort City",
+                "location": "Galle & Return",
+                "experience": "A leisurely farewell through one of Asia's most storied colonial cities.",
+                "highlights": [
+                    "Morning stroll through Galle Fort (UNESCO)",
+                    "Visit ancient Dutch churches and ramparts",
+                    "Street food tour — hoppers, kottu & lime juice",
+                    "Scenic coastal drive back to Colombo"
+                ],
+                "stay": null,
+                "optional": [
+                    "Souvenir shopping in Galle boutiques"
+                ],
+                "note": "End of journey. Sri Lanka at its finest."
+            }
+        ]
+    },
+    "philosophy": {
+        "badge": "Uncompromising Quality",
+        "title": "Iconic Standards",
+        "desc": "The Luxury Tier is designed for travelers who seek the best of the island with absolute comfort. From top-tier room categories at 5-star resorts to elite-level guides, we ensure a world-class standard at every turn.",
+        "grid": [
+            {
+                "title": "Signature Resorts",
+                "desc": "Exclusive access to the most iconic room categories in 5-star properties."
+            },
+            {
+                "title": "Premium SUV",
+                "desc": "Luxurious, late-model SUV transport for all land-based movements."
+            },
+            {
+                "title": "National Guides",
+                "desc": "Elite English-speaking guides with deep knowledge of history and culture."
+            },
+            {
+                "title": "Standard Express",
+                "desc": "Smooth airport greeting and luggage assistance. (VIP Handling available on request)."
+            }
+        ],
+        "seclusion": {
+            "title": "Elite Curation",
+            "desc": "Every accommodation and experience is personally vetted for the highest standard."
+        },
+        "access": {
+            "title": "Deep Discovery",
+            "desc": "Beyond sight-seeing: gain true insight through our most experienced National Guides."
+        }
+    },
+    "breakdown": {
+        "title": "Service Allocation",
+        "btn_show": "Reveal Breakdown",
+        "btn_hide": "Hide Details",
+        "items": [
+            {
+                "label": "Signature Resorts & Hotels"
+            },
+            {
+                "label": "Premium SUV & Transfers"
+            },
+            {
+                "label": "Curated Fine Dining"
+            },
+            {
+                "label": "Daily Wellness & Access"
+            },
+            {
+                "label": "Elite Guides & Entrance"
+            },
+            {
+                "label": "Premium Logistics & Support"
+            }
+        ]
+    },
+    "inclusions": [
+        {
+            "category": "Stay & Style",
+            "items": [
+                "Hand-picked Signature 5-Star Resorts",
+                "Superior or Deluxe Room Categories",
+                "Personalized Welcome Amenities",
+                "Early Check-in & Late Check-out options",
+                "Daily Signature Half-Board (HB) Buffet/Menu"
+            ]
+        },
+        {
+            "category": "Premium Logistics",
+            "items": [
+                "Private Premium SUV & Elastic Driver Support",
+                "Dedicated English Speaking National Guide",
+                "Personalized Butler Service (Per Property)",
+                "Airport Arrival & Departure Greeting",
+                "All Domestic Highway & Parking Fees",
+                "Daily Refreshment Pack (Chilled)"
+            ]
+        },
+        {
+            "category": "Curated Culture",
+            "items": [
+                "Private Curated Cultural Tours",
+                "Expert Local Guide Insights",
+                "Hand-picked Artisan Workshop visits",
+                "Personalized Shopping Support",
+                "Entrance Fees to All Major Sites"
+            ]
+        },
+        {
+            "category": "Wellness & Rejuvenation",
+            "items": [
+                "Daily Ayurvedic or Balinese Spa Session",
+                "Private Yoga or Meditation Sessions",
+                "Access to Luxury Pool & Beach Clubs",
+                "Dedicated On-trip Relationship Manager (24/7)",
+                "All Local Taxes & Service Charges Included"
+            ]
+        }
+    ],
+    "cta": {
+        "btn": "Initiate Luxury Consultation",
+        "sub": "expert planning assigned upon request"
+    }
+}

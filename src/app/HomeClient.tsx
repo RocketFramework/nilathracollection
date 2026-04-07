@@ -209,7 +209,7 @@ export default function HomeClient() {
           </div>
 
           <div className="space-y-8">
-            {[
+            {(t.home.faqs || [
               {
                 q: "What makes Nilathra's Ultra VIP package different from standard luxury travel?",
                 a: "Standard luxury focus on hotels; Ultra VIP focus on sovereignty. We provide jet-side tarmac clearance, standby helicopters, and total estate buyouts. You don't just stay in a hotel; you own the property for the duration of your stay, supported by a 6-member chef team and absolute security detail."
@@ -230,7 +230,7 @@ export default function HomeClient() {
                 q: "What is the best time of year to visit Sri Lanka for a luxury escape?",
                 a: "Sri Lanka is a year-round destination thanks to its dual monsoon system. For the South and West coasts (Galle, Colombo, Yala), the ideal window is December to April. For the East coast and ancient cities, May to September offers pristine weather. We adjust your itinerary to match the best seasonal horizons."
               }
-            ].map((item, idx) => (
+            ]).map((item: any, idx: number) => (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, x: -10 }}

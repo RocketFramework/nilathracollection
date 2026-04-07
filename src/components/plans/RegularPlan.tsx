@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { useTranslation } from "@/components/I18nProvider";
 import {
     Gem,
     Check,
@@ -24,6 +25,8 @@ import {
 import Link from "next/link";
 
 export default function RegularPlan() {
+    const t = useTranslation();
+    const tReg = t.packages.regular;
     const [showBreakdown, setShowBreakdown] = useState(false);
     const nights = 7;
     const travelers = 2;
@@ -44,89 +47,19 @@ export default function RegularPlan() {
     };
 
     const itinerary = [
-        {
-            title: "Warm Welcome",
-            description: "Personalized greeting at the airport arrivals area. Assistance with local SIM cards and currency exchange for a smooth start.",
-            icon: Sparkles,
-            details: "Arrival Meeting & Assistance"
-        },
-        {
-            title: "Flexible Transit",
-            description: "Efficient budget travel via booked local taxis or escorted public transport (scenic trains/buses) for an authentic local pulse.",
-            icon: Compass,
-            details: "Booked Taxi / Public Transport"
-        },
-        {
-            title: "Home Stays & Comfort",
-            description: "Carefully vetted 3-star guest houses, budget hotels, or authentic family-run homestays for a true local experience.",
-            icon: Heart,
-            details: "3-Star / Homestay Collection"
-        },
-        {
-            title: "Daily Breakfast (BB)",
-            description: "Daily breakfast included (BB) at your stays. We provide curated lists of the best safe and authentic local dining spots for other meals.",
-            icon: Coffee,
-            details: "Daily Authentic Breakfast (BB)"
-        },
-        {
-            title: "Guided Discovery",
-            description: "Explore landmarks and heritage sites with a local specialist. Assistance with public transport navigation and street-food safety.",
-            icon: MapPin,
-            details: "Essential Site Access & Guidance"
-        },
-        {
-            title: "Friendly Departure",
-            description: "Leisurely final morning followed by a direct, safe transfer back to the airport well ahead of your check-in time.",
-            icon: Clock,
-            details: "Safe Airport Drop-off Transit"
-        }
+        { icon: Sparkles },
+        { icon: Compass },
+        { icon: Heart },
+        { icon: Coffee },
+        { icon: MapPin },
+        { icon: Clock }
     ];
 
     const inclusions = [
-        {
-            category: "Authentic Stays",
-            icon: Hotel,
-            items: [
-                "Hand-picked 3-Star Budget Hotels",
-                "Warm Family-run Homestay Experiences",
-                "Clean & Vetted Boutique Guesthouses",
-                "Daily Local Sri Lankan Breakfast (BB)",
-                "Verified Convenience & Safety Standards"
-            ]
-        },
-        {
-            category: "Flexible Logistics",
-            icon: Compass,
-            items: [
-                "Booked Budget Taxis for Key Segments",
-                "Escorted Public Transport (Train/Bus)",
-                "Local Transport Navigation Assistance",
-                "Pre-planned Route Connections",
-                "Route Planning for Independent Travel"
-            ]
-        },
-        {
-            category: "Local Culture",
-            icon: Compass,
-            items: [
-                "Entrance to Key Cultural Sites",
-                "Curated 'Self-Guided' Trail Maps",
-                "Recommendations for Local Markets",
-                "Hand-picked Village Discovery Tips",
-                "Essential City Exploration Routes"
-            ]
-        },
-        {
-            category: "Constant Support",
-            icon: Smartphone,
-            items: [
-                "24/7 Virtual Concierge via WhatsApp",
-                "Emergency Local Medical Contacts",
-                "On-ground Safety Coordination",
-                "Local SIM Card Assistance on Arrival",
-                "All Standard Service Taxes Included"
-            ]
-        }
+        { icon: Hotel },
+        { icon: Compass },
+        { icon: Compass },
+        { icon: Smartphone }
     ];
 
     return (
@@ -153,7 +86,7 @@ export default function RegularPlan() {
                             className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none"
                         />
                         <Star size={20} className="text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
-                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">The Topaz Collection</span>
+                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">{tReg.badge}</span>
                     </motion.div>
 
                     <motion.h1
@@ -162,7 +95,7 @@ export default function RegularPlan() {
                         transition={{ delay: 0.3 }}
                         className="text-7xl md:text-9xl font-serif text-logo-blue mb-6 tracking-tight drop-shadow-sm"
                     >
-                        Regular Plan
+                        {tReg.title}
                     </motion.h1>
 
                     <motion.p
@@ -171,8 +104,8 @@ export default function RegularPlan() {
                         transition={{ delay: 0.4 }}
                         className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
                     >
-                        Authentic discovery with absolute reliability.
-                        Experience the heart of the island with comfort, safety, and incredible value.
+                        {tReg.desc_1}<br />
+                        {tReg.desc_2}
                     </motion.p>
 
                     <motion.div
@@ -184,22 +117,22 @@ export default function RegularPlan() {
                         <div className="bg-white/95 backdrop-blur-xl border border-neutral-100 rounded-[3rem] p-8 md:px-14 md:py-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
                             <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
                                 <div className="text-center md:text-left">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">Signature Quote</p>
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">{tReg.quote.sig}</p>
                                     <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
                                         ${total.toLocaleString()}
                                     </div>
                                     <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
-                                        7 Nights · 2 Travelers
+                                        {tReg.quote.sig_det}
                                     </p>
                                 </div>
                                 <div className="h-24 w-px bg-neutral-100 hidden md:block" />
                                 <div className="text-center md:text-left">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">Daily Investment</p>
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">{tReg.quote.daily}</p>
                                     <div className="text-4xl font-serif text-logo-blue leading-none">
                                         ${nightRatePerPerson.toLocaleString()}
                                     </div>
                                     <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
-                                        Per Person / Per Day
+                                        {tReg.quote.daily_det}
                                     </p>
                                 </div>
                             </div>
@@ -217,12 +150,11 @@ export default function RegularPlan() {
                             whileInView={{ opacity: 1, scale: 1 }}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] mb-6"
                         >
-                            <Sparkles size={14} /> The Topaz Route
+                            <Sparkles size={14} /> {tReg.topaz.badge}
                         </motion.div>
-                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Authentic Path</h2>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">{tReg.topaz.title}</h2>
                         <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
-                            A carefully phased sequence of discovery.
-                            Balanced, safe, and rich in local character, ensuring every dollar creates a lasting memory.
+                            {tReg.topaz.desc}
                         </p>
                     </div>
 
@@ -231,7 +163,7 @@ export default function RegularPlan() {
                         <div className="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neutral-200 to-transparent -translate-y-1/2 hidden lg:block" />
 
                         <div className="grid lg:grid-cols-3 gap-y-24 lg:gap-12 relative">
-                            {itinerary.map((step, idx) => (
+                            {itinerary.map((step: any, idx: number) => (
                                 <motion.div
                                     key={idx}
                                     initial={{ opacity: 0, y: 30 }}
@@ -257,17 +189,17 @@ export default function RegularPlan() {
                                     {/* Content Card */}
                                     <div className="relative p-10 rounded-[2.5rem] bg-white border border-neutral-100 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-4 transition-all duration-700 w-full max-w-sm">
                                         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 rounded-full bg-logo-blue text-white text-[10px] font-black uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all duration-500">
-                                            Phase 0{idx + 1}
+                                            {tReg.topaz.phase} 0{idx + 1}
                                         </div>
 
-                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
+                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{tReg.topaz.itinerary[idx].title}</h3>
                                         <p className="text-neutral-500 text-sm leading-relaxed mb-8 min-h-[7rem] group-hover:text-neutral-700 transition-colors">
-                                            {step.description}
+                                            {tReg.topaz.itinerary[idx].description}
                                         </p>
 
                                         <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-neutral-50 border border-neutral-100 group-hover:bg-logo-blue/5 group-hover:border-logo-blue/10 transition-all">
                                             <Check size={14} className="text-brand-gold" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{step.details}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{tReg.topaz.itinerary[idx].details}</span>
                                         </div>
                                     </div>
 
@@ -296,20 +228,15 @@ export default function RegularPlan() {
                     <div className="space-y-20">
                         <div className="space-y-8">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
-                                <ShieldCheck size={14} /> Reliable Value
+                                <ShieldCheck size={14} /> {tReg.philosophy.badge}
                             </div>
-                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Essential Quality</h2>
+                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">{tReg.philosophy.title}</h2>
                             <p className="text-neutral-600 text-xl leading-relaxed font-medium">
-                                The Regular tier provides the perfect foundation for a classic Sri Lankan adventure. We focus on cleanliness, safety, and authentic experiences, ensuring highly-rated stays and reliable transport.
+                                {tReg.philosophy.desc}
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                                {[
-                                    { title: "Local Home Stays", desc: "Immersion in the island's culture through vetted 3-star hotels and family-run guest houses." },
-                                    { title: "Flexible Transit", desc: "Cost-effective booked taxis or authentic public transit segments with expert guidance." },
-                                    { title: "Essential Sites", desc: "Integrated access to the most iconic cultural and historical landmarks of Sri Lanka." },
-                                    { title: "Sustained Support", desc: "Continuous remote connection and on-ground safety monitoring for independent spirits." }
-                                ].map((item, i) => (
+                                {tReg.philosophy.grid.map((item: any, i: number) => (
                                     <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
                                         <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
                                         <div>
@@ -323,12 +250,12 @@ export default function RegularPlan() {
 
                         <div className="space-y-10">
                             <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
-                                <h3 className="text-2xl font-serif text-logo-blue">Value Allocation</h3>
+                                <h3 className="text-2xl font-serif text-logo-blue">{tReg.breakdown.title}</h3>
                                 <button
                                     onClick={() => setShowBreakdown(!showBreakdown)}
                                     className="text-[11px] font-black uppercase tracking-widest text-neutral-400 hover:text-logo-blue transition-colors flex items-center gap-2"
                                 >
-                                    {showBreakdown ? "Hide Details" : "Reveal Pricing"}
+                                    {showBreakdown ? tReg.breakdown.btn_hide : tReg.breakdown.btn_show}
                                     <Info size={14} />
                                 </button>
                             </div>
@@ -343,11 +270,11 @@ export default function RegularPlan() {
                                     >
                                         <div className="grid gap-4">
                                             {[
-                                                { label: "3-Star & Home Stay Stays", value: pricing.breakdown.accommodation },
-                                                { label: "Booked Taxi / Public Transit", value: pricing.breakdown.transport },
-                                                { label: "Authentic Local Breakfast", value: pricing.breakdown.meals },
-                                                { label: "Essential Site Entrances", value: pricing.breakdown.experiences },
-                                                { label: "24/7 Virtual Support", value: pricing.breakdown.support },
+                                                { label: tReg.breakdown.items[0].label, value: pricing.breakdown.accommodation },
+                                                { label: tReg.breakdown.items[1].label, value: pricing.breakdown.transport },
+                                                { label: tReg.breakdown.items[2].label, value: pricing.breakdown.meals },
+                                                { label: tReg.breakdown.items[3].label, value: pricing.breakdown.experiences },
+                                                { label: tReg.breakdown.items[4].label, value: pricing.breakdown.support },
                                             ].map((item, i) => (
                                                 <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
                                                     <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
@@ -367,15 +294,15 @@ export default function RegularPlan() {
                                         <Smartphone size={80} className="text-white" />
                                     </div>
                                     <Clock size={40} className="text-brand-gold mb-6" />
-                                    <h4 className="font-serif text-2xl text-white mb-2">Always Connected</h4>
-                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">Constant digital companionship to ensure your journey in a new country is stress-free.</p>
+                                    <h4 className="font-serif text-2xl text-white mb-2">{tReg.philosophy.comfort.title}</h4>
+                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">{tReg.philosophy.comfort.desc}</p>
                                 </div>
                             </div>
                             <div className="space-y-4 pt-16">
                                 <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
                                     <Heart size={40} className="text-logo-blue mb-6" />
-                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">True Hospitality</h4>
-                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">Experience the genuine warmth of Sri Lankan guesthouses hand-picked for their character.</p>
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">{tReg.philosophy.connection.title}</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">{tReg.philosophy.connection.desc}</p>
                                 </div>
                             </div>
                         </div>
@@ -384,35 +311,38 @@ export default function RegularPlan() {
                     {/* Right: Inclusions & Quote */}
                     <div className="space-y-12 lg:sticky lg:top-32">
                         <div className="bg-white border border-neutral-100 rounded-[3rem] p-12 space-y-16 shadow-xl">
-                            {inclusions.map((section, idx) => (
-                                <div key={idx} className="space-y-8">
-                                    <div className="flex items-center gap-6">
-                                        <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
-                                            <section.icon size={28} className="text-logo-blue" />
+                            {inclusions.map((section: any, idx: number) => {
+                                const incObj = tReg.inclusions[idx];
+                                return (
+                                    <div key={idx} className="space-y-8">
+                                        <div className="flex items-center gap-6">
+                                            <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
+                                                <section.icon size={28} className="text-logo-blue" />
+                                            </div>
+                                            <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{incObj.category}</h3>
                                         </div>
-                                        <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{section.category}</h3>
+                                        <ul className="grid gap-5">
+                                            {incObj.items.map((item: any, i: number) => (
+                                                <li key={i} className="flex items-start gap-4">
+                                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.3)]" />
+                                                    <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                    <ul className="grid gap-5">
-                                        {section.items.map((item, i) => (
-                                            <li key={i} className="flex items-start gap-4">
-                                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.3)]" />
-                                                <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
+                                );
+                            })}
 
                             <div className="pt-12 border-t border-neutral-100 flex flex-col items-center">
                                 <Link
                                     href={`/contact?plan=regular&nights=${nights}&travelers=${travelers}`}
                                     className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-6 rounded-3xl font-black uppercase tracking-[0.25em] text-sm transition-all shadow-2xl shadow-logo-blue/20 active:scale-[0.98] block text-center"
                                 >
-                                    Initiate Regular Consultation
+                                    {tReg.cta.btn}
                                 </Link>
 
                                 <p className="mt-8 text-[11px] uppercase font-bold tracking-[0.3em] text-neutral-400">
-                                    coordinated local handling provided
+                                    {tReg.cta.sub}
                                 </p>
                             </div>
                         </div>

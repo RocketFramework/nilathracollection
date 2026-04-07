@@ -4,6 +4,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import { Sparkles, Crown, Gem, Check, ArrowRight, LayoutList } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useTranslation } from "@/components/I18nProvider";
 
 const plans = [
     {
@@ -79,6 +80,7 @@ const plans = [
 ];
 
 export default function PlansPage() {
+    const t = useTranslation();
     return (
         <MainLayout>
             <section className="pt-32 pb-24 px-6 md:px-12 bg-neutral-50 min-h-screen">
@@ -90,7 +92,7 @@ export default function PlansPage() {
                             animate={{ opacity: 1, y: 0 }}
                             className="inline-flex items-center gap-2 px-3 py-1 bg-brand-gold/10 text-brand-gold rounded-full text-xs uppercase tracking-widest font-semibold mb-4"
                         >
-                            <Sparkles size={14} /> Curated Experiences
+                            <Sparkles size={14} /> {t.packages.badge}
                         </motion.div>
                         <motion.h1
                             initial={{ opacity: 0, y: 10 }}
@@ -98,7 +100,7 @@ export default function PlansPage() {
                             transition={{ delay: 0.1 }}
                             className="text-4xl md:text-5xl font-serif text-brand-green mb-4"
                         >
-                            Choose Your Journey
+                            {t.packages.title}
                         </motion.h1>
                         <motion.p
                             initial={{ opacity: 0, y: 10 }}
@@ -106,13 +108,15 @@ export default function PlansPage() {
                             transition={{ delay: 0.2 }}
                             className="text-neutral-500 max-w-2xl mx-auto text-lg"
                         >
-                            From ultra-luxury seclusion to refined comfort, select the experience that matches your vision of the perfect Sri Lankan adventure.
+                            {t.packages.desc_1} {t.packages.desc_2}
                         </motion.p>
                     </div>
 
                     {/* Plans Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
                         {plans.map((plan, idx) => {
+                            const translatedPlan = t.packages.items.find((item: any) => item.id === plan.id) || plan;
+
                             // Uniform 2nd-row grid (50% each) for the first 4 cards
                             // Mixed remains full width (100%)
                             const isMixed = plan.id === "mixed";
@@ -152,14 +156,14 @@ export default function PlansPage() {
                                                     <plan.icon size={24} />
                                                 </div>
                                                 <h3 className="text-sm font-black uppercase tracking-tighter text-neutral-900 px-2 leading-tight">
-                                                    {plan.title.split(' ')[0]}<br />{plan.title.split(' ')[1] || ''}
+                                                    {translatedPlan.title.split(' ')[0]}<br />{translatedPlan.title.split(' ')[1] || ''}
                                                 </h3>
                                                 <div className="mt-4 pt-4 border-t border-neutral-100 w-full px-2">
-                                                    <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">From</p>
+                                                    <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">{t.cta?.from || "From"}</p>
                                                     <p className={`text-lg font-black font-mono tracking-tight text-neutral-900`}>
-                                                        {plan.priceRange}
+                                                        {translatedPlan.priceRange}
                                                     </p>
-                                                    {!isMixed && <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter mt-1">Per Day</p>}
+                                                    {!isMixed && <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter mt-1">{t.cta?.per_day || "Per Day"}</p>}
                                                 </div>
                                             </motion.div>
                                             {/* Ribbon fold shadow effect */}
@@ -168,13 +172,13 @@ export default function PlansPage() {
 
                                         <div className="flex items-center justify-end mb-auto">
                                             <span className={`text-[9px] uppercase tracking-[0.2em] font-black px-4 py-2 rounded-full bg-logo-blue text-white shadow-lg border border-white/10`}>
-                                                {plan.badge}
+                                                {translatedPlan.badge}
                                             </span>
                                         </div>
 
                                         <div className="mt-auto">
                                             <p className={`text-white/90 mb-10 leading-relaxed text-sm font-medium drop-shadow-md max-w-sm group-hover:text-white transition-colors`}>
-                                                {plan.description}
+                                                {translatedPlan.description}
                                             </p>
 
                                             <Link
@@ -199,17 +203,17 @@ export default function PlansPage() {
                     >
                         <div>
                             <h3 className="text-2xl font-serif text-brand-green mb-2 flex items-center gap-3">
-                                <LayoutList className="text-brand-gold" /> Need help deciding?
+                                <LayoutList className="text-brand-gold" /> {t.plans_overview.compare.title}
                             </h3>
                             <p className="text-neutral-500">
-                                View a detailed side-by-side comparison of all features, properties, and inclusions to find your perfect match.
+                                {t.plans_overview.compare.desc}
                             </p>
                         </div>
                         <Link
                             href="/plans/compare"
                             className="shrink-0 px-8 py-4 bg-brand-charcoal text-white rounded-xl font-medium hover:bg-brand-green transition-colors flex items-center gap-2"
                         >
-                            Compare All Plans
+                            {t.plans_overview.compare.btn}
                         </Link>
                     </motion.div>
 
@@ -223,9 +227,9 @@ export default function PlansPage() {
                         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=2033')] bg-cover bg-center opacity-20" />
                         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
                             <div className="max-w-2xl">
-                                <h3 className="text-3xl md:text-4xl font-serif mb-6 leading-tight">Travel Essentials</h3>
+                                <h3 className="text-3xl md:text-4xl font-serif mb-6 leading-tight">{t.plans_overview.essentials.title}</h3>
                                 <p className="text-white/80 text-lg mb-8 leading-relaxed">
-                                    Before embarking on your journey, ensure all necessary travel documents are in order. Most visitors to Sri Lanka require an Electronic Travel Authorization (ETA).
+                                    {t.plans_overview.essentials.desc}
                                 </p>
                                 <div className="flex flex-wrap gap-4">
                                     <Link
@@ -234,24 +238,24 @@ export default function PlansPage() {
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-3 px-8 py-4 bg-brand-gold text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-brand-gold/90 transition-all hover:scale-[1.05]"
                                     >
-                                        Obtain Sri Lanka Visa <ArrowRight size={16} />
+                                        {t.plans_overview.essentials.btn_visa} <ArrowRight size={16} />
                                     </Link>
                                     <Link
                                         href="/reference"
                                         className="inline-flex items-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-white/20 transition-all"
                                     >
-                                        Travel Reference Library <ArrowRight size={16} />
+                                        {t.plans_overview.essentials.btn_lib} <ArrowRight size={16} />
                                     </Link>
                                 </div>
                             </div>
                             <div className="w-full md:w-auto">
                                 <div className="p-8 bg-white/10 backdrop-blur-xl rounded-[2.5rem] border border-white/20">
-                                    <h4 className="font-serif text-2xl mb-4">Official E-Visa Site</h4>
+                                    <h4 className="font-serif text-2xl mb-4">{t.plans_overview.essentials.visa_badge}</h4>
                                     <p className="text-sm text-white/60 leading-relaxed mb-6">
-                                        For guaranteed processing and standard rates, always use the official Sri Lankan Government portal.
+                                        {t.plans_overview.essentials.visa_desc}
                                     </p>
                                     <div className="text-[10px] font-black uppercase tracking-widest text-brand-gold">
-                                        Verified External Resource
+                                        {t.plans_overview.essentials.visa_tag}
                                     </div>
                                 </div>
                             </div>
@@ -266,46 +270,30 @@ export default function PlansPage() {
                         className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-neutral-100"
                     >
                         <h3 className="text-2xl font-serif text-brand-green mb-10 text-center">
-                            Frequently Asked Questions
+                            {t.plans_overview.faq.title}
                         </h3>
                         <div className="grid md:grid-cols-2 gap-x-12 gap-y-8">
-                            <div>
-                                <h4 className="font-semibold text-brand-green mb-2 text-lg">Can I upgrade my plan?</h4>
-                                <p className="text-brand-charcoal/70 leading-relaxed">
-                                    Yes! You can upgrade at any time. The price difference will be calculated based on remaining nights and availability of properties.
-                                </p>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-brand-green mb-2 text-lg">Are flights included?</h4>
-                                <p className="text-brand-charcoal/70 leading-relaxed">
-                                    International flights are not included in the base packages, but our concierge team can assist with booking both commercial and private charter flights.
-                                </p>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-brand-green mb-2 text-lg">What's the cancellation policy?</h4>
-                                <p className="text-brand-charcoal/70 leading-relaxed">
-                                    Standard and Deluxe plans offer free cancellation up to 30 days before arrival. The VIP plan provides extended flexibility depending on specific property policies.
-                                </p>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-brand-green mb-2 text-lg">Can I customize my itinerary?</h4>
-                                <p className="text-brand-charcoal/70 leading-relaxed">
-                                    Absolutely! Each tier serves as a foundation. Once you select a tier, you can customize destinations, activities, and the duration of your stay.
-                                </p>
-                            </div>
+                            {t.plans_overview.faq.items.map((item: any, idx: number) => (
+                                <div key={idx}>
+                                    <h4 className="font-semibold text-brand-green mb-2 text-lg">{item.q}</h4>
+                                    <p className="text-brand-charcoal/70 leading-relaxed">
+                                        {item.a}
+                                    </p>
+                                </div>
+                            ))}
                         </div>
                     </motion.div>
 
                     {/* Final CTA */}
                     <div className="mt-16 text-center">
                         <p className="text-neutral-500 mb-6 text-lg">
-                            Not sure which plan is right for you? Our local travel specialists are here to guide you.
+                            {t.plans_overview.cta.title}
                         </p>
                         <Link
                             href="/contact"
                             className="inline-flex bg-brand-green text-white px-10 py-4 rounded-full text-sm uppercase tracking-widest font-bold hover:bg-brand-charcoal hover:scale-105 transition-all shadow-lg shadow-brand-green/20"
                         >
-                            Schedule a Private Consultation
+                            {t.plans_overview.cta.btn}
                         </Link>
                     </div>
                 </div>

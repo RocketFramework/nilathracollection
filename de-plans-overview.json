@@ -1,0 +1,41 @@
+{
+    "compare": {
+        "title": "Brauchen Sie Entscheidungshilfe?",
+        "desc": "Sehen Sie sich einen detaillierten direkten Vergleich aller Funktionen, Unterkünfte und Inklusivleistungen an, um das Perfekte für Sie zu finden.",
+        "btn": "Alle Pläne vergleichen"
+    },
+    "essentials": {
+        "title": "Reisebedarf",
+        "desc": "Bevor Sie Ihre Reise antreten, vergewissern Sie sich, dass alle notwendigen Reisedokumente in Ordnung sind. Die meisten Besucher Sri Lankas benötigen eine elektronische Reisegenehmigung (e-Visa).",
+        "btn_visa": "Visum für Sri Lanka beantragen",
+        "btn_lib": "Reisereferenz-Bibliothek",
+        "visa_badge": "Offizielle E-Visum Website",
+        "visa_desc": "Für eine garantierte Bearbeitung zu Standardtarifen nutzen Sie immer das offizielle Portal der Regierung von Sri Lanka.",
+        "visa_tag": "Verifizierte externe Quelle"
+    },
+    "faq": {
+        "title": "Häufig gestellte Fragen",
+        "items": [
+            {
+                "q": "Kann ich meinen Plan hochstufen?",
+                "a": "Ja! Sie können jederzeit ein Upgrade durchführen. Die Preisdifferenz wird basierend auf den verbleibenden Nächten und der Verfügbarkeit der Unterkünfte berechnet."
+            },
+            {
+                "q": "Sind Flüge inbegriffen?",
+                "a": "Internationale Flüge sind in den Basispaketen nicht enthalten, aber unser Concierge-Team kann Ihnen bei der Buchung von Linien- und Privatflügen behilflich sein."
+            },
+            {
+                "q": "Wie lauten die Stornierungsbedingungen?",
+                "a": "Standard- und Deluxe-Pläne bieten eine kostenlose Stornierung bis zu 30 Tage vor der Ankunft. Der VIP-Plan bietet je nach den Richtlinien der Unterkünfte erweiterte Flexibilität."
+            },
+            {
+                "q": "Kann ich meine Reiseroute anpassen?",
+                "a": "Absolut! Jede Stufe dient als Grundlage. Sobald Sie eine Stufe ausgewählt haben, können Sie Reiseziele, Aktivitäten und die Dauer Ihres Aufenthalts individuell anpassen."
+            }
+        ]
+    },
+    "cta": {
+        "title": "Sind Sie nicht sicher, welcher Plan der richtige für Sie ist? Unsere lokalen Reisespezialisten helfen Ihnen gerne weiter.",
+        "btn": "Vereinbaren Sie eine private Beratung"
+    }
+}

@@ -1,0 +1,310 @@
+{
+    "badge": "The Ultimate Experience",
+    "title": "Ultra VIP",
+    "desc_1": "Reserved for the world's most discerning travelers.",
+    "desc_2": "A realm of absolute privacy, bespoke luxury, and peerless security.",
+    "quote": {
+        "sig": "Signature Quote",
+        "sig_det": "7 Nights · 2 Travelers",
+        "daily": "Daily Allocation",
+        "daily_det": "Per Person / Per Day"
+    },
+    "choose": {
+        "badge": "Choose Your Journey",
+        "title": "Our Ultra VIP Journeys",
+        "desc": "Two distinct pathways, one standard of absolute excellence. Select the journey that resonates with your vision.",
+        "route_gold": "The Gold Route",
+        "route_sig": "Nilathra Signature Journey"
+    },
+    "gold": {
+        "desc": "A perfectly orchestrated sequence of luxury, privacy, and speed. From the moment you touch down to your final departure, every transition is seamless.",
+        "phase": "Phase",
+        "itinerary": [
+            {
+                "title": "Jet-Side Arrival: Elite",
+                "description": "Direct jet-side greeting with private concierge and traditional welcome ceremony. Skip the terminal entirely as your security team escorts you.",
+                "details": "Jet-Side Tarmac Clearance & Host"
+            },
+            {
+                "title": "Armored Command Transit",
+                "description": "24/7 Close Protection Detail (CPD) with armored SUV escort for all ground movements between flight segments.",
+                "details": "Permanent Armed/Unarmed Security Detail"
+            },
+            {
+                "title": "Total Aerial Domain",
+                "description": "A dedicated helicopter and crew remain on standby for the duration of your trip, ensuring travel at the speed of thought.",
+                "details": "Dedicated Standby Helicopter Fleet"
+            },
+            {
+                "title": "Sovereign Sanctuary",
+                "description": "Total buyout of a private island or estate. 1:1 staff-to-guest ratio including private physician, chef, and master butler.",
+                "details": "Private Estate Buyout"
+            },
+            {
+                "title": "Exclusive Masterclasses",
+                "description": "Private sessions with world-renowned gemologists, spiritual masters, and culinary legends in absolute seclusion.",
+                "details": "Bespoke Expert Access & Curation"
+            },
+            {
+                "title": "Zero-Trace Departure",
+                "description": "Direct-to-aircraft tarmac departure. Every protocol designed to ensure your transition is unseen and unmatched.",
+                "details": "Tactical Tarmac-to-Tarmac Exit"
+            }
+        ]
+    },
+    "signature": {
+        "desc": "Seven days. Seven extraordinary chapters. One island, experienced in its entirety at the highest level.",
+        "day": "Day",
+        "highlights": "Highlights",
+        "stay": "Stay",
+        "itinerary": [
+            {
+                "title": "VIP Arrival in Colombo",
+                "location": "Colombo",
+                "experience": "Your journey begins the moment your aircraft lands.",
+                "highlights": [
+                    "Jet-side greeting",
+                    "Fast-track immigration",
+                    "Private luxury SUV transfer",
+                    "Champagne welcome"
+                ],
+                "stay": "Ultra-luxury city hotel or private suite",
+                "optional": [
+                    "Private rooftop dinner",
+                    "Colombo night skyline tour",
+                    "Personal concierge planning the week"
+                ],
+                "note": "Recover from travel and feel immediately cared for."
+            },
+            {
+                "title": "Helicopter to the Ancient Kingdom",
+                "location": "Sigiriya Rock Fortress",
+                "experience": "An aerial journey over jungles and ancient reservoirs to the kingdom of Sigiriya.",
+                "highlights": [
+                    "Private helicopter transfer from Colombo",
+                    "Aerial view of jungles and reservoirs",
+                    "Private guided visit with archaeology expert",
+                    "Professional photography session"
+                ],
+                "stay": "Luxury jungle resort or private villa",
+                "optional": [
+                    "Sunset cocktails overlooking the rock",
+                    "Fine dining experience"
+                ],
+                "note": ""
+            },
+            {
+                "title": "Wild Sri Lanka Safari",
+                "location": "Wilpattu National Park",
+                "experience": "A private safari experience in one of Asia's most pristine national parks.",
+                "highlights": [
+                    "Private luxury safari vehicle",
+                    "Top wildlife tracker",
+                    "Possible sightings: Leopards, Elephants, Sloth bears",
+                    "Afternoon spa and relaxation"
+                ],
+                "stay": "Luxury jungle camp",
+                "optional": [
+                    "Private bush dinner in the jungle",
+                    "Lantern-lit dining under the stars"
+                ],
+                "note": "A very memorable luxury moment."
+            },
+            {
+                "title": "Into the Tea Mountains",
+                "location": "Nuwara Eliya",
+                "experience": "A serene ascent into the misty highlands, where tea reigns supreme.",
+                "highlights": [
+                    "Scenic helicopter or luxury train experience",
+                    "Private tea estate visit",
+                    "Tea tasting with plantation experts",
+                    "Walk through misty tea hills"
+                ],
+                "stay": "Luxury tea estate bungalow",
+                "optional": [
+                    "Fireplace dinner with fine wine pairing"
+                ],
+                "note": "A completely different landscape \u2014 cool, lush, and timeless."
+            },
+            {
+                "title": "Scenic Highlands & Culture",
+                "location": "Ella",
+                "experience": "The highlands in all their glory, before transitioning toward the coast.",
+                "highlights": [
+                    "Visit the iconic Nine Arches Bridge",
+                    "Scenic hike through tea plantations",
+                    "Private picnic with mountain views",
+                    "Helicopter transfer to the south coast"
+                ],
+                "stay": "Luxury boutique mountain property",
+                "optional": [],
+                "note": "Where the trip transitions from adventure to relaxation."
+            },
+            {
+                "title": "Luxury Beach Escape",
+                "location": "Tangalle",
+                "experience": "Slow luxury on the southern coast \u2014 the art of doing nothing, perfectly.",
+                "highlights": [
+                    "Private beach villa",
+                    "Oceanfront spa treatments",
+                    "Optional whale watching excursion",
+                    "Private candlelight dinner on the beach"
+                ],
+                "stay": "Private beach villa",
+                "optional": [
+                    "Live acoustic music",
+                    "Chef-curated fresh seafood menu"
+                ],
+                "note": "This day is about slow luxury."
+            },
+            {
+                "title": "Ocean & Departure",
+                "location": "Weligama",
+                "experience": "A final morning on the water before your sovereign departure.",
+                "highlights": [
+                    "Private yacht cruise",
+                    "Dolphin or whale spotting",
+                    "Helicopter transfer back to Colombo",
+                    "VIP airport departure assistance"
+                ],
+                "stay": "",
+                "optional": [],
+                "note": "End of journey."
+            }
+        ],
+        "estimate": {
+            "badge": "Estimated Ultra-VIP Price",
+            "price": "$12,000 \u2013 $18,000",
+            "sub": "Per Person",
+            "cols": [
+                {
+                    "label": "Varies by",
+                    "items": [
+                        "Helicopter hours",
+                        "Hotel category",
+                        "Villa buyouts"
+                    ]
+                },
+                {
+                    "label": "Private experiences",
+                    "items": [
+                        "Whale watching",
+                        "Private bush dinners",
+                        "Photography sessions"
+                    ]
+                },
+                {
+                    "label": "Ideal for",
+                    "items": [
+                        "Couples",
+                        "Families",
+                        "Small exclusive groups"
+                    ]
+                }
+            ]
+        }
+    },
+    "philosophy": {
+        "badge": "Total Anonymity Guaranteed",
+        "title": "Privacy Architecture",
+        "desc": "Our Ultra VIP tier is a fortified private domain. Beyond luxury, we provide a \"Zero-Trace\" security architecture designed for high-profile individuals requiring absolute seclusion.",
+        "grid": [
+            {
+                "title": "Sovereign NDA Protocols",
+                "desc": "All staff and partners operate under multi-jurisdictional, elite-tier non-disclosure agreements."
+            },
+            {
+                "title": "Invisible Transitions",
+                "desc": "Jet-side tarmac handling and private helipads to ensure zero public or digital exposure."
+            },
+            {
+                "title": "Hardened Communications",
+                "desc": "Military-grade encrypted concierge channels for all planning and on-ground adjustments."
+            },
+            {
+                "title": "Ghost-Protocol Billing",
+                "desc": "Total financial invisibility and comprehensive global identity protection."
+            }
+        ],
+        "seclusion": {
+            "title": "Absolute Seclusion",
+            "desc": "Extreme privacy protocols with 100% staff anonymity and total site buyouts."
+        },
+        "access": {
+            "title": "Impossible Access",
+            "desc": "We open doors to private collections, remote sites, and sacred spaces."
+        }
+    },
+    "breakdown": {
+        "title": "Service Breakdown",
+        "btn_hide": "Hide Details",
+        "btn_show": "Reveal Pricing",
+        "items": [
+            {
+                "label": "Elite Buyout & 24/7 Butler"
+            },
+            {
+                "label": "Helicopter Fleet & Security"
+            },
+            {
+                "label": "Bespoke Culinary & Chef"
+            },
+            {
+                "label": "Daily Ayurveda & Medical"
+            },
+            {
+                "label": "Bespoke Gems & Private Access"
+            },
+            {
+                "label": "VIP Handling & NDA Compliance"
+            }
+        ]
+    },
+    "inclusions": [
+        {
+            "category": "Estates & Sovereign Staff",
+            "items": [
+                "Exclusive Private Estate Buyouts",
+                "Dedicated English Speaking National Guide & Expert Driver",
+                "1:1 Staff-to-Guest Ratio (Butler/Chef/Concierge/Valet)",
+                "Full-time Dedicated Physician & Trauma Support",
+                "Absolute Privacy: Site-wide Signal Management",
+                "Personalized Gourmet Kitchen (6-Member Elite Chef Team)",
+                "Brand New Bespoke Linen (Destroyed/Gifted After Stay)"
+            ]
+        },
+        {
+            "category": "Sovereign Logistics",
+            "items": [
+                "Private Jet-Side Arrival & Tarmac Clearance",
+                "Dedicated Standby Helicopter for Trip Duration",
+                "Permanent 24/7 Close Protection Detail (CPD)",
+                "Armored SUV Fleet (B6/B7 Level Availability)"
+            ]
+        },
+        {
+            "category": "Impossible Access",
+            "items": [
+                "Private Jewelry Masterclass (Rare Stones)",
+                "Elder Spiritual & Philosophical Counsel",
+                "After-hours Private Opening of National Sites",
+                "Global Identity Protection Protocols"
+            ]
+        },
+        {
+            "category": "Regenerative Wellness",
+            "items": [
+                "Bespoke Anti-Aging & Regenerative Therapies",
+                "Private Ayurvedic Master & Team (Dedicated)",
+                "Advanced Wellness & Medical Diagnostic Suite",
+                "Michelin-Standard Personalized Nutritionist (24/7)",
+                "Anything & Everything On Request (Dedicated Service)",
+                "Zero-Trace Anonymity & Full NDA Ecosystem"
+            ]
+        }
+    ],
+    "cta": {
+        "btn": "Initiate VIP Consultation",
+        "sub": "private concierge assigned upon request"
+    }
+}

@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { useTranslation } from "@/components/I18nProvider";
 import {
     Gem,
     Check,
@@ -24,6 +25,8 @@ import {
 import Link from "next/link";
 
 export default function PremiumPlan() {
+    const t = useTranslation();
+    const tPrem = t.packages.premium;
     const [showBreakdown, setShowBreakdown] = useState(false);
     const nights = 7;
     const travelers = 2;
@@ -45,89 +48,19 @@ export default function PremiumPlan() {
     };
 
     const itinerary = [
-        {
-            title: "Warm Greeting",
-            description: "Personalized welcome at the airport arrival terminal by your dedicated representative, ensuring a smooth transition to your vehicle.",
-            icon: Sparkles,
-            details: "Arrival Greeting Assistance"
-        },
-        {
-            title: "Professional Transit",
-            description: "Travel in a well-maintained, air-conditioned Sedan or Van with an experienced driver-guide acting as your local host.",
-            icon: Car,
-            details: "Standard Luxury Sedan / Van"
-        },
-        {
-            title: "3-4 Star Collection",
-            description: "Hand-picked accommodations at reputable 3 to 4 star hotels, ensuring reliable comfort, cleanliness, and essential amenities.",
-            icon: Hotel,
-            details: "3 to 4 Star Stay Hotels"
-        },
-        {
-            title: "Half-Board Dining (HB)",
-            description: "Half-Board (HB) dining experience including breakfast and dinner at your hotels. Explore the island's culinary landscape with high-quality local flavors.",
-            icon: Coffee,
-            details: "Half-Board Dining (HB)"
-        },
-        {
-            title: "Local Discovery",
-            description: "Explore the island's most iconic destinations with your experienced driver-guide. Practical local insights and seamless travel logistics.",
-            icon: Camera,
-            details: "Experienced Driver-Guide"
-        },
-        {
-            title: "Seamless Departure",
-            description: "Final stop for last-minute souvenirs before a well-timed drop-off at the airport for your return flight.",
-            icon: Clock,
-            details: "Timed Airport Departure Transit"
-        }
+        { icon: Sparkles },
+        { icon: Car },
+        { icon: Hotel },
+        { icon: Coffee },
+        { icon: Camera },
+        { icon: Clock }
     ];
 
     const inclusions = [
-        {
-            category: "3 to 4 Star Hotels",
-            icon: Hotel,
-            items: [
-                "Reputable 3 to 4 Star Signature Hotels",
-                "Reliable Comfort and Modern Amenities",
-                "Well-appointed Standard/Deluxe Rooms",
-                "Daily Half-Board (HB) Dining Selection",
-                "Complimentary In-room Wi-Fi Access"
-            ]
-        },
-        {
-            category: "Logistics & Guide",
-            icon: Car,
-            items: [
-                "Private Air-Conditioned Sedan or Van",
-                "Experienced Driver-Guide (English Speaking)",
-                "Arrival Terminal Greeting Assistance",
-                "All Domestic Transportation Costs",
-                "Highway Tolls & Parking Inclusions"
-            ]
-        },
-        {
-            category: "Cultural Insights",
-            icon: Compass,
-            items: [
-                "Guided Tours of Major Historic Sites",
-                "Entrance Fees to National Parks",
-                "Curated Local Artisan Visits",
-                "Flexible Daily Sightseeing Schedule",
-                "Authentic Village Experience Tours"
-            ]
-        },
-        {
-            category: "Dining & Comfort",
-            icon: Coffee,
-            items: [
-                "Curated Restaurant Recommendations",
-                "Welcome Pack & Local Sim/Guide Map",
-                "Access to Hotel Wellness & Pool Areas",
-                "Dedicated On-trip Support (Online)",
-                "All Local Taxes & Service Charges Included"
-            ]
-        }
+        { icon: Hotel },
+        { icon: Car },
+        { icon: Compass },
+        { icon: Coffee }
     ];
 
     return (
@@ -154,7 +87,7 @@ export default function PremiumPlan() {
                             className="absolute inset-0 bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none"
                         />
                         <Gem size={20} className="text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
-                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">The Emerald Collection</span>
+                        <span className="text-white text-xs font-black uppercase tracking-[0.4em] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">{tPrem.badge}</span>
                     </motion.div>
 
                     <motion.h1
@@ -163,7 +96,7 @@ export default function PremiumPlan() {
                         transition={{ delay: 0.3 }}
                         className="text-7xl md:text-9xl font-serif text-logo-blue mb-6 tracking-tight drop-shadow-sm"
                     >
-                        Premium Plan
+                        {tPrem.title}
                     </motion.h1>
 
                     <motion.p
@@ -172,8 +105,8 @@ export default function PremiumPlan() {
                         transition={{ delay: 0.4 }}
                         className="text-neutral-800 max-w-2xl text-xl font-medium leading-relaxed mb-12"
                     >
-                        A sophisticated blend of reliability, comfort, and professional local service.
-                        Experience the best of Sri Lanka with reputable 3-4 star hospitality.
+                        {tPrem.desc_1}<br />
+                        {tPrem.desc_2}
                     </motion.p>
 
                     <motion.div
@@ -185,22 +118,22 @@ export default function PremiumPlan() {
                         <div className="bg-white/95 backdrop-blur-xl border border-neutral-100 rounded-[3rem] p-8 md:px-14 md:py-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
                             <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
                                 <div className="text-center md:text-left">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">Signature Quote</p>
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">{tPrem.quote.sig}</p>
                                     <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
                                         ${total.toLocaleString()}
                                     </div>
                                     <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
-                                        7 Nights · 2 Travelers
+                                        {tPrem.quote.sig_det}
                                     </p>
                                 </div>
                                 <div className="h-24 w-px bg-neutral-100 hidden md:block" />
                                 <div className="text-center md:text-left">
-                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">Daily Value</p>
+                                    <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">{tPrem.quote.daily}</p>
                                     <div className="text-4xl font-serif text-logo-blue leading-none">
                                         ${nightRatePerPerson.toLocaleString()}
                                     </div>
                                     <p className="text-neutral-500 text-xs mt-4 font-bold uppercase tracking-widest">
-                                        Per Person / Per Day
+                                        {tPrem.quote.daily_det}
                                     </p>
                                 </div>
                             </div>
@@ -218,12 +151,11 @@ export default function PremiumPlan() {
                             whileInView={{ opacity: 1, scale: 1 }}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] mb-6"
                         >
-                            <Sparkles size={14} /> The Emerald Route
+                            <Sparkles size={14} /> {tPrem.emerald.badge}
                         </motion.div>
-                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">The Emerald Journey</h2>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-8 tracking-tight">{tPrem.emerald.title}</h2>
                         <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
-                            A refined sequence from arrival to exit.
-                            Experience a beautifully paced exploration through Sri Lanka&apos;s cultural heart and comfort retreats.
+                            {tPrem.emerald.desc}
                         </p>
                     </div>
 
@@ -232,7 +164,7 @@ export default function PremiumPlan() {
                         <div className="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neutral-200 to-transparent -translate-y-1/2 hidden lg:block" />
 
                         <div className="grid lg:grid-cols-3 gap-y-24 lg:gap-12 relative">
-                            {itinerary.map((step, idx) => (
+                            {itinerary.map((step: any, idx: number) => (
                                 <motion.div
                                     key={idx}
                                     initial={{ opacity: 0, y: 30 }}
@@ -258,17 +190,17 @@ export default function PremiumPlan() {
                                     {/* Content Card */}
                                     <div className="relative p-10 rounded-[2.5rem] bg-white border border-neutral-100 shadow-sm group-hover:shadow-2xl group-hover:-translate-y-4 transition-all duration-700 w-full max-w-sm">
                                         <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 rounded-full bg-logo-blue text-white text-[10px] font-black uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all duration-500">
-                                            Phase 0{idx + 1}
+                                            {tPrem.emerald.phase} 0{idx + 1}
                                         </div>
 
-                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{step.title}</h3>
+                                        <h3 className="text-2xl font-serif text-neutral-900 mb-4 tracking-tight group-hover:text-logo-blue transition-colors">{tPrem.emerald.itinerary[idx].title}</h3>
                                         <p className="text-neutral-500 text-sm leading-relaxed mb-8 min-h-[7rem] group-hover:text-neutral-700 transition-colors">
-                                            {step.description}
+                                            {tPrem.emerald.itinerary[idx].description}
                                         </p>
 
                                         <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-neutral-50 border border-neutral-100 group-hover:bg-logo-blue/5 group-hover:border-logo-blue/10 transition-all">
                                             <Check size={14} className="text-brand-gold" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{step.details}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-400 group-hover:text-logo-blue transition-colors">{tPrem.emerald.itinerary[idx].details}</span>
                                         </div>
                                     </div>
 
@@ -297,20 +229,15 @@ export default function PremiumPlan() {
                     <div className="space-y-20">
                         <div className="space-y-8">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
-                                <Star size={14} /> Refined Standard
+                                <Star size={14} /> {tPrem.philosophy.badge}
                             </div>
-                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">Contemporary Value</h2>
+                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">{tPrem.philosophy.title}</h2>
                             <p className="text-neutral-600 text-xl leading-relaxed font-medium">
-                                The Premium tier is for the traveler who appreciates reliable quality, cultural connection, and experienced local guidance. It&apos;s a journey that balances iconic sites with authentic discovery.
+                                {tPrem.philosophy.desc}
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                                {[
-                                    { title: "Standard Comfort", desc: "Access to our selected collection of 3 to 4 star comfort and business-class hotels." },
-                                    { title: "Driver-Guides", desc: "Experienced driver-guides with years of local expertise acting as your host." },
-                                    { title: "Reliable Transit", desc: "Arrival to destination in air-conditioned Sedans or modern passenger Vans." },
-                                    { title: "Essential Tours", desc: "Selected entry into national parks and historic monuments with local context." }
-                                ].map((item, i) => (
+                                {tPrem.philosophy.grid.map((item: any, i: number) => (
                                     <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
                                         <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
                                         <div>
@@ -324,12 +251,12 @@ export default function PremiumPlan() {
 
                         <div className="space-y-10">
                             <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
-                                <h3 className="text-2xl font-serif text-logo-blue">Service Breakdown</h3>
+                                <h3 className="text-2xl font-serif text-logo-blue">{tPrem.breakdown.title}</h3>
                                 <button
                                     onClick={() => setShowBreakdown(!showBreakdown)}
                                     className="text-[11px] font-black uppercase tracking-widest text-neutral-400 hover:text-logo-blue transition-colors flex items-center gap-2"
                                 >
-                                    {showBreakdown ? "Hide Details" : "Reveal Pricing"}
+                                    {showBreakdown ? tPrem.breakdown.btn_hide : tPrem.breakdown.btn_show}
                                     <Info size={14} />
                                 </button>
                             </div>
@@ -344,12 +271,12 @@ export default function PremiumPlan() {
                                     >
                                         <div className="grid gap-4">
                                             {[
-                                                { label: "3-4 Star Comfort Hotels", value: pricing.breakdown.accommodation },
-                                                { label: "Logistics & Driver-Guide", value: pricing.breakdown.transport },
-                                                { label: "Essential Local Dining", value: pricing.breakdown.meals },
-                                                { label: "Wellness & Facilities", value: pricing.breakdown.wellness },
-                                                { label: "Tours & Entrance Fees", value: pricing.breakdown.experiences },
-                                                { label: "Support & Handling", value: pricing.breakdown.logistics },
+                                                { label: tPrem.breakdown.items[0].label, value: pricing.breakdown.accommodation },
+                                                { label: tPrem.breakdown.items[1].label, value: pricing.breakdown.transport },
+                                                { label: tPrem.breakdown.items[2].label, value: pricing.breakdown.meals },
+                                                { label: tPrem.breakdown.items[3].label, value: pricing.breakdown.wellness },
+                                                { label: tPrem.breakdown.items[4].label, value: pricing.breakdown.experiences },
+                                                { label: tPrem.breakdown.items[5].label, value: pricing.breakdown.logistics },
                                             ].map((item, i) => (
                                                 <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
                                                     <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
@@ -369,15 +296,15 @@ export default function PremiumPlan() {
                                         <ShieldCheck size={80} className="text-white" />
                                     </div>
                                     <Clock size={40} className="text-brand-gold mb-6" />
-                                    <h4 className="font-serif text-2xl text-white mb-2">Reliable Comfort</h4>
-                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">Consistent, high-quality service standards across every partner hotel and transport provider.</p>
+                                    <h4 className="font-serif text-2xl text-white mb-2">{tPrem.philosophy.comfort.title}</h4>
+                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">{tPrem.philosophy.comfort.desc}</p>
                                 </div>
                             </div>
                             <div className="space-y-4 pt-16">
                                 <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
                                     <Camera size={40} className="text-logo-blue mb-6" />
-                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">Cultural Connection</h4>
-                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">A strong emphasis on Sri Lanka&apos;s living culture, iconic monuments, and immersive local experiences.</p>
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">{tPrem.philosophy.connection.title}</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">{tPrem.philosophy.connection.desc}</p>
                                 </div>
                             </div>
                         </div>
@@ -386,35 +313,38 @@ export default function PremiumPlan() {
                     {/* Right: Inclusions & Quote */}
                     <div className="space-y-12 lg:sticky lg:top-32">
                         <div className="bg-white border border-neutral-100 rounded-[3rem] p-12 space-y-16 shadow-xl">
-                            {inclusions.map((section, idx) => (
-                                <div key={idx} className="space-y-8">
-                                    <div className="flex items-center gap-6">
-                                        <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
-                                            <section.icon size={28} className="text-logo-blue" />
+                            {inclusions.map((section: any, idx: number) => {
+                                const incObj = tPrem.inclusions[idx];
+                                return (
+                                    <div key={idx} className="space-y-8">
+                                        <div className="flex items-center gap-6">
+                                            <div className="p-4 bg-logo-blue/5 rounded-2xl border border-logo-blue/10">
+                                                <section.icon size={28} className="text-logo-blue" />
+                                            </div>
+                                            <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{incObj.category}</h3>
                                         </div>
-                                        <h3 className="text-2xl font-serif text-neutral-900 tracking-tight">{section.category}</h3>
+                                        <ul className="grid gap-5">
+                                            {incObj.items.map((item: any, i: number) => (
+                                                <li key={i} className="flex items-start gap-4">
+                                                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.4)]" />
+                                                    <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                    <ul className="grid gap-5">
-                                        {section.items.map((item, i) => (
-                                            <li key={i} className="flex items-start gap-4">
-                                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0 shadow-[0_0_8px_rgba(196,181,92,0.4)]" />
-                                                <span className="text-sm font-bold text-neutral-600 leading-relaxed">{item}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
+                                );
+                            })}
 
                             <div className="pt-12 border-t border-neutral-100 flex flex-col items-center">
                                 <Link
                                     href={`/contact?plan=premium&nights=${nights}&travelers=${travelers}`}
                                     className="w-full bg-logo-blue hover:bg-logo-blue/90 text-white py-6 rounded-3xl font-black uppercase tracking-[0.25em] text-sm transition-all shadow-2xl shadow-logo-blue/20 active:scale-[0.98] block text-center"
                                 >
-                                    Initiate Premium Consultation
+                                    {tPrem.cta.btn}
                                 </Link>
 
                                 <p className="mt-8 text-[11px] uppercase font-bold tracking-[0.3em] text-neutral-400">
-                                    dedicated specialist guidance provided
+                                    {tPrem.cta.sub}
                                 </p>
                             </div>
                         </div>

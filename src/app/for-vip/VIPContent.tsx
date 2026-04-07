@@ -11,7 +11,10 @@ const fadeUpVariant = {
     visible: { opacity: 1, y: 0, transition: { duration: 1 } },
 };
 
+import { useTranslation } from "@/components/I18nProvider";
+
 export default function VIPContent() {
+    const t = useTranslation();
     const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -76,7 +79,7 @@ export default function VIPContent() {
                         transition={{ duration: 1.5, delay: 0.5 }}
                         className="text-brand-gold text-xs sm:text-sm uppercase tracking-[0.4em] mb-6 font-medium"
                     >
-                        A Land Like No Other
+                        {t.vip.hero_subtitle}
                     </motion.span>
 
                     <motion.h1
@@ -85,7 +88,7 @@ export default function VIPContent() {
                         transition={{ duration: 1.5, delay: 0.8 }}
                         className="text-6xl sm:text-8xl md:text-[9rem] font-serif text-white uppercase tracking-tighter leading-none mb-8 drop-shadow-2xl"
                     >
-                        Thabrobana
+                        {t.vip.hero_title}
                     </motion.h1>
 
                     <motion.p
@@ -94,7 +97,7 @@ export default function VIPContent() {
                         transition={{ duration: 1.5, delay: 1.2 }}
                         className="text-lg md:text-2xl text-white/70 max-w-3xl font-serif italic"
                     >
-                        The pinnacle of luxury travel. Experience the diversity of an entire continent, curated exclusively for the world's most discerning travelers.
+                        {t.vip.hero_desc}
                     </motion.p>
 
                     <motion.button
@@ -106,7 +109,7 @@ export default function VIPContent() {
                     >
                         {isPlaying ? <Pause size={18} className="fill-current" /> : <Play size={18} className="fill-current" />}
                         <span className="font-serif tracking-[0.3em] text-xs uppercase">
-                            {isPlaying ? "Pause The Story" : "Immerse In The Story"}
+                            {isPlaying ? t.vip.play_pause : t.vip.play_start}
                         </span>
                     </motion.button>
                 </div>
@@ -131,17 +134,17 @@ export default function VIPContent() {
                         <div className="absolute -right-8 -bottom-8 w-64 h-64 bg-brand-gold/5 -z-10 rounded-full blur-3xl" />
                     </div>
                     <div className="lg:col-span-7 space-y-12">
-                        <h2 className="text-4xl md:text-6xl font-serif text-white leading-tight">Beyond The <br /><span className="text-brand-gold italic">Ordinary</span></h2>
+                        <h2 className="text-4xl md:text-6xl font-serif text-white leading-tight">{t.vip.pitch_title} <br /><span className="text-brand-gold italic">{t.vip.pitch_title_gold}</span></h2>
                         <div className="space-y-8 text-neutral-400 font-light text-xl leading-relaxed">
                             <p>
-                                While the Maldives offers pristine beaches curated by our very own Sri Lankan hospitality experts, Sri Lanka offers an experience that transcends mere relaxation.
+                                {t.vip.pitch_p1}
                             </p>
                             <p>
-                                Imagine a land not quite as vast as India, yet encompassing the entirety of India's breathtaking diversity within a compact 65,610 square kilometers. Here, luxury is defined not just by opulent resorts, but by unparalleled access to diverse worlds, seamlessly woven together.
+                                {t.vip.pitch_p2}
                             </p>
                         </div>
                         <Link href="/custom-plan" className="inline-flex items-center gap-4 text-brand-gold uppercase tracking-[0.2em] text-sm group pb-2 border-b border-brand-gold/30 hover:border-brand-gold transition-colors">
-                            Craft Your VIP Journey <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
+                            {t.vip.pitch_btn} <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
                         </Link>
                     </div>
                 </motion.div>
@@ -151,9 +154,9 @@ export default function VIPContent() {
             <section ref={targetRef} className="relative h-[300vh] bg-black">
                 <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden py-24">
                     <div className="px-6 md:px-12 max-w-7xl mx-auto w-full mb-16">
-                        <h2 className="text-4xl md:text-5xl font-serif text-brand-gold mb-6">A Symphony of Climates</h2>
+                        <h2 className="text-4xl md:text-5xl font-serif text-brand-gold mb-6">{t.vip.symphony_title}</h2>
                         <p className="text-neutral-400 font-light max-w-2xl text-lg">
-                            Begin your morning with yoga on a sun-drenched beach, ascend to the misty mountains for a colonial high tea, and conclude your day dining under a canopy of stars.
+                            {t.vip.symphony_desc}
                         </p>
                     </div>
 
@@ -162,22 +165,25 @@ export default function VIPContent() {
                             { src: "/images/sri-lanka/climate/sandy-beaches.avif", title: "Morning: Coastal Sun", desc: "Awake to the rhythmic crashing of the Indian Ocean from your secluded private villa." },
                             { src: "/images/sri-lanka/climate/wet-land.avif", title: "Noon: Emerald Wetlands", desc: "Helicopter to the lush interior, discovering hidden waterfalls and vibrant rainforests." },
                             { src: "/images/sri-lanka/climate/dry-land.avif", title: "Evening: Golden Dry Lands", desc: "Dine under ancient skies in the cultural triangle, surrounded by millennia of history." }
-                        ].map((climate, idx) => (
-                            <div key={idx} className="relative w-[85vw] md:w-[60vw] lg:w-[45vw] h-[60vh] shrink-0 group">
-                                <Image
-                                    src={climate.src}
-                                    alt={climate.title}
-                                    fill
-                                    className="object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-1000"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                <div className="absolute bottom-10 left-10 right-10">
-                                    <h3 className="text-3xl font-serif text-white mb-4">{climate.title}</h3>
-                                    <p className="text-neutral-300 font-light">{climate.desc}</p>
+                        ].map((climate, idx) => {
+                            const tClimate = t.vip.climates?.[idx] || climate;
+                            return (
+                                <div key={idx} className="relative w-[85vw] md:w-[60vw] lg:w-[45vw] h-[60vh] shrink-0 group">
+                                    <Image
+                                        src={climate.src}
+                                        alt={tClimate.title}
+                                        fill
+                                        className="object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-1000"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                    <div className="absolute bottom-10 left-10 right-10">
+                                        <h3 className="text-3xl font-serif text-white mb-4">{tClimate.title}</h3>
+                                        <p className="text-neutral-300 font-light">{tClimate.desc}</p>
+                                    </div>
+                                    <span className="absolute top-10 right-10 text-brand-gold font-serif text-2xl">0{idx + 1}</span>
                                 </div>
-                                <span className="absolute top-10 right-10 text-brand-gold font-serif text-2xl">0{idx + 1}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </motion.div>
                 </div>
             </section>
@@ -192,9 +198,9 @@ export default function VIPContent() {
                         viewport={{ once: true }}
                         className="text-center mb-24"
                     >
-                        <h2 className="text-5xl font-serif text-brand-gold mb-8">Echoes of Eternity</h2>
+                        <h2 className="text-5xl font-serif text-brand-gold mb-8">{t.vip.heritage_title}</h2>
                         <p className="text-neutral-400 font-light max-w-3xl mx-auto text-xl italic">
-                            Walk among 6000-year-old burial sites, trace the engineering marvels of ancient reservoirs, and gaze upon the majestic Sigiriya.
+                            {t.vip.heritage_desc}
                         </p>
                     </motion.div>
 
@@ -207,7 +213,7 @@ export default function VIPContent() {
                                 <Image src="/images/sri-lanka/culture/devil-dance.avif" alt="Culture" fill className="object-cover grayscale hover:grayscale-0 transition-all duration-700" />
                             </div>
                             <p className="text-neutral-400 font-light text-lg">
-                                Our culture is an unbroken lineage, alive with the mesmerizing rhythms of traditional dances and rituals that have safeguarded our people for millennia. Experience heritage that treats you not just as a guest, but as royalty.
+                                {t.vip.heritage_text}
                             </p>
                         </motion.div>
                     </div>
@@ -219,11 +225,11 @@ export default function VIPContent() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-16 mb-24 items-end">
                         <div className="lg:col-span-2">
-                            <h2 className="text-5xl font-serif text-white mb-6">Untamed Elegance</h2>
-                            <p className="text-neutral-400 font-light text-xl">Private safaris granting you exclusive access to the heart of the wild.</p>
+                            <h2 className="text-5xl font-serif text-white mb-6">{t.vip.wildlife_title}</h2>
+                            <p className="text-neutral-400 font-light text-xl">{t.vip.wildlife_desc}</p>
                         </div>
                         <div className="lg:col-span-1 flex justify-end">
-                            <span className="text-brand-gold uppercase tracking-[0.2em] text-sm">The VIP Safari</span>
+                            <span className="text-brand-gold uppercase tracking-[0.2em] text-sm">{t.vip.wildlife_tag}</span>
                         </div>
                     </div>
 
@@ -254,10 +260,10 @@ export default function VIPContent() {
                         viewport={{ once: true }}
                         className="text-center mb-20"
                     >
-                        <span className="text-brand-gold text-sm uppercase tracking-[0.3em] block mb-4">Culinary Mastery</span>
-                        <h2 className="text-5xl md:text-6xl font-serif text-white mb-8">A Feast Fit For Kings</h2>
+                        <span className="text-brand-gold text-sm uppercase tracking-[0.3em] block mb-4">{t.vip.culinary_tag}</span>
+                        <h2 className="text-5xl md:text-6xl font-serif text-white mb-8">{t.vip.culinary_title}</h2>
                         <p className="text-neutral-400 font-light max-w-3xl mx-auto text-xl">
-                            Elevate your palate. Savor hand-picked native delicacies bursting with unique island spices, prepared by world-renowned executive chefs in exclusive settings.
+                            {t.vip.culinary_desc}
                         </p>
                     </motion.div>
 
@@ -293,10 +299,10 @@ export default function VIPContent() {
                     <div className="absolute inset-0 bg-black/80" />
                 </div>
                 <div className="relative z-10 text-center px-6 max-w-4xl">
-                    <h2 className="text-5xl md:text-7xl font-serif text-white mb-8">Your Thabrobana Awaits</h2>
-                    <p className="text-2xl text-brand-gold font-light italic mb-16">The ultimate travel privilege.</p>
+                    <h2 className="text-5xl md:text-7xl font-serif text-white mb-8">{t.vip.cta_title}</h2>
+                    <p className="text-2xl text-brand-gold font-light italic mb-16">{t.vip.cta_desc}</p>
                     <Link href="/custom-plan" className="inline-block bg-transparent border border-brand-gold text-brand-gold uppercase tracking-[0.3em] px-16 py-6 hover:bg-brand-gold hover:text-black transition-all duration-500 text-sm font-medium">
-                        Begin The Design
+                        {t.vip.cta_btn}
                     </Link>
                 </div>
             </section>

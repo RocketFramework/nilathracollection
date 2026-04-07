@@ -92,53 +92,56 @@ export default function PackagesSection() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {packages.map((pkg, idx) => (
-                        <motion.div
-                            key={pkg.title}
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            viewport={{ once: true }}
-                            className={`p-10 flex flex-col h-full rounded-sm ${pkg.color} ${pkg.textColor} shadow-sm border border-brand-charcoal/5 group hover:shadow-2xl transition-all duration-500 relative overflow-hidden`}
-                        >
-                            {pkg.image && (
-                                <>
-                                    <div
-                                        className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 group-hover:scale-125 transition-transform duration-[2s]"
-                                        style={{ backgroundImage: `url('${pkg.image}')` }}
-                                    />
-                                    <div className="absolute inset-0 bg-brand-green/85 group-hover:bg-brand-green/75 transition-colors duration-500" />
-                                </>
-                            )}
+                    {packages.map((pkg, idx) => {
+                        const tPkg = t.packages.items?.[idx] || pkg;
+                        return (
+                            <motion.div
+                                key={pkg.title}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.1 }}
+                                viewport={{ once: true }}
+                                className={`p-10 flex flex-col h-full rounded-sm ${pkg.color} ${pkg.textColor} shadow-sm border border-brand-charcoal/5 group hover:shadow-2xl transition-all duration-500 relative overflow-hidden`}
+                            >
+                                {pkg.image && (
+                                    <>
+                                        <div
+                                            className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 group-hover:scale-125 transition-transform duration-[2s]"
+                                            style={{ backgroundImage: `url('${pkg.image}')` }}
+                                        />
+                                        <div className="absolute inset-0 bg-brand-green/85 group-hover:bg-brand-green/75 transition-colors duration-500" />
+                                    </>
+                                )}
 
-                            <div className="relative z-10 h-full flex flex-col">
-                                <div className="flex items-center justify-between mb-8">
-                                    <pkg.icon className={pkg.accent} size={32} />
-                                    <span className="text-[10px] uppercase tracking-[0.3em] opacity-60 font-black">{pkg.subtitle}</span>
+                                <div className="relative z-10 h-full flex flex-col">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <pkg.icon className={pkg.accent} size={32} />
+                                        <span className="text-[10px] uppercase tracking-[0.3em] opacity-60 font-black">{tPkg.subtitle}</span>
+                                    </div>
+                                    <h3 className="font-serif text-2xl mb-4">{tPkg.title}</h3>
+                                    <p className="text-sm opacity-80 mb-8 leading-relaxed italic">
+                                        {tPkg.description}
+                                    </p>
+
+                                    <ul className="space-y-4 mb-10 flex-grow">
+                                        {(tPkg.features || pkg.features).map((feature: string, fIdx: number) => (
+                                            <li key={fIdx} className="flex gap-3 text-sm items-start">
+                                                <Check size={16} className={`shrink-0 mt-0.5 ${pkg.accent}`} />
+                                                <span className="opacity-90">{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    <Link
+                                        href={pkg.href}
+                                        className={`flex items-center gap-2 text-sm font-medium tracking-widest uppercase transition-all group-hover:gap-4 ${pkg.accent}`}
+                                    >
+                                        {t.packages.learn_more} <ArrowRight size={16} />
+                                    </Link>
                                 </div>
-                                <h3 className="font-serif text-2xl mb-4">{pkg.title}</h3>
-                                <p className="text-sm opacity-80 mb-8 leading-relaxed italic">
-                                    {pkg.description}
-                                </p>
-
-                                <ul className="space-y-4 mb-10 flex-grow">
-                                    {pkg.features.map((feature) => (
-                                        <li key={feature} className="flex gap-3 text-sm items-start">
-                                            <Check size={16} className={`shrink-0 mt-0.5 ${pkg.accent}`} />
-                                            <span className="opacity-90">{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <Link
-                                    href={pkg.href}
-                                    className={`flex items-center gap-2 text-sm font-medium tracking-widest uppercase transition-all group-hover:gap-4 ${pkg.accent}`}
-                                >
-                                    {t.packages.learn_more} <ArrowRight size={16} />
-                                </Link>
-                            </div>
-                        </motion.div>
-                    ))}
+                            </motion.div>
+                        );
+                    })}
                 </div>
             </div>
         </section>

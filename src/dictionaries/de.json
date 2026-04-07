@@ -27,6 +27,28 @@
         "faq_subtitle": "Ihre Fragen",
         "faq_title": "Reise-Exzellenz FAQ",
         "faq_desc": "Alles, was Sie über die Planung Ihrer Luxus-Odyssee in Sri Lanka wissen müssen.",
+        "faqs": [
+            {
+                "q": "Was unterscheidet das Ultra VIP Paket von Standard-Luxusreisen?",
+                "a": "Standard-Luxus konzentriert sich auf Hotels; Ultra VIP auf absolute Souveränität. Wir bieten Jet-Side Tarmac Clearance, Standby-Hubschrauber und landesweite Immobilienaufkäufe. Sie übernachten nicht in einem Hotel; Sie besitzen das Anwesen für die Dauer Ihres Aufenthalts."
+            },
+            {
+                "q": "Wie gewährleistet Nilathra die Sicherheit hochkarätiger internationaler Gäste?",
+                "a": "Wir setzen hochqualifiziertes Personenschutzpersonal (CPD) ein und nutzen B6/B7 gepanzerte Fahrzeuge für Bodentransporte. Wir arbeiten unter strengen Geheimhaltungsvereinbarungen (NDAs), um die Identität jederzeit zu schützen."
+            },
+            {
+                "q": "Kann ich eine Reise mit verschiedenen Luxus-Stufen anpassen?",
+                "a": "Absolut. Unsere 'Mixed Collection' wurde speziell für diese Flexibilität entwickelt. Sie können Ultra VIP Transport mit Luxus-Resortaufenthalten kombinieren."
+            },
+            {
+                "q": "Ist Sri Lanka ein geeignetes Ziel für Familien-Luxusreisen?",
+                "a": "Sri Lanka ist außergewöhnlich für Familien. Unsere Premium- und Luxus-Pläne bieten geräumige Mehrbett-Suiten, kinderfreundliche Logistik und kuratierte Bildungserlebnisse."
+            },
+            {
+                "q": "Was ist die beste Jahreszeit für eine Luxusflucht nach Sri Lanka?",
+                "a": "Dank des doppelten Monsunsystems ist Sri Lanka ein ganzjähriges Reiseziel. Für Süd- und Westküsten ist Dezember bis April ideal. Für Ostküste und antike Städte Mai bis September."
+            }
+        ],
         "quote": "\"Eine beispiellose Erfahrung. Von der privaten Villa in Ella bis zum reibungslosen VIP-Handling in Colombo hat die Nilathra Collection alle Erwartungen übertroffen. Wahrer sri-lankischer Luxus.\"",
         "cta_subtitle": "Beginnen Sie Ihre Reise mit den Besten",
         "cta_title": "Planen Sie Ihre Flucht nach Sri Lanka",
@@ -38,7 +60,971 @@
         "subtitle": "Unsere Stufen",
         "title": "Die Kunst des Reisens",
         "desc": "Wählen Sie das perfekte Maß an Exklusivität für Ihre Odyssee in Sri Lanka. Jede Stufe ist akribisch ausgearbeitet, um ein unvergleichliches Erlebnis zu bieten.",
-        "learn_more": "Mehr Erfahren"
+        "learn_more": "Mehr Erfahren",
+        "items": [
+            {
+                "title": "Ultra VIP",
+                "subtitle": "Die Sovereignty-Kollektion",
+                "description": "Reserviert für die anspruchsvollsten Reisenden der Welt. Absolute Privatsphäre, maßgeschneiderter Luxus und unvergleichliche Sicherheit.",
+                "features": [
+                    "Private Jet-Side Ankunft & Tarmac-Freigabe",
+                    "Standby-Hubschrauber für die Dauer der Reise",
+                    "24/7 Personenschutz (CPD)",
+                    "Private Grundstückskäufe & 1:1 Personal",
+                    "Absolute NDA & Identitätsschutz"
+                ]
+            },
+            {
+                "title": "Luxus-Kollektion",
+                "subtitle": "Die Saphir-Kollektion",
+                "description": "Außergewöhnliche 5-Sterne-Eleganz. Handverlesene Signature-Resorts, Elite-Führung und prämierte Gastronomie.",
+                "features": [
+                    "Ikonische 5-Sterne-Resorts",
+                    "Privater Premium-SUV & Elite-Chauffeur",
+                    "Tägliches Signature Half-Board (HB) Essen",
+                    "Kuratierte Kulturtouren & Privater Zugang",
+                    "Tägliche Ayurveda/Balinesische Spa-Sitzungen"
+                ]
+            },
+            {
+                "title": "Premium-Plan",
+                "subtitle": "Die Smaragd-Kollektion",
+                "description": "Zuverlässige, gut organisierte Exzellenz. Erleben Sie die Schönheit der Insel mit 3-4-Sterne kuratierter Qualität.",
+                "features": [
+                    "Handverlesene 3-4-Sterne Signature-Hotels",
+                    "Private Klimaanlage Limousine/Van & Experte",
+                    "Tägliche Half-Board (HB) Essensauswahl",
+                    "Geführte Touren zu wichtigen historischen Stätten",
+                    "Eintrittsgebühren zu Nationalparks inklusive"
+                ]
+            },
+            {
+                "title": "Mixed-Kollektion",
+                "subtitle": "Totale Flexibilität",
+                "description": "Ihre Reise, Ihr Weg. Mischen und kombinieren Sie Stufen an verschiedenen Orten für Ihren perfekten Trip.",
+                "features": [
+                    "Flexible Stufen-Mischung pro Ziel",
+                    "Dynamische Tempogestaltung (Aktivität/Ruhe)",
+                    "Kombinierter Jet- und Bodentransport",
+                    "Maßgeschneiderte Masterpläne nach Ihrem Profil",
+                    "Einheitliches Konzept von Anfang bis Ende"
+                ]
+            }
+        ],
+        "ultraVip": {
+            "badge": "Das Ultimative Erlebnis",
+            "title": "Ultra VIP",
+            "desc_1": "Reserviert für die anspruchsvollsten Reisenden der Welt.",
+            "desc_2": "Ein Reich absoluter Privatsphäre, maßgeschneidertem Luxus und beispielloser Sicherheit.",
+            "quote": {
+                "sig": "Signatur-Angebot",
+                "sig_det": "7 Nächte · 2 Reisende",
+                "daily": "Tägliche Zuweisung",
+                "daily_det": "Pro Person / Pro Tag"
+            },
+            "choose": {
+                "badge": "Wählen Sie Ihre Reise",
+                "title": "Unsere Ultra VIP Reisen",
+                "desc": "Zwei verschiedene Wege, ein Standard absoluter Exzellenz. Wählen Sie die Reise, die Ihrer Vision entspricht.",
+                "route_gold": "Die Gold-Route",
+                "route_sig": "Nilathra Signatur-Reise"
+            },
+            "gold": {
+                "desc": "Eine perfekt orchestrierte Abfolge von Luxus, Privatsphäre und Geschwindigkeit. Vom Moment Ihrer Landung bis zu Ihrer endgültigen Abreise ist jeder Übergang nahtlos.",
+                "phase": "Phase",
+                "itinerary": [
+                    {
+                        "title": "Ankunft am Flugzeug: Elite",
+                        "description": "Direkte Begrüßung am Flugzeug mit privatem Concierge und traditioneller Willkommenszeremonie. Überspringen Sie das Terminal vollständig, während Ihr Sicherheitsteam Sie begleitet.",
+                        "details": "Rollfeld-Freigabe & Gastgeber"
+                    },
+                    {
+                        "title": "Gepanzerter Kommando-Transit",
+                        "description": "Rund-um-die-Uhr-Personenschutz (CPD) mit gepanzerter SUV-Eskorte für alle Bodenbewegungen zwischen den Flügen.",
+                        "details": "Permanenter bewaffneter/unbewaffneter Sicherheitsdienst"
+                    },
+                    {
+                        "title": "Totale Luftkontrolle",
+                        "description": "Ein dedizierter Hubschrauber und eine Crew stehen während Ihrer Reise auf Abruf bereit und garantieren Reisen mit Gedankengeschwindigkeit.",
+                        "details": "Dedizierte Standby-Hubschrauberflotte"
+                    },
+                    {
+                        "title": "Souveränes Refugium",
+                        "description": "Vollständige Buchung einer Privatinsel oder eines Anwesens. 1:1 Verhältnis von Personal zu Gästen, einschließlich Privatarzt, Koch und Meister-Butler.",
+                        "details": "Private Anwesenbuchung"
+                    },
+                    {
+                        "title": "Exklusive Meisterkurse",
+                        "description": "Private Sitzungen mit weltberühmten Gemmologen, spirituellen Meistern und kulinarischen Legenden in absoluter Abgeschiedenheit.",
+                        "details": "Maßgeschneiderter Expertenzugang & Kuration"
+                    },
+                    {
+                        "title": "Spurlose Abreise",
+                        "description": "Direkte Abfahrt vom Flugzeug auf dem Rollfeld. Jedes Protokoll wurde entwickelt, um sicherzustellen, dass Ihr Übergang ungesehen und unübertroffen bleibt.",
+                        "details": "Taktischer Tarmac-to-Tarmac Ausgang"
+                    }
+                ]
+            },
+            "signature": {
+                "desc": "Sieben Tage. Sieben außergewöhnliche Kapitel. Eine Insel, in ihrer Gesamtheit auf höchstem Niveau erlebt.",
+                "day": "Tag",
+                "highlights": "Highlights",
+                "stay": "Aufenthalt",
+                "itinerary": [
+                    {
+                        "title": "VIP-Ankunft in Colombo",
+                        "location": "Colombo",
+                        "experience": "Ihre Reise beginnt in dem Moment, in dem Ihr Flugzeug landet.",
+                        "highlights": [
+                            "Begrüßung am Flugzeug",
+                            "Fast-Track Passkontrolle",
+                            "Privater Luxus-SUV-Transfer",
+                            "Champagner-Empfang"
+                        ],
+                        "stay": "Ultra-Luxus-Stadthotel oder private Suite",
+                        "optional": [
+                            "Privates Abendessen auf dem Dach",
+                            "Colombo Nacht-Skyline-Tour",
+                            "Persönlicher Concierge plant die Woche"
+                        ],
+                        "note": "Erholen Sie sich von der Reise und fühlen Sie sich sofort gut betreut."
+                    },
+                    {
+                        "title": "Hubschrauber zum antiken Königreich",
+                        "location": "Felsenfestung Sigiriya",
+                        "experience": "Eine Luftreise über Dschungel und antike Stauseen zum Königreich Sigiriya.",
+                        "highlights": [
+                            "Privater Hubschraubertransfer von Colombo",
+                            "Luftaufnahme von Dschungeln und Stauseen",
+                            "Privat geführter Besuch mit einem Archäologieexperten",
+                            "Professionelles Fotoshooting"
+                        ],
+                        "stay": "Luxuriöses Dschungelresort oder private Villa",
+                        "optional": [
+                            "Cocktails bei Sonnenuntergang mit Blick auf den Felsen",
+                            "Fine Dining Erlebnis"
+                        ],
+                        "note": ""
+                    },
+                    {
+                        "title": "Wilde Sri Lanka Safari",
+                        "location": "Wilpattu Nationalpark",
+                        "experience": "Ein privates Safari-Erlebnis in einem der unberührtesten Nationalparks Asiens.",
+                        "highlights": [
+                            "Privates Luxus-Safarifahrzeug",
+                            "Top-Tierspurenleser",
+                            "Mögliche Sichtungen: Leoparden, Elefanten, Lippenbären",
+                            "Nachmittags Spa und Entspannung"
+                        ],
+                        "stay": "Luxuriöses Dschungelcamp",
+                        "optional": [
+                            "Privates Abendessen im Busch",
+                            "Essen bei Laternenlicht unter dem Sternenhimmel"
+                        ],
+                        "note": "Ein sehr unvergesslicher Luxusmoment."
+                    },
+                    {
+                        "title": "In die Tee-Berge",
+                        "location": "Nuwara Eliya",
+                        "experience": "Ein ruhiger Aufstieg in das neblige Hochland, wo Tee dominiert.",
+                        "highlights": [
+                            "Malerisches Hubschrauber- oder Luxuszugerlebnis",
+                            "Privater Besuch eines Teeanwesens",
+                            "Teeverkostung mit Plantagenexperten",
+                            "Spaziergang durch die nebligen Teehügel"
+                        ],
+                        "stay": "Luxuriöser Teeanwesen-Bungalow",
+                        "optional": [
+                            "Abendessen am Kamin mit erlesener Weinbegleitung"
+                        ],
+                        "note": "Eine völlig andere Landschaft — kühl, üppig und zeitlos."
+                    },
+                    {
+                        "title": "Malerisches Hochland & Kultur",
+                        "location": "Ella",
+                        "experience": "Das Hochland in seiner ganzen Pracht, bevor es an die Küste geht.",
+                        "highlights": [
+                            "Besuch der ikonischen Nine Arches Bridge",
+                            "Malerische Wanderung durch Teeplantagen",
+                            "Privates Picknick mit Bergblick",
+                            "Hubschraubertransfer zur Südküste"
+                        ],
+                        "stay": "Luxuriöses Boutique-Berghotel",
+                        "optional": [],
+                        "note": "Wo die Reise vom Abenteuer zur Entspannung übergeht."
+                    },
+                    {
+                        "title": "Luxus-Strandflucht",
+                        "location": "Tangalle",
+                        "experience": "Langsamer Luxus an der Südküste — die Kunst des Nichtstuns, perfektioniert.",
+                        "highlights": [
+                            "Private Strandvilla",
+                            "Wellnessanwendungen am Meer",
+                            "Optionaler Walbeobachtungsausflug",
+                            "Privates Abendessen bei Kerzenschein am Strand"
+                        ],
+                        "stay": "Private Strandvilla",
+                        "optional": [
+                            "Akustische Live-Musik",
+                            "Vom Küchenchef kreiertes Menü mit frischen Meeresfrüchten"
+                        ],
+                        "note": "An diesem Tag geht es um langsamen Luxus."
+                    },
+                    {
+                        "title": "Meer & Abreise",
+                        "location": "Weligama",
+                        "experience": "Ein letzter Morgen am Wasser vor Ihrer souveränen Abreise.",
+                        "highlights": [
+                            "Private Yacht-Kreuzfahrt",
+                            "Delfin- oder Walbeobachtung",
+                            "Hubschraubertransfer zurück nach Colombo",
+                            "VIP-Abreiseservice am Flughafen"
+                        ],
+                        "stay": "",
+                        "optional": [],
+                        "note": "Ende der Reise."
+                    }
+                ],
+                "estimate": {
+                    "badge": "Geschätzter Ultra-VIP-Preis",
+                    "price": "12.000$ – 18.000$",
+                    "sub": "Pro Person",
+                    "cols": [
+                        {
+                            "label": "Variiert nach",
+                            "items": [
+                                "Hubschrauberstunden",
+                                "Hotelkategorie",
+                                "Villa-Buchungen"
+                            ]
+                        },
+                        {
+                            "label": "Private Erlebnisse",
+                            "items": [
+                                "Walbeobachtung",
+                                "Private Busch-Essen",
+                                "Fotoshootings"
+                            ]
+                        },
+                        {
+                            "label": "Ideal für",
+                            "items": [
+                                "Paare",
+                                "Familien",
+                                "Kleine exklusive Gruppen"
+                            ]
+                        }
+                    ]
+                }
+            },
+            "philosophy": {
+                "badge": "Absolute Anonymität Garantiert",
+                "title": "Privatsphären-Architektur",
+                "desc": "Unsere Ultra VIP-Stufe ist ein befestigtes Privatgebiet. Über den Luxus hinaus bieten wir eine 'Zero-Trace'-Sicherheitsarchitektur für hochkarätige Persönlichkeiten, die absolute Abgeschiedenheit benötigen.",
+                "grid": [
+                    {
+                        "title": "Souveräne NDA-Protokolle",
+                        "desc": "Alle Mitarbeiter und Partner arbeiten unter standortübergreifenden, erstklassigen Geheimhaltungsvereinbarungen."
+                    },
+                    {
+                        "title": "Unsichtbare Übergänge",
+                        "desc": "Abfertigung am Flugzeug auf dem Rollfeld und private Hubschrauberlandeplätze, um jegliche öffentliche oder digitale Sichtbarkeit auszuschließen."
+                    },
+                    {
+                        "title": "Gehärtete Kommunikation",
+                        "desc": "Nach militärischem Standard verschlüsselte Concierge-Kanäle für alle Planungen und Anpassungen vor Ort."
+                    },
+                    {
+                        "title": "Ghost-Protocol-Abrechnung",
+                        "desc": "Vollständige finanzielle Unsichtbarkeit und umfassender globaler Identitätsschutz."
+                    }
+                ],
+                "seclusion": {
+                    "title": "Absolute Abgeschiedenheit",
+                    "desc": "Extreme Datenschutzprotokolle mit 100 % Mitarbeiteranonymität und vollständiger Anmietung des Geländes."
+                },
+                "access": {
+                    "title": "Unmöglicher Zugang",
+                    "desc": "Wir öffnen die Türen zu privaten Sammlungen, abgelegenen Orten und heiligen Räumen."
+                }
+            },
+            "breakdown": {
+                "title": "Service-Aufteil",
+                "btn_hide": "Details ausblenden",
+                "btn_show": "Preise anzeigen",
+                "items": [
+                    {
+                        "label": "Exklusiv-Buchung & 24/7 Butler"
+                    },
+                    {
+                        "label": "Hubschrauberflotte & Sicherheit"
+                    },
+                    {
+                        "label": "Maßgeschneiderte Kulinarik & Koch"
+                    },
+                    {
+                        "label": "Tägliches Ayurveda & Medizin"
+                    },
+                    {
+                        "label": "Edelsteine & Privatzugang"
+                    },
+                    {
+                        "label": "VIP-Handling & NDA-Compliance"
+                    }
+                ]
+            },
+            "inclusions": [
+                {
+                    "category": "Anwesen & Souveränes Personal",
+                    "items": [
+                        "Exklusive Buchungen von Privatanwesen",
+                        "Englischsprachiger Nationaler Reiseleiter & erfahrener Fahrer",
+                        "1:1 Personal-Gäste-Verhältnis (Butler/Koch/Concierge/Valet)",
+                        "Vollzeit dedizierter Arzt & Trauma-Unterstützung",
+                        "Absolute Privatsphäre: Signalmanagement auf dem gesamten Gelände",
+                        "Personalisierte Gourmetküche (6-köpfiges Elite-Kochteam)",
+                        "Brandneue maßgeschneiderte Wäsche (Nach dem Aufenthalt zerstört/verschenkt)"
+                    ]
+                },
+                {
+                    "category": "Souveräne Logistik",
+                    "items": [
+                        "Private Ankunft & Rollfeld-Freigabe",
+                        "Dedizierter Standby-Hubschrauber für die Dauer der Reise",
+                        "Permanenter 24/7 Personenschutz (CPD)",
+                        "Gepanzerte SUV-Flotte (B6/B7-Verfügbarkeit)"
+                    ]
+                },
+                {
+                    "category": "Unmöglicher Zugang",
+                    "items": [
+                        "Privater Schmuck-Meisterkurs (Seltene Steine)",
+                        "Spirituelle & Philosophische Beratung durch Älteste",
+                        "Private Öffnung nationaler Stätten nach Feierabend",
+                        "Globale Identitätsschutz-Protokolle"
+                    ]
+                },
+                {
+                    "category": "Regenerative Wellness",
+                    "items": [
+                        "Maßgeschneiderte Anti-Aging- & regenerative Therapien",
+                        "Privater Ayurveda-Meister & Team (Dediziert)",
+                        "Erweiterte Wellness- & medizinische Diagnostik-Suite",
+                        "Michelin-Standard Ernährungsberater (24/7)",
+                        "Alles und jedes auf Anfrage (Dedizierter Service)",
+                        "Anonymität ohne Spuren & vollständiges NDA-Ökosystem"
+                    ]
+                }
+            ],
+            "cta": {
+                "btn": "VIP-Beratung einleiten",
+                "sub": "privater Concierge bei Anfrage zugewiesen"
+            }
+        },
+        "luxury": {
+            "badge": "Die Sapphire Kollektion",
+            "title": "Luxus Kollektion",
+            "desc_1": "Eine gehobene Reise zu den ikonischsten Zielen Sri Lankas,",
+            "desc_2": "mit 5-Sterne-Komfort und professioneller lokaler Expertise.",
+            "quote": {
+                "sig": "Aushängeschild Angebot",
+                "sig_det": "7 Nächte · 2 Reisende",
+                "daily": "Tägliche Investition",
+                "daily_det": "Pro Person / Pro Tag"
+            },
+            "epicurean": {
+                "desc": "Eine kuratierte Abfolge von Entdeckung und Komfort. Vom Standard-Express-Handling bis zum finalen Sonnenuntergang ist jeder Moment für Exzellenz handverlesen.",
+                "phase": "Phase",
+                "itinerary": [
+                    {
+                        "title": "Private Ankunft: Express",
+                        "description": "Persönliche Begrüßung am Ankunftsterminal. Direkte Unterstützung mit Gepäck und ein reibungsloser Übergang zu Ihrem wartenden Privatfahrzeug.",
+                        "details": "Ankunftsbegrüßung + Logistikunterstützung"
+                    },
+                    {
+                        "title": "Elite-Chauffeur-Transfer",
+                        "description": "Direkter Transfer im Premium-SUV zu Ihrem ersten Ziel. Erfrischungen und WLAN sorgen für einen nahtlosen Übergang.",
+                        "details": "Premium SUV x 24/7 Verfügbarkeit"
+                    },
+                    {
+                        "title": "5-Sterne-Kollektion",
+                        "description": "Check-in in den ikonischsten Signature-Resorts der Insel. Zuverlässiger 5-Sterne-Komfort mit Meer- oder Dschungelblick und persönlicher Begrüßung.",
+                        "details": "Ikonische 5-Sterne-Resorts"
+                    },
+                    {
+                        "title": "Signature Gastronomie (HP)",
+                        "description": "Halbpension (HP) mit Signature-Frühstück und begehrten Dinner-Reservierungen. Genießen Sie private Abendessen am Strand und lokale Bio-Delikatessen.",
+                        "details": "Signature Halbpension (HP)"
+                    },
+                    {
+                        "title": "Immersive Entdeckung",
+                        "description": "Erkunden Sie heilige Stätten und versteckte Schätze mit einem Elite-National-Guide. Privater Zugang nach den regulären Öffnungszeiten zu ausgewählten Monumenten.",
+                        "details": "Experten-Guide + Exklusiver Zugang"
+                    },
+                    {
+                        "title": "Elegante Abreise",
+                        "description": "Entspannter Morgen im Resort, gefolgt von einem direkten Premium-Transfer zum Flughafen für Ihre stressfreie Abreise.",
+                        "details": "Premium Transfer + Abreiseunterstützung"
+                    }
+                ]
+            },
+            "signature": {
+                "desc": "Sieben Tage. Sieben Kapitel des echten Sri Lankas — antike Städte, nebliges Hochland, Surfen und die Wärme des Galle Fort.",
+                "day": "Tag",
+                "highlights": "Highlights",
+                "stay": "Aufenthalt",
+                "estimate": {
+                    "badge": "Geschätzter Preis",
+                    "price": "3.500 $",
+                    "sub": "Pro Person · 7 Tage (500 $ / Tag)",
+                    "min": "Minimum 2 Personen · Ab 7.000 $ Gesamt",
+                    "cols": [
+                        {
+                            "label": "Inklusive",
+                            "items": [
+                                "Premium-SUV Transport",
+                                "Boutique-5-Sterne-Aufenthalte",
+                                "Halbpension"
+                            ]
+                        },
+                        {
+                            "label": "Erlebnisse",
+                            "items": [
+                                "Heißluftballonfahrt",
+                                "Surfunterricht in Weligama",
+                                "Sigiriya & Galle Fort"
+                            ]
+                        },
+                        {
+                            "label": "Ideal für",
+                            "items": [
+                                "Paare",
+                                "Familiengruppen",
+                                "Solo-Luxusreisende"
+                            ]
+                        }
+                    ]
+                },
+                "itinerary": [
+                    {
+                        "title": "Ankunft in Colombo",
+                        "location": "Colombo",
+                        "experience": "Willkommen in Sri Lanka. Die Stadt empfängt Sie mit Farbe, Energie und Geschmack.",
+                        "highlights": [
+                            "Ankunft & Hotel-Check-in",
+                            "Galle Face Green Spaziergang bei Sonnenuntergang",
+                            "Colombo Stadtrundfahrt im privaten SUV",
+                            "Street Food Verkostung auf dem Pettah Markt"
+                        ],
+                        "stay": "Boutique-Stadthotel",
+                        "optional": [
+                            "Dinner auf der Dachterrasse mit Stadtblick"
+                        ],
+                        "note": "Kommen Sie in Ruhe an. Lassen Sie Colombo auf sich wirken."
+                    },
+                    {
+                        "title": "Fahrt nach Norden ins alte Königreich",
+                        "location": "Sigiriya & Minneriya",
+                        "experience": "Eine malerische Morgenfahrt ins Herz des Kulturdreiecks.",
+                        "highlights": [
+                            "Vormittag Premium-SUV-Fahrt nach Sigiriya",
+                            "Bootsfahrt auf einem örtlichen Dorfsee",
+                            "Traditionelles Mittagessen am Wasser",
+                            "Abendliche Elefantenbeobachtung in Minneriya"
+                        ],
+                        "stay": "Dschungel-Lodge nahe Sigiriya",
+                        "optional": [
+                            "Fahrradtour im Dorf"
+                        ],
+                        "note": null
+                    },
+                    {
+                        "title": "Sonnenaufgang, Fels & Himmel",
+                        "location": "Pidurangala & Sigiriya",
+                        "experience": "Der unvergesslichste Tag — vom Himmel bis zum Gipfel.",
+                        "highlights": [
+                            "Wanderung vor Sonnenaufgang nach Pidurangala",
+                            "Mobiles Frühstück im Dschungel",
+                            "Privat geführter Aufstieg auf den Sigiriya-Löwenfelsen",
+                            "Heißluftballonfahrt & Mittagessen"
+                        ],
+                        "stay": "Boutique Resort",
+                        "optional": [
+                            "Fotografie-Session bei Sonnenuntergang"
+                        ],
+                        "note": "Dieser Tag ist das Herzstück der Reise."
+                    },
+                    {
+                        "title": "Die heilige Hauptstadt im Hügelland",
+                        "location": "Kandy",
+                        "experience": "Kandy — wo Geschichte, Glaube und Schönheit zusammenlaufen.",
+                        "highlights": [
+                            "Fahrt nach Kandy via kulturelle Stätten",
+                            "Besuch des Archäologischen Museums",
+                            "Privat geführte Tour zum Zahntempel",
+                            "Abendliche kulturelle Kandyan-Show"
+                        ],
+                        "stay": "Heritage-Hotel mit Blick auf den Kandy-See",
+                        "optional": [
+                            "Besuch des Royal Botanical Gardens"
+                        ],
+                        "note": null
+                    },
+                    {
+                        "title": "Die malerische Zugfahrt nach Ella",
+                        "location": "Ella",
+                        "experience": "Eine der schönsten Zugstrecken der Welt — durch Nebel, Teeplantagen und Wolken.",
+                        "highlights": [
+                            "Malerische Zugfahrt durch das Hochland",
+                            "Check-in im Boutique-Hotel in Ella",
+                            "Nachmittagsentspannung und Spaziergang",
+                            "Abendliche Wanderung zum Little Adam's Peak"
+                        ],
+                        "stay": "Boutique-Bergresort, Ella",
+                        "optional": [
+                            "Abendessen auf der Dachterrasse"
+                        ],
+                        "note": "Lassen Sie im Hochland die Seele baumeln."
+                    },
+                    {
+                        "title": "Wellen, Surfen & Seele",
+                        "location": "Weligama",
+                        "experience": "Die Südküste in ihrer ganzen entspannten, sonnenverwöhnten Pracht.",
+                        "highlights": [
+                            "Fahrt hinunter zur Weligama Bay",
+                            "Privater Surfunterricht an der Bucht",
+                            "Frisches Mittagessen mit Meeresfrüchten am Ozean",
+                            "Abendliche Yoga- und Meditationssession"
+                        ],
+                        "stay": "Boutique-Villa direkt am Strand",
+                        "optional": [
+                            "Katamaran-Fahrt zum Sonnenuntergang"
+                        ],
+                        "note": "An diesem Tag geht es um Präsenz, nicht um Tempo."
+                    },
+                    {
+                        "title": "Heimreise über die Festungsstadt",
+                        "location": "Galle & Rückreise",
+                        "experience": "Ein entspannter Abschied durch eine der geschichtsträchtigsten Kolonialstädte Asiens.",
+                        "highlights": [
+                            "Morgendlicher Spaziergang durch das Galle Fort (UNESCO)",
+                            "Besuch antiker niederländischer Kirchen",
+                            "Street Food Tour — Hoppers, Kottu & Limettensaft",
+                            "Malerische Küstenfahrt zurück nach Colombo"
+                        ],
+                        "stay": null,
+                        "optional": [
+                            "Souvenir-Shopping in Galle"
+                        ],
+                        "note": "Ende der Reise. Sri Lanka von seiner besten Seite."
+                    }
+                ]
+            },
+            "philosophy": {
+                "badge": "Kompromisslose Qualität",
+                "title": "Ikonische Standards",
+                "desc": "Die Luxus-Stufe richtet sich an Reisende, die das Beste der Insel mit absolutem Komfort suchen. Von erstklassigen Zimmerkategorien in 5-Sterne-Resorts bis hin zu Elite-Reiseleitern garantieren wir auf Schritt und Tritt einen Weltklasse-Standard.",
+                "grid": [
+                    {
+                        "title": "Signature Resorts",
+                        "desc": "Exklusiver Zugang zu den ikonischsten Zimmerkategorien in 5-Sterne-Häusern."
+                    },
+                    {
+                        "title": "Premium SUV",
+                        "desc": "Luxuriöser, moderner SUV-Transport für alle Landfahrten."
+                    },
+                    {
+                        "title": "Nationale Guides",
+                        "desc": "Elite-englischsprachige Guides mit fundierten Kenntnissen in Geschichte und Kultur."
+                    },
+                    {
+                        "title": "Standard Express",
+                        "desc": "Reibungslose Begrüßung am Flughafen und Gepäckhilfe. (VIP-Betreuung auf Anfrage)."
+                    }
+                ],
+                "seclusion": {
+                    "title": "Elite-Kuration",
+                    "desc": "Jede Unterkunft und jedes Erlebnis wird persönlich auf den höchsten Standard geprüft."
+                },
+                "access": {
+                    "title": "Tiefe Entdeckung",
+                    "desc": "Mehr als Sightseeing: Gewinnen Sie durch unsere erfahrensten nationalen Guides wahre Einblicke."
+                }
+            },
+            "breakdown": {
+                "title": "Leistungsverteilung",
+                "btn_show": "Verteilung anzeigen",
+                "btn_hide": "Details verbergen",
+                "items": [
+                    {
+                        "label": "Signature Resorts & Hotels"
+                    },
+                    {
+                        "label": "Premium-SUV & Transfers"
+                    },
+                    {
+                        "label": "Kuratierte gehobene Gastronomie"
+                    },
+                    {
+                        "label": "Tägliche Wellness & Zugang"
+                    },
+                    {
+                        "label": "Elite-Guides & Eintritt"
+                    },
+                    {
+                        "label": "Premium-Logistik & Support"
+                    }
+                ]
+            },
+            "inclusions": [
+                {
+                    "category": "Stilvoller Aufenthalt",
+                    "items": [
+                        "Handverlesene Signature 5-Sterne-Resorts",
+                        "Zimmerkategorien Superior oder Deluxe",
+                        "Personalisierte Willkommensgeschenke",
+                        "Früher Check-in & später Check-out auf Anfrage",
+                        "Tägliches Signature Halbpension (HP) Buffet/Menü"
+                    ]
+                },
+                {
+                    "category": "Premium-Logistik",
+                    "items": [
+                        "Privater Premium-SUV & flexibler Fahrer-Support",
+                        "Engagierter englischsprachiger National-Guide",
+                        "Persönlicher Butler-Service (pro Unterkunft)",
+                        "Begrüßung bei Ankunft & Abreise am Flughafen",
+                        "Alle inländischen Maut- & Parkgebühren",
+                        "Tägliches Erfrischungspaket (Gekühlt)"
+                    ]
+                },
+                {
+                    "category": "Kuratierte Kultur",
+                    "items": [
+                        "Private kuratierte kulturelle Touren",
+                        "Expertenwissen von lokalen Guides",
+                        "Handverlesene Besuche in Handwerksbetrieben",
+                        "Personalisierte Einkaufsunterstützung",
+                        "Eintrittsgebühren für alle Hauptsehenswürdigkeiten"
+                    ]
+                },
+                {
+                    "category": "Wellness & Erholung",
+                    "items": [
+                        "Tägliche ayurvedische oder balinesische Spa-Sitzung",
+                        "Private Yoga- oder Meditationssitzungen",
+                        "Zugang zu Luxus-Pools & Beach Clubs",
+                        "Dedizierter Kundenbetreuer auf der Reise (24/7)",
+                        "Alle lokalen Steuern & Servicegebühren inklusive"
+                    ]
+                }
+            ],
+            "cta": {
+                "btn": "Luxusberatung initiieren",
+                "sub": "Expertenplanung auf Anfrage zugewiesen"
+            }
+        },
+        "premium": {
+            "badge": "Die Emerald Kollektion",
+            "title": "Premium Plan",
+            "desc_1": "Eine anspruchsvolle Mischung aus Zuverlässigkeit, Komfort und professionellem lokalem Service.",
+            "desc_2": "Erleben Sie das Beste von Sri Lanka mit renommierter 3-4-Sterne-Gastlichkeit.",
+            "quote": {
+                "sig": "Signatur Angebot",
+                "sig_det": "7 Nächte · 2 Reisende",
+                "daily": "Täglicher Wert",
+                "daily_det": "Pro Person / Pro Tag"
+            },
+            "emerald": {
+                "badge": "Die Emerald Route",
+                "title": "Die Emerald Reise",
+                "desc": "Eine raffinierte Abfolge von der Ankunft bis zur Abreise. Erleben Sie eine wunderbar getaktete Erkundung durch das kulturelle Herz Sri Lankas und komfortable Rückzugsorte.",
+                "phase": "Phase",
+                "itinerary": [
+                    {
+                        "title": "Herzliche Begrüßung",
+                        "description": "Persönlicher Empfang am Ankunftsterminal des Flughafens durch Ihren engagierten Betreuer, der einen reibungslosen Übergang zu Ihrem Fahrzeug gewährleistet.",
+                        "details": "Begrüßung & Unterstützung bei der Ankunft"
+                    },
+                    {
+                        "title": "Professioneller Transfer",
+                        "description": "Reisen Sie in einer gepflegten, klimatisierten Limousine oder einem Van mit einem erfahrenen Fahrer-Guide, der als Ihr lokaler Gastgeber fungiert.",
+                        "details": "Standard Luxus Limousine / Van"
+                    },
+                    {
+                        "title": "3-4 Sterne Kollektion",
+                        "description": "Ausgewählte Unterkünfte in renommierten 3- bis 4-Sterne-Hotels, die zuverlässigen Komfort, Sauberkeit und wesentliche Annehmlichkeiten bieten.",
+                        "details": "3 bis 4 Sterne Hotels"
+                    },
+                    {
+                        "title": "Halbpension (HP)",
+                        "description": "Halbpension (HP), bei der Frühstück und Abendessen in Ihren Hotels inbegriffen sind. Entdecken Sie die kulinarische Landschaft der Insel mit hochwertigen lokalen Aromen.",
+                        "details": "Halbpension (HP)"
+                    },
+                    {
+                        "title": "Lokale Entdeckung",
+                        "description": "Erkunden Sie die legendärsten Reiseziele der Insel mit Ihrem erfahrenen Fahrer-Guide. Praktische lokale Einblicke und nahtlose Reiselogistik.",
+                        "details": "Erfahrener Fahrer-Guide"
+                    },
+                    {
+                        "title": "Nahtlose Abreise",
+                        "description": "Letzter Stopp für Last-Minute-Souvenirs vor dem pünktlichen Drop-off am Flughafen für Ihren Rückflug.",
+                        "details": "Pünktlicher Transfer zum Flughafen"
+                    }
+                ]
+            },
+            "philosophy": {
+                "badge": "Raffinierter Standard",
+                "title": "Zeitgemäßer Wert",
+                "desc": "Die Premium-Stufe richtet sich an den Reisenden, der zuverlässige Qualität, kulturelle Verbundenheit und erfahrene lokale Führung schätzt. Es ist eine Reise, die ikonische Stätten mit authentischer Entdeckung in Einklang bringt.",
+                "grid": [
+                    {
+                        "title": "Standard-Komfort",
+                        "desc": "Zugang zu unserer ausgewählten Kollektion von 3- bis 4-Sterne-Komfort- und Business-Class-Hotels."
+                    },
+                    {
+                        "title": "Fahrer-Guides",
+                        "desc": "Erfahrene Fahrer-Guides mit jahrelanger lokaler Expertise, die als Ihre Gastgeber fungieren."
+                    },
+                    {
+                        "title": "Zuverlässiger Transit",
+                        "desc": "Anreise zum Zielort in klimatisierten Limousinen oder modernen Vans."
+                    },
+                    {
+                        "title": "Wichtige Touren",
+                        "desc": "Ausgewählter Eintritt in Nationalparks und historische Monumente mit lokalem Kontext."
+                    }
+                ],
+                "comfort": {
+                    "title": "Zuverlässiger Komfort",
+                    "desc": "Ebenso hohe, beständige Servicestandards bei allen Partnerhotels und Transportanbietern."
+                },
+                "connection": {
+                    "title": "Kulturelle Verbindung",
+                    "desc": "Ein starker Fokus auf Sri Lankas lebendige Kultur, ikonische Denkmäler und immersive lokale Erlebnisse."
+                }
+            },
+            "breakdown": {
+                "title": "Serviceauflistung",
+                "btn_show": "Preise anzeigen",
+                "btn_hide": "Details verbergen",
+                "items": [
+                    {
+                        "label": "3-4 Sterne Komfort-Hotels"
+                    },
+                    {
+                        "label": "Logistik & Fahrer-Guide"
+                    },
+                    {
+                        "label": "Essenzielle lokale Gastronomie"
+                    },
+                    {
+                        "label": "Wellness & Einrichtungen"
+                    },
+                    {
+                        "label": "Touren & Eintrittsgebühren"
+                    },
+                    {
+                        "label": "Support & Betreuung"
+                    }
+                ]
+            },
+            "inclusions": [
+                {
+                    "category": "3 bis 4 Sterne Hotels",
+                    "items": [
+                        "Renommierte 3 bis 4 Sterne Signature Hotels",
+                        "Zuverlässiger Komfort und moderne Annehmlichkeiten",
+                        "Gut ausgestattete Standard-/Deluxezimmer",
+                        "Tägliche Halbpension (HP)",
+                        "Kostenloser WLAN-Zugang im Zimmer"
+                    ]
+                },
+                {
+                    "category": "Logistik & Reiseleitung",
+                    "items": [
+                        "Private klimatisierte Limousine oder Van",
+                        "Erfahrener Fahrer-Guide (englischsprachig)",
+                        "Unterstützung bei der Ankunft am Terminal",
+                        "Alle inländischen Transportkosten",
+                        "Inklusive Autobahngebühren & Parken"
+                    ]
+                },
+                {
+                    "category": "Kulturelle Einblicke",
+                    "items": [
+                        "Geführte Touren zu wichtigen historischen Stätten",
+                        "Eintrittsgelder für Nationalparks",
+                        "Kuratierte Besuche bei lokalen Handwerkern",
+                        "Flexibler Tagesplan für Besichtigungen",
+                        "Authentische Dorf-Erlebnistouren"
+                    ]
+                },
+                {
+                    "category": "Gastronomie & Komfort",
+                    "items": [
+                        "Kuratierte Restaurantempfehlungen",
+                        "Willkommenspaket & lokale Sim/Reisekarte",
+                        "Zugang zu Hotel-Wellness & Poolbereichen",
+                        "Online-Support während der Reise",
+                        "Alle lokalen Steuern & Servicegebühren inklusive"
+                    ]
+                }
+            ],
+            "cta": {
+                "btn": "Premium-Beratung initiieren",
+                "sub": "persönliche Expertenberatung angeboten"
+            }
+        },
+        "regular": {
+            "badge": "Die Topas-Kollektion",
+            "title": "Regulärer Plan",
+            "desc_1": "Authentische Entdeckungen mit absoluter Zuverlässigkeit.",
+            "desc_2": "Erleben Sie das Herz der Insel mit Komfort, Sicherheit und einem unglaublichen Preis-Leistungs-Verhältnis.",
+            "quote": {
+                "sig": "Signatur-Angebot",
+                "sig_det": "7 Nächte · 2 Reisende",
+                "daily": "Tägliche Investition",
+                "daily_det": "Pro Person / Pro Tag"
+            },
+            "topaz": {
+                "badge": "Die Topas-Route",
+                "title": "Der Authentische Pfad",
+                "desc": "Eine sorgfältig gestaffelte Abfolge von Entdeckungen. Ausgewogen, sicher und reich an lokalem Charakter, um sicherzustellen, dass jeder investierte Dollar eine bleibende Erinnerung schafft.",
+                "phase": "Phase",
+                "itinerary": [
+                    {
+                        "title": "Herzliches Willkommen",
+                        "description": "Persönliche Begrüßung im Ankunftsbereich des Flughafens. Unterstützung bei lokalen SIM-Karten und Währungstausch für einen reibungslosen Start.",
+                        "details": "Treffen & Unterstützung bei der Ankunft"
+                    },
+                    {
+                        "title": "Flexibler Transit",
+                        "description": "Effizientes, budgetfreundliches Reisen über gebuchte lokale Taxis oder begleitete öffentliche Verkehrsmittel (malerische Züge/Busse) für einen authentischen lokalen Puls.",
+                        "details": "Gebuchtes Taxi / Öffentliche Verkehrsmittel"
+                    },
+                    {
+                        "title": "Homestays & Komfort",
+                        "description": "Sorgfältig geprüfte 3-Sterne-Gästehäuser, Budget-Hotels oder authentische familiengeführte Gastfamilien für ein echtes lokales Erlebnis.",
+                        "details": "3-Sterne- / Homestay-Kollektion"
+                    },
+                    {
+                        "title": "Tägliches Frühstück (ÜF)",
+                        "description": "Tägliches Frühstück (ÜF) in Ihren Unterkünften inbegriffen. Wir stellen kuratierte Listen der besten sicheren und authentischen lokalen Restaurants für andere Mahlzeiten zur Verfügung.",
+                        "details": "Täglich authentisches Frühstück (ÜF)"
+                    },
+                    {
+                        "title": "Geführte Entdeckung",
+                        "description": "Erkunden Sie Wahrzeichen und historische Stätten mit einem lokalen Spezialisten. Unterstützung bei der Navigation mit öffentlichen Verkehrsmitteln und Sicherheit bei Straßenessen.",
+                        "details": "Wichtiger Zugang zu Sehenswürdigkeiten & Führung"
+                    },
+                    {
+                        "title": "Freundliche Abreise",
+                        "description": "Ein entspannter letzter Morgen, gefolgt von einem direkten, sicheren Transfer zurück zum Flughafen, weit vor Ihrer Check-in-Zeit.",
+                        "details": "Sicherer Abholservice zum Flughafen"
+                    }
+                ]
+            },
+            "philosophy": {
+                "badge": "Zuverlässiger Wert",
+                "title": "Essenzielle Qualität",
+                "desc": "Die reguläre Stufe bietet die perfekte Grundlage für ein klassisches Sri Lanka-Abenteuer. Wir legen den Fokus auf Sauberkeit, Sicherheit und authentische Erlebnisse und garantieren hoch bewertete Aufenthalte und zuverlässigen Transport.",
+                "grid": [
+                    {
+                        "title": "Lokale Familienaufenthalte",
+                        "desc": "Eintauchen in die Kultur der Insel durch geprüfte 3-Sterne-Hotels und familiengeführte Gästehäuser."
+                    },
+                    {
+                        "title": "Flexibler Transit",
+                        "desc": "Kostengünstige gebuchte Taxis oder authentische öffentliche Verkehrsmittel mit fachkundiger Begleitung."
+                    },
+                    {
+                        "title": "Essenzielle Stätten",
+                        "desc": "Integrierter Zugang zu den symbolträchtigsten kulturellen und historischen Sehenswürdigkeiten Sri Lankas."
+                    },
+                    {
+                        "title": "Nachhaltige Unterstützung",
+                        "desc": "Kontinuierlicher Remote-Kontakt und Sicherheitsüberwachung vor Ort für unabhängige Reisende."
+                    }
+                ],
+                "comfort": {
+                    "title": "Immer verbunden",
+                    "desc": "Ständige digitale Begleitung, um sicherzustellen, dass Ihre Reise in einem neuen Land stressfrei verläuft."
+                },
+                "connection": {
+                    "title": "Wahre Gastfreundschaft",
+                    "desc": "Erleben Sie die echte Herzlichkeit srilankischer Gästehäuser, die aufgrund ihres Charakters sorgfältig ausgewählt wurden."
+                }
+            },
+            "breakdown": {
+                "title": "Wertverteilung",
+                "btn_show": "Preise anzeigen",
+                "btn_hide": "Details verbergen",
+                "items": [
+                    {
+                        "label": "3-Sterne- & Homestay-Aufenthalte"
+                    },
+                    {
+                        "label": "Gebuchtes Taxi / Öffentlicher Transit"
+                    },
+                    {
+                        "label": "Authentisches lokales Frühstück"
+                    },
+                    {
+                        "label": "Wichtige Eintrittsgelder für Sehenswürdigkeiten"
+                    },
+                    {
+                        "label": "Rund um die Uhr virtuelle Unterstützung"
+                    }
+                ]
+            },
+            "inclusions": [
+                {
+                    "category": "Authentische Aufenthalte",
+                    "items": [
+                        "Handverlesene 3-Sterne-Budget-Hotels",
+                        "Herzliche familiengeführte Homestay-Erlebnisse",
+                        "Saubere & geprüfte Boutique-Gästehäuser",
+                        "Tägliches lokales srilankisches Frühstück (ÜF)",
+                        "Geprüfte Komfort- & Sicherheitsstandards"
+                    ]
+                },
+                {
+                    "category": "Flexible Logistik",
+                    "items": [
+                        "Gebuchte Budget-Taxis für wichtige Streckenabschnte",
+                        "Begleitete öffentliche Verkehrsmittel (Zug/Bus)",
+                        "Unterstützung bei der lokalen Transportnavigation",
+                        "Vorab geplante Routenverbindungen",
+                        "Routenplanung für unabhängiges Reisen"
+                    ]
+                },
+                {
+                    "category": "Lokale Kultur",
+                    "items": [
+                        "Eintritt zu wichtigen kulturellen Stätten",
+                        "Kuratierte „selbstgeführte“ Pfad-Karten",
+                        "Empfehlungen für lokale Märkte",
+                        "Handverlesene Tipps zur Dorfentdeckung",
+                        "Wichtige Stadtentdeckungsrouten"
+                    ]
+                },
+                {
+                    "category": "Konstante Unterstützung",
+                    "items": [
+                        "Rund um die Uhr virtueller Concierge über WhatsApp",
+                        "Notfallkontakte zu lokalen Medizinern",
+                        "Sicherheitskoordination vor Ort",
+                        "Hilfe bei der lokalen SIM-Karte bei der Ankunft",
+                        "Alle standardmäßigen Servicesteuern inklusive"
+                    ]
+                }
+            ],
+            "cta": {
+                "btn": "Reguläre Beratung starten",
+                "sub": "Koordinierte lokale Abwicklung wird bereitgestellt"
+            }
+        }
     },
     "destinations": {
         "subtitle": "Exquisite Orte",
@@ -46,5 +1032,86 @@
         "desc": "Von den nebligen Hochlanden bis zur unberührten Südküste – erkunden Sie Sri Lankas prestigeträchtigste Orte durch die Linse von Luxus und Exklusivität.",
         "all_destinations": "Alle Reiseziele",
         "explore": "Entdecken"
+    },
+    "vip": {
+        "play_start": "In die Geschichte eintauchen",
+        "play_pause": "Geschichte pausieren",
+        "hero_subtitle": "Ein Land wie kein anderes",
+        "hero_title": "Thabrobana",
+        "hero_desc": "Der Gipfel des Luxusreisens. Erleben Sie die Vielfalt eines ganzen Kontinents, exklusiv kuratiert für die anspruchsvollsten Reisenden der Welt.",
+        "pitch_title": "Jenseits des",
+        "pitch_title_gold": "Gewöhnlichen",
+        "pitch_p1": "Während die Malediven unberührte Strände bieten (die oft von unseren sri-lankischen Experten kuratiert werden), bietet Sri Lanka eine Erfahrung, die über bloße Entspannung hinausgeht.",
+        "pitch_p2": "Stellen Sie sich ein Land vor, das zwar nicht so groß wie Indien ist, aber dennoch dessen gesamte atemberaubende Vielfalt auf kompakten 65.610 Quadratkilometern umfasst. Hier definiert sich Luxus nicht nur durch opulente Resorts, sondern durch unvergleichlichen Zugang zu verschiedenen Welten, die nahtlos ineinander übergehen.",
+        "pitch_btn": "Gestalten Sie Ihr VIP Erlebnis",
+        "symphony_title": "Eine Symphonie der Klimazonen",
+        "symphony_desc": "Beginnen Sie Ihren Morgen mit Yoga an einem sonnenverwöhnten Strand, fliegen Sie in die nebligen Berge für eine koloniale Teestunde und beschließen Sie den Tag mit einem Abendessen unter den Sternen.",
+        "climates": [
+            {
+                "title": "Morgens: Küstensonne",
+                "desc": "Erwachen Sie zum rhythmischen Rauschen des Indischen Ozeans aus Ihrer abgelegenen Privatvilla."
+            },
+            {
+                "title": "Mittags: Smaragdgrüne Feuchtgebiete",
+                "desc": "Ein Helikopterflug ins üppige Landesinnere, versteckte Wasserfälle und lebendige Regenwälder entdeckend."
+            },
+            {
+                "title": "Abends: Goldene Trockengebiete",
+                "desc": "Dinieren Sie unter antiken Himmeln im kulturellen Dreieck, umgeben von jahrtausendealter Geschichte."
+            }
+        ],
+        "heritage_title": "Echos der Ewigkeit",
+        "heritage_desc": "Gehen Sie zwischen 6000 Jahre alten Grabstätten, verfolgen Sie die Ingenieurskunst antiker Stauseen und betrachten Sie das majestätische Sigiriya.",
+        "heritage_text": "Unsere Kultur ist eine ungebrochene Linie, lebendig durch die faszinierenden Rhythmen traditioneller Tänze und Rituale, die unser Volk seit Jahrtausenden bewahren.",
+        "wildlife_title": "Ungezähmte Eleganz",
+        "wildlife_desc": "Private Safaris gewähren Ihnen exklusiven Zugang zum Herzen der Wildnis.",
+        "wildlife_tag": "Die VIP Safari",
+        "culinary_tag": "Kulinarische Meisterschaft",
+        "culinary_title": "Ein Festmahl für Könige",
+        "culinary_desc": "Verwöhnen Sie Ihren Gaumen. Genießen Sie handverlesene, einheimische Delikatessen voller einzigartiger Inselgewürze, zubereitet von weltbekannten Köchen.",
+        "cta_title": "Ihr Thabrobana erwartet Sie",
+        "cta_desc": "Das ultimative Reiseprivileg.",
+        "cta_btn": "Beginnen Sie den Design-Prozess"
+    },
+    "plans_overview": {
+        "compare": {
+            "title": "Brauchen Sie Entscheidungshilfe?",
+            "desc": "Sehen Sie sich einen detaillierten direkten Vergleich aller Funktionen, Unterkünfte und Inklusivleistungen an, um das Perfekte für Sie zu finden.",
+            "btn": "Alle Pläne vergleichen"
+        },
+        "essentials": {
+            "title": "Reisebedarf",
+            "desc": "Bevor Sie Ihre Reise antreten, vergewissern Sie sich, dass alle notwendigen Reisedokumente in Ordnung sind. Die meisten Besucher Sri Lankas benötigen eine elektronische Reisegenehmigung (e-Visa).",
+            "btn_visa": "Visum für Sri Lanka beantragen",
+            "btn_lib": "Reisereferenz-Bibliothek",
+            "visa_badge": "Offizielle E-Visum Website",
+            "visa_desc": "Für eine garantierte Bearbeitung zu Standardtarifen nutzen Sie immer das offizielle Portal der Regierung von Sri Lanka.",
+            "visa_tag": "Verifizierte externe Quelle"
+        },
+        "faq": {
+            "title": "Häufig gestellte Fragen",
+            "items": [
+                {
+                    "q": "Kann ich meinen Plan hochstufen?",
+                    "a": "Ja! Sie können jederzeit ein Upgrade durchführen. Die Preisdifferenz wird basierend auf den verbleibenden Nächten und der Verfügbarkeit der Unterkünfte berechnet."
+                },
+                {
+                    "q": "Sind Flüge inbegriffen?",
+                    "a": "Internationale Flüge sind in den Basispaketen nicht enthalten, aber unser Concierge-Team kann Ihnen bei der Buchung von Linien- und Privatflügen behilflich sein."
+                },
+                {
+                    "q": "Wie lauten die Stornierungsbedingungen?",
+                    "a": "Standard- und Deluxe-Pläne bieten eine kostenlose Stornierung bis zu 30 Tage vor der Ankunft. Der VIP-Plan bietet je nach den Richtlinien der Unterkünfte erweiterte Flexibilität."
+                },
+                {
+                    "q": "Kann ich meine Reiseroute anpassen?",
+                    "a": "Absolut! Jede Stufe dient als Grundlage. Sobald Sie eine Stufe ausgewählt haben, können Sie Reiseziele, Aktivitäten und die Dauer Ihres Aufenthalts individuell anpassen."
+                }
+            ]
+        },
+        "cta": {
+            "title": "Sind Sie nicht sicher, welcher Plan der richtige für Sie ist? Unsere lokalen Reisespezialisten helfen Ihnen gerne weiter.",
+            "btn": "Vereinbaren Sie eine private Beratung"
+        }
     }
 }

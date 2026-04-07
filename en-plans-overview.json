@@ -1,0 +1,41 @@
+{
+    "compare": {
+        "title": "Need help deciding?",
+        "desc": "View a detailed side-by-side comparison of all features, properties, and inclusions to find your perfect match.",
+        "btn": "Compare All Plans"
+    },
+    "essentials": {
+        "title": "Travel Essentials",
+        "desc": "Before embarking on your journey, ensure all necessary travel documents are in order. Most visitors to Sri Lanka require an Electronic Travel Authorization (ETA).",
+        "btn_visa": "Obtain Sri Lanka Visa",
+        "btn_lib": "Travel Reference Library",
+        "visa_badge": "Official E-Visa Site",
+        "visa_desc": "For guaranteed processing and standard rates, always use the official Sri Lankan Government portal.",
+        "visa_tag": "Verified External Resource"
+    },
+    "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+            {
+                "q": "Can I upgrade my plan?",
+                "a": "Yes! You can upgrade at any time. The price difference will be calculated based on remaining nights and availability of properties."
+            },
+            {
+                "q": "Are flights included?",
+                "a": "International flights are not included in the base packages, but our concierge team can assist with booking both commercial and private charter flights."
+            },
+            {
+                "q": "What's the cancellation policy?",
+                "a": "Standard and Deluxe plans offer free cancellation up to 30 days before arrival. The VIP plan provides extended flexibility depending on specific property policies."
+            },
+            {
+                "q": "Can I customize my itinerary?",
+                "a": "Absolutely! Each tier serves as a foundation. Once you select a tier, you can customize destinations, activities, and the duration of your stay."
+            }
+        ]
+    },
+    "cta": {
+        "title": "Not sure which plan is right for you? Our local travel specialists are here to guide you.",
+        "btn": "Schedule a Private Consultation"
+    }
+}

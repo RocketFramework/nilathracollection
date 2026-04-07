@@ -1,0 +1,310 @@
+{
+    "badge": "Das Ultimative Erlebnis",
+    "title": "Ultra VIP",
+    "desc_1": "Reserviert f\u00fcr die anspruchsvollsten Reisenden der Welt.",
+    "desc_2": "Ein Reich absoluter Privatsph\u00e4re, ma\u00dfgeschneidertem Luxus und beispielloser Sicherheit.",
+    "quote": {
+        "sig": "Signatur-Angebot",
+        "sig_det": "7 N\u00e4chte \u00b7 2 Reisende",
+        "daily": "T\u00e4gliche Zuweisung",
+        "daily_det": "Pro Person / Pro Tag"
+    },
+    "choose": {
+        "badge": "W\u00e4hlen Sie Ihre Reise",
+        "title": "Unsere Ultra VIP Reisen",
+        "desc": "Zwei verschiedene Wege, ein Standard absoluter Exzellenz. W\u00e4hlen Sie die Reise, die Ihrer Vision entspricht.",
+        "route_gold": "Die Gold-Route",
+        "route_sig": "Nilathra Signatur-Reise"
+    },
+    "gold": {
+        "desc": "Eine perfekt orchestrierte Abfolge von Luxus, Privatsph\u00e4re und Geschwindigkeit. Vom Moment Ihrer Landung bis zu Ihrer endg\u00fcltigen Abreise ist jeder \u00dcbergang nahtlos.",
+        "phase": "Phase",
+        "itinerary": [
+            {
+                "title": "Ankunft am Flugzeug: Elite",
+                "description": "Direkte Begr\u00fc\u00dfung am Flugzeug mit privatem Concierge und traditioneller Willkommenszeremonie. \u00dcberspringen Sie das Terminal vollst\u00e4ndig, w\u00e4hrend Ihr Sicherheitsteam Sie begleitet.",
+                "details": "Rollfeld-Freigabe & Gastgeber"
+            },
+            {
+                "title": "Gepanzerter Kommando-Transit",
+                "description": "Rund-um-die-Uhr-Personenschutz (CPD) mit gepanzerter SUV-Eskorte f\u00fcr alle Bodenbewegungen zwischen den Fl\u00fcgen.",
+                "details": "Permanenter bewaffneter/unbewaffneter Sicherheitsdienst"
+            },
+            {
+                "title": "Totale Luftkontrolle",
+                "description": "Ein dedizierter Hubschrauber und eine Crew stehen w\u00e4hrend Ihrer Reise auf Abruf bereit und garantieren Reisen mit Gedankengeschwindigkeit.",
+                "details": "Dedizierte Standby-Hubschrauberflotte"
+            },
+            {
+                "title": "Souver\u00e4nes Refugium",
+                "description": "Vollst\u00e4ndige Buchung einer Privatinsel oder eines Anwesens. 1:1 Verh\u00e4ltnis von Personal zu G\u00e4sten, einschlie\u00dflich Privatarzt, Koch und Meister-Butler.",
+                "details": "Private Anwesenbuchung"
+            },
+            {
+                "title": "Exklusive Meisterkurse",
+                "description": "Private Sitzungen mit weltber\u00fchmten Gemmologen, spirituellen Meistern und kulinarischen Legenden in absoluter Abgeschiedenheit.",
+                "details": "Ma\u00dfgeschneiderter Expertenzugang & Kuration"
+            },
+            {
+                "title": "Spurlose Abreise",
+                "description": "Direkte Abfahrt vom Flugzeug auf dem Rollfeld. Jedes Protokoll wurde entwickelt, um sicherzustellen, dass Ihr \u00dcbergang ungesehen und un\u00fcbertroffen bleibt.",
+                "details": "Taktischer Tarmac-to-Tarmac Ausgang"
+            }
+        ]
+    },
+    "signature": {
+        "desc": "Sieben Tage. Sieben au\u00dfergew\u00f6hnliche Kapitel. Eine Insel, in ihrer Gesamtheit auf h\u00f6chstem Niveau erlebt.",
+        "day": "Tag",
+        "highlights": "Highlights",
+        "stay": "Aufenthalt",
+        "itinerary": [
+            {
+                "title": "VIP-Ankunft in Colombo",
+                "location": "Colombo",
+                "experience": "Ihre Reise beginnt in dem Moment, in dem Ihr Flugzeug landet.",
+                "highlights": [
+                    "Begr\u00fc\u00dfung am Flugzeug",
+                    "Fast-Track Passkontrolle",
+                    "Privater Luxus-SUV-Transfer",
+                    "Champagner-Empfang"
+                ],
+                "stay": "Ultra-Luxus-Stadthotel oder private Suite",
+                "optional": [
+                    "Privates Abendessen auf dem Dach",
+                    "Colombo Nacht-Skyline-Tour",
+                    "Pers\u00f6nlicher Concierge plant die Woche"
+                ],
+                "note": "Erholen Sie sich von der Reise und f\u00fchlen Sie sich sofort gut betreut."
+            },
+            {
+                "title": "Hubschrauber zum antiken K\u00f6nigreich",
+                "location": "Felsenfestung Sigiriya",
+                "experience": "Eine Luftreise \u00fcber Dschungel und antike Stauseen zum K\u00f6nigreich Sigiriya.",
+                "highlights": [
+                    "Privater Hubschraubertransfer von Colombo",
+                    "Luftaufnahme von Dschungeln und Stauseen",
+                    "Privat gef\u00fchrter Besuch mit einem Arch\u00e4ologieexperten",
+                    "Professionelles Fotoshooting"
+                ],
+                "stay": "Luxuri\u00f6ses Dschungelresort oder private Villa",
+                "optional": [
+                    "Cocktails bei Sonnenuntergang mit Blick auf den Felsen",
+                    "Fine Dining Erlebnis"
+                ],
+                "note": ""
+            },
+            {
+                "title": "Wilde Sri Lanka Safari",
+                "location": "Wilpattu Nationalpark",
+                "experience": "Ein privates Safari-Erlebnis in einem der unber\u00fchrtesten Nationalparks Asiens.",
+                "highlights": [
+                    "Privates Luxus-Safarifahrzeug",
+                    "Top-Tierspurenleser",
+                    "M\u00f6gliche Sichtungen: Leoparden, Elefanten, Lippenb\u00e4ren",
+                    "Nachmittags Spa und Entspannung"
+                ],
+                "stay": "Luxuri\u00f6ses Dschungelcamp",
+                "optional": [
+                    "Privates Abendessen im Busch",
+                    "Essen bei Laternenlicht unter dem Sternenhimmel"
+                ],
+                "note": "Ein sehr unvergesslicher Luxusmoment."
+            },
+            {
+                "title": "In die Tee-Berge",
+                "location": "Nuwara Eliya",
+                "experience": "Ein ruhiger Aufstieg in das neblige Hochland, wo Tee dominiert.",
+                "highlights": [
+                    "Malerisches Hubschrauber- oder Luxuszugerlebnis",
+                    "Privater Besuch eines Teeanwesens",
+                    "Teeverkostung mit Plantagenexperten",
+                    "Spaziergang durch die nebligen Teeh\u00fcgel"
+                ],
+                "stay": "Luxuri\u00f6ser Teeanwesen-Bungalow",
+                "optional": [
+                    "Abendessen am Kamin mit erlesener Weinbegleitung"
+                ],
+                "note": "Eine v\u00f6llig andere Landschaft \u2014 k\u00fchl, \u00fcppig und zeitlos."
+            },
+            {
+                "title": "Malerisches Hochland & Kultur",
+                "location": "Ella",
+                "experience": "Das Hochland in seiner ganzen Pracht, bevor es an die K\u00fcste geht.",
+                "highlights": [
+                    "Besuch der ikonischen Nine Arches Bridge",
+                    "Malerische Wanderung durch Teeplantagen",
+                    "Privates Picknick mit Bergblick",
+                    "Hubschraubertransfer zur S\u00fcdk\u00fcste"
+                ],
+                "stay": "Luxuri\u00f6ses Boutique-Berghotel",
+                "optional": [],
+                "note": "Wo die Reise vom Abenteuer zur Entspannung \u00fcbergeht."
+            },
+            {
+                "title": "Luxus-Strandflucht",
+                "location": "Tangalle",
+                "experience": "Langsamer Luxus an der S\u00fcdk\u00fcste \u2014 die Kunst des Nichtstuns, perfektioniert.",
+                "highlights": [
+                    "Private Strandvilla",
+                    "Wellnessanwendungen am Meer",
+                    "Optionaler Walbeobachtungsausflug",
+                    "Privates Abendessen bei Kerzenschein am Strand"
+                ],
+                "stay": "Private Strandvilla",
+                "optional": [
+                    "Akustische Live-Musik",
+                    "Vom K\u00fcchenchef kreiertes Men\u00fc mit frischen Meeresfr\u00fcchten"
+                ],
+                "note": "An diesem Tag geht es um langsamen Luxus."
+            },
+            {
+                "title": "Meer & Abreise",
+                "location": "Weligama",
+                "experience": "Ein letzter Morgen am Wasser vor Ihrer souver\u00e4nen Abreise.",
+                "highlights": [
+                    "Private Yacht-Kreuzfahrt",
+                    "Delfin- oder Walbeobachtung",
+                    "Hubschraubertransfer zur\u00fcck nach Colombo",
+                    "VIP-Abreiseservice am Flughafen"
+                ],
+                "stay": "",
+                "optional": [],
+                "note": "Ende der Reise."
+            }
+        ],
+        "estimate": {
+            "badge": "Gesch\u00e4tzter Ultra-VIP-Preis",
+            "price": "12.000$ \u2013 18.000$",
+            "sub": "Pro Person",
+            "cols": [
+                {
+                    "label": "Variiert nach",
+                    "items": [
+                        "Hubschrauberstunden",
+                        "Hotelkategorie",
+                        "Villa-Buchungen"
+                    ]
+                },
+                {
+                    "label": "Private Erlebnisse",
+                    "items": [
+                        "Walbeobachtung",
+                        "Private Busch-Essen",
+                        "Fotoshootings"
+                    ]
+                },
+                {
+                    "label": "Ideal f\u00fcr",
+                    "items": [
+                        "Paare",
+                        "Familien",
+                        "Kleine exklusive Gruppen"
+                    ]
+                }
+            ]
+        }
+    },
+    "philosophy": {
+        "badge": "Absolute Anonymit\u00e4t Garantiert",
+        "title": "Privatsph\u00e4ren-Architektur",
+        "desc": "Unsere Ultra VIP-Stufe ist ein befestigtes Privatgebiet. \u00dcber den Luxus hinaus bieten wir eine 'Zero-Trace'-Sicherheitsarchitektur f\u00fcr hochkar\u00e4tige Pers\u00f6nlichkeiten, die absolute Abgeschiedenheit ben\u00f6tigen.",
+        "grid": [
+            {
+                "title": "Souver\u00e4ne NDA-Protokolle",
+                "desc": "Alle Mitarbeiter und Partner arbeiten unter standort\u00fcbergreifenden, erstklassigen Geheimhaltungsvereinbarungen."
+            },
+            {
+                "title": "Unsichtbare \u00dcberg\u00e4nge",
+                "desc": "Abfertigung am Flugzeug auf dem Rollfeld und private Hubschrauberlandepl\u00e4tze, um jegliche \u00f6ffentliche oder digitale Sichtbarkeit auszuschlie\u00dfen."
+            },
+            {
+                "title": "Geh\u00e4rtete Kommunikation",
+                "desc": "Nach milit\u00e4rischem Standard verschl\u00fcsselte Concierge-Kan\u00e4le f\u00fcr alle Planungen und Anpassungen vor Ort."
+            },
+            {
+                "title": "Ghost-Protocol-Abrechnung",
+                "desc": "Vollst\u00e4ndige finanzielle Unsichtbarkeit und umfassender globaler Identit\u00e4tsschutz."
+            }
+        ],
+        "seclusion": {
+            "title": "Absolute Abgeschiedenheit",
+            "desc": "Extreme Datenschutzprotokolle mit 100 % Mitarbeiteranonymit\u00e4t und vollst\u00e4ndiger Anmietung des Gel\u00e4ndes."
+        },
+        "access": {
+            "title": "Unm\u00f6glicher Zugang",
+            "desc": "Wir \u00f6ffnen die T\u00fcren zu privaten Sammlungen, abgelegenen Orten und heiligen R\u00e4umen."
+        }
+    },
+    "breakdown": {
+        "title": "Service-Aufteil",
+        "btn_hide": "Details ausblenden",
+        "btn_show": "Preise anzeigen",
+        "items": [
+            {
+                "label": "Exklusiv-Buchung & 24/7 Butler"
+            },
+            {
+                "label": "Hubschrauberflotte & Sicherheit"
+            },
+            {
+                "label": "Ma\u00dfgeschneiderte Kulinarik & Koch"
+            },
+            {
+                "label": "T\u00e4gliches Ayurveda & Medizin"
+            },
+            {
+                "label": "Edelsteine & Privatzugang"
+            },
+            {
+                "label": "VIP-Handling & NDA-Compliance"
+            }
+        ]
+    },
+    "inclusions": [
+        {
+            "category": "Anwesen & Souver\u00e4nes Personal",
+            "items": [
+                "Exklusive Buchungen von Privatanwesen",
+                "Englischsprachiger Nationaler Reiseleiter & erfahrener Fahrer",
+                "1:1 Personal-G\u00e4ste-Verh\u00e4ltnis (Butler/Koch/Concierge/Valet)",
+                "Vollzeit dedizierter Arzt & Trauma-Unterst\u00fctzung",
+                "Absolute Privatsph\u00e4re: Signalmanagement auf dem gesamten Gel\u00e4nde",
+                "Personalisierte Gourmetk\u00fcche (6-k\u00f6pfiges Elite-Kochteam)",
+                "Brandneue ma\u00dfgeschneiderte W\u00e4sche (Nach dem Aufenthalt zerst\u00f6rt/verschenkt)"
+            ]
+        },
+        {
+            "category": "Souver\u00e4ne Logistik",
+            "items": [
+                "Private Ankunft & Rollfeld-Freigabe",
+                "Dedizierter Standby-Hubschrauber f\u00fcr die Dauer der Reise",
+                "Permanenter 24/7 Personenschutz (CPD)",
+                "Gepanzerte SUV-Flotte (B6/B7-Verf\u00fcgbarkeit)"
+            ]
+        },
+        {
+            "category": "Unm\u00f6glicher Zugang",
+            "items": [
+                "Privater Schmuck-Meisterkurs (Seltene Steine)",
+                "Spirituelle & Philosophische Beratung durch \u00c4lteste",
+                "Private \u00d6ffnung nationaler St\u00e4tten nach Feierabend",
+                "Globale Identit\u00e4tsschutz-Protokolle"
+            ]
+        },
+        {
+            "category": "Regenerative Wellness",
+            "items": [
+                "Ma\u00dfgeschneiderte Anti-Aging- & regenerative Therapien",
+                "Privater Ayurveda-Meister & Team (Dediziert)",
+                "Erweiterte Wellness- & medizinische Diagnostik-Suite",
+                "Michelin-Standard Ern\u00e4hrungsberater (24/7)",
+                "Alles und jedes auf Anfrage (Dedizierter Service)",
+                "Anonymit\u00e4t ohne Spuren & vollst\u00e4ndiges NDA-Ökosystem"
+            ]
+        }
+    ],
+    "cta": {
+        "btn": "VIP-Beratung einleiten",
+        "sub": "privater Concierge bei Anfrage zugewiesen"
+    }
+}
