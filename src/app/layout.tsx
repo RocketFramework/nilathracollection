@@ -79,7 +79,17 @@ export default function RootLayout({
           strategy="afterInteractive"
           src="https://analytics.ahrefs.com/analytics.js"
           data-key="wlFIqe/l/FqpI6eKpT5gnQ"
-        />
+        /><!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-S210EP6RNT">
+        </script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-S210EP6RNT');
+        </script>
+
         {/* Google tag (gtag.js) */}
         <Script
           strategy="afterInteractive"

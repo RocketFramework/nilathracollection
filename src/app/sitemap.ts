@@ -35,7 +35,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // Dynamic destination routes
     const destinationSlugs = [
         "sigiriya", "galle", "ella", "yala", "kandy",
-        "bentota", "nuwara-eliya", "trincomalee", "colombo"
+        "weligama-mirissa", "nuwara-eliya", "trincomalee", "colombo"
     ];
 
     const destinationRoutes = destinationSlugs.map((slug) => ({
