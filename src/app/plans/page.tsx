@@ -24,7 +24,7 @@ const plans = [
     {
         id: "luxury",
         title: "Luxury",
-        priceRange: "$500",
+        priceRange: "$550",
         description: "5-star signature resorts, premium SUV transport, and dedicated personalized itinerary management.",
         icon: Gem,
         href: "/plans/luxury",
@@ -38,7 +38,7 @@ const plans = [
     {
         id: "premium",
         title: "Premium",
-        priceRange: "$150",
+        priceRange: "$290",
         description: "Reputable 3-4 star hotels, reliable sedan or van transport, and essential curated local experiences.",
         icon: Sparkles,
         href: "/plans/premium",

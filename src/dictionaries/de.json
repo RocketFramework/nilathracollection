@@ -475,9 +475,9 @@
                 "stay": "Aufenthalt",
                 "estimate": {
                     "badge": "Geschätzter Preis",
-                    "price": "3.500 $",
-                    "sub": "Pro Person · 7 Tage (500 $ / Tag)",
-                    "min": "Minimum 2 Personen · Ab 7.000 $ Gesamt",
+                    "price": "3.850 $",
+                    "sub": "Pro Person · 7 Tage (550 $ / Tag)",
+                    "min": "Minimum 2 Personen · Ab 7.700 $ Gesamt",
                     "cols": [
                         {
                             "label": "Inklusive",
@@ -722,6 +722,28 @@
             "cta": {
                 "btn": "Luxusberatung initiieren",
                 "sub": "Expertenplanung auf Anfrage zugewiesen"
+            },
+            "transparency": {
+                "title": "Preistransparenz",
+                "desc_estimate": "Der angegebene Preis ist ein Richtwert, um Ihnen eine klare Basis für Ihre Reise zu geben. Der endgültige Paketpreis ist komplett maßgeschneidert und variiert je nach:",
+                "factors": [
+                    {
+                        "title": "Gewählte Unterkünfte",
+                        "desc": "Wir wählen Unterkünfte sorgfältig nach Ihren Vorlieben aus."
+                    },
+                    {
+                        "title": "Reiseentfernung",
+                        "desc": "Die Treibstoffkosten werden genau nach der endgültigen Länge und Route Ihrer Reise berechnet."
+                    },
+                    {
+                        "title": "Saisonalität",
+                        "desc": "Hauptreisezeiten erfordern entsprechende Premium-Preise."
+                    },
+                    {
+                        "title": "Besondere Daten",
+                        "desc": "An bestimmten Terminen können obligatorische Hotelzuschläge anfallen."
+                    }
+                ]
             }
         },
         "premium": {
@@ -810,22 +832,19 @@
                 "btn_hide": "Details verbergen",
                 "items": [
                     {
-                        "label": "3-4 Sterne Komfort-Hotels"
+                        "label": "Hochwertige Unterkunft"
                     },
                     {
-                        "label": "Logistik & Fahrer-Guide"
+                        "label": "Transport & Reise"
                     },
                     {
-                        "label": "Essenzielle lokale Gastronomie"
+                        "label": "Halbpension"
                     },
                     {
-                        "label": "Wellness & Einrichtungen"
+                        "label": "Logistik & Organisation"
                     },
                     {
-                        "label": "Touren & Eintrittsgebühren"
-                    },
-                    {
-                        "label": "Support & Betreuung"
+                        "label": "18% Staatliche MwSt"
                     }
                 ]
             },
@@ -851,16 +870,6 @@
                     ]
                 },
                 {
-                    "category": "Kulturelle Einblicke",
-                    "items": [
-                        "Geführte Touren zu wichtigen historischen Stätten",
-                        "Eintrittsgelder für Nationalparks",
-                        "Kuratierte Besuche bei lokalen Handwerkern",
-                        "Flexibler Tagesplan für Besichtigungen",
-                        "Authentische Dorf-Erlebnistouren"
-                    ]
-                },
-                {
                     "category": "Gastronomie & Komfort",
                     "items": [
                         "Kuratierte Restaurantempfehlungen",
@@ -874,6 +883,28 @@
             "cta": {
                 "btn": "Premium-Beratung initiieren",
                 "sub": "persönliche Expertenberatung angeboten"
+            },
+            "transparency": {
+                "title": "Preistransparenz",
+                "desc_estimate": "Der angegebene Preis ist ein Richtwert, um Ihnen eine klare Basis für Ihre Reise zu geben. Der endgültige Paketpreis ist komplett maßgeschneidert und variiert je nach:",
+                "factors": [
+                    {
+                        "title": "Gewählte Unterkünfte",
+                        "desc": "Wir wählen Unterkünfte sorgfältig nach Ihren Vorlieben aus."
+                    },
+                    {
+                        "title": "Reiseentfernung",
+                        "desc": "Die Treibstoffkosten werden genau nach der endgültigen Länge und Route Ihrer Reise berechnet."
+                    },
+                    {
+                        "title": "Saisonalität",
+                        "desc": "Hauptreisezeiten erfordern entsprechende Premium-Preise."
+                    },
+                    {
+                        "title": "Besondere Daten",
+                        "desc": "An bestimmten Terminen können obligatorische Hotelzuschläge anfallen."
+                    }
+                ]
             }
         },
         "regular": {

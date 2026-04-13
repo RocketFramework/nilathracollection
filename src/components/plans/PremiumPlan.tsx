@@ -31,19 +31,26 @@ export default function PremiumPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 150; // Flagship Premium rate
+    const nightRatePerPerson = 290; // Flagship Premium rate
     const total = nightRatePerPerson * nights * travelers;
+
+    const baseTotal = total / 1.18;
+    const vat = total - baseTotal;
+
+    const accommodation = 140 * nights * travelers;
+    const transport = 30 * (nights + 1) * travelers;
+    const meals = 35 * nights * travelers;
+    const logistics = baseTotal - (accommodation + transport + meals);
 
     const pricing = {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 70 * nights * travelers, // Selected 3-4 Star Comfort Hotels
-            transport: 25 * nights * travelers, // Experienced Driver-Guide & Sedan/Van
-            meals: 20 * nights * travelers, // Daily Half-Board (HB): Breakfast & Dinner
-            wellness: 15 * nights * travelers, // Access to Standard Spa Facilities
-            experiences: 15 * nights * travelers, // Essential Guided Tours & Entry Fees
-            logistics: 5 * nights * travelers // Standard Arrival Assistance
+            accommodation,
+            transport,
+            meals,
+            logistics,
+            vat
         }
     };
 
@@ -59,7 +66,6 @@ export default function PremiumPlan() {
     const inclusions = [
         { icon: Hotel },
         { icon: Car },
-        { icon: Compass },
         { icon: Coffee }
     ];
 
@@ -119,6 +125,7 @@ export default function PremiumPlan() {
                             <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
                                 <div className="text-center md:text-left">
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">{tPrem.quote.sig}</p>
+                                    <div className="text-[10px] uppercase tracking-widest text-logo-blue font-bold mb-1">Starting From</div>
                                     <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
                                         ${total.toLocaleString()}
                                     </div>
@@ -129,6 +136,7 @@ export default function PremiumPlan() {
                                 <div className="h-24 w-px bg-neutral-100 hidden md:block" />
                                 <div className="text-center md:text-left">
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">{tPrem.quote.daily}</p>
+                                    <div className="text-[10px] uppercase tracking-widest text-logo-blue font-bold mb-1">Starting From</div>
                                     <div className="text-4xl font-serif text-logo-blue leading-none">
                                         ${nightRatePerPerson.toLocaleString()}
                                     </div>
@@ -235,18 +243,6 @@ export default function PremiumPlan() {
                             <p className="text-neutral-600 text-xl leading-relaxed font-medium">
                                 {tPrem.philosophy.desc}
                             </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                                {tPrem.philosophy.grid.map((item: any, i: number) => (
-                                    <div key={i} className="flex gap-4 items-start p-6 bg-neutral-50 rounded-2xl border border-neutral-100">
-                                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />
-                                        <div>
-                                            <h4 className="text-sm font-black text-logo-blue uppercase tracking-widest mb-1">{item.title}</h4>
-                                            <p className="text-xs text-neutral-500 leading-relaxed">{item.desc}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
 
                         <div className="space-y-10">
@@ -274,9 +270,8 @@ export default function PremiumPlan() {
                                                 { label: tPrem.breakdown.items[0].label, value: pricing.breakdown.accommodation },
                                                 { label: tPrem.breakdown.items[1].label, value: pricing.breakdown.transport },
                                                 { label: tPrem.breakdown.items[2].label, value: pricing.breakdown.meals },
-                                                { label: tPrem.breakdown.items[3].label, value: pricing.breakdown.wellness },
-                                                { label: tPrem.breakdown.items[4].label, value: pricing.breakdown.experiences },
-                                                { label: tPrem.breakdown.items[5].label, value: pricing.breakdown.logistics },
+                                                { label: tPrem.breakdown.items[3].label, value: pricing.breakdown.logistics },
+                                                { label: tPrem.breakdown.items[4].label, value: Math.round(total * 0.18) },
                                             ].map((item, i) => (
                                                 <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
                                                     <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
@@ -289,7 +284,24 @@ export default function PremiumPlan() {
                             </AnimatePresence>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-12">
+                        {tPrem.transparency && (
+                            <div className="bg-logo-blue/5 border border-logo-blue/10 p-8 rounded-3xl mt-12">
+                                <h4 className="font-serif text-2xl text-logo-blue mb-3">{tPrem.transparency.title}</h4>
+                                <p className="text-sm text-neutral-600 leading-relaxed mb-6">
+                                    {tPrem.transparency.desc_estimate}
+                                </p>
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    {tPrem.transparency.factors.map((factor: any, idx: number) => (
+                                        <div key={idx} className="bg-white p-4 rounded-2xl border border-logo-blue/5">
+                                            <h5 className="text-[11px] font-black uppercase text-logo-blue mb-1 tracking-widest">{factor.title}</h5>
+                                            <p className="text-xs text-neutral-500">{factor.desc}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-12 pt-8">
                             <div className="space-y-4">
                                 <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">

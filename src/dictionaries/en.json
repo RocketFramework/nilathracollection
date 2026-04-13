@@ -475,9 +475,9 @@
                 "stay": "Stay",
                 "estimate": {
                     "badge": "Estimated Price",
-                    "price": "$3,500",
-                    "sub": "Per Person · 7 Days ($500 / day)",
-                    "min": "Minimum 2 People · From $7,000 Total",
+                    "price": "$3,850",
+                    "sub": "Per Person · 7 Days ($550 / day)",
+                    "min": "Minimum 2 People · From $7,700 Total",
                     "cols": [
                         {
                             "label": "Includes",
@@ -722,6 +722,28 @@
             "cta": {
                 "btn": "Initiate Luxury Consultation",
                 "sub": "expert planning assigned upon request"
+            },
+            "transparency": {
+                "title": "Pricing Transparency",
+                "desc_estimate": "The rate provided is an estimate meant to give you a clear baseline for your journey. The final package price is entirely bespoke and will vary based on:",
+                "factors": [
+                    {
+                        "title": "Chosen Accommodations",
+                        "desc": "We handpick properties based on your preferences."
+                    },
+                    {
+                        "title": "Travel Distance",
+                        "desc": "Fuel costs are calculated precisely based on the finalized length and routing of your trip."
+                    },
+                    {
+                        "title": "Seasonality",
+                        "desc": "Peak travel windows command premium venue pricing."
+                    },
+                    {
+                        "title": "Special Dates",
+                        "desc": "Distinct dates often require mandatory supplementary charges by hotels."
+                    }
+                ]
             }
         },
         "premium": {
@@ -810,22 +832,19 @@
                 "btn_hide": "Hide Details",
                 "items": [
                     {
-                        "label": "3-4 Star Comfort Hotels"
+                        "label": "Quality Accommodation"
                     },
                     {
-                        "label": "Logistics & Driver-Guide"
+                        "label": "Transport & Transit"
                     },
                     {
-                        "label": "Essential Local Dining"
+                        "label": "Signature Half-Board"
                     },
                     {
-                        "label": "Wellness & Facilities"
+                        "label": "Logistics & Organization"
                     },
                     {
-                        "label": "Tours & Entrance Fees"
-                    },
-                    {
-                        "label": "Support & Handling"
+                        "label": "18% Government VAT"
                     }
                 ]
             },
@@ -851,20 +870,9 @@
                     ]
                 },
                 {
-                    "category": "Cultural Insights",
-                    "items": [
-                        "Guided Tours of Major Historic Sites",
-                        "Entrance Fees to National Parks",
-                        "Curated Local Artisan Visits",
-                        "Flexible Daily Sightseeing Schedule",
-                        "Authentic Village Experience Tours"
-                    ]
-                },
-                {
                     "category": "Dining & Comfort",
                     "items": [
                         "Curated Restaurant Recommendations",
-                        "Welcome Pack & Local Sim/Guide Map",
                         "Access to Hotel Wellness & Pool Areas",
                         "Dedicated On-trip Support (Online)",
                         "All Local Taxes & Service Charges Included"
@@ -874,6 +882,28 @@
             "cta": {
                 "btn": "Initiate Premium Consultation",
                 "sub": "dedicated specialist guidance provided"
+            },
+            "transparency": {
+                "title": "Pricing Transparency",
+                "desc_estimate": "The rate provided is an estimate meant to give you a clear baseline for your journey. The final package price is entirely bespoke and will vary based on:",
+                "factors": [
+                    {
+                        "title": "Chosen Accommodations",
+                        "desc": "We handpick properties based on your preferences."
+                    },
+                    {
+                        "title": "Travel Distance",
+                        "desc": "Fuel costs are calculated precisely based on the finalized length and routing of your trip."
+                    },
+                    {
+                        "title": "Seasonality",
+                        "desc": "Peak travel windows command premium venue pricing."
+                    },
+                    {
+                        "title": "Special Dates",
+                        "desc": "Distinct dates often require mandatory supplementary charges by hotels."
+                    }
+                ]
             }
         },
         "regular": {

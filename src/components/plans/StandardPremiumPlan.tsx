@@ -48,6 +48,7 @@ export default function StandardPremiumPlan() {
                         </p>
                     </div>
                     <div className="text-right bg-white/10 p-6 rounded-2xl">
+                        <div className="text-xs font-bold text-green-200 uppercase tracking-widest mb-1">Starting From</div>
                         <div className="text-4xl font-light mb-1">${totalPrice.toLocaleString()}</div>
                         <p className="text-green-200 text-sm">for {selectedNights} nights / {travelers} travelers</p>
                         <p className="text-green-200 text-xs">(${basePrice} per person per night)</p>
@@ -161,6 +162,21 @@ export default function StandardPremiumPlan() {
                             <p className="text-blue-700">
                                 Most travelers spend an additional $200-300 per person on entrance fees, meals, and activities.
                             </p>
+                        </div>
+
+                        <div className="bg-green-50 p-5 rounded-2xl">
+                            <h5 className="font-medium text-green-900 mb-2">Pricing Transparency</h5>
+                            <p className="text-green-700 text-xs leading-relaxed mb-4">
+                                The rate provided is an estimate meant to give you a clear baseline for your journey. The final package price is bespoke and will vary based on:
+                            </p>
+                            <ul className="text-xs text-green-800 space-y-2">
+                                <li className="flex gap-2"><span>•</span> <span><strong>Travel Distance:</strong> Fuel costs are calculated precisely based on your routing.</span></li>
+                                <li className="flex gap-2"><span>•</span> <span><strong>Chosen Hotels:</strong> Depending on exact properties selected.</span></li>
+                                <li className="flex gap-2"><span>•</span> <span><strong>Activities & Entry:</strong> Site tickets and experiences based on your final itinerary.</span></li>
+                                <li className="flex gap-2"><span>•</span> <span><strong>Daily Lunches:</strong> Tours operate on a Half-Board basis for excursion flexibility.</span></li>
+                                <li className="flex gap-2"><span>•</span> <span><strong>Seasonality:</strong> Peak travel windows command premium pricing.</span></li>
+                                <li className="flex gap-2"><span>•</span> <span><strong>Special Dates:</strong> Mandatory supplements for holidays.</span></li>
+                            </ul>
                         </div>
                     </div>
                 </div>
