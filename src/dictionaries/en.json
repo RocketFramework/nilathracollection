@@ -433,6 +433,8 @@
                 "daily_det": "Per Person / Per Day"
             },
             "epicurean": {
+                "badge": "The Sapphire Route",
+                "title": "The Sapphire Journey",
                 "desc": "A curated sequence of discovery and comfort. From standard express handling to final sunset, every moment is hand-crafted for excellence.",
                 "phase": "Phase",
                 "itinerary": [
@@ -443,23 +445,23 @@
                     },
                     {
                         "title": "Elite Chauffeur Transit",
-                        "description": "Direct transfer via premium SUV to your first destination. Refreshments and Wi-Fi provided for a seamless transition.",
-                        "details": "Premium SUV x 24/7 Availability"
+                        "description": "Direct transfer via premium SUV to your first destination. Refreshments, Wi-Fi, and curated fine dining stops for lunch are provided for a seamless transition.",
+                        "details": "Premium SUV x 24/7 Availability + Gourmet Lunch Picks"
                     },
                     {
-                        "title": "5-Star Collection",
-                        "description": "Check-in to the island's most iconic signature resorts. Reliable 5-star comfort with ocean or jungle views and personalized welcomes.",
-                        "details": "Iconic 5-Star Resorts"
-                    },
-                    {
-                        "title": "Signature Gastronomy (HB)",
-                        "description": "Half-Board (HB) dining featuring signature breakfasts and sought-after dinner reservations. Enjoy private beachfront dinners and local organic delicacies.",
-                        "details": "Signature Half-Board (HB)"
+                        "title": "5-Star Collection & Gastronomy",
+                        "description": "Check-in to the island's most iconic signature resorts with ocean or jungle views. Enjoy secure Half-Board (HB) dining featuring signature breakfasts, sought-after dinner reservations, and local organic delicacies.",
+                        "details": "Iconic Resorts + Half-Board (HB)"
                     },
                     {
                         "title": "Immersive Discovery",
-                        "description": "Explore sacred sites and hidden gems with an elite National Guide. Private after-hours access to selected monuments.",
-                        "details": "Expert Guide + Exclusive Access"
+                        "description": "Explore sacred sites and hidden gems with an elite National Guide. Private after-hours access to selected monuments can be arranged for an additional charge.",
+                        "details": "Expert Guide + Optional Special Access"
+                    },
+                    {
+                        "title": "Rejuvenating Wellness",
+                        "description": "Daily opportunities to unwind with premium Balinese or Ayurvedic spa therapies, designed to revitalize mind and body.",
+                        "details": "Premium Spa Therapies"
                     },
                     {
                         "title": "Elegant Departure",
@@ -744,6 +746,19 @@
                         "desc": "Distinct dates often require mandatory supplementary charges by hotels."
                     }
                 ]
+            },
+            "math_labels": {
+                "accommodation": "Signature Resorts & Hotels",
+                "transport": "Premium SUV, Fuel & Driver",
+                "meals": "Curated Fine Dining",
+                "wellness": "Daily Wellness & Access",
+                "experiences": "Elite Guides & Access",
+                "logistics": "Zero-friction Logistics",
+                "agency": "Agency Planning & Service Fee",
+                "vat": "Government Tax (18% VAT)",
+                "total": "Estimated Grand Total",
+                "nights": "Nights",
+                "days": "Days"
             }
         },
         "premium": {

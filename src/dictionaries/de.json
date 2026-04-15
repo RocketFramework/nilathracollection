@@ -433,6 +433,8 @@
                 "daily_det": "Pro Person / Pro Tag"
             },
             "epicurean": {
+                "badge": "Die Sapphire Route",
+                "title": "Die Sapphire Reise",
                 "desc": "Eine kuratierte Abfolge von Entdeckung und Komfort. Vom Standard-Express-Handling bis zum finalen Sonnenuntergang ist jeder Moment für Exzellenz handverlesen.",
                 "phase": "Phase",
                 "itinerary": [
@@ -443,23 +445,23 @@
                     },
                     {
                         "title": "Elite-Chauffeur-Transfer",
-                        "description": "Direkter Transfer im Premium-SUV zu Ihrem ersten Ziel. Erfrischungen und WLAN sorgen für einen nahtlosen Übergang.",
-                        "details": "Premium SUV x 24/7 Verfügbarkeit"
+                        "description": "Direkter Transfer im Premium-SUV zu Ihrem ersten Ziel. Erfrischungen, WLAN und kuratierte Fine-Dining-Stopps zum Mittagessen sorgen für einen nahtlosen Übergang.",
+                        "details": "Premium SUV x 24/7 Verfügbarkeit + Gourmet-Mittagessen Picks"
                     },
                     {
-                        "title": "5-Sterne-Kollektion",
-                        "description": "Check-in in den ikonischsten Signature-Resorts der Insel. Zuverlässiger 5-Sterne-Komfort mit Meer- oder Dschungelblick und persönlicher Begrüßung.",
-                        "details": "Ikonische 5-Sterne-Resorts"
-                    },
-                    {
-                        "title": "Signature Gastronomie (HP)",
-                        "description": "Halbpension (HP) mit Signature-Frühstück und begehrten Dinner-Reservierungen. Genießen Sie private Abendessen am Strand und lokale Bio-Delikatessen.",
-                        "details": "Signature Halbpension (HP)"
+                        "title": "5-Sterne-Kollektion & Gastronomie",
+                        "description": "Check-in in den ikonischsten Signature-Resorts der Insel mit Meer- oder Dschungelblick. Genießen Sie gesicherte Halbpension (HP) mit Signature-Frühstück, angesagten Dinner-Reservierungen und lokalen Bio-Delikatessen.",
+                        "details": "Ikonische Resorts + Halbpension (HP)"
                     },
                     {
                         "title": "Immersive Entdeckung",
-                        "description": "Erkunden Sie heilige Stätten und versteckte Schätze mit einem Elite-National-Guide. Privater Zugang nach den regulären Öffnungszeiten zu ausgewählten Monumenten.",
-                        "details": "Experten-Guide + Exklusiver Zugang"
+                        "description": "Erkunden Sie heilige Stätten und versteckte Schätze mit einem Elite-National-Guide. Privater Zugang nach den regulären Öffnungszeiten ist gegen Aufpreis auf Anfrage möglich.",
+                        "details": "Experten-Guide + Optionale Exklusivleistungen"
+                    },
+                    {
+                        "title": "Regenerative Wellness",
+                        "description": "Tägliche Möglichkeiten zur Entspannung mit hochwertigen balinesischen oder ayurvedischen Spa-Therapien, um Geist und Körper zu revitalisieren.",
+                        "details": "Premium Spa-Therapien"
                     },
                     {
                         "title": "Elegante Abreise",
@@ -744,6 +746,19 @@
                         "desc": "An bestimmten Terminen können obligatorische Hotelzuschläge anfallen."
                     }
                 ]
+            },
+            "math_labels": {
+                "accommodation": "Signature Resorts & Hotels",
+                "transport": "Premium SUV, Kraftstoff & Fahrer",
+                "meals": "Kuratierte Fine-Dining",
+                "wellness": "Tägliche Wellness & Zugang",
+                "experiences": "Elite-Guides & Zugang",
+                "logistics": "Reibungslose Logistik",
+                "agency": "Agenturplanungs- & Servicegebühr",
+                "vat": "Staatliche Steuer (18% MwSt.)",
+                "total": "Geschätzte Gesamtsumme",
+                "nights": "Nächte",
+                "days": "Tage"
             }
         },
         "premium": {
