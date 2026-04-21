@@ -304,8 +304,17 @@ export default function LuxuryPlan() {
                                                 { label: tLux.math_labels?.total || "Estimated Grand Total", value: pricing.total },
                                             ].map((item, i) => (
                                                 <div key={i} className={`flex justify-between items-center py-5 border-neutral-50 px-6 rounded-2xl ${i === 8 ? 'bg-logo-blue/5 border-t-2 border-logo-blue/20' : 'border-b hover:bg-neutral-50 transition-colors'}`}>
-                                                    <span className={`tracking-wide uppercase text-xs ${i === 8 ? 'text-logo-blue font-black' : 'text-neutral-500 font-bold'}`}>{item.label}</span>
-                                                    <span className={`font-serif tracking-widest ${i === 8 ? 'text-logo-blue text-4xl font-black' : 'text-logo-blue text-2xl'}`}>${item.value.toLocaleString()}</span>
+                                                    <span className={`tracking-wide uppercase text-xs pr-4 ${i === 8 ? 'text-logo-blue font-black' : 'text-neutral-500'}`}>
+                                                        {item.label.includes('(') ? (
+                                                            <>
+                                                                <span className={i !== 8 ? 'font-bold' : ''}>{item.label.split('(')[0]}</span>
+                                                                <span className="font-normal opacity-75 normal-case tracking-normal text-[10px] sm:text-[11px] inline-block ml-1 whitespace-pre-line">({item.label.split('(').slice(1).join('(')}</span>
+                                                            </>
+                                                        ) : (
+                                                            <span className={i !== 8 ? 'font-bold' : ''}>{item.label}</span>
+                                                        )}
+                                                    </span>
+                                                    <span className={`font-serif tracking-widest flex-shrink-0 ${i === 8 ? 'text-logo-blue text-4xl font-black' : 'text-logo-blue text-2xl'}`}>${item.value.toLocaleString()}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -392,6 +401,18 @@ export default function LuxuryPlan() {
                                 <p className="mt-8 text-[11px] uppercase font-bold tracking-[0.3em] text-neutral-400">
                                     {tLux.cta.sub}
                                 </p>
+
+                                <div className="mt-6 w-full">
+                                    <Link
+                                        href="/elite-journeys"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full flex items-center justify-center gap-3 bg-white border border-brand-gold hover:bg-brand-gold/5 text-brand-gold py-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-md active:scale-[0.98] text-center group"
+                                    >
+                                        <Compass size={18} className="group-hover:rotate-45 transition-transform duration-300" />
+                                        Elite Journeys Sample
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>

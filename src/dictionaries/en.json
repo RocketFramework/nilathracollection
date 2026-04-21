@@ -693,8 +693,7 @@
                     "category": "Premium Logistics",
                     "items": [
                         "Private Premium SUV & Elastic Driver Support",
-                        "Dedicated English Speaking National Guide",
-                        "Personalized Butler Service (Per Property)",
+                        "English Speaking National Guides",
                         "Airport Arrival & Departure Greeting",
                         "All Domestic Highway & Parking Fees",
                         "Daily Refreshment Pack (Chilled)"
@@ -714,8 +713,6 @@
                     "category": "Wellness & Rejuvenation",
                     "items": [
                         "Daily Ayurvedic or Balinese Spa Session",
-                        "Private Yoga or Meditation Sessions",
-                        "Access to Luxury Pool & Beach Clubs",
                         "Dedicated On-trip Relationship Manager (24/7)",
                         "All Local Taxes & Service Charges Included"
                     ]
@@ -753,7 +750,7 @@
                 "meals": "Curated Fine Dining",
                 "wellness": "Daily Wellness & Access",
                 "experiences": "Elite Guides & Access",
-                "logistics": "Zero-friction Logistics",
+                "logistics": "Invisible Concierge & Precision Logistics (Seamless transfers, Perfect timing coordination, Pre-arranged everything,\nconcierge available 24/7, No administrative burden)",
                 "agency": "Agency Planning & Service Fee",
                 "vat": "Government Tax (18% VAT)",
                 "total": "Estimated Grand Total",

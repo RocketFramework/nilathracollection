@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signature Ceylon Experience — 7 Nights Sri Lanka | Elite Journeys</title>
+  <meta name="description" content="A curated 7-night luxury journey across Sri Lanka for two — five signature hotels, private chauffeur, daily spa, and elite guides included.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0C2340;
+      --gold: #C9A84C;
+      --ivory: #FAF8F4;
+      --text-dark: #1A1A1A;
+      --text-light: #555555;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Jost', sans-serif;
+      background-color: var(--ivory);
+      color: var(--text-dark);
+      line-height: 1.6;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    a { text-decoration: none; color: inherit; }
+    
+    /* Navigation */
+    nav {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.5rem 3rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .nav-brand {
+      color: white; font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; letter-spacing: 2px; font-weight: 700; text-transform: uppercase;
+    }
+    .nav-links a {
+      color: white; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.5px;
+      font-weight: 500; transition: color 0.3s; display: flex; items-center; gap: 0.5rem;
+    }
+    .nav-links a:hover { color: var(--gold); }
+
+    /* Hero Section */
+    .hero {
+      position: relative; height: 90vh;
+      background: url('https://images.unsplash.com/photo-1583037189850-1921be2077e6') center/cover;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; color: white;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background-color: var(--navy); opacity: 0.65;
+    }
+    /* Subtle grain texture */
+    .hero::after {
+      content: ''; position: absolute; inset: 0;
+      background-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.08"/%3E%3C/svg%3E');
+      pointer-events: none;
+    }
+    .hero-content {
+      position: relative; z-index: 2; max-width: 800px; padding: 2rem;
+    }
+    .hero-logo {
+      position: absolute; top: 2rem; left: 2rem;
+      font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; letter-spacing: 2px;
+      z-index: 2; font-weight: 700;
+    }
+    .eyebrow {
+      font-size: 0.85rem; text-transform: uppercase; letter-spacing: 3px;
+      color: var(--gold); margin-bottom: 1rem; font-weight: 600;
+    }
+    .hero h1 {
+      color: white; font-size: 4.5rem; margin-bottom: 1rem; line-height: 1.1;
+    }
+    .hero-sub {
+      font-size: 1.15rem; font-weight: 300; margin-bottom: 3rem; letter-spacing: 0.5px;
+    }
+    .stat-pills {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-bottom: 3rem;
+    }
+    .pill {
+      background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0.6rem 1.4rem; border-radius: 50px; font-size: 0.85rem; letter-spacing: 0.5px;
+      backdrop-filter: blur(8px);
+    }
+    .btn {
+      display: inline-block; padding: 1rem 2.5rem;
+      background-color: var(--gold); color: var(--navy);
+      text-transform: uppercase; letter-spacing: 2px; font-size: 0.9rem;
+      font-weight: 600; border-radius: 2px; transition: all 0.3s; border: 1px solid var(--gold); cursor: pointer;
+    }
+    .btn:hover { background-color: transparent; color: var(--gold); }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--gold); color: var(--gold);
+    }
+    .btn-outline:hover { background-color: var(--gold); color: var(--navy); }
+    
+    /* Section Structure */
+    section { padding: 6rem 2rem; max-width: 1100px; margin: 0 auto; }
+    .section-title {
+      font-size: 2.8rem; text-align: center; margin-bottom: 4rem; position: relative;
+    }
+    .section-title::after {
+      content: ''; display: block; width: 40px; height: 2px;
+      background-color: var(--gold); margin: 1.5rem auto 0;
+    }
+
+    /* Journey Strip */
+    .journey-strip {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      position: relative; margin-bottom: 5rem;
+    }
+    .journey-strip::before {
+      content: ''; position: absolute; top: 20px; left: 10%; right: 10%;
+      height: 1px; border-top: 1px dashed var(--gold); z-index: 1; opacity: 0.5;
+    }
+    .stop {
+      position: relative; z-index: 2; text-align: center; background: var(--ivory); padding: 0 1rem; width: 120px;
+    }
+    .stop-icon {
+      width: 40px; height: 40px; border-radius: 50%; background: var(--navy);
+      color: var(--gold); display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem; font-size: 1.2rem; font-family: 'Cormorant Garamond', serif; font-weight: 600;
+    }
+    .stop-name { font-weight: 600; font-size: 1.1rem; color: var(--navy); margin-bottom: 0.2rem; }
+    .stop-nights { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Day Cards */
+    .day-card {
+      display: flex; background: white; padding: 3rem; border-radius: 4px;
+      margin-bottom: 2rem; box-shadow: 0 4px 20px rgba(12, 35, 64, 0.03); gap: 3rem;
+      opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out;
+    }
+    .day-card.visible { opacity: 1; transform: translateY(0); }
+    .day-left { width: 100px; flex-shrink: 0; text-align: center; }
+    .day-num { font-size: 3.5rem; font-family: 'Cormorant Garamond', serif; color: var(--navy); line-height: 1; margin-bottom: 0.5rem; }
+    .day-date { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gold); font-weight: 600; }
+    .day-right { flex-grow: 1; }
+    .day-header { border-bottom: 1px solid rgba(12, 35, 64, 0.1); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+    .day-title { font-size: 2rem; margin-bottom: 0.5rem; }
+    .day-meta { font-size: 0.95rem; color: var(--text-light); }
+    
+    .timeline { position: relative; padding-left: 2rem; }
+    .timeline::before { content: ''; position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: rgba(12, 35, 64, 0.1); }
+    .timeline-item { position: relative; margin-bottom: 2rem; opacity: 0; transform: translateX(-10px); transition: all 0.5s ease-out; }
+    .timeline-item.visible { opacity: 1; transform: translateX(0); }
+    .timeline-item:last-child { margin-bottom: 0; }
+    .timeline-dot {
+      position: absolute; left: -2rem; top: 6px; width: 9px; height: 9px; border-radius: 50%;
+    }
+    .dot-blue { background: #4A90E2; }
+    .dot-teal { background: #50E3C2; }
+    .dot-amber { background: #F5A623; }
+    .dot-green { background: #7ED321; }
+    .dot-purple { background: #BD10E0; }
+    .dot-coral { background: #FF6B6B; }
+    
+    .time { font-size: 0.8rem; font-weight: 600; color: var(--gold); margin-bottom: 0.3rem; letter-spacing: 1px; text-transform: uppercase; }
+    .act-title { font-weight: 600; font-size: 1.15rem; margin-bottom: 0.3rem; color: var(--navy); }
+    .act-desc { font-size: 0.95rem; color: var(--text-light); line-height: 1.5; max-width: 600px; }
+    .ticket-pill {
+      display: inline-block; background: rgba(201, 168, 76, 0.08); color: var(--gold);
+      padding: 0.25rem 0.75rem; border-radius: 2px; font-size: 0.75rem; font-weight: 500;
+      margin-top: 0.75rem; border: 1px solid rgba(201, 168, 76, 0.2); letter-spacing: 0.5px;
+    }
+
+    /* Hotels */
+    .hotel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem; }
+    .hotel-card { background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 4px 20px rgba(12, 35, 64, 0.03); opacity: 0; transform: translateY(20px); transition: all 0.6s ease-out; }
+    .hotel-card.visible { opacity: 1; transform: translateY(0); }
+    .hotel-img { height: 240px; background: #eee; background-size: cover; background-position: center; position: relative; }
+    .hotel-body { padding: 2rem; }
+    .hotel-stars { color: var(--gold); margin-bottom: 0.5rem; font-size: 0.85rem; letter-spacing: 2px; }
+    .hotel-name { font-size: 1.75rem; margin-bottom: 0.2rem; }
+    .hotel-loc { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-light); margin-bottom: 1.5rem; }
+    .hotel-room { font-weight: 500; font-size: 1rem; margin-bottom: 0.2rem; color: var(--navy); }
+    .hotel-rate { font-size: 0.85rem; color: var(--gold); font-weight: 600; margin-bottom: 1.5rem; }
+    .hotel-bullets { list-style: none; font-size: 0.9rem; color: var(--text-light); }
+    .hotel-bullets li { margin-bottom: 0.5rem; position: relative; padding-left: 1.2rem; line-height: 1.4; }
+    .hotel-bullets li::before { content: '—'; position: absolute; left: 0; color: var(--gold); }
+
+    /* Inclusions */
+    .inclusions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; text-align: center; }
+    .inc-item { padding: 2rem 1.5rem; background: white; border-radius: 4px; border: 1px solid rgba(12, 35, 64, 0.05); }
+    .inc-icon { font-size: 1.8rem; margin-bottom: 1rem; color: var(--gold); font-family: 'Cormorant Garamond', serif; }
+    .inc-text { font-size: 0.95rem; font-weight: 500; color: var(--navy); }
+
+    /* Pricing */
+    .pricing-table-container { background: white; padding: 3rem; border-radius: 4px; box-shadow: 0 4px 20px rgba(12, 35, 64, 0.03); }
+    .pricing-table { width: 100%; border-collapse: collapse; }
+    .pricing-table th, .pricing-table td { padding: 1.25rem 1rem; text-align: left; border-bottom: 1px solid rgba(12, 35, 64, 0.08); }
+    .pricing-table th { color: var(--text-light); font-weight: 500; letter-spacing: 1px; text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid rgba(12, 35, 64, 0.1); }
+    .pricing-table tr:last-child td { border-bottom: none; }
+    .pricing-table td:first-child { font-weight: 500; color: var(--navy); }
+    .pricing-table td:last-child { font-weight: 600; color: var(--navy); text-align: right; }
+    .pricing-table td:nth-child(2) { color: var(--text-light); font-size: 0.9rem; }
+    .total-row { background: var(--navy); }
+    .total-row td { color: white !important; font-weight: 600 !important; font-size: 1.1rem; border: none; padding: 1.5rem 1rem; }
+    .total-row td:last-child { color: var(--gold) !important; font-size: 1.3rem; }
+    .price-note { font-size: 0.85rem; color: var(--text-light); text-align: center; margin-top: 2rem; font-style: italic; }
+
+    /* Footer */
+    footer { background: var(--navy); color: white; text-align: center; padding: 6rem 2rem; position: relative; }
+    footer h2 { color: white; font-size: 3.5rem; margin-bottom: 1rem; }
+    footer p { font-size: 1.15rem; font-weight: 300; margin-bottom: 3.5rem; color: rgba(255,255,255,0.7); letter-spacing: 0.5px; }
+    .footer-btns { display: flex; justify-content: center; gap: 1.5rem; }
+    .footer-rule { width: 60px; height: 1px; background: var(--gold); margin: 5rem auto 0; opacity: 0.6; }
+
+    /* Back to top */
+    .back-to-top {
+      position: fixed; bottom: 2rem; right: 2rem; width: 45px; height: 45px;
+      background: var(--navy); color: white; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; cursor: pointer; opacity: 0;
+      transition: all 0.3s; z-index: 100; border: 1px solid rgba(201, 168, 76, 0.5); font-family: serif; font-size: 1.2rem;
+    }
+    .back-to-top:hover { background: var(--gold); border-color: var(--gold); color: var(--navy); }
+    .back-to-top.visible { opacity: 1; }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .hero h1 { font-size: 3.5rem; }
+      .journey-strip { overflow-x: auto; padding-bottom: 1rem; justify-content: flex-start; gap: 2rem; }
+      .journey-strip::before { min-width: 600px; }
+    }
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.8rem; }
+      .day-card { flex-direction: column; gap: 1.5rem; padding: 2rem; }
+      .day-left { text-align: left; width: 100%; border-bottom: 1px solid rgba(12, 35, 64, 0.1); padding-bottom: 1rem; }
+      .day-num { font-size: 2.5rem; display: inline-block; margin-right: 1rem; margin-bottom: 0; }
+      .day-date { display: inline-block; }
+      .pricing-table-container { padding: 1.5rem; }
+      .pricing-table th, .pricing-table td { padding: 1rem 0.5rem; font-size: 0.85rem; }
+      nav { display: none; }
+      .footer-btns { flex-direction: column; }
+    }
+
+    /* Print */
+    @media print {
+      nav, .btn, .back-to-top, footer { display: none !important; }
+      .hero { height: auto; background: none; color: black; padding: 2rem 0; }
+      .hero::before, .hero::after { display: none; }
+      .hero h1, .eyebrow, .hero-sub, .pill { color: black; border-color: #ccc; }
+      .hero-logo { position: static; color: black; margin-bottom: 2rem; display: block; }
+      body { background: white; color: black; }
+      .day-card, .hotel-card, .pricing-table-container, .inc-item { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
+      .section-title { page-break-after: avoid; }
+      .total-row { background: #eee; }
+      .total-row td { color: black !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-brand">Elite Journeys</div>
+    <div class="nav-links">
+      <a href="/plans/luxury">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Luxury Plan
+      </a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-content">
+      <div class="eyebrow">Signature Ceylon Experience</div>
+      <h1>Sri Lanka — 7 Nights / 8 Days</h1>
+      <p class="hero-sub">For 2 Guests · Colombo → Cultural Triangle → Kandy → Nuwara Eliya → Galle</p>
+      <div class="stat-pills">
+        <div class="pill">5 Signature Hotels</div>
+        <div class="pill">$7,859 Grand Total</div>
+        <div class="pill">HB + Lunch Daily</div>
+        <div class="pill">8 Days Chauffeured</div>
+      </div>
+      <a href="#pricing" class="btn">Request This Journey</a>
+    </div>
+  </header>
+
+  <section id="overview">
+    <h2 class="section-title">Journey Overview</h2>
+    <div class="journey-strip">
+      <div class="stop">
+        <div class="stop-icon">1</div>
+        <div class="stop-name">Colombo</div>
+        <div class="stop-nights">2 Nights</div>
+      </div>
+      <div class="stop">
+        <div class="stop-icon">2</div>
+        <div class="stop-name">Sigiriya</div>
+        <div class="stop-nights">2 Nights</div>
+      </div>
+      <div class="stop">
+        <div class="stop-icon">3</div>
+        <div class="stop-name">Kandy</div>
+        <div class="stop-nights">1 Night</div>
+      </div>
+      <div class="stop">
+        <div class="stop-icon">4</div>
+        <div class="stop-name">Nuwara Eliya</div>
+        <div class="stop-nights">1 Night</div>
+      </div>
+      <div class="stop">
+        <div class="stop-icon">5</div>
+        <div class="stop-name">Galle</div>
+        <div class="stop-nights">1 Night</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="itinerary">
+    <h2 class="section-title">Day by Day</h2>
+
+    <!-- Day 1 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">01</div>
+        <div class="day-date">Arrival</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Arrival, Colombo</h3>
+          <div class="day-meta">Shangri-La Colombo · Deluxe Ocean View King · $185/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">On arrival</div>
+            <div class="act-title">VIP airport meet & greet</div>
+            <div class="act-desc">Priority immigration, premium SUV waiting.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">Transfer</div>
+            <div class="act-title">45-min express to Shangri-La</div>
+            <div class="act-desc">No delays, chilled towels in vehicle.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-purple"></div>
+            <div class="time">Afternoon</div>
+            <div class="act-title">CHI Spa Welcome Ritual</div>
+            <div class="act-desc">Check-in, 60-min couples jet-lag recovery treatment.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">HB dinner at Capital Bar & Grill</div>
+            <div class="act-desc">Exclusive dining experience at the hotel.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 2 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">02</div>
+        <div class="day-date">Colombo</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Colombo City Heritage</h3>
+          <div class="day-meta">Shangri-La Colombo · $185/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">07:00</div>
+            <div class="act-title">Breakfast at Central restaurant (HB)</div>
+            <div class="act-desc">A lavish spread to start your day.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-teal"></div>
+            <div class="time">09:30</div>
+            <div class="act-title">Private guided tour</div>
+            <div class="act-desc">Dutch Hospital, Old Parliament, Gangaramaya Temple, Independence Square.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">13:00</div>
+            <div class="act-title">Fine dining lunch — Ministry of Crab</div>
+            <div class="act-desc">Pre-reserved table.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-purple"></div>
+            <div class="time">15:30</div>
+            <div class="act-title">CHI Spa</div>
+            <div class="act-desc">60-min aromatherapy massage + pool, steam & wellness lounge.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">HB dinner at Shang Palace</div>
+            <div class="act-desc">Authentic cuisine within the resort.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 3 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">03</div>
+        <div class="day-date">Dambulla</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Colombo → Dambulla → Sigiriya</h3>
+          <div class="day-meta">Jetwing Vil Uyana · Forest Dwelling Villa · $295/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">07:00</div>
+            <div class="act-title">Early breakfast + premium snack box in SUV</div>
+            <div class="act-desc">Prepare for the scenic drive.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-teal"></div>
+            <div class="time">11:00</div>
+            <div class="act-title">Dambulla Royal Cave Temple</div>
+            <div class="act-desc">5 caves, 157 Buddha statues, expert private guide.</div>
+            <div class="ticket-pill">Entry: $10 × 2 = $20 incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">13:30</div>
+            <div class="act-title">Curated fine lunch en route</div>
+            <div class="act-desc">Premium local flavors.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">15:30</div>
+            <div class="act-title">Check-in Jetwing Vil Uyana</div>
+            <div class="act-desc">Butler assigned, wetland villa on stilts.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-purple"></div>
+            <div class="time">17:00</div>
+            <div class="act-title">Ayurvedic couples spa at Vil Uyana Spa</div>
+            <div class="act-desc">Relaxation amidst nature.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">HB dinner at Apsara Restaurant</div>
+            <div class="act-desc">Lakeside dining experience.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 4 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">04</div>
+        <div class="day-date">Sigiriya</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Sigiriya Rock & Minneriya Safari</h3>
+          <div class="day-meta">Jetwing Vil Uyana · $295/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-teal"></div>
+            <div class="time">05:30</div>
+            <div class="act-title">Sunrise climb — Sigiriya Lion Rock (UNESCO)</div>
+            <div class="act-desc">Expert guide, lion paws, frescoes, palace summit.</div>
+            <div class="ticket-pill">Entry: $36 × 2 = $72 incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">09:00</div>
+            <div class="act-title">Return breakfast at Vil Uyana (HB)</div>
+            <div class="act-desc">Refresh after the morning hike.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">13:00</div>
+            <div class="act-title">Fine dining lunch + villa pool rest</div>
+            <div class="act-desc">Relaxing afternoon in your private setting.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-green"></div>
+            <div class="time">15:00</div>
+            <div class="act-title">Minneriya National Park private jeep safari</div>
+            <div class="act-desc">Witness 'The Gathering' of wild elephants.</div>
+            <div class="ticket-pill">Safari: $70 all-in incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-purple"></div>
+            <div class="time">18:30</div>
+            <div class="act-title">Evening spa</div>
+            <div class="act-desc">Reflexology & hot stone massage.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">HB dinner</div>
+            <div class="act-desc">Private starlit terrace dining.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 5 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">05</div>
+        <div class="day-date">Kandy</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Sigiriya → Kandy</h3>
+          <div class="day-meta">Heritance Kandy · Superior Lake View · $165/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">08:00</div>
+            <div class="act-title">Breakfast & check-out</div>
+            <div class="act-desc">Scenic drive through heartland.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-teal"></div>
+            <div class="time">11:00</div>
+            <div class="act-title">Temple of the Sacred Tooth Relic</div>
+            <div class="act-desc">Expert private guide for the holy site.</div>
+            <div class="ticket-pill">Entry: $6 × 2 = $12 incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">13:30</div>
+            <div class="act-title">Fine dining lunch — The Empire Restaurant</div>
+            <div class="act-desc">Premium dining in Kandy.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">15:00</div>
+            <div class="act-title">Check-in Heritance Kandy</div>
+            <div class="act-desc">Lake view balcony room.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-purple"></div>
+            <div class="time">16:00</div>
+            <div class="act-title">Couples Ayurvedic massage</div>
+            <div class="act-desc">At the hotel spa.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">Kandyan Cultural Dance show</div>
+            <div class="act-desc">Private seating followed by HB dinner.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 6 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">06</div>
+        <div class="day-date">N. Eliya</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Kandy → Nuwara Eliya</h3>
+          <div class="day-meta">Heritance Tea Factory · Heritage Room · $150/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-green"></div>
+            <div class="time">08:00</div>
+            <div class="act-title">Breakfast + Royal Botanical Gardens Peradeniya</div>
+            <div class="act-desc">147 acres, giant fig trees, orchid house.</div>
+            <div class="ticket-pill">Entry: $5 × 2 = $10 incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">10:30</div>
+            <div class="act-title">Scenic mountain drive</div>
+            <div class="act-desc">Stop at majestic Ramboda Falls.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">13:00</div>
+            <div class="act-title">Fine dining lunch — Grand Hotel Nuwara Eliya</div>
+            <div class="act-desc">Colonial heritage dining experience.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">15:00</div>
+            <div class="act-title">Check-in Heritance Tea Factory</div>
+            <div class="act-desc">Converted Victorian factory at 2,200m.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-teal"></div>
+            <div class="time">16:30</div>
+            <div class="act-title">Private tea estate walk</div>
+            <div class="act-desc">Professional tasting ceremony.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">Spa + fireplace dinner</div>
+            <div class="act-desc">At The Pekoe restaurant.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 7 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">07</div>
+        <div class="day-date">Galle</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Nuwara Eliya → Galle</h3>
+          <div class="day-meta">Amangalla, Galle Fort · Chamber · $380/night</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-green"></div>
+            <div class="time">05:30</div>
+            <div class="act-title">Optional sunrise trek to Horton Plains</div>
+            <div class="act-desc">World's End cliff at 870m.</div>
+            <div class="ticket-pill">Entry: $25 × 2 = $50 incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">10:00</div>
+            <div class="act-title">Breakfast & check-out</div>
+            <div class="act-desc">4.5 hr coastal highway drive.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">14:00</div>
+            <div class="act-title">Fine seafood lunch en route</div>
+            <div class="act-desc">Fresh coastal dining.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">16:00</div>
+            <div class="act-title">Check-in Amangalla, Galle Fort</div>
+            <div class="act-desc">Chamber with four-poster bed, private garden.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-purple"></div>
+            <div class="time">17:00</div>
+            <div class="act-title">Amangalla Spa</div>
+            <div class="act-desc">2-hour signature couples journey.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-coral"></div>
+            <div class="time">Evening</div>
+            <div class="act-title">Guided sunset walk</div>
+            <div class="act-desc">On Dutch fort ramparts + HB dinner.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day 8 -->
+    <div class="day-card reveal">
+      <div class="day-left">
+        <div class="day-num">08</div>
+        <div class="day-date">Departure</div>
+      </div>
+      <div class="day-right">
+        <div class="day-header">
+          <h3 class="day-title">Galle & Departure</h3>
+          <div class="day-meta">Transfer day</div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">08:00</div>
+            <div class="act-title">Final leisurely breakfast in Galle Fort (HB)</div>
+            <div class="act-desc">Soak in the colonial atmosphere.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-teal"></div>
+            <div class="time">09:00</div>
+            <div class="act-title">Optional boutique shopping in the fort</div>
+            <div class="act-desc">Antiques, tea, batik.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">11:00</div>
+            <div class="act-title">Check-out, express coastal highway transfer</div>
+            <div class="act-desc">To Colombo airport (~2.5 hrs).</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-amber"></div>
+            <div class="time">En route</div>
+            <div class="act-title">Farewell fine dining lunch stop in Bentota</div>
+            <div class="act-desc">Last taste of Sri Lanka.</div>
+            <div class="ticket-pill">$25/person incl.</div>
+          </div>
+          <div class="timeline-item reveal-item">
+            <div class="timeline-dot dot-blue"></div>
+            <div class="time">15:30+</div>
+            <div class="act-title">VIP airport departure</div>
+            <div class="act-desc">Check-in facilitation, lounge access, farewell gift.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="hotels">
+    <h2 class="section-title">Signature Hotel Portfolio</h2>
+    <div class="hotel-grid">
+      <!-- Hotel 1 -->
+      <div class="hotel-card reveal">
+        <div class="hotel-img" style="background-image: url('https://images.unsplash.com/photo-1566073771259-6a8506099945')"></div>
+        <div class="hotel-body">
+          <div class="hotel-stars">★★★★★</div>
+          <h3 class="hotel-name">Shangri-La Colombo</h3>
+          <div class="hotel-loc">Colombo</div>
+          <div class="hotel-room">Deluxe Ocean View King</div>
+          <div class="hotel-rate">$185 / night</div>
+          <ul class="hotel-bullets">
+            <li>Indian Ocean views, 541 rooms</li>
+            <li>CHI Spa</li>
+            <li>3 restaurants including Shang Palace</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Hotel 2 -->
+      <div class="hotel-card reveal">
+        <div class="hotel-img" style="background-image: url('https://images.unsplash.com/photo-1582719478250-c89cae4dc85b')"></div>
+        <div class="hotel-body">
+          <div class="hotel-stars">★★★★★</div>
+          <h3 class="hotel-name">Jetwing Vil Uyana</h3>
+          <div class="hotel-loc">Sigiriya</div>
+          <div class="hotel-room">Forest Dwelling Villa</div>
+          <div class="hotel-rate">$295 / night</div>
+          <ul class="hotel-bullets">
+            <li>Private wetland reserve</li>
+            <li>Butler assigned</li>
+            <li>Steps from Sigiriya, Ayurvedic spa</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Hotel 3 -->
+      <div class="hotel-card reveal">
+        <div class="hotel-img" style="background-image: url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4')"></div>
+        <div class="hotel-body">
+          <div class="hotel-stars">★★★★★</div>
+          <h3 class="hotel-name">Heritance Kandy</h3>
+          <div class="hotel-loc">Kandy</div>
+          <div class="hotel-room">Superior Lake View</div>
+          <div class="hotel-rate">$165 / night</div>
+          <ul class="hotel-bullets">
+            <li>Perched above Kandy Lake</li>
+            <li>Panoramic views</li>
+            <li>Kandyan heritage dining</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Hotel 4 -->
+      <div class="hotel-card reveal">
+        <div class="hotel-img" style="background-image: url('https://images.unsplash.com/photo-1445019980597-93fa8acb246c')"></div>
+        <div class="hotel-body">
+          <div class="hotel-stars">★★★★★</div>
+          <h3 class="hotel-name">Heritance Tea Factory</h3>
+          <div class="hotel-loc">Kandapola</div>
+          <div class="hotel-room">Heritage Room</div>
+          <div class="hotel-rate">$150 / night</div>
+          <ul class="hotel-bullets">
+            <li>Converted Victorian tea factory at 2,200m</li>
+            <li>On-site working tea estate</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Hotel 5 -->
+      <div class="hotel-card reveal">
+        <div class="hotel-img" style="background-image: url('https://images.unsplash.com/photo-1542314831-c6a4d14d8c53')"></div>
+        <div class="hotel-body">
+          <div class="hotel-stars">★★★★★</div>
+          <h3 class="hotel-name">Amangalla</h3>
+          <div class="hotel-loc">Galle Fort</div>
+          <div class="hotel-room">Chamber</div>
+          <div class="hotel-rate">$380 / night</div>
+          <ul class="hotel-bullets">
+            <li>Aman property inside 17th-century Dutch fort walls</li>
+            <li>Colonial grandeur</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="inclusions">
+    <h2 class="section-title">What's Included</h2>
+    <div class="inclusions-grid">
+      <div class="inc-item reveal">
+        <div class="inc-icon">🍽️</div>
+        <div class="inc-text">Half-board dining (breakfast + dinner)</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">🥂</div>
+        <div class="inc-text">Daily curated fine lunch</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">🚙</div>
+        <div class="inc-text">Premium SUV + chauffeur 8 days</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">💆</div>
+        <div class="inc-text">Daily couples spa</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">🎟️</div>
+        <div class="inc-text">All site entrance tickets</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">🧭</div>
+        <div class="inc-text">Private expert guides</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">📱</div>
+        <div class="inc-text">24/7 concierge</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">✈️</div>
+        <div class="inc-text">Express VIP airport transfers</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">📅</div>
+        <div class="inc-text">Pre-arranged reservations</div>
+      </div>
+      <div class="inc-item reveal">
+        <div class="inc-icon">🎁</div>
+        <div class="inc-text">Farewell gift</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <h2 class="section-title">Pricing Breakdown</h2>
+    <div class="pricing-table-container reveal">
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Calculation</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Signature Resorts & Hotels</td>
+            <td>$150 × 2 persons × 7 nights</td>
+            <td>$2,100</td>
+          </tr>
+          <tr>
+            <td>Premium SUV, Fuel & Driver</td>
+            <td>$150 × 8 days</td>
+            <td>$1,200</td>
+          </tr>
+          <tr>
+            <td>Curated Fine Dining Lunches</td>
+            <td>$25 × 2 persons × 8 days</td>
+            <td>$400</td>
+          </tr>
+          <tr>
+            <td>Daily Wellness & Spa</td>
+            <td>$100 × 2 persons × 7 nights</td>
+            <td>$1,400</td>
+          </tr>
+          <tr>
+            <td>Elite Guides & Site Access</td>
+            <td>$25 × 8 days</td>
+            <td>$200</td>
+          </tr>
+          <tr>
+            <td>Invisible Concierge & Precision Logistics</td>
+            <td>Seamless transfers, 24/7 support</td>
+            <td>$250</td>
+          </tr>
+          <tr>
+            <td>Agency Planning & Service Fee</td>
+            <td>20%</td>
+            <td>$1,110</td>
+          </tr>
+          <tr>
+            <td>Government Tax</td>
+            <td>18% VAT</td>
+            <td>$1,199</td>
+          </tr>
+          <tr class="total-row">
+            <td>Estimated Grand Total</td>
+            <td>2 Persons · 7 Nights</td>
+            <td>$7,859</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="price-note">Rates are indicative for 2025/2026 season. Peak season (Dec–Mar) may vary.<br>All site entrance fees are included within the Elite Guides & Logistics budget.</p>
+    </div>
+  </section>
+
+  <footer>
+    <h2>Ready to experience the real Ceylon?</h2>
+    <p>Our concierge is available 24/7 to personalise this journey for you.</p>
+    <div class="footer-btns">
+      <a href="#" class="btn">Request a Quote</a>
+      <a href="#" class="btn btn-outline" onclick="window.print()">Download PDF</a>
+    </div>
+    <div class="footer-rule"></div>
+  </footer>
+
+  <div class="back-to-top" id="backToTop" onclick="window.scrollTo(0,0)">↑</div>
+
+  <script>
+    // Intersection Observer for scroll animations
+    document.addEventListener('DOMContentLoaded', () => {
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: "0px 0px -50px 0px"
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            
+            // If it's a day card, stagger the timeline items inside
+            const timelineItems = entry.target.querySelectorAll('.reveal-item');
+            if (timelineItems.length > 0) {
+              timelineItems.forEach((item, index) => {
+                setTimeout(() => {
+                  item.classList.add('visible');
+                }, 150 * index);
+              });
+            }
+            observer.unobserve(entry.target);
+          }
+        });
+      }, observerOptions);
+
+      document.querySelectorAll('.reveal').forEach(el => {
+        observer.observe(el);
+      });
+
+      // Back to top button logic
+      const backToTop = document.getElementById('backToTop');
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 500) {
+          backToTop.classList.add('visible');
+        } else {
+          backToTop.classList.remove('visible');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

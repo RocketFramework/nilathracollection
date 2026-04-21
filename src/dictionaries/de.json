@@ -693,8 +693,7 @@
                     "category": "Premium-Logistik",
                     "items": [
                         "Privater Premium-SUV & flexibler Fahrer-Support",
-                        "Engagierter englischsprachiger National-Guide",
-                        "Persönlicher Butler-Service (pro Unterkunft)",
+                        "Englischsprachige National-Guides",
                         "Begrüßung bei Ankunft & Abreise am Flughafen",
                         "Alle inländischen Maut- & Parkgebühren",
                         "Tägliches Erfrischungspaket (Gekühlt)"
@@ -714,8 +713,6 @@
                     "category": "Wellness & Erholung",
                     "items": [
                         "Tägliche ayurvedische oder balinesische Spa-Sitzung",
-                        "Private Yoga- oder Meditationssitzungen",
-                        "Zugang zu Luxus-Pools & Beach Clubs",
                         "Dedizierter Kundenbetreuer auf der Reise (24/7)",
                         "Alle lokalen Steuern & Servicegebühren inklusive"
                     ]
@@ -753,7 +750,7 @@
                 "meals": "Kuratierte Fine-Dining",
                 "wellness": "Tägliche Wellness & Zugang",
                 "experiences": "Elite-Guides & Zugang",
-                "logistics": "Reibungslose Logistik",
+                "logistics": "Unsichtbarer Concierge & Präzisionslogistik (Nahtlose Transfers, Perfekte Zeitkoordination, Alles vorab arrangiert,\n24/7 Concierge verfügbar, Kein administrativer Aufwand)",
                 "agency": "Agenturplanungs- & Servicegebühr",
                 "vat": "Staatliche Steuer (18% MwSt.)",
                 "total": "Geschätzte Gesamtsumme",
