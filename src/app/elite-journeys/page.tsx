@@ -787,13 +787,13 @@ export default function EliteJourneysPage() {
                         <h2 className="section-title">Your Private Transport</h2>
                         <div className="flex flex-col md:flex-row items-center gap-12 bg-white p-8 md:p-12 rounded-xl shadow-[0_4px_20px_rgba(12,35,64,0.03)] border border-neutral-100 reveal">
                             <div className="w-full md:w-1/2 flex justify-center">
-                                {/* Replace the src below once you save the Land Cruiser image to your public folder */}
-                                <img src="/images/elite-suv.png" alt="Land Cruiser 300 2025 Grade 01" className="w-full max-w-md h-auto object-contain drop-shadow-2xl" />
+                                {/* Replace the src below once you save the Prado 150 image to your public folder */}
+                                <img src="/images/elite-suv.png" alt="Toyota Prado 150" className="w-full max-w-md h-auto object-contain drop-shadow-2xl" />
                             </div>
                             <div className="w-full md:w-1/2">
-                                <h3 className="text-3xl font-serif text-[#0C2340] mb-4">Land Cruiser 300 2025 Grade 01</h3>
+                                <h3 className="text-3xl font-serif text-[#0C2340] mb-4">Toyota Prado 150</h3>
                                 <p className="text-[#555555] mb-6 leading-relaxed">
-                                    This 381-horsepower, 4-wheel drive SUV is available from amongst our range of car rentals Sri Lanka. Cruise in style with the ultimate Toyota SUV, Land Cruiser V8. Experience the beautiful landscapes in absolute comfort with your dedicated, highly experienced English-speaking chauffeur.
+                                    This rugged yet luxurious 4-wheel drive SUV is available from amongst our range of premium vehicles in Sri Lanka. Cruise in style with the versatile Toyota Prado 150. Experience the beautiful landscapes in absolute comfort with your dedicated, highly experienced English-speaking chauffeur.
                                 </p>
                                 <ul className="space-y-4 text-sm text-[#555555]">
                                     <li className="flex items-start gap-3"><Check size={18} className="text-[#C9A84C] mt-0.5" /> <span><strong>Spacious Luxury:</strong> Premium leather interior with dual-zone climate control and ample legroom.</span></li>
