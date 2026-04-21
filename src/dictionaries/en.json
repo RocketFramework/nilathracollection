@@ -722,6 +722,38 @@
                 "btn": "Initiate Luxury Consultation",
                 "sub": "expert planning assigned upon request"
             },
+            "samples": {
+                "title": "Curated Luxury Samples",
+                "desc": "Explore our hand-crafted, fully customizable sample itineraries designed exclusively for the Luxury Collection.",
+                "view_btn": "View Itinerary",
+                "inq_btn": "Request Details",
+                "items": [
+                    {
+                        "title": "Elite Journeys (The Sapphire Edition)",
+                        "duration": "7 Nights · 8 Days (2 Travelers)",
+                        "price_per_day": "$650",
+                        "total_price": "$10,400 total",
+                        "highlights": "Cultural Triangle, Highlanders & Coastal Heritage, Sigiriya Lion Rock, Aman Resorts, Private SUV",
+                        "link": "/elite-journeys"
+                    },
+                    {
+                        "title": "Wild Ceylon & Seclusion",
+                        "duration": "10 Nights · 11 Days (2 Travelers)",
+                        "price_per_day": "$1,000",
+                        "total_price": "$22,000 total",
+                        "highlights": "Sigiriya Stopover, Hot Air Balloon, Exclusive Wildlife Lodges, Private Leopard Safari in Yala (Relais & Châteaux), Seaplane Transfers, Boutique Beach Villa",
+                        "link": "/contact?plan=luxury&nights=10&travelers=2"
+                    },
+                    {
+                        "title": "The Imperial Helicopter Route",
+                        "duration": "5 Nights · 6 Days (2 Travelers)",
+                        "price_per_day": "$1,500",
+                        "total_price": "$18,000 total",
+                        "highlights": "Charter Helicopter across the island, Ceylon Tea Trails Master Suite, Private Chef Dining, Private Catamaran",
+                        "link": "/contact?plan=luxury&nights=5&travelers=2"
+                    }
+                ]
+            },
             "transparency": {
                 "title": "Pricing Transparency",
                 "desc_estimate": "The rate provided is an estimate meant to give you a clear baseline for your journey. The final package price is entirely bespoke and will vary based on:",

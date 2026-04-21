@@ -722,6 +722,38 @@
                 "btn": "Luxusberatung initiieren",
                 "sub": "Expertenplanung auf Anfrage zugewiesen"
             },
+            "samples": {
+                "title": "Kuratierte Luxus-Beispiele",
+                "desc": "Entdecken Sie unsere handgefertigten, vollständig anpassbaren Beispielreiserouten, die exklusiv für die Luxury Collection entworfen wurden.",
+                "view_btn": "Reiseroute Ansehen",
+                "inq_btn": "Details Anfragen",
+                "items": [
+                    {
+                        "title": "Elite Journeys (Die Saphir-Edition)",
+                        "duration": "7 Nächte · 8 Tage (2 Reisende)",
+                        "price_per_day": "$650",
+                        "total_price": "$10,400 gesamt",
+                        "highlights": "Kulturdreieck, Hochland & Küstenerbe, Löwenfelsen Sigiriya, Aman Resorts, Privater SUV",
+                        "link": "/elite-journeys"
+                    },
+                    {
+                        "title": "Wildes Ceylon & Abgeschiedenheit",
+                        "duration": "10 Nächte · 11 Tage (2 Reisende)",
+                        "price_per_day": "$1,000",
+                        "total_price": "$22,000 gesamt",
+                        "highlights": "Zwischenstopp in Sigiriya, Heißluftballon, Exklusive Wildlife Lodges, Private Leoparden-Safari in Yala (Relais & Châteaux), Wasserflugzeug-Transfers, Boutique-Strandvilla",
+                        "link": "/contact?plan=luxury&nights=10&travelers=2"
+                    },
+                    {
+                        "title": "Die Imperiale Hubschrauber-Route",
+                        "duration": "5 Nächte · 6 Tage (2 Reisende)",
+                        "price_per_day": "$1,500",
+                        "total_price": "$18,000 gesamt",
+                        "highlights": "Charter-Hubschrauber über die Insel, Ceylon Tea Trails Master Suite, Private Chef Dining, Privater Katamaran",
+                        "link": "/contact?plan=luxury&nights=5&travelers=2"
+                    }
+                ]
+            },
             "transparency": {
                 "title": "Preistransparenz",
                 "desc_estimate": "Der angegebene Preis ist ein Richtwert, um Ihnen eine klare Basis für Ihre Reise zu geben. Der endgültige Paketpreis ist komplett maßgeschneidert und variiert je nach:",

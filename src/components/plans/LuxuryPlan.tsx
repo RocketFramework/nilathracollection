@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useTranslation } from "@/components/I18nProvider";
 import {
+    ArrowRight,
     Check,
     Info,
     Sparkles,
@@ -40,14 +41,14 @@ export default function LuxuryPlan() {
     const meals = 25 * days * travelers;
     // 100$ per day per head - Daily Wellness & Access
     const wellness = 100 * nights * travelers;
-    // 25$ per day for the group - elite guides and access
-    const experiences = 25 * days;
+    // 40$ per day for the group - elite guides and access
+    const experiences = 40 * days;
 
     // Subtotal before tax and markup
     const baseCost = accommodation + transport + meals + wellness + experiences;
 
     // Fixed round logistics parameter as requested
-    const logistics = 250;
+    const logistics = 500;
 
     // Bottom-Up Build Sequence
     const totalCosts = baseCost + logistics;
@@ -176,6 +177,52 @@ export default function LuxuryPlan() {
                 </div>
             </div>
 
+            {/* Curated Samples Section */}
+            {tLux.samples && (
+                <div className="bg-white py-32 px-6 md:px-12 border-t border-neutral-100">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="text-center mb-20">
+                            <h2 className="text-4xl md:text-6xl font-serif text-logo-blue mb-6">{tLux.samples.title}</h2>
+                            <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
+                                {tLux.samples.desc}
+                            </p>
+                        </div>
+                        <div className="grid lg:grid-cols-3 gap-8">
+                            {tLux.samples.items.map((sample: any, idx: number) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    viewport={{ once: true }}
+                                    className="bg-neutral-50 rounded-3xl p-10 border border-neutral-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group flex flex-col"
+                                >
+                                    <div className="text-[10px] uppercase tracking-[0.2em] font-black text-brand-gold mb-4">Sample Itinerary 0{idx + 1}</div>
+                                    <h3 className="text-2xl font-serif text-logo-blue mb-4">{sample.title}</h3>
+                                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-neutral-500 mb-8 pb-8 border-b border-neutral-200">
+                                        <Clock size={14} className="text-brand-gold" /> {sample.duration}
+                                    </div>
+                                    <div className="mb-8 flex-grow">
+                                        <div className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2">Highlights</div>
+                                        <p className="text-sm text-neutral-600 leading-relaxed font-medium">{sample.highlights}</p>
+                                    </div>
+                                    <div className="flex items-end justify-between mt-auto pt-8 border-t border-neutral-200">
+                                        <div>
+                                            <div className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Per Person</div>
+                                            <div className="text-2xl font-serif text-logo-blue">{sample.price_per_day} <span className="text-sm font-sans font-medium text-neutral-500">/ day</span></div>
+                                            <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-1">{sample.total_price}</div>
+                                        </div>
+                                        <Link href={sample.link} className="w-12 h-12 rounded-full bg-white border border-neutral-200 flex items-center justify-center text-logo-blue group-hover:bg-logo-blue group-hover:text-white group-hover:border-logo-blue transition-all">
+                                            <ArrowRight size={18} />
+                                        </Link>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Experience Roadmap - The Sapphire Route */}
             <div className="bg-neutral-50 border-y border-neutral-100 py-32 overflow-hidden">
                 <div className="max-w-7xl mx-auto px-6 md:px-12">
@@ -297,8 +344,8 @@ export default function LuxuryPlan() {
                                                 { label: `${tLux.math_labels?.transport || "Premium SUV, Fuel & Driver"} ($150 × ${days} ${tLux.math_labels?.days || "Days"})`, value: pricing.breakdown.transport },
                                                 { label: `${tLux.math_labels?.meals || "Curated Fine Dining"} ($25 × ${travelers} × ${days} ${tLux.math_labels?.days || "Days"})`, value: pricing.breakdown.meals },
                                                 { label: `${tLux.math_labels?.wellness || "Daily Wellness & Access"} ($100 × ${travelers} × ${nights} ${tLux.math_labels?.nights || "Nights"})`, value: pricing.breakdown.wellness },
-                                                { label: `${tLux.math_labels?.experiences || "Elite Guides & Access"} ($25 × ${days} ${tLux.math_labels?.days || "Days"})`, value: pricing.breakdown.experiences },
-                                                { label: tLux.math_labels?.logistics || "Zero-friction Logistics", value: pricing.breakdown.logistics },
+                                                { label: `${tLux.math_labels?.experiences || "Elite Guides & Access"} ($40 × ${days} ${tLux.math_labels?.days || "Days"})`, value: pricing.breakdown.experiences },
+                                                { label: tLux.math_labels?.logistics || "Invisible Concierge & Precision Logistics", value: pricing.breakdown.logistics },
                                                 { label: `${tLux.math_labels?.agency || "Agency Planning & Service Fee"} (${pricing.breakdown.markupPct}%)`, value: pricing.breakdown.markup },
                                                 { label: tLux.math_labels?.vat || "Government Tax (18% VAT)", value: pricing.breakdown.vat },
                                                 { label: tLux.math_labels?.total || "Estimated Grand Total", value: pricing.total },
@@ -405,8 +452,6 @@ export default function LuxuryPlan() {
                                 <div className="mt-6 w-full">
                                     <Link
                                         href="/elite-journeys"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
                                         className="w-full flex items-center justify-center gap-3 bg-white border border-brand-gold hover:bg-brand-gold/5 text-brand-gold py-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-md active:scale-[0.98] text-center group"
                                     >
                                         <Compass size={18} className="group-hover:rotate-45 transition-transform duration-300" />

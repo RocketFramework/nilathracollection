@@ -303,6 +303,7 @@ export default function ContactPage() {
                                                     className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 outline-none focus:border-brand-gold transition-colors appearance-none"
                                                 >
                                                     <option>Super Luxury VIP Experience</option>
+                                                    <option>Luxury - Signature Ceylon Experience</option>
                                                     <option>Ultra VIP Plan</option>
                                                     <option>Luxury Plan</option>
                                                     <option>Premium Plan</option>

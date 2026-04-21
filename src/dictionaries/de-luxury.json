@@ -5,7 +5,7 @@
     "desc_2": "mit 5-Sterne-Komfort und professioneller lokaler Expertise.",
     "quote": {
         "sig": "Aushängeschild Angebot",
-        "sig_det": "7 Nächte · 2 Reisende",
+        "sig_det": "2 Reisende",
         "daily": "Tägliche Investition",
         "daily_det": "Pro Person / Pro Tag"
     },
@@ -301,5 +301,37 @@
     "cta": {
         "btn": "Luxusberatung initiieren",
         "sub": "Expertenplanung auf Anfrage zugewiesen"
+    },
+    "samples": {
+        "title": "Kuratierte Luxus-Beispiele",
+        "desc": "Entdecken Sie unsere handgefertigten, vollständig anpassbaren Beispielreiserouten, die exklusiv für die Luxury Collection entworfen wurden.",
+        "view_btn": "Reiseroute Ansehen",
+        "inq_btn": "Details Anfragen",
+        "items": [
+            {
+                "title": "Elite Journeys (Die Saphir-Edition)",
+                "duration": "7 Nächte · 8 Tage (2 Reisende)",
+                "price_per_day": "$550",
+                "total_price": "$10,392 gesamt",
+                "highlights": "Kulturdreieck, Hochland & Küstenerbe, Löwenfelsen Sigiriya, Heißluftballon, Aman Resorts, Privater SUV",
+                "link": "/elite-journeys"
+            },
+            {
+                "title": "Wildes Ceylon & Abgeschiedenheit",
+                "duration": "10 Nächte · 11 Tage (2 Reisende)",
+                "price_per_day": "$850",
+                "total_price": "$18,700 gesamt",
+                "highlights": "Exklusive Wildlife Lodges, Private Leoparden-Safari in Yala (Relais & Châteaux), Wasserflugzeug-Transfers, Boutique-Strandvilla",
+                "link": "/contact?plan=luxury&nights=10&travelers=2"
+            },
+            {
+                "title": "Die Imperiale Hubschrauber-Route",
+                "duration": "5 Nächte · 6 Tage (2 Reisende)",
+                "price_per_day": "$1,400",
+                "total_price": "$16,800 gesamt",
+                "highlights": "Charter-Hubschrauber über die Insel, Ceylon Tea Trails Master Suite, Private Chef Dining, Privater Katamaran",
+                "link": "/contact?plan=luxury&nights=5&travelers=2"
+            }
+        ]
     }
 }

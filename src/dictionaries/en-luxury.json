@@ -5,7 +5,7 @@
     "desc_2": "featuring 5-star comfort and professional local expertise.",
     "quote": {
         "sig": "Flagship Quote",
-        "sig_det": "7 Nights · 2 Travelers",
+        "sig_det": "2 Travelers",
         "daily": "Daily Investment",
         "daily_det": "Per Person / Per Day"
     },
@@ -301,5 +301,37 @@
     "cta": {
         "btn": "Initiate Luxury Consultation",
         "sub": "expert planning assigned upon request"
+    },
+    "samples": {
+        "title": "Curated Luxury Samples",
+        "desc": "Explore our hand-crafted, fully customizable sample itineraries designed exclusively for the Luxury Collection.",
+        "view_btn": "View Itinerary",
+        "inq_btn": "Request Details",
+        "items": [
+            {
+                "title": "Elite Journeys (The Sapphire Edition)",
+                "duration": "7 Nights · 8 Days (2 Travelers)",
+                "price_per_day": "$550",
+                "total_price": "$10,392 total",
+                "highlights": "Cultural Triangle, Highlanders & Coastal Heritage, Sigiriya Lion Rock, Hot Air Balloon, Aman Resorts, Private SUV",
+                "link": "/elite-journeys"
+            },
+            {
+                "title": "Wild Ceylon & Seclusion",
+                "duration": "10 Nights · 11 Days (2 Travelers)",
+                "price_per_day": "$850",
+                "total_price": "$18,700 total",
+                "highlights": "Exclusive Wildlife Lodges, Private Leopard Safari in Yala (Relais & Châteaux), Seaplane Transfers, Boutique Beach Villa",
+                "link": "/contact?plan=luxury&nights=10&travelers=2"
+            },
+            {
+                "title": "The Imperial Helicopter Route",
+                "duration": "5 Nights · 6 Days (2 Travelers)",
+                "price_per_day": "$1,400",
+                "total_price": "$16,800 total",
+                "highlights": "Charter Helicopter across the island, Ceylon Tea Trails Master Suite, Private Chef Dining, Private Catamaran",
+                "link": "/contact?plan=luxury&nights=5&travelers=2"
+            }
+        ]
     }
 }
