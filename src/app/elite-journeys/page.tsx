@@ -255,7 +255,7 @@ export default function EliteJourneysPage() {
                                 <div className="pill">HB + Lunch Daily</div>
                                 <div className="pill">8 Days Chauffeured</div>
                             </div>
-                            <a href="#pricing" className="ej-btn">Request This Journey</a>
+                            <Link href="/contact?plan=elite-journey&nights=8&travelers=2&budget=10400" className="ej-btn">Request This Journey</Link>
                         </div>
                     </header>
 

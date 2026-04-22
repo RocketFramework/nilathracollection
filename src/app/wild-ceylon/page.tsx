@@ -261,7 +261,7 @@ export default function WildCeylonPage() {
                                 <div className="text-4xl md:text-5xl font-serif font-bold text-brand-gold">$29,700</div>
                             </div>
 
-                            <Link href="/contact?plan=luxury&nights=10&travelers=2" className="ej-btn">Request This Journey</Link>
+                            <Link href="/contact?plan=luxury&nights=11&travelers=2&budget=29700" className="ej-btn">Request This Journey</Link>
                         </div>
                     </header>
 
@@ -1074,7 +1074,7 @@ export default function WildCeylonPage() {
                     </section>
                     
                     <div className="text-center mt-20 mb-10 reveal">
-                        <Link href="/contact?plan=luxury&nights=10&travelers=2" className="ej-btn text-lg py-5 px-10">Request This Journey</Link>
+                        <Link href="/contact?plan=luxury&nights=11&travelers=2&budget=29700" className="ej-btn text-lg py-5 px-10">Request This Journey</Link>
                     </div>
                 </div>
             </div>

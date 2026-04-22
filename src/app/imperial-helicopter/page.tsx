@@ -279,7 +279,7 @@ export default function ImperialHelicopterPage() {
                                 <div className="text-4xl md:text-5xl font-serif font-bold text-brand-gold">$2,000 per person / day</div>
                             </div>
 
-                            <Link href="/contact?plan=luxury&nights=5&travelers=4" className="ej-btn">Request This Journey</Link>
+                            <Link href="/contact?plan=imperial-helicopter&nights=6&travelers=4&budget=48000" className="ej-btn">Request This Journey</Link>
                         </div>
                     </header>
 

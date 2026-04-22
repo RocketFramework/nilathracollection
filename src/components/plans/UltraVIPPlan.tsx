@@ -34,19 +34,19 @@ export default function UltraVIPPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 15000; // Ultimate UHNW flagship rate
+    const nightRatePerPerson = 5000; // Ultra VIP flagship rate per person per day
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {
         total: total,
         perNight: nightRatePerPerson,
         breakdown: {
-            accommodation: 7000 * nights * travelers, // Private Estate Buyout & Full Staff
-            transport: 3500 * nights * travelers, // Private Jet/Heli Fleet & 24/7 Security Detail
-            meals: 1500 * nights * travelers, // Bespoke Culinary, Dedicated 6-Member Chef Team (24/7)
-            wellness: 1200 * nights * travelers, // Dedicated Medical, Spa & Spiritual Team
-            experiences: 1000 * nights * travelers, // Masterclasses, Private Access & Custom Jewelry
-            logistics: 800 * nights * travelers // Jet-side Clearance & Absolute NDA Protocols
+            accommodation: 2333 * nights * travelers, // Private Estate Buyout & Full Staff
+            transport: 1167 * nights * travelers, // Private Jet/Heli Fleet & 24/7 Security Detail
+            meals: 500 * nights * travelers, // Bespoke Culinary, Dedicated 6-Member Chef Team (24/7)
+            wellness: 400 * nights * travelers, // Dedicated Medical, Spa & Spiritual Team
+            experiences: 333 * nights * travelers, // Masterclasses, Private Access & Custom Jewelry
+            logistics: 267 * nights * travelers // Jet-side Clearance & Absolute NDA Protocols
         }
     };
 

@@ -34,10 +34,13 @@ export default function ContactPage() {
             const plan = params.get("plan");
             const nights = params.get("nights");
             const travelers = params.get("travelers");
+            const budget = params.get("budget");
 
             setForm(prev => {
                 let inquiryType = prev.inquiryType;
                 if (plan === "ultra-vip") inquiryType = "Ultra VIP Plan";
+                else if (plan === "imperial-helicopter") inquiryType = "The Imperial Helicopter Route";
+                else if (plan === "elite-journey") inquiryType = "Luxury - Signature Ceylon Experience";
                 else if (plan === "luxury") inquiryType = "Luxury Plan";
                 else if (plan === "premium") inquiryType = "Premium Plan";
                 else if (plan === "regular") inquiryType = "Regular Plan";
@@ -47,7 +50,8 @@ export default function ContactPage() {
                     ...prev,
                     inquiryType,
                     durationNights: nights ? parseInt(nights) || prev.durationNights : prev.durationNights,
-                    adults: travelers ? parseInt(travelers) || prev.adults : prev.adults
+                    adults: travelers ? parseInt(travelers) || prev.adults : prev.adults,
+                    budget: budget ? parseInt(budget) || prev.budget : prev.budget
                 };
             });
         }
@@ -231,7 +235,7 @@ export default function ContactPage() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Duration (Nights)</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Duration (Days)</label>
                                                 <input
                                                     type="number"
                                                     min={1}
@@ -303,6 +307,7 @@ export default function ContactPage() {
                                                     className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 outline-none focus:border-brand-gold transition-colors appearance-none"
                                                 >
                                                     <option>Super Luxury VIP Experience</option>
+                                                    <option>The Imperial Helicopter Route</option>
                                                     <option>Luxury - Signature Ceylon Experience</option>
                                                     <option>Ultra VIP Plan</option>
                                                     <option>Luxury Plan</option>
