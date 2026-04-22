@@ -343,7 +343,7 @@ export default function WildCeylonPage() {
                             <div className="day-right">
                                 <div className="day-header">
                                     <h3 className="day-title">Colombo → Sigiriya · Rock Country Begins</h3>
-                                    <p className="day-meta"><strong>Hotel:</strong> Jetwing Vil Uyana · Forest Dwelling Villa · $500/night</p>
+                                    <p className="day-meta"><strong>Hotel:</strong> Heritance Kandalama · Royal Suite · $500/night</p>
                                 </div>
                                 <div className="timeline">
                                     <div className="timeline-item reveal-item">
@@ -367,8 +367,8 @@ export default function WildCeylonPage() {
                                     <div className="timeline-item reveal-item">
                                         <div className="timeline-dot dot-blue"></div>
                                         <div className="time">15:30</div>
-                                        <div className="act-title">Check-in Jetwing Vil Uyana</div>
-                                        <div className="act-desc">Butler assigned, wetland villa on stilts above a private nature reserve.</div>
+                                        <div className="act-title">Check-in Heritance Kandalama</div>
+                                        <div className="act-desc">Geoffrey Bawa architectural masterpiece blending into the jungle cliffside.</div>
                                     </div>
                                     <div className="timeline-item reveal-item">
                                         <div className="timeline-dot dot-purple"></div>
@@ -395,7 +395,7 @@ export default function WildCeylonPage() {
                             <div className="day-right">
                                 <div className="day-header">
                                     <h3 className="day-title">Sigiriya · Rock Fortress + Elephant Gathering</h3>
-                                    <p className="day-meta"><strong>Hotel:</strong> Jetwing Vil Uyana · Forest Dwelling Villa · $500/night</p>
+                                    <p className="day-meta"><strong>Hotel:</strong> Heritance Kandalama · Royal Suite · $500/night</p>
                                 </div>
                                 <div className="timeline">
                                     <div className="timeline-item reveal-item">
@@ -407,7 +407,7 @@ export default function WildCeylonPage() {
                                     <div className="timeline-item reveal-item">
                                         <div className="timeline-dot dot-amber"></div>
                                         <div className="time">09:00</div>
-                                        <div className="act-title">Return breakfast at Vil Uyana (HB)</div>
+                                        <div className="act-title">Return breakfast at Heritance Kandalama (HB)</div>
                                         <div className="act-desc">Refresh after the morning ascent.</div>
                                     </div>
                                     <div className="timeline-item reveal-item">
@@ -441,7 +441,7 @@ export default function WildCeylonPage() {
                             <div className="day-right">
                                 <div className="day-header">
                                     <h3 className="day-title">Sigiriya · Hot Air Balloon at Sunrise</h3>
-                                    <p className="day-meta"><strong>Hotel:</strong> Jetwing Vil Uyana · Forest Dwelling Villa · $500/night</p>
+                                    <p className="day-meta"><strong>Hotel:</strong> Heritance Kandalama · Royal Suite · $500/night</p>
                                 </div>
                                 <div className="timeline">
                                     <div className="timeline-item reveal-item">
@@ -835,7 +835,7 @@ export default function WildCeylonPage() {
                         <h2 className="section-title">Signature Lodge Portfolio</h2>
                         <div className="hotel-grid">
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/hotels/shangri-la-colombo.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/shangri-la-hotel-colombo.jpg')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Shangri-La Colombo</h3>
@@ -851,23 +851,23 @@ export default function WildCeylonPage() {
                             </div>
                             
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/hotels/jetwing-villuyana.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/heritance-kandalama.jpg')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
-                                    <h3 className="hotel-name">Jetwing Vil Uyana</h3>
+                                    <h3 className="hotel-name">Heritance Kandalama</h3>
                                     <div className="hotel-loc">Sigiriya</div>
-                                    <div className="hotel-room">Forest Dwelling Villa</div>
+                                    <div className="hotel-room">Royal Suite</div>
                                     <div className="hotel-rate">$500 / night</div>
                                     <ul className="hotel-bullets">
-                                        <li>Private wetland reserve, butler assigned</li>
-                                        <li>Steps from Sigiriya Rock Fortress</li>
-                                        <li>Ayurvedic spa</li>
+                                        <li>Iconic Geoffrey Bawa architecture</li>
+                                        <li>Panoramic views of Kandalama Lake and Sigiriya Rock</li>
+                                        <li>Six Senses Spa</li>
                                     </ul>
                                 </div>
                             </div>
 
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1518331560935-7c0ab58296a6?q=80')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/wild-coast-tented-lodge.jpg')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Wild Coast Tented Lodge</h3>
@@ -989,7 +989,7 @@ export default function WildCeylonPage() {
                                 <tbody>
                                     <tr>
                                         <td>Signature Resorts, Lodges & Villa (HB)</td>
-                                        <td>10% service fee incl. · Shangri-La $224 (1N) + Vil Uyana $500 (3N) + Wild Coast Tented Lodge $1,000 (3N) + Beach Villa est. $400 (3N) + HB supplement ~$900</td>
+                                        <td>10% service fee incl. · Shangri-La $224 (1N) + Heritance Kandalama $500 (3N) + Wild Coast Tented Lodge $1,000 (3N) + Beach Villa est. $400 (3N) + HB supplement ~$900</td>
                                         <td>$7,458</td>
                                     </tr>
                                     <tr>
