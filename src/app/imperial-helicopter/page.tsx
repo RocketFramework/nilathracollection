@@ -361,7 +361,7 @@ export default function ImperialHelicopterPage() {
                             <div className="day-right">
                                 <div className="day-header">
                                     <h3 className="day-title">Colombo → Kandy · Helicopter Transfer #1</h3>
-                                    <p className="day-meta"><strong>Hotel:</strong> Earl's Regency · Premier Suite · $280/night</p>
+                                    <p className="day-meta"><strong>Hotel:</strong> Mahaweli Reach Hotel · One Bedroom Executive · $180/night</p>
                                 </div>
                                 <div className="timeline">
                                     <div className="timeline-item reveal-item">
@@ -391,8 +391,8 @@ export default function ImperialHelicopterPage() {
                                     <div className="timeline-item reveal-item">
                                         <div className="timeline-dot dot-purple"></div>
                                         <div className="time">15:00</div>
-                                        <div className="act-title">Check-in Earl's Regency</div>
-                                        <div className="act-desc">Premier Suite. Misty Kandy valley views.</div>
+                                        <div className="act-title">Check-in Mahaweli Reach Hotel</div>
+                                        <div className="act-desc">One Bedroom Executive. Set on the banks of the Mahaweli River with sweeping Kandy valley views.</div>
                                     </div>
                                     <div className="timeline-item reveal-item">
                                         <div className="timeline-dot dot-green"></div>
@@ -425,7 +425,7 @@ export default function ImperialHelicopterPage() {
                                     <div className="timeline-item reveal-item">
                                         <div className="timeline-dot dot-amber"></div>
                                         <div className="time">07:00</div>
-                                        <div className="act-title">Breakfast at Earl's Regency (HB)</div>
+                                        <div className="act-title">Breakfast at Mahaweli Reach Hotel (HB)</div>
                                         <div className="act-desc"></div>
                                     </div>
                                     <div className="timeline-item reveal-item">
@@ -652,25 +652,25 @@ export default function ImperialHelicopterPage() {
                             </div>
                             
                             <div className="hotel-card reveal">
-                                {/* [HERO: Earl's Regency Kandy] */}
-                                <div className="hotel-img" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542314831-c6a4d14d8343?q=80')" }}></div>
+                                {/* [Mahaweli Reach Hotel Kandy] */}
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/mawelireach.webp')" }}></div>
                                 <div className="hotel-body">
-                                    <div className="hotel-stars">★★★★★</div>
-                                    <h3 className="hotel-name">Earl's Regency</h3>
+                                    <div className="hotel-stars">★★★★</div>
+                                    <h3 className="hotel-name">Mahaweli Reach Hotel</h3>
                                     <div className="hotel-loc">Kandy</div>
-                                    <div className="hotel-room">Premier Suite</div>
-                                    <div className="hotel-rate">$280 / night</div>
+                                    <div className="hotel-room">One Bedroom Executive</div>
+                                    <div className="hotel-rate">$180 / night</div>
                                     <ul className="hotel-bullets">
-                                        <li>Set in the misty highlands above Kandy</li>
-                                        <li>Expansive free-form swimming pool</li>
-                                        <li>Gateway to the Sacred Temple & Botanical Gardens</li>
+                                        <li>Set on the banks of the Mahaweli River with panoramic valley views</li>
+                                        <li>Outdoor pool and full-service spa overlooking the hills</li>
+                                        <li>Walking distance to the Temple of the Sacred Tooth Relic</li>
                                     </ul>
                                 </div>
                             </div>
 
                             <div className="hotel-card reveal">
                                 {/* [Ceylon Tea Trails Castlereagh Bungalow exterior — colonial veranda, lake view, mist rising] */}
-                                <div className="hotel-img" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1518331560935-7c0ab58296a6?q=80')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/castlereach.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Ceylon Tea Trails — Castlereagh Bungalow</h3>
@@ -800,9 +800,9 @@ export default function ImperialHelicopterPage() {
                                         <td>$1,040</td>
                                     </tr>
                                     <tr>
-                                        <td>Earl's Regency Kandy — Premier Suite</td>
-                                        <td>$280 × 2 rooms × 1 night</td>
-                                        <td>$560</td>
+                                        <td>Mahaweli Reach Hotel Kandy — One Bedroom Executive</td>
+                                        <td>$180 × 2 rooms × 1 night</td>
+                                        <td>$360</td>
                                     </tr>
                                     <tr>
                                         <td>Ceylon Tea Trails — Castlereagh Master Suites</td>
@@ -862,27 +862,27 @@ export default function ImperialHelicopterPage() {
                                     <tr style={{ background: 'rgba(13, 27, 42, 0.03)' }}>
                                         <td style={{ fontWeight: 600 }}>Total Base Cost</td>
                                         <td>Sum of all journey components</td>
-                                        <td style={{ fontWeight: 600 }}>$22,060</td>
+                                        <td style={{ fontWeight: 600 }}>$21,860</td>
                                     </tr>
                                     <tr>
                                         <td>Agency Planning & Service Fee</td>
                                         <td>20% of Total Base Cost</td>
-                                        <td>$4,412</td>
+                                        <td>$4,372</td>
                                     </tr>
                                     <tr style={{ background: 'rgba(13, 27, 42, 0.03)' }}>
                                         <td style={{ fontWeight: 600 }}>Gross Total</td>
                                         <td>Total Base Cost + Agency Fee</td>
-                                        <td style={{ fontWeight: 600 }}>$26,472</td>
+                                        <td style={{ fontWeight: 600 }}>$26,232</td>
                                     </tr>
                                     <tr>
                                         <td>Government Tax</td>
                                         <td>18% VAT applied to Gross Total</td>
-                                        <td>$4,765</td>
+                                        <td>$4,722</td>
                                     </tr>
                                     <tr className="total-row" style={{ background: 'var(--copper)' }}>
                                         <td>Estimated Base Grand Total</td>
                                         <td>4 Persons · 5 Nights · 6 Days</td>
-                                        <td>$31,237</td>
+                                        <td>$30,954</td>
                                     </tr>
                                     <tr className="total-row">
                                         <td>Imperial Package Rate</td>
