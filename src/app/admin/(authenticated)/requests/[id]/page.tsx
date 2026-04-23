@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { ArrowLeft, User, Calendar, MapPin, DollarSign, Briefcase, Mail, Phone, Clock, FileText, CheckCircle } from "lucide-react";
+import { ArrowLeft, User, Calendar, MapPin, DollarSign, Briefcase, Mail, Phone, Clock, FileText } from "lucide-react";
 import Link from "next/link";
-import { getAgentsAction, assignAgentAction, createTourAction } from "@/actions/admin.actions";
+import { getAgentsAction, assignAgentAction, createTourAction, updateRequestStatusAction } from "@/actions/admin.actions";
 
 const supabase = createClient();
 
@@ -14,12 +14,11 @@ export default function RequestDetailsPage() {
     const router = useRouter();
     const requestId = params.id as string;
 
-    // In a real app, retrieve user role securely server-side or via context. Using state for mock implementation.
     const [userRole, setUserRole] = useState<'admin' | 'agent'>('admin');
-
     const [request, setRequest] = useState<any>(null);
     const [agents, setAgents] = useState<{ id: string, first_name: string, last_name: string }[]>([]);
     const [isAssigning, setIsAssigning] = useState(false);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreatingTour, setIsCreatingTour] = useState(false);
     const [actionError, setActionError] = useState('');
@@ -28,8 +27,6 @@ export default function RequestDetailsPage() {
         const fetchRequestDetails = async () => {
             setIsLoading(true);
             try {
-                // Fetch Agents in parallel if we are admin
-                // (In a real app, gating by real role)
                 const agentsRes = await getAgentsAction();
                 if (agentsRes.success && agentsRes.agents) {
                     setAgents(agentsRes.agents);
@@ -71,7 +68,6 @@ export default function RequestDetailsPage() {
         try {
             const res = await assignAgentAction(requestId, agentId);
             if (res.success) {
-                // Optimistically update local state instead of full refetch
                 const selectedAgent = agents.find(a => a.id === agentId);
                 setRequest((prev: any) => ({
                     ...prev,
@@ -95,17 +91,29 @@ export default function RequestDetailsPage() {
         }
     };
 
+    const handleUpdateStatus = async (newStatus: string) => {
+        setIsUpdatingStatus(true);
+        try {
+            const res = await updateRequestStatusAction(requestId, newStatus);
+            if (res.success) {
+                setRequest((prev: any) => ({ ...prev, status: newStatus }));
+            } else {
+                setActionError(res.error || 'Failed to update status');
+            }
+        } catch (error) {
+            console.error(error);
+            setActionError('An error occurred during status update');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
     const handleCreateTour = async () => {
         setIsCreatingTour(true);
         setActionError('');
         try {
-            // This Server Action securely uses AdminService on backend
-            // finds or creates a corresponding tour
-            // and marks request status as Assigned/Active
             const res = await createTourAction(requestId);
-
             if (res.success && res.tourId) {
-                // Redirect to planner using the new tour ID
                 router.push(`/admin/planner?tourId=${res.tourId}`);
             } else {
                 setActionError(res.error || 'Failed to create tour.');
@@ -134,7 +142,7 @@ export default function RequestDetailsPage() {
             <div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center bg-[#F5F3EF] p-6 text-center">
                 <FileText size={48} className="text-neutral-300 mb-4" />
                 <h2 className="text-xl font-bold text-brand-charcoal mb-2">Request Not Found</h2>
-                <p className="text-neutral-500 mb-6 max-w-md">We couldn't locate this request in the database. It may have been deleted.</p>
+                <p className="text-neutral-500 mb-6 max-w-md">We couldn't locate this request in the database.</p>
                 <Link href="/admin/requests" className="bg-brand-gold text-white px-6 py-2.5 rounded-lg hover:bg-[#B3932F] font-medium transition-colors">
                     Back to All Requests
                 </Link>
@@ -154,14 +162,12 @@ export default function RequestDetailsPage() {
         ? `${agentProfile.first_name} ${agentProfile.last_name}`
         : request.agent?.email || 'Unassigned';
 
-    // Business Logic for Action Buttons
     const canCreateTour = userRole === 'admin'
-        ? !!request.admin_assigned_to // Admin can only create if an agent is assigned
-        : request.admin_assigned_to; // Agent can only create if THEY are assigned (simplifying for mock)
+        ? !!request.admin_assigned_to
+        : request.admin_assigned_to;
 
     return (
         <div className="max-w-4xl mx-auto p-6 md:p-10 animate-in fade-in duration-500">
-            {/* Quick role toggle for testing ONLY */}
             <div className="flex gap-2 mb-8 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-xl">
                 <span className="text-sm font-bold text-brand-gold flex items-center mr-4">DEV TOGGLE:</span>
                 <button onClick={() => setUserRole('admin')} className={`px-4 py-1 rounded text-sm font-bold ${userRole === 'admin' ? 'bg-brand-gold text-white' : 'bg-white text-brand-charcoal'}`}>Admin View</button>
@@ -173,17 +179,29 @@ export default function RequestDetailsPage() {
                     <ArrowLeft size={16} /> Back
                 </button>
                 <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${request.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                        request.status === 'Assigned' ? 'bg-blue-100 text-blue-700' :
-                            request.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-neutral-200 text-neutral-700'
-                        }`}>
-                        {request.status}
-                    </span>
+                    <select
+                        value={request.status}
+                        onChange={(e) => handleUpdateStatus(e.target.value)}
+                        disabled={isUpdatingStatus}
+                        className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider outline-none cursor-pointer transition-all border-none ${
+                            request.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                            request.status === 'Assigned' ? 'bg-blue-100 text-blue-700' :
+                            request.status === 'Active' ? 'bg-green-100 text-green-700' : 
+                            request.status === 'Completed' ? 'bg-brand-green text-white' : 
+                            request.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 
+                            'bg-neutral-200 text-neutral-700'
+                        }`}
+                    >
+                        <option value="Pending">Pending</option>
+                        <option value="Assigned">Assigned</option>
+                        <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
                 </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
-                {/* Header Section */}
                 <div className="bg-brand-charcoal text-white p-8">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div>
@@ -201,8 +219,6 @@ export default function RequestDetailsPage() {
                 </div>
 
                 <div className="p-8">
-
-                    {/* Action Panel */}
                     <div className="mb-8 p-6 bg-neutral-50 border border-neutral-100 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h3 className="font-bold text-brand-charcoal mb-1">Tour Planning</h3>
@@ -235,7 +251,6 @@ export default function RequestDetailsPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                        {/* Client Details */}
                         <div>
                             <h3 className="text-lg font-bold text-brand-charcoal mb-4 flex items-center gap-2 border-b border-neutral-100 pb-2">
                                 <User size={18} className="text-brand-gold" /> Client Information
@@ -259,19 +274,9 @@ export default function RequestDetailsPage() {
                                         {touristPhone}
                                     </div>
                                 </div>
-                                {request.departure_country && (
-                                    <div>
-                                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Departure Country</p>
-                                        <div className="flex items-center gap-2 font-medium text-brand-charcoal">
-                                            <MapPin size={14} className="text-neutral-400" />
-                                            {request.departure_country}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
-                        {/* Trip Requirements */}
                         <div>
                             <h3 className="text-lg font-bold text-brand-charcoal mb-4 flex items-center gap-2 border-b border-neutral-100 pb-2">
                                 <Briefcase size={18} className="text-brand-gold" /> Trip Requirements
@@ -289,38 +294,22 @@ export default function RequestDetailsPage() {
                                     <div className="font-medium text-brand-charcoal text-sm">
                                         {details.adults || request.adults || 0} Adults
                                         {(details.children > 0 || request.children > 0) && `, ${details.children || request.children} Kids`}
-                                        {request.infants > 0 && `, ${request.infants} Infants`}
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Estimated Budget</p>
-                                    <div className="flex items-center gap-1 font-medium text-brand-charcoal text-sm">
-                                        <DollarSign size={14} className="text-neutral-400" />
-                                        {(details.estimated_price || request.budget)?.toLocaleString() || 'Not specified'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Travel Style</p>
-                                    <div className="font-medium text-brand-charcoal text-sm">
-                                        {details.budget_tier || 'Luxury'}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Special Requirements / Notes */}
                         {(details.special_requirements || request.note) && (
                             <div className="md:col-span-2">
                                 <h3 className="text-lg font-bold text-brand-charcoal mb-4 flex items-center gap-2 border-b border-neutral-100 pb-2">
                                     <Clock size={18} className="text-brand-gold" /> Notes & Requirements
                                 </h3>
-                                <div className="bg-neutral-50 p-4 rounded-lg text-sm text-neutral-700 leading-relaxed border border-neutral-100 whitespace-pre-wrap">
+                                <div className="bg-neutral-50 p-4 rounded-lg text-sm text-neutral-700 whitespace-pre-wrap border border-neutral-100">
                                     {details.special_requirements || request.note}
                                 </div>
                             </div>
                         )}
 
-                        {/* Operations Data */}
                         <div className="md:col-span-2 pt-6 border-t border-neutral-100">
                             <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4">Operations Information</h3>
                             <div className="flex flex-wrap gap-8">
@@ -335,7 +324,7 @@ export default function RequestDetailsPage() {
                                                 value={request.admin_assigned_to || ""}
                                                 onChange={(e) => handleAssignAgent(e.target.value)}
                                                 disabled={isAssigning}
-                                                className="bg-neutral-50 border border-neutral-200 text-brand-charcoal text-sm rounded-lg focus:ring-brand-gold focus:border-brand-gold block w-full p-2 outline-none font-medium transition-colors cursor-pointer disabled:opacity-50"
+                                                className="bg-neutral-50 border border-neutral-200 text-brand-charcoal text-sm rounded-lg p-2 outline-none font-medium transition-colors cursor-pointer"
                                             >
                                                 <option value="" disabled>Select Agent to Assign</option>
                                                 {agents.map((ag) => (

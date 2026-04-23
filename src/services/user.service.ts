@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { UserProfileDTO, CreateUserDTO, UpdateUserDTO, ResetPasswordDTO } from '../dtos/user-vendor.dto';
 import { createAdminClient } from '../utils/supabase/admin';
+import { emailService } from './email.service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -75,6 +76,31 @@ export class AdminService {
 
     static async assignAgentToRequest(requestId: string, agentId: string) {
         const supabaseAdmin = createAdminClient();
+        
+        // Fetch request and agent details for email
+        const { data: request, error: fetchError } = await supabaseAdmin
+            .from('requests')
+            .select(`
+                *,
+                details:request_details(*),
+                tourist:users!requests_tourist_id_fkey(
+                    email,
+                    tourist_profile:tourist_profiles(first_name, last_name)
+                )
+            `)
+            .eq('id', requestId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        const { data: agent, error: agentError } = await supabaseAdmin
+            .from('agent_profiles')
+            .select('first_name, last_name')
+            .eq('id', agentId)
+            .single();
+
+        if (agentError) throw agentError;
+
         const { data, error } = await supabaseAdmin
             .from('requests')
             .update({ admin_assigned_to: agentId, status: 'Assigned' })
@@ -83,6 +109,31 @@ export class AdminService {
             .single();
 
         if (error) throw error;
+
+        // Send email notification
+        try {
+            const touristProfile = request.tourist?.tourist_profile?.[0];
+            const customerName = touristProfile?.first_name 
+                ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
+                : request.name || 'Client';
+            
+            const customerEmail = request.email || request.tourist?.email;
+            const agentName = `${agent.first_name} ${agent.last_name || ''}`.trim();
+            const packageName = request.details?.[0]?.package_name || request.request_type;
+
+            if (customerEmail) {
+                await emailService.sendAgentAssignedEmail({
+                    customerEmail,
+                    customerName,
+                    agentName,
+                    requestId,
+                    packageName: packageName !== 'inquiry' ? packageName : undefined
+                });
+            }
+        } catch (emailErr) {
+            console.error("Failed to send assignment email:", emailErr);
+        }
+
         return data;
     }
 

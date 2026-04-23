@@ -3,6 +3,7 @@ import { CreateTourDTO, UpdateTourDTO, AddActivityDTO } from '../dtos/tour.dto';
 import { TripData } from '@/app/admin/(authenticated)/planner/types';
 import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { RequestService } from './request.service';
 
 const supabase = createSupabaseClient();
 
@@ -165,7 +166,8 @@ export class TourService {
         }
 
         // 4. Update request status to reflect it's now being planned
-        await supabaseAdmin.from('requests').update({ status: 'Assigned' }).eq('id', requestId);
+        // This will trigger a status update email if the status actually changes
+        await RequestService.updateRequestStatus(requestId, { status: 'Assigned' });
 
         return newTour.id;
     }
@@ -305,7 +307,7 @@ export class TourService {
         });
 
         // 1. SAVE RAW JSONB STATE & BASIC RELATIONAL TOUR INFO
-        const { error: tourErr } = await supabaseAdmin
+        const { data: tourData, error: tourErr } = await supabaseAdmin
             .from('tours')
             .update({
                 planner_data: { ...tripData, id: tourId },
@@ -318,9 +320,24 @@ export class TourService {
                 total_activities: totalActivities,
                 activity_mix: activityMix
             })
-            .eq('id', tourId);
+            .eq('id', tourId)
+            .select('request_id, status')
+            .single();
 
         if (tourErr) throw tourErr;
+
+        // Sync request status with tour progress
+        if (tourData.request_id && tourData.status) {
+            let requestStatus = null;
+            if (tourData.status === 'Confirmed' || tourData.status === 'Active') requestStatus = 'Active';
+            else if (tourData.status === 'Completed') requestStatus = 'Completed';
+            else if (tourData.status === 'Cancelled') requestStatus = 'Cancelled';
+            
+            if (requestStatus) {
+                // This triggers the status update email automatically
+                await RequestService.updateRequestStatus(tourData.request_id, { status: requestStatus });
+            }
+        }
 
         // 2. SYNC ITINERARY TO RELATIONAL TABLES
         // Delete old itineraries (Cascade deletes daily_activities)

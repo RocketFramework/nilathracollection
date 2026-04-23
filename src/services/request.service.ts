@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { CreateRequestDTO, UpdateRequestDTO } from '../dtos/request.dto';
+import { emailService } from './email.service';
+import { createAdminClient } from '../utils/supabase/admin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -64,13 +66,56 @@ export class RequestService {
     }
 
     static async updateRequestStatus(requestId: string, dto: UpdateRequestDTO) {
-        const { data, error } = await supabase
+        const supabaseAdmin = createAdminClient();
+        
+        // Fetch request details for email
+        const { data: request, error: fetchError } = await supabaseAdmin
+            .from('requests')
+            .select(`
+                *,
+                details:request_details(*),
+                tourist:users!requests_tourist_id_fkey(
+                    email,
+                    tourist_profile:tourist_profiles(first_name, last_name)
+                )
+            `)
+            .eq('id', requestId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        const { data, error } = await supabaseAdmin
             .from('requests')
             .update({ status: dto.status })
             .eq('id', requestId)
-            .select();
+            .select()
+            .single();
 
         if (error) throw error;
+
+        // Send email notification
+        try {
+            const touristProfile = request.tourist?.tourist_profile?.[0];
+            const customerName = touristProfile?.first_name 
+                ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
+                : request.name || 'Client';
+            
+            const customerEmail = request.email || request.tourist?.email;
+            const packageName = request.details?.[0]?.package_name || request.request_type;
+
+            if (customerEmail && request.status !== dto.status) {
+                await emailService.sendRequestStatusUpdateEmail({
+                    customerEmail,
+                    customerName,
+                    newStatus: dto.status,
+                    requestId,
+                    packageName: packageName !== 'inquiry' ? packageName : undefined
+                });
+            }
+        } catch (emailErr) {
+            console.error("Failed to send status update email:", emailErr);
+        }
+
         return data;
     }
 

@@ -121,6 +121,18 @@ export async function assignAgentAction(requestId: string, agentId: string) {
     }
 }
 
+export async function updateRequestStatusAction(requestId: string, status: string) {
+    try {
+        await RequestService.updateRequestStatus(requestId, { status });
+        revalidatePath(`/admin/requests/${requestId}`);
+        revalidatePath(`/admin/requests`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating request status:", error);
+        return { error: error.message || "Failed to update request status." };
+    }
+}
+
 export async function createTourAction(requestId: string) {
     try {
         const newTourId = await TourService.createTourFromRequest(requestId);
