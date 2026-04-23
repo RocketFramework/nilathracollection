@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 
 export const metadata: Metadata = {
-    title: "Our Destinations | Tour Sri Lanka from Colombo & Tour Sri Lanka",
+    title: "Our Destinations | Luxury Travel Destinations Sri Lanka",
 };
 
 export default async function DestinationsLayout({

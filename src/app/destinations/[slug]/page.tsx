@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const data = metadataData[slug] || metadataData["sigiriya"];
 
     return {
-        title: `${data.name} | Tour of Sri Lanka & Travel to Sri Lanka`,
+        title: `${data.name} | Luxury Travel Sri Lanka`,
         description: data.description,
     };
 }

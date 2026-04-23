@@ -10,7 +10,7 @@ const plans = [
     {
         id: "ultra-vip",
         title: "Ultra VIP",
-        priceRange: "$15,000",
+        priceRange: "$5,000",
         description: "The absolute pinnacle of luxury. Private jet-side clearance, 24/7 close protection, and dedicated aviation assets.",
         icon: Crown,
         href: "/plans/ultra-vip",

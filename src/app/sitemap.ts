@@ -18,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
         '/for-vip',
         '/elite-journeys',
         '/destinations',
+        '/imperial-helicopter',
+        '/wild-ceylon',
         '/blog',
         '/careers',
         '/custom-plan',

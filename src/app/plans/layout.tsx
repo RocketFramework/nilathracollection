@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 
 export const metadata: Metadata = {
-    title: "Our Plans | Tour Sri Lanka from Colombo & Tour Sri Lanka",
+    title: "Our Plans | Bespoke Sri Lanka Journeys",
 };
 
 export default async function PlansLayout({
