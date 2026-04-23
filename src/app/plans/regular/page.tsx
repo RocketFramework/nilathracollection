@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Standard Plan | Affordable Tour Sri Lanka Price",
+    title: "Standard Plan | Authentic Sri Lanka Journeys",
 };
 export default function RegularPage() {
     return (

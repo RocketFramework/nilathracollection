@@ -2,7 +2,7 @@ import CustomPlanContent from "./CustomPlanContent";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Custom Plans | How Can I Organize My Tour to Sri Lanka?",
+    title: "Tailor Your Journey | Bespoke Sri Lanka Itineraries",
     description: "Use our intelligent AI trip planner to design your perfect Sri Lankan escape. Select your favorite activities and let us architect your bespoke itinerary.",
     openGraph: {
         title: "AI Trip Planner | Nilathra Collection",

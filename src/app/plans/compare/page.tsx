@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Compare Plans | Who Are The Best Travel Agencies in Sri Lanka?",
+    title: "Compare Plans | Find Your Perfect Journey",
 };
 export default function ComparePlansPage() {
     return (

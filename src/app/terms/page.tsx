@@ -3,7 +3,7 @@ import { Info, MousePointer2, Phone, UserCheck, ShieldAlert, Plane, Building2, C
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Terms of Service | Sri Lanka Tour Website",
+    title: "Terms of Service",
 };
 export default function TermsOfServicePage() {
     return (

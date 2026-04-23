@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Ultra VIP Plan | The Best VIP Tour Packages from Sri Lanka",
+    title: "Ultra VIP Plan | The Ultimate Luxury Experience",
 };
 export default function UltraVIPPage() {
     return (

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Sri Lanka Tours Packages | Tour Sri Lanka Packages & Prices",
+    title: "Travel Packages | Luxury Sri Lanka Tiers",
 };
 const tiers = [
     {

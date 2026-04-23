@@ -3,7 +3,7 @@ import { Shield, Lock, Eye, Users, Globe, Database, Scale, Mail } from "lucide-r
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Privacy Policy | Nilathra Collection Sri Lanka Tour Website",
+    title: "Privacy Policy",
 };
 export default function PrivacyPolicyPage() {
     return (

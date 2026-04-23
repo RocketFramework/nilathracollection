@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Luxury Plan | High-End Tour Sri Lanka Packages",
+    title: "Luxury Plan | High-End Sri Lanka Experiences",
 };
 export default function LuxuryPage() {
     return (

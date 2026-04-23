@@ -4,7 +4,7 @@ import { Shield, Gavel, FileText, CreditCard, UserCheck, Stethoscope, AlertCircl
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Booking Conditions | Tour Booking Sri Lanka Policy",
+    title: "Booking Conditions",
 };
 export default function BookingConditionsPage() {
     return (

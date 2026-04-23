@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
 export const metadata: Metadata = {
-    title: "VIP Tour Packages from Sri Lanka | Exclusive Luxury Travel",
+    title: "VIP Experiences | Exclusive Luxury Travel",
     description: "Experience Thabrobana: The ultimate luxury travel destination. A land like no other.",
 };
 
