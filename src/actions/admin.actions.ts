@@ -13,6 +13,9 @@ import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment 
 import { createClient } from "@/utils/supabase/server";
 import { RequestService } from "@/services/request.service";
 import { emailService } from "@/services/email.service";
+import { AIService } from "@/services/ai.service";
+import { AIRule } from "@/types/ai";
+
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
     try {
@@ -442,10 +445,8 @@ export async function getToursAction(statuses: string[]) {
     }
 }
 
-import { AIService } from "@/services/ai.service";
-import { AIRule } from "@/types/ai";
-
 export async function sendCustomEmailAction(to: string, subject: string, body: string) {
+
     try {
         const html = `
 <!DOCTYPE html>
