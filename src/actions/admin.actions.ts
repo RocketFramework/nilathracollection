@@ -442,6 +442,9 @@ export async function getToursAction(statuses: string[]) {
     }
 }
 
+import { AIService } from "@/services/ai.service";
+import { AIRule } from "@/types/ai";
+
 export async function sendCustomEmailAction(to: string, subject: string, body: string) {
     try {
         const html = `
@@ -500,3 +503,24 @@ export async function sendCustomEmailAction(to: string, subject: string, body: s
         return { success: false, error: error.message || "Failed to send email." };
     }
 }
+
+export async function getAIRulesAction(itineraryId?: string) {
+    try {
+        const rules = await AIService.getRules(itineraryId);
+        return { success: true, rules };
+    } catch (error: any) {
+        console.error("Error fetching AI rules:", error);
+        return { success: false, error: error.message || "Failed to load AI rules." };
+    }
+}
+
+export async function saveAIRuleAction(rule: AIRule) {
+    try {
+        await AIService.saveRule(rule);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving AI rule:", error);
+        return { success: false, error: error.message || "Failed to save AI rule." };
+    }
+}
+

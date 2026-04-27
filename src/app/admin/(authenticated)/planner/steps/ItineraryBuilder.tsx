@@ -18,8 +18,12 @@ import {
     getDriversAction,
     getTourGuidesAction,
     getRestaurantsAction,
-    getActivitiesAction
+    getActivitiesAction,
+    getAIRulesAction,
+    saveAIRuleAction
 } from "@/actions/admin.actions";
+import { AIRule } from "@/types/ai";
+
 import {
     Vendor,
     TransportProvider,
@@ -83,6 +87,11 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
     const [isGenerating, setIsGenerating] = useState(false);
     const [optScore, setOptScore] = useState<number | null>(null);
     const [engineChoice, setEngineChoice] = useState<'standard' | 'ai'>('standard');
+    const [showAIRules, setShowAIRules] = useState(false);
+    const [aiRules, setAiRules] = useState<{ generic: string, specific: string }>({ generic: '', specific: '' });
+    const [isSavingRules, setIsSavingRules] = useState(false);
+    const [activeRuleTab, setActiveRuleTab] = useState<'generic' | 'specific'>('generic');
+
 
     // Master Data State
     const [masterData, setMasterData] = useState<{
@@ -137,6 +146,26 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         loadData();
     }, []);
 
+    // Load AI Rules
+    useEffect(() => {
+        async function loadRules() {
+            try {
+                const res = await getAIRulesAction(tripData.id);
+                if (res.success && res.rules) {
+                    const generic = res.rules.find((r: AIRule) => r.rule_type === 'generic')?.content || '';
+                    const specific = res.rules.find((r: AIRule) => r.rule_type === 'specific')?.content || '';
+                    setAiRules({ generic, specific });
+                }
+            } catch (err) {
+                console.error("Failed to load AI rules:", err);
+            }
+        }
+        if (engineChoice === 'ai') {
+            loadRules();
+        }
+    }, [engineChoice, tripData.id]);
+
+
     const runEngine = async () => {
         setIsGenerating(true);
         try {
@@ -161,8 +190,10 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             if (engineChoice === 'standard') {
                 routeResult = await generateRoutePlan(chosenActivities, locations, durationDays);
             } else {
-                routeResult = await generateAIRoutePlan(chosenActivities, locations, durationDays);
+                const combinedRules = `GENERIC RULES:\n${aiRules.generic}\n\nSPECIFIC RULES FOR THIS ITINERARY:\n${aiRules.specific}`;
+                routeResult = await generateAIRoutePlan(chosenActivities, locations, durationDays, combinedRules);
             }
+
 
             const generatedBlocks: InternalItineraryBlock[] = [];
             routeResult.plan.forEach(day => {
@@ -668,6 +699,32 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         updateData(updates);
     };
 
+    const handleSaveRules = async () => {
+        setIsSavingRules(true);
+        try {
+            // Save Generic Rule
+            await saveAIRuleAction({
+                rule_type: 'generic',
+                content: aiRules.generic,
+                itinerary_id: null
+            });
+
+            // Save Specific Rule
+            await saveAIRuleAction({
+                rule_type: 'specific',
+                content: aiRules.specific,
+                itinerary_id: tripData.id
+            });
+
+            setShowAIRules(false);
+        } catch (error) {
+            console.error("Failed to save AI rules:", error);
+        } finally {
+            setIsSavingRules(false);
+        }
+    };
+
+
     const filteredMasterData = useMemo(() => {
         if (!activeAssignment) return [];
         const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
@@ -836,6 +893,17 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                 <option value="standard">Standard Engine</option>
                                 <option value="ai">AI Smart Builder ✦</option>
                             </select>
+
+                            {engineChoice === 'ai' && (
+                                <button
+                                    onClick={() => setShowAIRules(true)}
+                                    className="flex items-center gap-2 bg-white border border-brand-gold/50 text-brand-gold px-4 py-2.5 rounded-xl hover:bg-brand-gold/5 transition-all font-bold text-sm shadow-sm"
+                                >
+                                    <ShieldCheck size={16} />
+                                    AI Rules
+                                </button>
+                            )}
+
 
                             <button
                                 onClick={runEngine}
@@ -1203,7 +1271,103 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                 }
             </div>
 
+            {/* AI Rules Modal */}
+            {showAIRules && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-charcoal/40 backdrop-blur-md p-4">
+                    <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+                        <div className="p-8 border-b border-neutral-100 flex items-center justify-between bg-gradient-to-br from-neutral-50 to-white">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-brand-gold/10 rounded-2xl">
+                                    <ShieldCheck size={24} className="text-brand-gold" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-serif font-bold text-brand-green">AI Routing Intelligence</h3>
+                                    <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-0.5">Constraint & Logic Configuration</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowAIRules(false)}
+                                className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="p-8">
+                            <div className="flex gap-2 mb-8 bg-neutral-100/50 p-1.5 rounded-2xl">
+                                <button
+                                    onClick={() => setActiveRuleTab('generic')}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeRuleTab === 'generic' ? 'bg-white text-brand-green shadow-sm ring-1 ring-black/5' : 'text-neutral-400 hover:text-neutral-600'}`}
+                                >
+                                    Global Master Rules
+                                </button>
+                                <button
+                                    onClick={() => setActiveRuleTab('specific')}
+                                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeRuleTab === 'specific' ? 'bg-white text-brand-green shadow-sm ring-1 ring-black/5' : 'text-neutral-400 hover:text-neutral-600'}`}
+                                >
+                                    Itinerary Specific
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {activeRuleTab === 'generic' ? (
+                                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em]">Universal Logic</h4>
+                                            <span className="text-[9px] bg-brand-gold/10 text-brand-gold px-2 py-0.5 rounded font-bold">Applies to ALL Itineraries</span>
+                                        </div>
+                                        <textarea
+                                            value={aiRules.generic}
+                                            onChange={e => setAiRules({ ...aiRules, generic: e.target.value })}
+                                            placeholder="Example: Always include a 30-minute buffer after long drives. Never schedule activities before 9 AM unless it's a safari..."
+                                            className="w-full h-64 p-6 bg-neutral-50 border border-neutral-100 rounded-3xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold/20 transition-all font-medium leading-relaxed placeholder:text-neutral-300"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em]">Context Override</h4>
+                                            <span className="text-[9px] bg-blue-50 text-blue-500 px-2 py-0.5 rounded font-bold">Specific to this client</span>
+                                        </div>
+                                        <textarea
+                                            value={aiRules.specific}
+                                            onChange={e => setAiRules({ ...aiRules, specific: e.target.value })}
+                                            placeholder="Example: Client prefers slow mornings. Prioritize wildlife sightings over museum visits for this trip..."
+                                            className="w-full h-64 p-6 bg-neutral-50 border border-neutral-100 rounded-3xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold/20 transition-all font-medium leading-relaxed placeholder:text-neutral-300"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-8 bg-neutral-50/50 border-t border-neutral-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-neutral-400">
+                                <Info size={14} />
+                                <p className="text-[10px] font-bold uppercase tracking-tight">Changes are stored in the routing engine</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => setShowAIRules(false)}
+                                    className="px-6 py-3 text-sm font-bold text-neutral-500 hover:text-neutral-800 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveRules}
+                                    disabled={isSavingRules}
+                                    className="flex items-center gap-2 bg-brand-green text-white px-8 py-3 rounded-2xl hover:shadow-lg hover:shadow-brand-green/20 transition-all font-black text-xs uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    {isSavingRules ? <RefreshCcw className="animate-spin" size={16} /> : <Check size={16} />}
+                                    Save Intelligence
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Assignment Drawer Overlay */}
+
             {
                 activeAssignment && (
                     <div className="fixed inset-0 z-50 flex items-center justify-end bg-brand-charcoal/20 backdrop-blur-sm">

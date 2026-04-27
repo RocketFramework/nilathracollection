@@ -14,11 +14,12 @@ export class AdvancedAiRouteEngine {
     async generatePlan(
         activities: Activity[],
         locations: GeoLocation[],
-        durationDays: number
+        durationDays: number,
+        customRules?: string
     ): Promise<RoutePlan> {
 
         // System Instructions detailing exact required JSON format and rules
-        const systemPrompt = `You are an expert luxury travel itinerary builder for Nilathra Collection in Sri Lanka. 
+        let systemPrompt = `You are an expert luxury travel itinerary builder for Nilathra Collection in Sri Lanka. 
 You will be provided with a list of activities, locations, and the total duration of the trip format in days.
 Your objective is to generate a logically routed, perfectly sequenced day-by-day itinerary JSON.
 
@@ -29,8 +30,13 @@ RULES:
 4. Estimate realistic travel times between different cities (average speed in Sri Lanka is 35km/h).
 5. IF an activity absolutely cannot logically fit or makes the day too rushed, add it to a \`droppedActivities\` array at the root level of your JSON response instead of forcing it in.
 6. The first day should ideally begin near ${this.startLocation.name} (${this.startLocation.lat}, ${this.startLocation.lng}).
+`;
 
-RETURN EXACTLY A JSON OBJECT MATCHING THIS INTERFACE, WITH NO WRAPPER TEXT OR MARKDOWN:
+        if (customRules) {
+            systemPrompt += `\nADDITIONAL CONTEXT & AGENT RULES:\n${customRules}\n`;
+        }
+
+        systemPrompt += `\nRETURN EXACTLY A JSON OBJECT MATCHING THIS INTERFACE, WITH NO WRAPPER TEXT OR MARKDOWN:
 {
   "plan": [
     {
@@ -60,6 +66,7 @@ RETURN EXACTLY A JSON OBJECT MATCHING THIS INTERFACE, WITH NO WRAPPER TEXT OR MA
   ]
 }
 `;
+
 
         const userPrompt = `
 Duration: ${durationDays} Days
@@ -127,8 +134,10 @@ ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.
 export async function generateAIRoutePlan(
     activities: Activity[],
     locations: GeoLocation[],
-    durationDays = 5
+    durationDays = 5,
+    customRules?: string
 ): Promise<RoutePlan> {
     const engine = new AdvancedAiRouteEngine();
-    return engine.generatePlan(activities, locations, durationDays);
+    return engine.generatePlan(activities, locations, durationDays, customRules);
 }
+
