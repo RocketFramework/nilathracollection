@@ -213,6 +213,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                         clientVisibleNotes: '',
                         locationName: event.locationName,
                         distance: event.distance,
+                        lat: event.location?.lat,
                         lng: event.location?.lng
                     };
                     generatedBlocks.push(block);
@@ -713,7 +714,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             await saveAIRuleAction({
                 rule_type: 'specific',
                 content: aiRules.specific,
-                itinerary_id: tripData.id
+                itinerary_id: tripData.id || null
             });
 
             setShowAIRules(false);

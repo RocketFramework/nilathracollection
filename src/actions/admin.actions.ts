@@ -15,7 +15,7 @@ import { RequestService } from "@/services/request.service";
 import { emailService } from "@/services/email.service";
 import { AIService } from "@/services/ai.service";
 import { AIRule } from "@/types/ai";
-
+import { CreateRequestDTO, UpdateRequestDTO } from '../dtos/request.dto';
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
     try {
@@ -125,7 +125,7 @@ export async function assignAgentAction(requestId: string, agentId: string) {
     }
 }
 
-export async function updateRequestStatusAction(requestId: string, status: string) {
+export async function updateRequestStatusAction(requestId: string, status: UpdateRequestDTO['status']) {
     try {
         await RequestService.updateRequestStatus(requestId, { status });
         revalidatePath(`/admin/requests/${requestId}`);

@@ -107,7 +107,7 @@ export class RequestService {
                 await emailService.sendRequestStatusUpdateEmail({
                     customerEmail,
                     customerName,
-                    newStatus: dto.status,
+                    newStatus: dto.status?.toString() || '',
                     requestId,
                     packageName: packageName !== 'inquiry' ? packageName : undefined
                 });
