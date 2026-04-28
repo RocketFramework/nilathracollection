@@ -54,9 +54,9 @@
         "stay": "Stay",
         "estimate": {
             "badge": "Estimated Price",
-            "price": "$3,500",
-            "sub": "Per Person · 7 Days ($500 / day)",
-            "min": "Minimum 2 People · From $7,000 Total",
+            "price": "$4,550",
+            "sub": "Per Person · 7 Days ($650 / day)",
+            "min": "Minimum 2 People · From $9,100 Total",
             "cols": [
                 {
                     "label": "Includes",
@@ -311,8 +311,8 @@
             {
                 "title": "Elite Journeys (The Sapphire Edition)",
                 "duration": "7 Nights · 8 Days (2 Travelers)",
-                "price_per_day": "$550",
-                "total_price": "$10,392 total",
+                "price_per_day": "$650",
+                "total_price": "$10,400 total",
                 "highlights": "Cultural Triangle, Highlanders & Coastal Heritage, Sigiriya Lion Rock, Hot Air Balloon, Aman Resorts, Private SUV",
                 "link": "/elite-journeys"
             },

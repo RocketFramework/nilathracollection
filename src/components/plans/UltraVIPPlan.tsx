@@ -34,7 +34,7 @@ export default function UltraVIPPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 5000; // Ultra VIP flagship rate per person per day
+    const nightRatePerPerson = 15000; // Ultra VIP flagship rate per person per day
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {

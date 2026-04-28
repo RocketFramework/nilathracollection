@@ -117,10 +117,10 @@ export default function PlanComparison() {
     },
     {
       name: "Price / Day / Pax",
-      regular: "$50",
-      premium: "$290",
-      luxury: "$550",
-      ultraVip: "$5,000",
+      regular: "$80",
+      premium: "$350",
+      luxury: "$650",
+      ultraVip: "$15,000",
       mixed: "Flexible"
     }
   ];

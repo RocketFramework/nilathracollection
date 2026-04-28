@@ -31,7 +31,7 @@ export default function RegularPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 50; // Flagship Regular rate
+    const nightRatePerPerson = 80; // Flagship Regular rate
     const total = nightRatePerPerson * nights * travelers;
 
     const pricing = {

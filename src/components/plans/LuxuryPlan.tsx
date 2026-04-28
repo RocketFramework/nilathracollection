@@ -30,7 +30,7 @@ export default function LuxuryPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 550; // Flagship target rate per day per head
+    const nightRatePerPerson = 650; // Flagship target rate per day per head
     const days = nights + 1; // 8 days for transport, guides, etc.
 
     // 150$ per head per day (night) - Signature Resorts

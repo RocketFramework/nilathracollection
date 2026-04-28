@@ -10,7 +10,7 @@ const plans = [
     {
         id: "ultra-vip",
         title: "Ultra VIP",
-        priceRange: "$5,000",
+        priceRange: "$15,000",
         description: "The absolute pinnacle of luxury. Private jet-side clearance, 24/7 close protection, and dedicated aviation assets.",
         icon: Crown,
         href: "/plans/ultra-vip",
@@ -24,7 +24,7 @@ const plans = [
     {
         id: "luxury",
         title: "Luxury",
-        priceRange: "$550",
+        priceRange: "$650",
         description: "5-star signature resorts, premium SUV transport, and dedicated personalized itinerary management.",
         icon: Gem,
         href: "/plans/luxury",
@@ -38,7 +38,7 @@ const plans = [
     {
         id: "premium",
         title: "Premium",
-        priceRange: "$290",
+        priceRange: "$350",
         description: "Reputable 3-4 star hotels, reliable sedan or van transport, and essential curated local experiences.",
         icon: Sparkles,
         href: "/plans/premium",
@@ -52,7 +52,7 @@ const plans = [
     {
         id: "regular",
         title: "Regular",
-        priceRange: "$50",
+        priceRange: "$80",
         description: "Authentic 3-star guesthouses, homestays, and flexible budget transport for the savvy explorer.",
         icon: Check,
         href: "/plans/regular",

@@ -31,7 +31,7 @@ export default function PremiumPlan() {
     const nights = 7;
     const travelers = 2;
 
-    const nightRatePerPerson = 290; // Flagship Premium rate
+    const nightRatePerPerson = 350; // Flagship Premium rate
     const total = nightRatePerPerson * nights * travelers;
 
     const baseTotal = total / 1.18;

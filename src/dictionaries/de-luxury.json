@@ -54,9 +54,9 @@
         "stay": "Aufenthalt",
         "estimate": {
             "badge": "Geschätzter Preis",
-            "price": "3.500 $",
-            "sub": "Pro Person · 7 Tage (500 $ / Tag)",
-            "min": "Minimum 2 Personen · Ab 7.000 $ Gesamt",
+            "price": "4.550 $",
+            "sub": "Pro Person · 7 Tage (650 $ / Tag)",
+            "min": "Minimum 2 Personen · Ab 9.100 $ Gesamt",
             "cols": [
                 {
                     "label": "Inklusive",
@@ -311,8 +311,8 @@
             {
                 "title": "Elite Journeys (Die Saphir-Edition)",
                 "duration": "7 Nächte · 8 Tage (2 Reisende)",
-                "price_per_day": "$550",
-                "total_price": "$10,392 gesamt",
+                "price_per_day": "$650",
+                "total_price": "$10,400 gesamt",
                 "highlights": "Kulturdreieck, Hochland & Küstenerbe, Löwenfelsen Sigiriya, Heißluftballon, Aman Resorts, Privater SUV",
                 "link": "/elite-journeys"
             },

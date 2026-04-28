@@ -477,9 +477,9 @@
                 "stay": "Stay",
                 "estimate": {
                     "badge": "Estimated Price",
-                    "price": "$3,850",
-                    "sub": "Per Person · 7 Days ($550 / day)",
-                    "min": "Minimum 2 People · From $7,700 Total",
+                    "price": "$4,550",
+                    "sub": "Per Person · 7 Days ($650 / day)",
+                    "min": "Minimum 2 People · From $9,100 Total",
                     "cols": [
                         {
                             "label": "Includes",

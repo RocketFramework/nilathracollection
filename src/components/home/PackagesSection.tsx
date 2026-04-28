@@ -11,6 +11,7 @@ const packages = [
         title: "Ultra VIP",
         subtitle: "The Sovereignty Collection",
         icon: Crown,
+        price: "From $15,000 / Day",
         description: "Reserved for the world's most discerning travelers. Absolute privacy, bespoke luxury, and peerless security.",
         features: [
             "Private Jet-Side Arrival & Tarmac Clearance",
@@ -29,6 +30,7 @@ const packages = [
         title: "Luxury Collection",
         subtitle: "The Sapphire Collection",
         icon: Star,
+        price: "From $650 / Day",
         description: "Exceptional 5-star elegance. Hand-picked signature resorts, elite guidance, and curated gastronomy.",
         features: [
             "Iconic Signature 5-Star Resorts",
@@ -46,6 +48,7 @@ const packages = [
         title: "Premium Plan",
         subtitle: "The Emerald Collection",
         icon: Gem,
+        price: "From $350 / Day",
         description: "Reliable, well-organized excellence. Experience the island's beauty with 3-4 star curated excellence.",
         features: [
             "Hand-picked 3-4 Star Signature Hotels",
@@ -63,6 +66,7 @@ const packages = [
         title: "Mixed Collection",
         subtitle: "Total Fluidity",
         icon: LayoutList,
+        price: "Flexible Pricing",
         description: "Your journey, your way. Mix and match tiers across destinations to create your bespoke escape.",
         features: [
             "Flexible Tier Mixing per Destination",
@@ -118,7 +122,10 @@ export default function PackagesSection() {
                                         <pkg.icon className={pkg.accent} size={32} />
                                         <span className="text-[10px] uppercase tracking-[0.3em] opacity-60 font-black">{tPkg.subtitle}</span>
                                     </div>
-                                    <h3 className="font-serif text-2xl mb-4">{tPkg.title}</h3>
+                                    <h3 className="font-serif text-2xl mb-1">{tPkg.title}</h3>
+                                    <div className={`text-xs font-bold uppercase tracking-widest mb-4 ${pkg.accent}`}>
+                                        {pkg.price}
+                                    </div>
                                     <p className="text-sm opacity-80 mb-8 leading-relaxed italic">
                                         {tPkg.description}
                                     </p>
