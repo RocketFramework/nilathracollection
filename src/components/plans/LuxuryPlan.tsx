@@ -319,7 +319,7 @@ export default function LuxuryPlan() {
                         </div>
 
                         <div className="space-y-10">
-                            <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
                                 <h3 className="text-2xl font-serif text-logo-blue">{tLux.breakdown.title}</h3>
                                 <button
                                     onClick={() => setShowBreakdown(!showBreakdown)}
@@ -350,18 +350,18 @@ export default function LuxuryPlan() {
                                                 { label: tLux.math_labels?.vat || "Government Tax (18% VAT)", value: pricing.breakdown.vat },
                                                 { label: tLux.math_labels?.total || "Estimated Grand Total", value: pricing.total },
                                             ].map((item, i) => (
-                                                <div key={i} className={`flex justify-between items-center py-5 border-neutral-50 px-6 rounded-2xl ${i === 8 ? 'bg-logo-blue/5 border-t-2 border-logo-blue/20' : 'border-b hover:bg-neutral-50 transition-colors'}`}>
-                                                    <span className={`tracking-wide uppercase text-xs pr-4 ${i === 8 ? 'text-logo-blue font-black' : 'text-neutral-500'}`}>
+                                                <div key={i} className={`flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-5 border-neutral-50 px-4 sm:px-6 rounded-2xl ${i === 8 ? 'bg-logo-blue/5 border-t-2 border-logo-blue/20' : 'border-b hover:bg-neutral-50 transition-colors'}`}>
+                                                    <span className={`tracking-wide uppercase text-xs sm:pr-4 ${i === 8 ? 'text-logo-blue font-black' : 'text-neutral-500'}`}>
                                                         {item.label.includes('(') ? (
                                                             <>
                                                                 <span className={i !== 8 ? 'font-bold' : ''}>{item.label.split('(')[0]}</span>
-                                                                <span className="font-normal opacity-75 normal-case tracking-normal text-[10px] sm:text-[11px] inline-block ml-1 whitespace-pre-line">({item.label.split('(').slice(1).join('(')}</span>
+                                                                <span className="font-normal opacity-75 normal-case tracking-normal text-[10px] sm:text-[11px] inline-block sm:ml-1 whitespace-pre-line mt-1 sm:mt-0">({item.label.split('(').slice(1).join('(')}</span>
                                                             </>
                                                         ) : (
                                                             <span className={i !== 8 ? 'font-bold' : ''}>{item.label}</span>
                                                         )}
                                                     </span>
-                                                    <span className={`font-serif tracking-widest flex-shrink-0 ${i === 8 ? 'text-logo-blue text-4xl font-black' : 'text-logo-blue text-2xl'}`}>${item.value.toLocaleString()}</span>
+                                                    <span className={`font-serif tracking-widest flex-shrink-0 self-start sm:self-auto ${i === 8 ? 'text-logo-blue text-4xl font-black' : 'text-logo-blue text-2xl'}`}>${item.value.toLocaleString()}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -371,7 +371,7 @@ export default function LuxuryPlan() {
                         </div>
 
                         {tLux.transparency && (
-                            <div className="bg-logo-blue/5 border border-logo-blue/10 p-8 rounded-3xl mt-12">
+                            <div className="bg-logo-blue/5 border border-logo-blue/10 p-6 md:p-8 rounded-3xl mt-12 overflow-hidden break-words">
                                 <h4 className="font-serif text-2xl text-logo-blue mb-3">{tLux.transparency.title}</h4>
                                 <p className="text-sm text-neutral-600 leading-relaxed mb-6">
                                     {tLux.transparency.desc_estimate}
@@ -391,7 +391,7 @@ export default function LuxuryPlan() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-12 pt-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-12 pt-8">
                             <div className="space-y-4">
                                 <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -402,7 +402,7 @@ export default function LuxuryPlan() {
                                     <p className="text-sm text-neutral-400 leading-relaxed font-medium">{tLux.philosophy.seclusion.desc}</p>
                                 </div>
                             </div>
-                            <div className="space-y-4 pt-16">
+                            <div className="space-y-4 sm:pt-16">
                                 <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
                                     <Compass size={40} className="text-logo-blue mb-6" />
                                     <h4 className="font-serif text-2xl text-neutral-900 mb-2">{tLux.philosophy.access.title}</h4>

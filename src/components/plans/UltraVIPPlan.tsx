@@ -418,7 +418,7 @@ export default function UltraVIPPlan() {
                         </div>
 
                         <div className="space-y-10">
-                            <div className="flex items-center justify-between border-b border-neutral-100 pb-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
                                 <h3 className="text-2xl font-serif text-logo-blue">{tVip.breakdown.title}</h3>
                                 <button
                                     onClick={() => setShowBreakdown(!showBreakdown)}
@@ -439,9 +439,9 @@ export default function UltraVIPPlan() {
                                     >
                                         <div className="grid gap-4">
                                             {tVip.breakdown.items.map((item: any, i: number) => (
-                                                <div key={i} className="flex justify-between items-center py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-6 rounded-2xl">
+                                                <div key={i} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 py-5 border-b border-neutral-50 hover:bg-neutral-50 transition-colors px-4 sm:px-6 rounded-2xl">
                                                     <span className="text-neutral-500 font-bold tracking-wide uppercase text-xs">{item.label}</span>
-                                                    <span className="text-logo-blue font-serif text-2xl tracking-widest">${Object.values(pricing.breakdown)[i].toLocaleString()}</span>
+                                                    <span className="text-logo-blue font-serif text-2xl tracking-widest self-start sm:self-auto">${Object.values(pricing.breakdown)[i].toLocaleString()}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -450,7 +450,7 @@ export default function UltraVIPPlan() {
                             </AnimatePresence>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-12">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-12">
                             <div className="space-y-4">
                                 <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -461,7 +461,7 @@ export default function UltraVIPPlan() {
                                     <p className="text-sm text-neutral-400 leading-relaxed font-medium">{tVip.philosophy.seclusion.desc}</p>
                                 </div>
                             </div>
-                            <div className="space-y-4 pt-16">
+                            <div className="space-y-4 sm:pt-16">
                                 <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
                                     <Sparkles size={40} className="text-logo-blue mb-6" />
                                     <h4 className="font-serif text-2xl text-neutral-900 mb-2">{tVip.philosophy.access.title}</h4>
