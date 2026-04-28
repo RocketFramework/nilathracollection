@@ -76,11 +76,11 @@ export default function PremiumPlan() {
             className="bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-neutral-200 text-neutral-900"
         >
             {/* World-Class Header */}
-            <div className="relative h-[700px] overflow-hidden">
+            <div className="relative min-h-[850px] md:min-h-[700px] flex flex-col justify-center overflow-hidden py-20 md:py-10">
                 <div className="absolute inset-0 bg-[url('/images/plans/premium_sri_lanka.avif')] bg-cover bg-center" />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-black/10" />
 
-                <div className="relative z-10 h-full flex flex-col items-center justify-center text-center p-10">
+                <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 md:px-10">
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
