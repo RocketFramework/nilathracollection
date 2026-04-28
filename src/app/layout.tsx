@@ -15,7 +15,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nilathra.com"),
+  metadataBase: new URL("https://www.nilathra.com"),
   title: {
     default: "Best Travel Agency in Sri Lanka | Holidays in Sri Lanka",
     template: "%s | Nilathra Collection"
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     description: "Experience the pinnacle of luxury travel in Sri Lanka with Nilathra Collection. Tailored VIP experiences and journeys that go above and beyond the norm.",
     type: "website",
     locale: "en_US",
-    url: "https://nilathra.com",
+    url: "https://www.nilathra.com",
     siteName: "Nilathra Collection",
     images: [
       {

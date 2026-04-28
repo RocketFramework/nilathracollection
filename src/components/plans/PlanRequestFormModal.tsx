@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { X, Mail, Calendar, Users, Send, CheckCircle2 } from "lucide-react";
-import { registerTouristAction } from "@/actions/contact.actions";
-import { RequestService } from "@/services/request.service";
+import { registerTouristAction, submitPlanRequestAction } from "@/actions/contact.actions";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 
 interface PlanRequestFormModalProps {
@@ -55,7 +54,7 @@ export default function PlanRequestFormModal({
                 // We proceed anyway because the request service handles anonymous requests now!
             }
 
-            await RequestService.createRequest({
+            const res = await submitPlanRequestAction({
                 name,
                 email,
                 phone_number: phone,
@@ -67,7 +66,11 @@ export default function PlanRequestFormModal({
                 start_date: startDate || undefined,
                 special_requirements: specialRequirements || undefined,
                 note: specialRequirements || undefined,
-            }, authResult?.user?.id || undefined);
+            });
+
+            if (!res.success) {
+                throw new Error(res.error);
+            }
 
             setIsSuccess(true);
             setTimeout(() => {

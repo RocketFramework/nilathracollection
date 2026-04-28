@@ -134,3 +134,27 @@ export async function submitInquiryAction(formData: {
         return { error: error.message || "An unexpected error occurred. Please try again later." };
     }
 }
+
+export async function submitPlanRequestAction(dto: any) {
+    try {
+        if (!dto.email || !dto.name) {
+            return { error: "Name and email are required." };
+        }
+
+        let userId: string | undefined = undefined;
+        try {
+            const authResult = await registerTouristAction(dto.email, dto.name, dto.phone_number);
+            if (authResult.success && authResult.user) {
+                userId = authResult.user.id;
+            }
+        } catch (authError) {
+            console.warn("Auth Registration skipped in plan request flow:", authError);
+        }
+
+        const result = await RequestService.createRequest(dto, userId);
+        return { success: true, data: result };
+    } catch (error: any) {
+        console.error("Error in submitPlanRequestAction:", error);
+        return { error: error.message || "Failed to submit plan request." };
+    }
+}

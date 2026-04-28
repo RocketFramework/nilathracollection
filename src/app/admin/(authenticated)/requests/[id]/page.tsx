@@ -94,7 +94,7 @@ export default function RequestDetailsPage() {
     const handleUpdateStatus = async (newStatus: string) => {
         setIsUpdatingStatus(true);
         try {
-            const res = await updateRequestStatusAction(requestId, newStatus);
+            const res = await updateRequestStatusAction(requestId, newStatus as 'Pending' | 'Assigned' | 'Active' | 'Completed' | 'Cancelled');
             if (res.success) {
                 setRequest((prev: any) => ({ ...prev, status: newStatus }));
             } else {

@@ -128,6 +128,7 @@ export async function assignAgentAction(requestId: string, agentId: string) {
 export async function updateRequestStatusAction(requestId: string, status: UpdateRequestDTO['status']) {
     try {
         await RequestService.updateRequestStatus(requestId, { status });
+
         revalidatePath(`/admin/requests/${requestId}`);
         revalidatePath(`/admin/requests`);
         return { success: true };
@@ -136,6 +137,7 @@ export async function updateRequestStatusAction(requestId: string, status: Updat
         return { error: error.message || "Failed to update request status." };
     }
 }
+
 
 export async function createTourAction(requestId: string) {
     try {
@@ -448,48 +450,15 @@ export async function getToursAction(statuses: string[]) {
 export async function sendCustomEmailAction(to: string, subject: string, body: string) {
 
     try {
-        const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-</head>
-<body style="margin:0;padding:0;background:#F5F3EF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-          <!-- Header -->
-          <tr>
-            <td style="background:#1B3A2D;padding:36px 48px;text-align:center;">
-              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#C9A84C;">Nilathra Collection</p>
-              <h1 style="margin:12px 0 0;font-size:26px;font-weight:400;color:#ffffff;font-style:italic;">Concierge Communication</h1>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:48px;">
+        const contentHtml = `
               <div style="font-size:15px;color:#4a4a4a;line-height:1.7;white-space:pre-wrap;">${body}</div>
               
               <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
                 For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
               </p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background:#F5F3EF;padding:28px 48px;text-align:center;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Nilathra Collection · Luxury Unfiltered</p>
-              <p style="margin:0;font-size:11px;color:#c3c3c3;">Colombo, Sri Lanka · <a href="https://nilathra.com" style="color:#C9A84C;text-decoration:none;">nilathra.com</a></p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+        `;
+
+        const html = emailService.generateEmailHtml('Concierge Communication', 'Concierge Message', contentHtml);
 
         await emailService.sendEmail({
             to,

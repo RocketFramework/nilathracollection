@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { CreateRequestDTO, UpdateRequestDTO } from '../dtos/request.dto';
-import { emailService } from './email.service';
 import { createAdminClient } from '../utils/supabase/admin';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -14,8 +13,8 @@ export class RequestService {
 
         const requestData = {
             id: requestId,
-            tourist_id: touristId || null, // Handle anonymous initially if needed
-            email: dto.email, // Save the email explicitly
+            tourist_id: touristId || null,
+            email: dto.email,
             name: dto.name,
             phone_number: dto.phone_number || null,
             note: dto.note,
@@ -55,7 +54,7 @@ export class RequestService {
                 .insert(detailsData);
 
             if (detailsError) {
-                // Rollback request ideally, or return error
+                // Rollback request on failure
                 await supabase.from('requests').delete().eq('id', requestId);
                 throw detailsError;
             }
@@ -65,11 +64,14 @@ export class RequestService {
         return { id: requestId };
     }
 
+    /**
+     * Updates request status in the database and triggers email notifications.
+     */
     static async updateRequestStatus(requestId: string, dto: UpdateRequestDTO) {
         const supabaseAdmin = createAdminClient();
-        
-        // Fetch request details for email
-        const { data: request, error: fetchError } = await supabaseAdmin
+
+        // Fetch current request for email context before updating
+        const { data: request } = await supabaseAdmin
             .from('requests')
             .select(`
                 *,
@@ -82,8 +84,6 @@ export class RequestService {
             .eq('id', requestId)
             .single();
 
-        if (fetchError) throw fetchError;
-
         const { data, error } = await supabaseAdmin
             .from('requests')
             .update({ status: dto.status })
@@ -94,26 +94,29 @@ export class RequestService {
         if (error) throw error;
 
         // Send email notification
-        try {
-            const touristProfile = request.tourist?.tourist_profile?.[0];
-            const customerName = touristProfile?.first_name 
-                ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
-                : request.name || 'Client';
-            
-            const customerEmail = request.email || request.tourist?.email;
-            const packageName = request.details?.[0]?.package_name || request.request_type;
+        if (request && request.status !== dto.status) {
+            try {
+                // Inline import to avoid circular dependencies if any, though email.service is safe now
+                const { emailService } = await import('./email.service');
+                const touristProfile = request.tourist?.tourist_profile?.[0];
+                const customerName = touristProfile?.first_name
+                    ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
+                    : request.name || 'Client';
+                const customerEmail = request.email || request.tourist?.email;
+                const packageName = request.details?.[0]?.package_name || request.request_type;
 
-            if (customerEmail && request.status !== dto.status) {
-                await emailService.sendRequestStatusUpdateEmail({
-                    customerEmail,
-                    customerName,
-                    newStatus: dto.status?.toString() || '',
-                    requestId,
-                    packageName: packageName !== 'inquiry' ? packageName : undefined
-                });
+                if (customerEmail) {
+                    await emailService.sendRequestStatusUpdateEmail({
+                        customerEmail,
+                        customerName,
+                        newStatus: dto.status || '',
+                        requestId,
+                        packageName: packageName !== 'inquiry' ? packageName : undefined
+                    });
+                }
+            } catch (emailErr) {
+                console.error('Failed to send status update email:', emailErr);
             }
-        } catch (emailErr) {
-            console.error("Failed to send status update email:", emailErr);
         }
 
         return data;
@@ -205,7 +208,7 @@ export class RequestService {
         }
 
         if (filters.dateTo) {
-            // Add 1 day to the dateTo to include the whole day
+            // Add 1 day to include the whole day
             const nextDay = new Date(filters.dateTo);
             nextDay.setDate(nextDay.getDate() + 1);
             query = query.lt('created_at', nextDay.toISOString().split('T')[0]);

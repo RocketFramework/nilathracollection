@@ -52,6 +52,51 @@ export class EmailService {
     }
 
     /**
+     * Helper to generate standard Nilathra branded email template
+     */
+    generateEmailHtml(headline: string, preheader: string, contentHtml: string) {
+        return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>${preheader}</title>
+</head>
+<body style="margin:0;padding:0;background:#F5F3EF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+          <!-- Header -->
+          <tr>
+            <td style="background:#1B3A2D;padding:36px 48px;text-align:center;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#C9A84C;">Nilathra Collection</p>
+              <h1 style="margin:12px 0 0;font-size:26px;font-weight:400;color:#ffffff;font-style:italic;">${headline}</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:48px;">
+              ${contentHtml}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background:#F5F3EF;padding:28px 48px;text-align:center;border-top:1px solid #e5e7eb;">
+              <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Nilathra Collection · Luxury Unfiltered</p>
+              <p style="margin:0;font-size:11px;color:#c3c3c3;">Colombo, Sri Lanka · <a href="https://nilathra.com" style="color:#C9A84C;text-decoration:none;">nilathra.com</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+    }
+
+    /**
      * Notify the customer that an agent has been assigned to their request
      */
     async sendAgentAssignedEmail(options: {
@@ -65,29 +110,7 @@ export class EmailService {
 
         const subject = `Your Request Has Been Assigned – Nilathra Collection`;
 
-        const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Agent Assigned</title>
-</head>
-<body style="margin:0;padding:0;background:#F5F3EF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-          <!-- Header -->
-          <tr>
-            <td style="background:#1B3A2D;padding:36px 48px;text-align:center;">
-              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#C9A84C;">Nilathra Collection</p>
-              <h1 style="margin:12px 0 0;font-size:26px;font-weight:400;color:#ffffff;font-style:italic;">Your Journey is in Expert Hands</h1>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:48px;">
+        const contentHtml = `
               <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">
                 Dear ${customerName},
               </p>
@@ -116,21 +139,9 @@ export class EmailService {
               <!-- Reference -->
               <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;">Reference</p>
               <p style="margin:0;font-size:12px;color:#9ca3af;font-family:monospace;">${requestId}</p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background:#F5F3EF;padding:28px 48px;text-align:center;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Nilathra Collection · Luxury Unfiltered</p>
-              <p style="margin:0;font-size:11px;color:#c3c3c3;">Colombo, Sri Lanka · <a href="https://nilathra.com" style="color:#C9A84C;text-decoration:none;">nilathra.com</a></p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+`;
+
+        const html = this.generateEmailHtml('Your Journey is in Expert Hands', 'Agent Assigned', contentHtml);
 
         const text = `Dear ${customerName},\n\nYour travel request has been assigned to ${agentName}, your dedicated travel specialist at Nilathra Collection.\n\n${agentName} will be contacting you shortly to begin curating your Sri Lankan journey.\n\nFor urgent enquiries, please reach us at concierge@nilathra.com or WhatsApp +94 77 727 8282.\n\nRequest Reference: ${requestId}\n\nWarm regards,\nNilathra Collection`;
 
@@ -186,35 +197,10 @@ export class EmailService {
 
         const subject = `Travel Request Update: ${statusInfo.headline} – Nilathra Collection`;
 
-        const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Request Update</title>
-</head>
-<body style="margin:0;padding:0;background:#F5F3EF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-          <!-- Header -->
-          <tr>
-            <td style="background:#1B3A2D;padding:36px 48px;text-align:center;">
-              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#C9A84C;">Nilathra Collection</p>
-              <h1 style="margin:12px 0 0;font-size:26px;font-weight:400;color:#ffffff;font-style:italic;">${statusInfo.headline}</h1>
-            </td>
-          </tr>
-          <!-- Status Banner -->
-          <tr>
-            <td style="background:${statusInfo.color};padding:14px 48px;text-align:center;">
-              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ffffff;">Status Updated: ${newStatus}</p>
-            </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:48px;">
+        const contentHtml = `
+              <div style="background:${statusInfo.color};padding:14px 48px;text-align:center;margin:-48px -48px 48px -48px;">
+                <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ffffff;">Status Updated: ${newStatus}</p>
+              </div>
               <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">
                 Dear ${customerName},
               </p>
@@ -246,21 +232,9 @@ export class EmailService {
               <!-- Reference -->
               <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;">Request Reference</p>
               <p style="margin:0;font-size:12px;color:#9ca3af;font-family:monospace;">${requestId}</p>
-            </td>
-          </tr>
-          <!-- Footer -->
-          <tr>
-            <td style="background:#F5F3EF;padding:28px 48px;text-align:center;border-top:1px solid #e5e7eb;">
-              <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Nilathra Collection · Luxury Unfiltered</p>
-              <p style="margin:0;font-size:11px;color:#c3c3c3;">Colombo, Sri Lanka · <a href="https://nilathra.com" style="color:#C9A84C;text-decoration:none;">nilathra.com</a></p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+`;
+
+        const html = this.generateEmailHtml(statusInfo.headline, 'Request Update', contentHtml);
 
         const text = `Dear ${customerName},\n\n${statusInfo.body}${statusNote ? `\n\nNote: ${statusNote}` : ''}\n\nRequest Status: ${newStatus}${packageName ? `\nJourney: ${packageName}` : ''}\n\nFor enquiries: concierge@nilathra.com | WhatsApp +94 77 727 8282\n\nRequest Reference: ${requestId}\n\nWarm regards,\nNilathra Collection`;
 

@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { CreateTourDTO, UpdateTourDTO, AddActivityDTO } from '../dtos/tour.dto';
+
+import { CreateTourDTO, AddActivityDTO } from '../dtos/tour.dto';
 import { TripData } from '@/app/admin/(authenticated)/planner/types';
 import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import { createAdminClient } from '@/utils/supabase/admin';
@@ -328,7 +328,7 @@ export class TourService {
 
         // Sync request status with tour progress
         if (tourData.request_id && tourData.status) {
-            let requestStatus = null;
+            let requestStatus: "Active" | "Completed" | "Cancelled" | null = null;
             if (tourData.status === 'Confirmed' || tourData.status === 'Active') requestStatus = 'Active';
             else if (tourData.status === 'Completed') requestStatus = 'Completed';
             else if (tourData.status === 'Cancelled') requestStatus = 'Cancelled';

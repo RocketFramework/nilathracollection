@@ -12,8 +12,7 @@ import {
 import { fetchActivities, Activity } from "@/data/activities";
 // Updated Import: Ensure this matches your export name from the engine
 import { generateRoutePlan, ItineraryEvent, RoutePlan, GeoLocation } from "@/lib/route-engine";
-import { registerTouristAction } from "@/actions/contact.actions";
-import { RequestService } from "@/services/request.service";
+import { registerTouristAction, submitPlanRequestAction } from "@/actions/contact.actions";
 
 export default function CustomPlanContent() {
     const [step, setStep] = useState(1);
@@ -191,7 +190,7 @@ export default function CustomPlanContent() {
             ];
 
             // Submit Request
-            await RequestService.createRequest({
+            const res = await submitPlanRequestAction({
                 name,
                 email,
                 phone_number: phone,
@@ -199,7 +198,11 @@ export default function CustomPlanContent() {
                 destinations,
                 adults: parseInt(travelers) || 2,
                 note: note || undefined,
-            }, (authResult as any)?.user?.id);
+            });
+
+            if (!res.success) {
+                throw new Error(res.error);
+            }
 
             alert("Plan Approved! Our specialists will contact you shortly to finalize details.");
         } catch (error) {

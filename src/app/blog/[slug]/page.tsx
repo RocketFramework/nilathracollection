@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import BlogContent from "./BlogContent";
 import { Metadata } from "next";
 
-const BASE_URL = "https://nilathra.com";
+const BASE_URL = "https://www.nilathra.com";
 
 interface Props {
     params: Promise<{ slug: string }>;

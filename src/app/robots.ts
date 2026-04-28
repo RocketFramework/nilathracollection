@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
             userAgent: '*',
             allow: '/',
         },
-        sitemap: 'https://nilathra.com/sitemap.xml',
-        host: 'https://nilathra.com',
+        sitemap: 'https://www.nilathra.com/sitemap.xml',
+        host: 'https://www.nilathra.com',
     };
 }
