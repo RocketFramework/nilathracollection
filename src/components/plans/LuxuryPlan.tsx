@@ -312,7 +312,7 @@ export default function LuxuryPlan() {
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
                                 <ShieldCheck size={14} /> {tLux.philosophy.badge}
                             </div>
-                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">{tLux.philosophy.title}</h2>
+                            <h2 className="text-4xl md:text-5xl font-serif text-logo-blue tracking-tight break-words">{tLux.philosophy.title}</h2>
                             <p className="text-neutral-600 text-xl leading-relaxed font-medium">
                                 {tLux.philosophy.desc}
                             </p>

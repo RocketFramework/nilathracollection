@@ -230,7 +230,7 @@ export default function RegularPlan() {
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
                                 <ShieldCheck size={14} /> {tReg.philosophy.badge}
                             </div>
-                            <h2 className="text-5xl font-serif text-logo-blue tracking-tight">{tReg.philosophy.title}</h2>
+                            <h2 className="text-4xl md:text-5xl font-serif text-logo-blue tracking-tight break-words">{tReg.philosophy.title}</h2>
                             <p className="text-neutral-600 text-xl leading-relaxed font-medium">
                                 {tReg.philosophy.desc}
                             </p>
