@@ -449,15 +449,6 @@ export default function LuxuryPlan() {
                                     {tLux.cta.sub}
                                 </p>
 
-                                <div className="mt-6 w-full">
-                                    <Link
-                                        href="/elite-journeys"
-                                        className="w-full flex items-center justify-center gap-3 bg-white border border-brand-gold hover:bg-brand-gold/5 text-brand-gold py-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs transition-all shadow-md active:scale-[0.98] text-center group"
-                                    >
-                                        <Compass size={18} className="group-hover:rotate-45 transition-transform duration-300" />
-                                        Elite Journeys Sample
-                                    </Link>
-                                </div>
                             </div>
                         </div>
                     </div>
