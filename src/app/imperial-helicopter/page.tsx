@@ -71,7 +71,7 @@ export default function ImperialHelicopterPage() {
                 
                 /* Hero Section */
                 .ej-hero {
-                    position: relative; height: 70vh; min-height: 500px;
+                    position: relative; min-height: 70vh; padding: 4rem 1rem;
                     /* [HERO: Private helicopter banking over Sri Lanka misty tea terraces at dawn, Castlereagh Lake below, golden light] */
                     background: url('https://images.unsplash.com/photo-1580915411954-282cb1b0d780?q=80') center/cover;
                     display: flex; align-items: center; justify-content: center;

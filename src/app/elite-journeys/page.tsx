@@ -72,7 +72,7 @@ export default function EliteJourneysPage() {
                 
                 /* Hero Section */
                 .ej-hero {
-                    position: relative; height: 70vh; min-height: 500px;
+                    position: relative; min-height: 70vh; padding: 4rem 1rem;
                     background: url('https://images.unsplash.com/photo-1583037189850-1921be2077e6') center/cover;
                     display: flex; align-items: center; justify-content: center;
                     text-align: center; color: white;

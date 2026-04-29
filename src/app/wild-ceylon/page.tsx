@@ -69,7 +69,7 @@ export default function WildCeylonPage() {
                 
                 /* Hero Section */
                 .ej-hero {
-                    position: relative; height: 70vh; min-height: 500px;
+                    position: relative; min-height: 70vh; padding: 4rem 1rem;
                     background: url('https://images.unsplash.com/photo-1544644181-1484b3fdfc62') center/cover;
                     display: flex; align-items: center; justify-content: center;
                     text-align: center; color: white;
