@@ -235,12 +235,12 @@ export default function PremiumPlan() {
                 <div className="grid lg:grid-cols-2 gap-32 items-start">
                     {/* Left: Philosophy & Breakdown */}
                     <div className="space-y-20">
-                        <div className="space-y-8">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
-                                <Star size={14} /> {tPrem.philosophy.badge}
+                        <div className="space-y-8 w-full min-w-0">
+                            <div className="inline-flex max-w-full items-center flex-wrap justify-center text-center gap-2 px-4 py-2 rounded-full bg-logo-blue/5 border border-logo-blue/10 text-logo-blue text-[10px] font-black uppercase tracking-[0.3em]">
+                                <Star size={14} className="shrink-0" /> <span className="break-words min-w-0">{tPrem.philosophy.badge}</span>
                             </div>
                             <h2 className="text-4xl md:text-5xl font-serif text-logo-blue tracking-tight break-words">{tPrem.philosophy.title}</h2>
-                            <p className="text-neutral-600 text-xl leading-relaxed font-medium">
+                            <p className="text-neutral-600 text-xl leading-relaxed font-medium break-words">
                                 {tPrem.philosophy.desc}
                             </p>
                         </div>
@@ -301,22 +301,22 @@ export default function PremiumPlan() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-12 pt-8">
-                            <div className="space-y-4">
-                                <div className="p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-12 pt-8 w-full">
+                            <div className="space-y-4 min-w-0">
+                                <div className="p-6 md:p-8 bg-neutral-900 rounded-[2.5rem] border border-logo-blue/20 shadow-2xl relative overflow-hidden group w-full break-words">
                                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                         <ShieldCheck size={80} className="text-white" />
                                     </div>
                                     <Clock size={40} className="text-brand-gold mb-6" />
-                                    <h4 className="font-serif text-2xl text-white mb-2">{tPrem.philosophy.comfort.title}</h4>
-                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium">{tPrem.philosophy.comfort.desc}</p>
+                                    <h4 className="font-serif text-2xl text-white mb-2 break-words">{tPrem.philosophy.comfort.title}</h4>
+                                    <p className="text-sm text-neutral-400 leading-relaxed font-medium break-words">{tPrem.philosophy.comfort.desc}</p>
                                 </div>
                             </div>
-                            <div className="space-y-4 sm:pt-16">
-                                <div className="p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors">
+                            <div className="space-y-4 sm:pt-16 min-w-0">
+                                <div className="p-6 md:p-8 bg-neutral-50 rounded-[2.5rem] border border-neutral-100 hover:border-logo-blue/20 transition-colors w-full break-words">
                                     <Camera size={40} className="text-logo-blue mb-6" />
-                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2">{tPrem.philosophy.connection.title}</h4>
-                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">{tPrem.philosophy.connection.desc}</p>
+                                    <h4 className="font-serif text-2xl text-neutral-900 mb-2 break-words">{tPrem.philosophy.connection.title}</h4>
+                                    <p className="text-sm text-neutral-500 leading-relaxed font-medium break-words">{tPrem.philosophy.connection.desc}</p>
                                 </div>
                             </div>
                         </div>
@@ -324,7 +324,7 @@ export default function PremiumPlan() {
 
                     {/* Right: Inclusions & Quote */}
                     <div className="space-y-12 lg:sticky lg:top-32">
-                        <div className="bg-white border border-neutral-100 rounded-[3rem] p-12 space-y-16 shadow-xl">
+                        <div className="bg-white border border-neutral-100 rounded-[3rem] p-8 md:p-12 space-y-16 shadow-xl">
                             {inclusions.map((section: any, idx: number) => {
                                 const incObj = tPrem.inclusions[idx];
                                 return (

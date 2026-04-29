@@ -7,7 +7,7 @@ import { useTranslation } from "@/components/I18nProvider";
 export default function Hero() {
     const t = useTranslation();
     return (
-        <section className="relative h-screen w-full overflow-hidden">
+        <section className="relative h-[100svh] min-h-[600px] w-full overflow-hidden">
             {/* Background Image - Using a placeholder for now, will replace with generated one */}
             <div
                 className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105"
@@ -18,7 +18,7 @@ export default function Hero() {
                 <div className="absolute inset-0 cinematic-overlay" />
             </div>
 
-            <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
+            <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6 pt-28 md:pt-0">
                 <motion.span
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -32,7 +32,7 @@ export default function Hero() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, delay: 0.4 }}
-                    className="text-5xl md:text-8xl font-serif text-white mb-8 max-w-5xl leading-tight"
+                    className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif text-white mb-6 md:mb-8 max-w-5xl leading-tight"
                 >
                     {t.hero.title_part1} <br />
                     <span className="text-gold-gradient italic">{t.hero.title_part2}</span>

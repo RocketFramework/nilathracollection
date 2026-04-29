@@ -54,7 +54,7 @@ export default function Navbar() {
                             </div>
                         </div>
                         <span className={cn(
-                            "font-serif text-2xl font-bold tracking-tighter transition-colors duration-500 uppercase",
+                            "font-serif text-lg md:text-2xl font-bold tracking-tighter transition-colors duration-500 uppercase",
                             isTransparent ? "text-white" : "text-logo-blue"
                         )}>
                             NILATHRA <span className={isTransparent ? "text-brand-gold" : "text-logo-red"}>COLLECTION</span>
