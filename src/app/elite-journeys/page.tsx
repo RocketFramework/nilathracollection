@@ -207,8 +207,8 @@ export default function EliteJourneysPage() {
                 .inc-text { font-size: 0.95rem; font-weight: 500; color: var(--navy); }
 
                 /* Pricing */
-                .pricing-table-container { background: white; padding: 3rem; border-radius: 4px; box-shadow: 0 4px 20px rgba(12, 35, 64, 0.03); }
-                .pricing-table { width: 100%; border-collapse: collapse; }
+                .pricing-table-container { background: white; padding: 3rem; border-radius: 4px; box-shadow: 0 4px 20px rgba(12, 35, 64, 0.03); overflow-x: auto; width: 100%; max-width: 100vw; }
+                .pricing-table { width: 100%; min-width: 600px; border-collapse: collapse; }
                 .pricing-table th, .pricing-table td { padding: 1.25rem 1rem; text-align: left; border-bottom: 1px solid rgba(12, 35, 64, 0.08); }
                 .pricing-table th { color: var(--text-light); font-weight: 500; letter-spacing: 1px; text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid rgba(12, 35, 64, 0.1); }
                 .pricing-table tr:last-child td { border-bottom: none; }
