@@ -5,7 +5,7 @@ import {
     ListTree, MapPin, CalendarDays, Navigation, Utensils, BedDouble, AlertCircle, GripVertical,
     Rocket, RefreshCcw, ArrowUp, ArrowDown, Activity as ActivityIcon, ChevronLeft, ChevronRight,
     Trash2, Link, Link2Off, UserCheck, ShieldCheck, Car as CarIcon, Coffee, Info, Calculator,
-    CheckCircle2, AlertTriangle, Search, X, Check, XCircle, PlusCircle, Waves, Wifi, Briefcase, HeartPulse, Plane, Phone
+    CheckCircle2, AlertTriangle, Search, X, Check, XCircle, PlusCircle, Waves, Wifi, Briefcase, HeartPulse, Plane, Phone, Printer
 } from "lucide-react";
 import { generateRoutePlan, GeoLocation } from "@/lib/route-engine";
 import { generateAIRoutePlan } from "@/lib/ai-route-engine";
@@ -23,6 +23,7 @@ import {
     saveAIRuleAction
 } from "@/actions/admin.actions";
 import { AIRule } from "@/types/ai";
+import { ItineraryPdfTemplate } from "../components/ItineraryPdfTemplate";
 
 import {
     Vendor,
@@ -480,9 +481,53 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
     };
 
     const updateBlock = (id: string, fields: Partial<InternalItineraryBlock>) => {
-        updateData({
+        let updates: Partial<TripData> = {
             itinerary: tripData.itinerary.map(b => b.id === id ? { ...b, ...fields } : b)
-        });
+        };
+
+        // Sync to global transports if applicable
+        if ((fields.transportId !== undefined || fields.driverId !== undefined || fields.guideId !== undefined || fields.vehicleId !== undefined) && tripData.transports && tripData.transports.length > 0) {
+            let transportUpdates = { ...tripData.transports[0] };
+            
+            if (fields.transportId && masterData.transportProviders) {
+                const p = masterData.transportProviders.find((x:any) => x.id === fields.transportId);
+                if (p) transportUpdates.supplier = p.name;
+            }
+            
+            if (fields.vehicleId && masterData.transportProviders) {
+                const p = masterData.transportProviders.find((x:any) => x.id === fields.transportId || x.transport_vehicles?.some((v:any) => v.id === fields.vehicleId));
+                if (p) {
+                    const v = p.transport_vehicles?.find((vx:any) => vx.id === fields.vehicleId);
+                    if (v) transportUpdates.vehicleNumber = v.vehicle_number || v.make_and_model;
+                }
+            }
+            
+            if (fields.driverId && masterData.drivers) {
+                const d = masterData.drivers.find((x:any) => x.id === fields.driverId);
+                if (d) {
+                    transportUpdates.driverName = `${d.first_name} ${d.last_name}`.trim();
+                    transportUpdates.driverContact = d.phone || d.contact || '';
+                }
+            } else if (fields.driverId === null || fields.driverId === undefined && 'driverId' in fields) {
+                 // if cleared
+                 if ('driverId' in fields && fields.driverId === undefined) {
+                     transportUpdates.driverName = '';
+                     transportUpdates.driverContact = '';
+                 }
+            }
+            
+            if (fields.guideId && masterData.guides) {
+                const g = masterData.guides.find((x:any) => x.id === fields.guideId);
+                if (g) {
+                    transportUpdates.guideAssigned = true;
+                    transportUpdates.guideDetails = `${g.first_name} ${g.last_name}`.trim();
+                }
+            }
+            
+            updates.transports = [transportUpdates, ...tripData.transports.slice(1)];
+        }
+
+        updateData(updates);
     };
 
     const moveBlock = (dayStr: string, index: number, direction: 'up' | 'down') => {
@@ -667,20 +712,46 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         if (field === 'hotelId' && block.type === 'sleep') {
             const hotel = masterData.hotels.find(h => h.id === value);
             if (hotel) {
-                updates.accommodations = tripData.accommodations.map(acc => {
-                    if (acc.nightIndex === block.dayNumber) {
-                        return {
-                            ...acc,
-                            hotelId: hotel.id,
-                            hotelName: hotel.name,
-                            stayClass: hotel.hotel_class || acc.stayClass,
-                            address: hotel.location_address || acc.address,
-                            // Clear room specific selections if switching to a different hotel
-                            ...(acc.hotelId !== hotel.id ? { roomId: undefined, roomName: '', roomStandard: '', mealPlan: undefined, pricePerNight: 0 } : {})
-                        };
-                    }
-                    return acc;
-                });
+                let newAccs = [...tripData.accommodations];
+                const existingAccIndex = newAccs.findIndex(a => a.nightIndex === block.dayNumber);
+                
+                if (existingAccIndex >= 0) {
+                    newAccs[existingAccIndex] = {
+                        ...newAccs[existingAccIndex],
+                        hotelId: hotel.id,
+                        hotelName: hotel.name,
+                        stayClass: hotel.hotel_class || newAccs[existingAccIndex].stayClass,
+                        address: hotel.location_address || newAccs[existingAccIndex].address,
+                        // Clear room specific selections if switching to a different hotel
+                        ...(newAccs[existingAccIndex].hotelId !== hotel.id ? { roomId: undefined, roomName: '', roomStandard: '', mealPlan: undefined, pricePerNight: 0, selectedRooms: [] } : {})
+                    };
+                } else {
+                    newAccs.push({
+                        id: crypto.randomUUID(),
+                        nightIndex: block.dayNumber,
+                        hotelId: hotel.id,
+                        hotelName: hotel.name,
+                        stayClass: hotel.hotel_class || 'Standard',
+                        address: hotel.location_address || '',
+                        mapLink: '',
+                        contactPerson: hotel.reservation_agent_name || '',
+                        contactNumber: hotel.reservation_agent_contact || '',
+                        email: '',
+                        rateCardUrl: '',
+                        roomStandard: 'Standard Room',
+                        numberOfRooms: 1,
+                        pricePerNight: 0,
+                        mealPlan: 'BB',
+                        status: 'Tentative',
+                        confirmationReference: '',
+                        paymentStatus: 'Pending',
+                        cancellationDeadline: '',
+                        beddingConfiguration: '',
+                        specialRequests: '',
+                        selectedRooms: []
+                    });
+                }
+                updates.accommodations = newAccs;
             }
         }
 
@@ -770,7 +841,10 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             const h = masterData.hotels.find(x => x.id === block.hotelId);
             const acc = tripData.accommodations.find(a => a.nightIndex === block.dayNumber);
             let label = h?.name || 'Linked Hotel';
-            if (acc?.roomName || acc?.roomStandard) {
+            if (acc?.selectedRooms && acc.selectedRooms.length > 0) {
+                const roomSummaries = acc.selectedRooms.map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard} (${sr.mealPlan || 'BB'})`);
+                label += ` - ${roomSummaries.join(', ')}`;
+            } else if (acc?.roomName || acc?.roomStandard) {
                 label += ` - ${acc.roomName || acc.roomStandard}`;
                 if (acc.mealPlan) label += ` (${acc.mealPlan})`;
                 if ((acc.numberOfRooms || 1) > 1) label += ` [x${acc.numberOfRooms}]`;
@@ -1515,6 +1589,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                                                                 <button
                                                                                                                     key={mp}
                                                                                                                     onClick={(e) => {
+                                                                                                                        e.preventDefault();
                                                                                                                         e.stopPropagation();
                                                                                                                         const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
                                                                                                                         updateData({
@@ -1555,7 +1630,9 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                                                             return (
                                                                                                                 <button
                                                                                                                     key={room.id}
-                                                                                                                    onClick={() => {
+                                                                                                                    onClick={(e) => {
+                                                                                                                        e.preventDefault();
+                                                                                                                        e.stopPropagation();
                                                                                                                         const newSelected = [...selectedRooms.filter((sr: any) => sr.reqId !== reqId)];
                                                                                                                         newSelected.push({
                                                                                                                             reqId: reqId,
@@ -1955,6 +2032,55 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                     </div>
                 )
             }
+            
+            {/* Generate PDF Section */}
+            <div className="mt-12 pt-8 border-t border-neutral-200 flex flex-col items-center justify-center">
+                <button
+                    onClick={() => {
+                        const printContent = document.getElementById('print-container')?.innerHTML;
+                        if (printContent) {
+                            const iframe = document.createElement('iframe');
+                            document.body.appendChild(iframe);
+                            iframe.style.display = 'none';
+                            const doc = iframe.contentWindow?.document;
+                            if (doc) {
+                                doc.open();
+                                doc.write(`
+                                    <html>
+                                        <head>
+                                            <title>Itinerary PDF</title>
+                                            ${Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n')}
+                                            <style>
+                                                body { background: white !important; margin: 0; padding: 0; }
+                                                @page { size: A4; margin: 0; }
+                                                .pdf-container { padding: 0 !important; }
+                                            </style>
+                                        </head>
+                                        <body>${printContent}</body>
+                                    </html>
+                                `);
+                                doc.close();
+                                iframe.contentWindow?.focus();
+                                setTimeout(() => {
+                                    iframe.contentWindow?.print();
+                                    setTimeout(() => document.body.removeChild(iframe), 1000);
+                                }, 500);
+                            }
+                        }
+                    }}
+                    className="flex items-center gap-3 px-8 py-4 bg-brand-green text-white font-bold rounded-2xl shadow-lg hover:bg-brand-green/90 transition-all active:scale-95"
+                >
+                    <Printer size={20} />
+                    Download PDF
+                </button>
+                <p className="text-xs text-neutral-500 mt-3">Generates a branded PDF for the client</p>
+            </div>
+
+            {/* Hidden Print Container */}
+            <div id="print-container" className="hidden">
+                <ItineraryPdfTemplate tripData={tripData} masterData={masterData} />
+            </div>
+
         </div>
     );
 }
