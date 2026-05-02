@@ -498,7 +498,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                 const p = masterData.transportProviders.find((x:any) => x.id === fields.transportId || x.transport_vehicles?.some((v:any) => v.id === fields.vehicleId));
                 if (p) {
                     const v = p.transport_vehicles?.find((vx:any) => vx.id === fields.vehicleId);
-                    if (v) transportUpdates.vehicleNumber = v.vehicle_number || v.make_and_model;
+                    if (v) transportUpdates.vehicleNumber = v.vehicle_number || v.make_and_model || '';
                 }
             }
             
@@ -506,7 +506,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                 const d = masterData.drivers.find((x:any) => x.id === fields.driverId);
                 if (d) {
                     transportUpdates.driverName = `${d.first_name} ${d.last_name}`.trim();
-                    transportUpdates.driverContact = d.phone || d.contact || '';
+                    transportUpdates.driverContact = d.phone || '';
                 }
             } else if (fields.driverId === null || fields.driverId === undefined && 'driverId' in fields) {
                  // if cleared
