@@ -6,6 +6,7 @@ import { Phone, Mail, MapPin, MessageCircle, Send, Globe, CheckCircle2 } from "l
 import Link from "next/link";
 import Image from "next/image";
 import { submitInquiryAction } from "@/actions/contact.actions";
+import { logPageViewAction } from "@/actions/log.actions";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 
 export default function ContactPage() {
@@ -58,16 +59,19 @@ export default function ContactPage() {
 
         const fetchLocation = async () => {
             try {
-                const response = await fetch("https://ipapi.co/json/");
+                const response = await fetch("https://get.geojs.io/v1/ip/geo.json");
                 const data = await response.json();
-                if (data.country_name) {
-                    setForm(prev => ({ ...prev, departureCountry: data.country_name }));
+                if (data.country) {
+                    setForm(prev => ({ ...prev, departureCountry: data.country }));
                 }
             } catch (error) {
-                console.error("Failed to fetch location data for auto-population", error);
+                // Silently fail if location tracking is blocked by adblockers or fails
             }
         };
         fetchLocation();
+
+        // Log page view
+        logPageViewAction('Contact Page').catch(console.error);
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {

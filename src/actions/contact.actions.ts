@@ -4,6 +4,7 @@ import { AuthService } from "@/services/auth.service";
 import { RequestService } from "@/services/request.service";
 import { CreateRequestDTO } from "@/dtos/request.dto";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { LoggerService } from "@/services/logger.service";
 
 export async function registerTouristAction(email: string, name?: string, phone?: string) {
     try {
@@ -90,6 +91,8 @@ export async function submitInquiryAction(formData: {
     infants?: number;
 }) {
     try {
+        await LoggerService.logInteraction('contact_page_inquiry_start', { inquiryType: formData.inquiryType, email: formData.email });
+
         const {
             name, email, phone, inquiryType, message,
             departureCountry, budget, startDate, durationNights,
@@ -128,15 +131,19 @@ export async function submitInquiryAction(formData: {
 
         await RequestService.createRequest(requestDto, userId);
 
+        await LoggerService.logInteraction('contact_page_inquiry_success', { email });
         return { success: true, message: "Your inquiry has been delivered successfully. Our concierge will contact you shortly." };
     } catch (error: any) {
         console.error("Error in submitInquiryAction:", error);
-        return { error: error.message || "An unexpected error occurred. Please try again later." };
+        await LoggerService.logError('contact_page_inquiry_error', error, formData);
+        return { error: "An unexpected system error occurred. Our technical team has been notified. Please try again or contact us via email." };
     }
 }
 
 export async function submitPlanRequestAction(dto: any) {
     try {
+        await LoggerService.logInteraction('plan_request_start', { email: dto.email });
+
         if (!dto.email || !dto.name) {
             return { error: "Name and email are required." };
         }
@@ -152,9 +159,11 @@ export async function submitPlanRequestAction(dto: any) {
         }
 
         const result = await RequestService.createRequest(dto, userId);
+        await LoggerService.logInteraction('plan_request_success', { email: dto.email });
         return { success: true, data: result };
     } catch (error: any) {
         console.error("Error in submitPlanRequestAction:", error);
-        return { error: error.message || "Failed to submit plan request." };
+        await LoggerService.logError('plan_request_error', error, dto);
+        return { error: "An unexpected system error occurred. Our technical team has been notified. Please try again or contact us via email." };
     }
 }

@@ -92,10 +92,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                     </Link>
 
                     {isAdmin && (
-                        <Link href="/admin/settings" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                            <Settings size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                            <span className="font-medium tracking-wide">Settings</span>
-                        </Link>
+                        <>
+                            <Link href="/admin/logs" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <Database size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">System Logs</span>
+                            </Link>
+                            <Link href="/admin/settings" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <Settings size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Settings</span>
+                            </Link>
+                        </>
                     )}
                 </nav>
                 <div className="p-6 border-t border-[#E5E7EB]">
