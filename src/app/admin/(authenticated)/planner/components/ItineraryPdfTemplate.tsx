@@ -6,7 +6,22 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
     ({ tripData, masterData }, ref) => {
         const { profile, itinerary, accommodations, transports, financials } = tripData;
         const pax = (profile.adults || 0) + (profile.children || 0);
-        const hasCommercials = accommodations.length > 0 || transports.length > 0 || (financials && financials.sellingPrice > 0);
+
+        const validAccommodations = accommodations.filter(acc => 
+            (acc.hotelId && String(acc.hotelId).trim() !== '') || 
+            (acc.hotelName && acc.hotelName.trim() !== 'Pending Assignment' && acc.hotelName.trim() !== 'Not Assigned' && acc.hotelName.trim() !== '')
+        );
+        const hasValidHotels = validAccommodations.length > 0;
+        
+        const hasValidTransports = transports.some(t => 
+            (t.supplier && t.supplier.trim() !== '') || 
+            (t.driverName && t.driverName.trim() !== '') || 
+            (t.vehicleNumber && t.vehicleNumber.trim() !== '')
+        ) || itinerary.some(b => 
+            b.type === 'travel' && (b.transportId || b.driverId || b.vehicleId)
+        );
+
+        const hasCommercials = hasValidHotels || hasValidTransports;
 
         // Calculate dynamic metrics
         const calculateMetrics = () => {
@@ -171,9 +186,27 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
 
                         <div className="space-y-16">
                             {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
+                                const timeToMins = (timeStr?: string, blockType?: string) => {
+                                    if (!timeStr || !timeStr.includes(':')) {
+                                        if (blockType === 'sleep') return 1440; // Push sleep blocks to end of day if no time
+                                        return -1; // Push other untimed blocks to top
+                                    }
+                                    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+                                    if (!match) return blockType === 'sleep' ? 1440 : -1;
+                                    
+                                    let h = parseInt(match[1], 10);
+                                    const m = parseInt(match[2], 10);
+                                    if (isNaN(h) || isNaN(m)) return blockType === 'sleep' ? 1440 : -1;
+                                    
+                                    const period = match[3]?.toUpperCase();
+                                    if (period === 'PM' && h < 12) h += 12;
+                                    if (period === 'AM' && h === 12) h = 0;
+                                    return h * 60 + m;
+                                };
+
                                 const dayBlocks = itinerary.filter(b => b.dayNumber === dayNum).sort((a, b) => {
-                                    const timeA = a.startTime ? parseInt(a.startTime.replace(':', '')) : 0;
-                                    const timeB = b.startTime ? parseInt(b.startTime.replace(':', '')) : 0;
+                                    const timeA = timeToMins(a.startTime, a.type);
+                                    const timeB = timeToMins(b.startTime, b.type);
                                     return timeA - timeB;
                                 });
 
@@ -271,11 +304,11 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                 <h2 className="text-4xl font-serif text-[#1D265A] font-light">Residences & Logistics</h2>
                             </div>
                             
-                            {accommodations.length > 0 && (
+                            {hasValidHotels && (
                                 <div className="mb-16">
                                     <h4 className="text-[10px] font-sans text-[#1D265A] uppercase tracking-[0.4em] border-b border-[#1D265A]/20 pb-4 mb-8 text-center">Accommodations</h4>
                                     <div className="space-y-6">
-                                        {[...accommodations].sort((a, b) => a.nightIndex - b.nightIndex).map((acc, idx) => {
+                                        {[...validAccommodations].sort((a, b) => a.nightIndex - b.nightIndex).map((acc, idx) => {
                                             const roomSummaries = acc.selectedRooms && acc.selectedRooms.length > 0
                                                 ? acc.selectedRooms.map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard}`).join(', ')
                                                 : (acc.roomName || acc.roomStandard || 'Standard Room');
@@ -304,7 +337,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                 </div>
                             )}
 
-                            {transports.length > 0 && (
+                            {hasValidTransports && (
                                 <div>
                                     <h4 className="text-[10px] font-sans text-[#1D265A] uppercase tracking-[0.4em] border-b border-[#1D265A]/20 pb-4 mb-8 text-center">Transportation</h4>
                                     <div className="space-y-6">
@@ -386,7 +419,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                         </div>
 
                         {/* 5. Costs Table */}
-                        {financials && (
+                        {financials && hasValidHotels && (
                             <div className="mb-24 break-inside-avoid">
                                 <div className="text-center mb-12">
                                     <h3 className="text-xs text-[#C5A572] uppercase tracking-[0.4em] font-semibold mb-4">Commercials</h3>
