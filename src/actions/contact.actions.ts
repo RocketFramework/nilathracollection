@@ -42,25 +42,34 @@ export async function registerTouristAction(email: string, name?: string, phone?
             }
         }
 
-        // 3. Ensure public.users record exists
-        await supabaseAdmin.from('users').upsert([
-            { id: userId, email, role: 'tourist', full_name: name || 'Guest User' }
+        // 3. Ensure public.users record exists (only insert columns that actually exist in the schema)
+        const { error: usersError } = await supabaseAdmin.from('users').upsert([
+            { id: userId, email }
         ], { onConflict: 'id' });
+        
+        if (usersError) {
+            console.error("public.users Upsert Error:", usersError);
+            await LoggerService.logError("user_registration_users_upsert", usersError, { userId, email });
+            // If the public.users record fails to create, the foreign key for requests will fail.
+            // We should throw here to prevent the silent failure.
+            throw new Error(`Failed to create user profile: ${usersError.message}`);
+        }
 
         // 4. Fetch the 'tourist' role ID
         const { data: roleData } = await supabaseAdmin.from("roles").select("id").eq("name", "tourist").single();
         if (roleData) {
             // 5. Assign User Role
-            await supabaseAdmin.from("user_roles").upsert([
+            const { error: roleError } = await supabaseAdmin.from("user_roles").upsert([
                 { user_id: userId, role_id: roleData.id }
             ], { onConflict: 'user_id, role_id' });
+            if (roleError) console.error("Role assignment error:", roleError);
         }
 
         // 6. Create Tourist Profile
         const firstName = name ? name.split(' ')[0] : 'Guest';
         const lastName = name && name.includes(' ') ? name.split(' ').slice(1).join(' ') : 'User';
 
-        await supabaseAdmin.from('tourist_profiles').upsert([
+        const { error: tpError } = await supabaseAdmin.from('tourist_profiles').upsert([
             {
                 id: userId,
                 first_name: firstName,
@@ -69,9 +78,15 @@ export async function registerTouristAction(email: string, name?: string, phone?
             }
         ], { onConflict: 'id' });
 
+        if (tpError) {
+            console.error("tourist_profiles Upsert Error:", tpError);
+            await LoggerService.logError("user_registration_tourist_profile_upsert", tpError, { userId });
+        }
+
         return { success: true, user: { id: userId } };
     } catch (error: any) {
         console.error("registerTouristAction error", error);
+        await LoggerService.logError("user_registration_exception", error);
         return { success: false, error: error.message };
     }
 }
