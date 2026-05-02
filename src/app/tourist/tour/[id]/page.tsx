@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRight, BedDouble, Calendar, ArrowLeft, ReceiptText } from "lucide-react";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { createClient } from "@/utils/supabase/client";
+import { ItineraryPdfTemplate } from "@/app/admin/(authenticated)/planner/components/ItineraryPdfTemplate";
 
 export default function TourDetailsPage() {
     const params = useParams();
@@ -112,7 +113,47 @@ export default function TourDetailsPage() {
                     <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-sm">
                         <div className="flex items-center justify-between mb-8">
                             <h2 className="text-2xl font-serif text-brand-charcoal">Itinerary Overview</h2>
-                            <button className="text-brand-green text-sm font-bold flex items-center gap-2 hover:text-brand-gold transition-colors">
+                            <button 
+                                onClick={() => {
+                                    const printContent = document.getElementById('print-container')?.innerHTML;
+                                    if (printContent) {
+                                        const iframe = document.createElement('iframe');
+                                        iframe.style.position = 'fixed';
+                                        iframe.style.right = '0';
+                                        iframe.style.bottom = '0';
+                                        iframe.style.width = '0';
+                                        iframe.style.height = '0';
+                                        iframe.style.border = '0';
+                                        document.body.appendChild(iframe);
+
+                                        const doc = iframe.contentWindow?.document;
+                                        if (doc) {
+                                            doc.open();
+                                            doc.write(`
+                                                <html>
+                                                    <head>
+                                                        <title>Itinerary PDF</title>
+                                                        ${Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n')}
+                                                        <style>
+                                                            body { background: white !important; margin: 0; padding: 0; }
+                                                            @page { size: A4; margin: 0; }
+                                                            .pdf-container { padding: 0 !important; }
+                                                        </style>
+                                                    </head>
+                                                    <body>${printContent}</body>
+                                                </html>
+                                            `);
+                                            doc.close();
+                                            iframe.contentWindow?.focus();
+                                            setTimeout(() => {
+                                                iframe.contentWindow?.print();
+                                                setTimeout(() => document.body.removeChild(iframe), 1000);
+                                            }, 500);
+                                        }
+                                    }
+                                }}
+                                className="text-brand-green text-sm font-bold flex items-center gap-2 hover:text-brand-gold transition-colors"
+                            >
                                 <Download size={16} /> Download PDF
                             </button>
                         </div>
@@ -264,6 +305,11 @@ export default function TourDetailsPage() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Hidden Print Container */}
+            <div id="print-container" className="hidden">
+                <ItineraryPdfTemplate tripData={tour.rawPlannerData} />
             </div>
         </div>
     );

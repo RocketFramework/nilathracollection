@@ -38,7 +38,13 @@ export class TouristService {
         // Map to UI friendly format
         return data.map(tour => {
             const agentData = Array.isArray(tour.agent) ? tour.agent[0] : tour.agent;
-            const agentProfile = agentData?.agent_profile?.[0] || agentData?.admin_profile?.[0] || {};
+            
+            const agentProfRaw = agentData?.agent_profile;
+            const adminProfRaw = agentData?.admin_profile;
+            
+            const agentProfile = (Array.isArray(agentProfRaw) ? agentProfRaw[0] : agentProfRaw) || 
+                                 (Array.isArray(adminProfRaw) ? adminProfRaw[0] : adminProfRaw) || {};
+                                 
             const tripData = tour.planner_data as unknown as TripData || {};
 
             // Extract locations from planner data or fallback
@@ -95,7 +101,13 @@ export class TouristService {
 
         // Map data to match the UI expectations
         const agentData = Array.isArray(data.agent) ? data.agent[0] : data.agent;
-        const agentProfile = agentData?.agent_profile?.[0] || agentData?.admin_profile?.[0] || {};
+        
+        const agentProfRaw = agentData?.agent_profile;
+        const adminProfRaw = agentData?.admin_profile;
+        
+        const agentProfile = (Array.isArray(agentProfRaw) ? agentProfRaw[0] : agentProfRaw) || 
+                             (Array.isArray(adminProfRaw) ? adminProfRaw[0] : adminProfRaw) || {};
+                             
         const tripData = data.planner_data as unknown as TripData || {};
 
         // Sort itineraries by day
@@ -123,15 +135,16 @@ export class TouristService {
             totalPrice: `$${tripData.financials?.sellingPrice || 0} USD`,
             paidAmount: "$0 USD", // Requires financials integration
             agent: {
-                name: agentProfile.first_name ? `${agentProfile.first_name} ${agentProfile.last_name}` : 'Assigned Agent',
+                name: agentProfile.first_name ? `${agentProfile.first_name} ${agentProfile.last_name || ''}`.trim() : (agentData?.email ? agentData.email.split('@')[0].charAt(0).toUpperCase() + agentData.email.split('@')[0].slice(1).replace(/[^a-zA-Z]/g, ' ') : 'Assigned Agent'),
                 phone: agentProfile.phone || 'N/A',
                 email: agentData?.email || 'N/A',
-                photoInitials: agentProfile.first_name ? agentProfile.first_name.charAt(0) : 'A'
+                photoInitials: agentProfile.first_name ? agentProfile.first_name.charAt(0) : (agentData?.email ? agentData.email.charAt(0).toUpperCase() : 'A')
             },
             invoices: [], // Requires invoices integration
             itinerarySummary: summary,
             detailedItinerary: tripData.itinerary || [],
-            accommodations: tripData.accommodations || []
+            accommodations: tripData.accommodations || [],
+            rawPlannerData: tripData
         };
     }
 }
