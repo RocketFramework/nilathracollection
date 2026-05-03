@@ -15,29 +15,6 @@ export default function TourDetailsPage() {
     const [tour, setTour] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
-    const [notes, setNotes] = useState<Record<string, string>>({});
-    const [savingNote, setSavingNote] = useState<string | null>(null);
-
-    const handleSaveNote = async (blockId: string) => {
-        setSavingNote(blockId);
-        try {
-            const { TouristService } = await import('@/services/tourist.service');
-            await TouristService.addTouristNoteToBlock(id, blockId, notes[blockId] || '');
-            setTour((prev: any) => {
-                const newTour = { ...prev };
-                if (newTour.detailedItinerary) {
-                    newTour.detailedItinerary = newTour.detailedItinerary.map((b: any) => 
-                        b.id === blockId ? { ...b, touristNotes: notes[blockId] } : b
-                    );
-                }
-                return newTour;
-            });
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setSavingNote(null);
-        }
-    };
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -218,25 +195,6 @@ export default function TourDetailsPage() {
                                                                 {block.clientVisibleNotes}
                                                             </p>
                                                         )}
-                                                        <div className="mt-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
-                                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-2">Request Modification</p>
-                                                            <div className="flex gap-2">
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="E.g. Can we change this to afternoon?"
-                                                                    className="flex-1 text-xs bg-white border border-blue-100 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-300"
-                                                                    value={notes[block.id] !== undefined ? notes[block.id] : (block.touristNotes || '')}
-                                                                    onChange={e => setNotes(prev => ({ ...prev, [block.id]: e.target.value }))}
-                                                                />
-                                                                <button
-                                                                    onClick={() => handleSaveNote(block.id)}
-                                                                    disabled={savingNote === block.id || (notes[block.id] === undefined && !block.touristNotes)}
-                                                                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                                                                >
-                                                                    {savingNote === block.id ? 'Saving...' : 'Save Note'}
-                                                                </button>
-                                                            </div>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
