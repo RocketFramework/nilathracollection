@@ -15,6 +15,7 @@ export interface UpdateTourDTO {
 }
 
 export interface AddActivityDTO {
+    tour_id?: string; // UUID
     itinerary_id: string; // UUID
     title: string;
     description?: string;

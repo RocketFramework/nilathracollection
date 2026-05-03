@@ -21,6 +21,7 @@ export interface ItineraryEvent {
   distance?: string;
   location?: { lat: number; lng: number };
   carbon?: number;
+  activityId?: string;
 }
 
 export interface ItineraryDay {
@@ -513,6 +514,7 @@ export class AdvancedRouteEngine {
       events.push({
         type: 'activity',
         name: activity.activity_name,
+        activityId: String(activity.id),
         startTime: this.minutesToTime(currentMinutes),
         endTime: this.minutesToTime(currentMinutes + actDuration),
         duration: actDuration / 60,

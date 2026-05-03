@@ -155,6 +155,7 @@ export class TourService {
             if (!itinErr && itin) {
                 // Insert an empty daily_activities record to scaffold the planner experience
                 await supabaseAdmin.from('daily_activities').insert([{
+                    tour_id: newTour.id,
                     itinerary_id: itin.id,
                     title: 'New Activity',
                     time_start: '09:00:00',
@@ -455,6 +456,7 @@ export class TourService {
 
                 let basePayload: any = {
                     id: crypto.randomUUID(),
+                    tour_id: tourId,
                     itinerary_id: dbItin.id,
                     title: b.name,
                     location_name: b.locationName || null,

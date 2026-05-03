@@ -46,6 +46,7 @@ RULES:
          {
            "type": "activity" | "travel" | "meal" | "sleep" | "wait",
            "name": "string",
+           "activityId": "string (only for type=activity, use EXACT id from input)",
            "startTime": "HH:MM AM/PM",
            "endTime": "HH:MM AM/PM",
            "duration": number (in hours),

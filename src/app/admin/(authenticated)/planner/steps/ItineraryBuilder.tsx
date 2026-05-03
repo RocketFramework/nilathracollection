@@ -204,6 +204,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                         dayNumber: day.day,
                         type: event.type as any,
                         name: event.name,
+                        activityId: event.activityId, // Added this mapping
                         startTime: event.startTime,
                         endTime: event.endTime,
                         bufferMins: 15,
