@@ -24,16 +24,21 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             ? rpcRole.trim().toLowerCase()
             : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role ? (rpcRole as any).role.trim().toLowerCase() : null;
 
-        const effectiveRole = userRole || metadataRole;
+        let effectiveRole = userRole || metadataRole;
+
+        // Fetch profiles first to act as fallback for legacy users missing roles
+        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
+        const { data: agentData } = await adminSupabase.from('agent_profiles').select('*').eq('id', user.id).single();
+
+        if (adminData) effectiveRole = 'admin';
+        else if (agentData) effectiveRole = 'agent';
 
         if (effectiveRole === 'admin') {
             isAdmin = true;
             displayRole = "Admin";
-            const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
             userInitials = adminData?.first_name ? adminData.first_name.substring(0, 2).toUpperCase() : "AD";
         } else if (effectiveRole === 'agent') {
             displayRole = "Agent";
-            const { data: agentData } = await adminSupabase.from('agent_profiles').select('*').eq('id', user.id).single();
             if (agentData && agentData.first_name) {
                 userInitials = agentData.first_name.substring(0, 2).toUpperCase();
             }
