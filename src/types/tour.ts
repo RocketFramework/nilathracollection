@@ -197,6 +197,7 @@ export interface InternalItineraryBlock {
     paymentStatus: 'Pending' | 'Paid';
     internalNotes: string;
     clientVisibleNotes: string;
+    touristNotes?: string; // Feedback from tourist
     locationName?: string;
     distance?: string;
     lat?: number;

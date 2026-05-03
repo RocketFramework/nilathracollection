@@ -1230,6 +1230,20 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                     )}
                                                                 </div>
                                                             )}
+                                                            <div className="mt-2 w-full">
+                                                                <DebouncedInput
+                                                                    value={block.clientVisibleNotes || ''}
+                                                                    onChange={v => updateBlock(block.id, { clientVisibleNotes: v })}
+                                                                    placeholder="Add note for tourist (visible on itinerary)..."
+                                                                    className="w-full text-xs text-neutral-600 bg-neutral-50/50 rounded-lg px-3 py-2 border border-transparent focus:border-brand-gold/30 focus:bg-white focus:ring-0 transition-colors placeholder:text-neutral-300 placeholder:italic"
+                                                                />
+                                                                {block.touristNotes && (
+                                                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                                                                        <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">Tourist Feedback</p>
+                                                                        <p className="text-xs text-blue-800">{block.touristNotes}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
 
                                                         <div className="flex items-center gap-3 w-full md:w-auto">

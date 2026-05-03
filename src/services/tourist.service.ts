@@ -147,4 +147,45 @@ export class TouristService {
             rawPlannerData: tripData
         };
     }
+    static async addTouristNoteToBlock(tourId: string, blockId: string, note: string) {
+        const supabase = createClient();
+        
+        // Ensure user is authenticated and is the owner
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        // Fetch current tour planner_data
+        const { data: tour, error: fetchErr } = await supabase
+            .from('tours')
+            .select('planner_data')
+            .eq('id', tourId)
+            .eq('tourist_id', user.id)
+            .single();
+
+        if (fetchErr || !tour) throw new Error("Tour not found or access denied");
+
+        const plannerData = tour.planner_data as unknown as TripData;
+        if (!plannerData || !plannerData.itinerary) throw new Error("Itinerary not found in tour");
+
+        // Update the block
+        let blockFound = false;
+        plannerData.itinerary = plannerData.itinerary.map(block => {
+            if (block.id === blockId) {
+                blockFound = true;
+                return { ...block, touristNotes: note };
+            }
+            return block;
+        });
+
+        if (!blockFound) throw new Error("Block not found in itinerary");
+
+        // Save back to DB
+        const { error: updateErr } = await supabase
+            .from('tours')
+            .update({ planner_data: plannerData as any })
+            .eq('id', tourId);
+
+        if (updateErr) throw updateErr;
+        return true;
+    }
 }
