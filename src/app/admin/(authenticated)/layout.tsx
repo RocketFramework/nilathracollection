@@ -18,25 +18,33 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         // Broad check for admin using service role client to bypass any RLS read restrictions
         const adminSupabase = createAdminClient();
         const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
-        const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
         const metadataRole = user.user_metadata?.role;
 
-        const isRpcAdmin = typeof rpcRole === 'string'
-            ? rpcRole.trim().toLowerCase() === 'admin'
-            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role === 'admin';
+        const userRole = typeof rpcRole === 'string'
+            ? rpcRole.trim().toLowerCase()
+            : typeof rpcRole === 'object' && rpcRole !== null && (rpcRole as any).role ? (rpcRole as any).role.trim().toLowerCase() : null;
 
-        if (isRpcAdmin || adminData || metadataRole === 'admin') {
+        const effectiveRole = userRole || metadataRole;
+
+        if (effectiveRole === 'admin') {
             isAdmin = true;
             displayRole = "Admin";
+            const { data: adminData } = await adminSupabase.from('admin_profiles').select('*').eq('id', user.id).single();
             userInitials = adminData?.first_name ? adminData.first_name.substring(0, 2).toUpperCase() : "AD";
-        } else {
-            // Retrieve agent info for initials
+        } else if (effectiveRole === 'agent') {
+            displayRole = "Agent";
             const { data: agentData } = await adminSupabase.from('agent_profiles').select('*').eq('id', user.id).single();
             if (agentData && agentData.first_name) {
                 userInitials = agentData.first_name.substring(0, 2).toUpperCase();
-                displayRole = "Agent";
             }
+        } else {
+            // Tourist or unrecognized role
+            const { redirect } = await import('next/navigation');
+            redirect('/tourist');
         }
+    } else {
+        const { redirect } = await import('next/navigation');
+        redirect('/admin/login');
     }
 
     return (
