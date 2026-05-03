@@ -262,10 +262,12 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                                                 </p>
                                                                             )}
                                                                             
-                                                                            {block.clientVisibleNotes && (
-                                                                                <p className="text-base font-serif text-[#4B5563] leading-relaxed mb-6 font-light">
-                                                                                    {block.clientVisibleNotes}
-                                                                                </p>
+                                                                            {block.comments && block.comments.filter(c => c.role === 'agent').length > 0 && (
+                                                                                <div className="text-base font-serif text-[#4B5563] leading-relaxed mb-6 font-light space-y-2">
+                                                                                    {block.comments.filter(c => c.role === 'agent').map(c => (
+                                                                                        <p key={c.id}>{c.text}</p>
+                                                                                    ))}
+                                                                                </div>
                                                                             )}
 
                                                                             {/* Bound Logistics Data */}

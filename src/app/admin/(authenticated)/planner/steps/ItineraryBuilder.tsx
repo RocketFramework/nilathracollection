@@ -231,7 +231,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                         confirmationStatus: 'Pending',
                         paymentStatus: 'Pending',
                         internalNotes: '',
-                        clientVisibleNotes: '',
+                        comments: [],
                         locationName: event.locationName,
                         distance: event.distance,
                         lat: event.location?.lat,
@@ -255,7 +255,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                         confirmationStatus: 'Pending',
                         paymentStatus: 'Pending',
                         internalNotes: 'This activity could not fit in the AI schedule.',
-                        clientVisibleNotes: '',
+                        comments: [],
                         locationName: act.location_name,
                         distance: undefined,
                         lat: act.lat || undefined,
@@ -680,7 +680,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             confirmationStatus: 'Pending',
             paymentStatus: 'Pending',
             internalNotes: '',
-            clientVisibleNotes: ''
+            comments: []
         };
 
         updateData({
