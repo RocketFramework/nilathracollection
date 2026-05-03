@@ -23,7 +23,6 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
 
         const hasCommercials = hasValidHotels || hasValidTransports;
 
-        // Calculate dynamic metrics
         const calculateMetrics = () => {
             let cities = new Set<string>();
             let activitiesCount = 0;
@@ -46,60 +45,73 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
         };
         const metrics = calculateMetrics();
 
-        return (
-            <div ref={ref} className="bg-white text-[#1D265A] mx-auto pdf-container font-sans" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
-                
-                {/* 1. Cover Page - Rich Opulent Editorial */}
-                <div className="h-[1050px] print:h-[100vh] flex flex-col items-center justify-center relative break-after-page bg-gradient-to-br from-[#12183A] via-[#1D265A] to-[#12183A] p-16 box-border overflow-hidden">
-                    {/* Background Texture / Abstract Circles */}
-                    <div className="absolute top-[-15%] right-[-15%] w-[600px] h-[600px] rounded-full border-[1px] border-[#C5A572] opacity-10"></div>
-                    <div className="absolute top-[-5%] right-[-5%] w-[400px] h-[400px] rounded-full border-[1px] border-[#C5A572] opacity-[0.05]"></div>
-                    <div className="absolute bottom-[-15%] left-[-15%] w-[600px] h-[600px] rounded-full border-[1px] border-[#C5A572] opacity-10"></div>
-                    <div className="absolute bottom-[-5%] left-[-5%] w-[400px] h-[400px] rounded-full border-[1px] border-[#C5A572] opacity-[0.05]"></div>
-                    
-                    {/* Ornate Frame */}
-                    <div className="absolute inset-8 border border-[#C5A572]/30 z-0"></div>
-                    <div className="absolute inset-[36px] border border-[#C5A572]/10 z-0"></div>
-                    
-                    {/* Golden Corner Accents */}
-                    <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-[#C5A572]/80 z-0"></div>
-                    <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-[#C5A572]/80 z-0"></div>
-                    <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-[#C5A572]/80 z-0"></div>
-                    <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-[#C5A572]/80 z-0"></div>
-                    
-                    <div className="z-10 flex flex-col items-center text-center max-w-2xl relative">
-                        {/* Elegant White Plaque for Logo (ensures perfect print rendering) */}
-                        <div className="bg-white px-12 py-10 mb-20 flex flex-col items-center justify-center border-2 border-[#C5A572]/40 shadow-2xl relative">
-                            {/* Inner delicate line on the plaque */}
-                            <div className="absolute inset-2 border border-[#1D265A]/10"></div>
-                            
-                            <img src="/images/nilathra-logo.png" alt="Nilathra Collection" className="w-48 relative z-10" onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-3xl font-serif text-[#1D265A] uppercase tracking-[0.3em] text-center relative z-10">Nilathra<br/><span class="text-sm text-[#C5A572] mt-3 block tracking-[0.4em]">Collection</span></h1>');
-                            }} />
-                        </div>
-                        
-                        <div className="h-20 w-px bg-gradient-to-b from-[#C5A572]/0 via-[#C5A572]/80 to-[#C5A572]/0 mb-10"></div>
+        // High-end editorial CSS classes
+        const primaryText = "text-[#111827]"; // almost black
+        const secondaryText = "text-[#4B5563]"; // elegant gray
+        const accentGold = "text-[#D4AF37]"; // rich gold
+        const bgDark = "bg-[#0A0F1D]"; // deep navy black
+        const fontSerif = "font-serif";
+        const fontSans = "font-sans";
 
-                        <p className="text-[#C5A572] text-[10px] tracking-[0.5em] uppercase mb-6 font-medium">Exclusively Curated For</p>
-                        <h2 className="text-5xl font-serif text-white mb-10 leading-tight font-light italic">{tripData.clientName}</h2>
+        return (
+            <div ref={ref} className="bg-white mx-auto pdf-container font-sans antialiased selection:bg-[#D4AF37]/20" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+                
+                {/* 1. COVER PAGE - Extremely Luxe & Minimal */}
+                <div className={`h-[1050px] print:h-[100vh] flex flex-col items-center justify-center relative break-after-page ${bgDark} p-12 box-border overflow-hidden`}>
+                    
+                    {/* Golden Border Frame */}
+                    <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/30 z-0 pointer-events-none"></div>
+                    <div className="absolute inset-[36px] border border-[#D4AF37]/10 z-0 pointer-events-none"></div>
+                    
+                    {/* Central Design Element */}
+                    <div className="z-10 flex flex-col items-center text-center max-w-3xl relative h-full justify-between py-24">
                         
-                        <div className="h-20 w-px bg-gradient-to-b from-[#C5A572]/0 via-[#C5A572]/80 to-[#C5A572]/0 mt-4 mb-14"></div>
-                        
-                        <h1 className="text-[11px] font-sans text-white/70 uppercase tracking-[0.4em]">A Bespoke Journey</h1>
+                        <div className="flex flex-col items-center">
+                            <div className="mb-4">
+                                <img src="/images/nilathra-logo.png" alt="Nilathra Collection" className="w-32 opacity-90 relative z-10 filter brightness-200" onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-2xl font-serif text-white uppercase tracking-[0.4em] text-center">Nilathra</h1>');
+                                }} />
+                            </div>
+                            <div className="w-[1px] h-16 bg-gradient-to-b from-[#D4AF37]/0 via-[#D4AF37]/50 to-[#D4AF37]/0 my-6"></div>
+                            <span className="text-[#D4AF37] text-[10px] tracking-[0.4em] uppercase font-light">The Collection</span>
+                        </div>
+
+                        <div className="flex flex-col items-center justify-center space-y-12 my-auto">
+                            <h1 className="text-[10px] font-sans text-white/50 uppercase tracking-[0.5em]">A Curated Itinerary</h1>
+                            
+                            <h2 className="text-6xl font-serif text-white leading-tight font-light italic text-center px-12">
+                                {tripData.clientName}
+                            </h2>
+                            
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-[1px] bg-[#D4AF37]/40"></div>
+                                <span className="text-[#D4AF37] text-[9px] tracking-[0.3em] uppercase">Private & Confidential</span>
+                                <div className="w-12 h-[1px] bg-[#D4AF37]/40"></div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center">
+                            <span className="text-white/40 text-[9px] uppercase tracking-[0.3em] mb-2">{metrics.cities} Destinations &bull; {profile.durationDays} Days</span>
+                            <span className="text-white/20 text-[8px] uppercase tracking-[0.2em]">{profile.arrivalDate || 'Dates to be confirmed'}</span>
+                        </div>
+
                     </div>
                 </div>
 
                 <table className="w-full">
                     <thead className="table-header-group">
-                        <tr><td><div className="h-[25mm]"></div></td></tr>
+                        <tr><td><div className="h-[20mm]"></div></td></tr>
                     </thead>
                     <tfoot className="table-footer-group">
                         <tr>
                             <td>
-                                <div className="h-[20mm] flex items-end justify-center pb-8">
-                                    <span className="text-[8px] font-sans uppercase tracking-[0.4em] text-[#1D265A]/40">
-                                        Strictly Confidential &bull; Nilathra Collection
+                                <div className="h-[25mm] flex items-end justify-between px-20 pb-10">
+                                    <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-[#111827]/30">
+                                        Nilathra Collection
+                                    </span>
+                                    <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-[#111827]/30">
+                                        Private Itinerary
                                     </span>
                                 </div>
                             </td>
@@ -108,351 +120,371 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                     <tbody className="table-row-group">
                         <tr>
                             <td>
-                                {/* 2. Welcome & Overview */}
-                                <div className="px-24 pb-20 max-w-[900px] mx-auto break-after-page print:break-after-auto">
-                    
-                    <div className="text-center mb-20">
-                        <h3 className="text-sm text-[#C5A572] uppercase tracking-[0.4em] font-semibold mb-6">Journey Overview</h3>
-                        <p className="text-3xl font-serif text-[#1D265A] font-light leading-relaxed max-w-2xl mx-auto italic">
-                            "A curated exploration designed to capture the essence of luxury, wilderness, and serenity."
-                        </p>
-                    </div>
-                    
-                    {/* Minimalist Data Grid */}
-                    <div className="border-y border-[#1D265A]/10 py-8 mb-16 space-y-8">
-                        {/* Row 1 */}
-                        <div className="grid grid-cols-4 gap-0">
-                            <div className="text-center border-r border-[#1D265A]/10 px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Guests</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{profile.adults} Adults {profile.children > 0 ? `• ${profile.children} Ch` : ''}</span>
-                            </div>
-                            <div className="text-center border-r border-[#1D265A]/10 px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Pace</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{profile.travelStyle}</span>
-                            </div>
-                            <div className="text-center border-r border-[#1D265A]/10 px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Duration</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{profile.durationDays} Days</span>
-                            </div>
-                            <div className="text-center px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Arrival</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{profile.arrivalDate || 'TBD'}</span>
-                            </div>
-                        </div>
-                        
-                        {/* Row 2 */}
-                        <div className="grid grid-cols-3 gap-0 border-t border-[#1D265A]/5 pt-8">
-                            <div className="text-center border-r border-[#1D265A]/10 px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Destinations</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{metrics.cities} Cities</span>
-                            </div>
-                            <div className="text-center border-r border-[#1D265A]/10 px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Curated Acts</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{metrics.activities} Experiences</span>
-                            </div>
-                            <div className="text-center px-2">
-                                <strong className="text-[#C5A572] uppercase text-[9px] tracking-[0.3em] block mb-3">Est. Travel</strong>
-                                <span className="font-serif text-lg text-[#1D265A]">{metrics.distance > 0 ? `${metrics.distance} km` : 'TBD'}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="prose prose-neutral max-w-none text-[#1D265A]/80 leading-[2.2] font-serif text-justify text-lg">
-                        <p className="mb-6"><span className="text-3xl float-left mr-3 leading-none text-[#C5A572]">D</span>ear {tripData.clientName},</p>
-                        <p className="mb-6">
-                            Thank you for entrusting Nilathra Collection with your upcoming journey. We are thrilled to present this meticulously curated itinerary, designed specifically to reflect your unique preferences and desires.
-                        </p>
-                        <p>
-                            Every detail within these pages—from the luxurious accommodations to the immersive experiences—has been selected by our experts to ensure absolute comfort and exclusivity. We invite you to review this proposal, knowing that our dedicated team remains at your disposal to refine any aspect until it perfectly aligns with your vision.
-                        </p>
-                        
-                        <div className="mt-16 border-t border-[#1D265A]/10 pt-8 flex justify-between items-center">
-                            <span className="text-[10px] font-sans tracking-[0.2em] uppercase text-[#C5A572]">Ref: {tripData.id?.split('-')[0].toUpperCase() || 'DRAFT'}</span>
-                            <span className="text-[10px] font-sans tracking-[0.2em] uppercase text-[#1D265A]/50">Nilathra Collection</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 3. The Itinerary */}
-                <div className="px-24 pb-16 max-w-[900px] mx-auto break-before-page print:break-before-auto">
-                    <div className="mb-20 text-center">
-                        <h3 className="text-xs text-[#C5A572] uppercase tracking-[0.4em] font-semibold mb-4">Chronology</h3>
-                        <h2 className="text-4xl font-serif text-[#1D265A] font-light">The Itinerary</h2>
-                    </div>
-
-                    <div className="relative">
-                        {/* Timeline Spine */}
-                        <div className="absolute left-[23px] top-4 bottom-0 w-px bg-[#C5A572]/30"></div>
-
-                        <div className="space-y-16">
-                            {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
-                                const timeToMins = (timeStr?: string, blockType?: string) => {
-                                    if (!timeStr || !timeStr.includes(':')) {
-                                        if (blockType === 'sleep') return 1440; // Push sleep blocks to end of day if no time
-                                        return -1; // Push other untimed blocks to top
-                                    }
-                                    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-                                    if (!match) return blockType === 'sleep' ? 1440 : -1;
+                                {/* 2. THE WELCOME LETTER */}
+                                <div className="px-24 pb-24 max-w-[900px] mx-auto break-after-page print:break-after-page">
                                     
-                                    let h = parseInt(match[1], 10);
-                                    const m = parseInt(match[2], 10);
-                                    if (isNaN(h) || isNaN(m)) return blockType === 'sleep' ? 1440 : -1;
+                                    <div className="mb-20 text-center">
+                                        <div className="inline-block border-b border-[#D4AF37] pb-3 mb-10">
+                                            <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em]">Prologue</h3>
+                                        </div>
+                                    </div>
                                     
-                                    const period = match[3]?.toUpperCase();
-                                    if (period === 'PM' && h < 12) h += 12;
-                                    if (period === 'AM' && h === 12) h = 0;
-                                    return h * 60 + m;
-                                };
+                                    <div className="prose prose-neutral max-w-none text-[#4B5563] leading-[2.4] font-serif text-justify text-lg pl-10 relative">
+                                        {/* Golden decorative line */}
+                                        <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-gradient-to-b from-[#D4AF37]/10 via-[#D4AF37] to-[#D4AF37]/10"></div>
+                                        
+                                        <p className="mb-8 font-light text-2xl text-[#111827]">
+                                            Dear {tripData.clientName},
+                                        </p>
+                                        <p className="mb-8 font-light">
+                                            It is an absolute honor to welcome you to the Nilathra Collection. We have carefully studied your preferences to craft a journey that transcends ordinary travel. Sri Lanka is a canvas of incredible diversity, and we have curated a sequence of experiences that capture its purest luxury, untold heritage, and breathtaking nature.
+                                        </p>
+                                        <p className="mb-12 font-light">
+                                            Every detail within these pages—from the exclusive sanctuaries you will reside in, to the seamless logistics orchestrating your movement—has been hand-selected. We invite you to immerse yourself in this proposal. Our concierges await your thoughts to perfect it further.
+                                        </p>
+                                        
+                                        <div className="mt-16 pt-8">
+                                            <p className="text-[#111827] font-serif italic text-xl mb-1">Warmest Regards,</p>
+                                            <p className="text-[#D4AF37] text-[10px] uppercase tracking-[0.3em] font-sans">The Nilathra Concierge Team</p>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                const dayBlocks = itinerary.filter(b => b.dayNumber === dayNum).sort((a, b) => {
-                                    const timeA = timeToMins(a.startTime, a.type);
-                                    const timeB = timeToMins(b.startTime, b.type);
-                                    return timeA - timeB;
-                                });
+                                {/* 3. TRIP SUMMARY - The Blueprint */}
+                                <div className="px-24 pb-24 max-w-[900px] mx-auto break-after-page print:break-after-page">
+                                    <div className="mb-16 text-center">
+                                        <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-4">The Blueprint</h3>
+                                        <h2 className="text-4xl font-serif text-[#111827] font-light italic">Journey Overview</h2>
+                                    </div>
 
-                                return (
-                                    <div key={dayNum} className="relative break-inside-avoid">
-                                        <div className="flex items-start gap-6">
-                                            {/* Day Marker */}
-                                            <div className="flex flex-col items-center bg-white z-10 w-[48px]">
-                                                <span className="text-[10px] uppercase tracking-[0.3em] text-[#C5A572] mb-1">Day</span>
-                                                <span className="text-4xl font-serif text-[#1D265A] leading-none mb-4">{dayNum}</span>
-                                                <div className="w-2 h-2 rounded-full bg-[#1D265A]"></div>
+                                    <div className="bg-[#FAFAF9] border border-[#E5E7EB] p-12">
+                                        <div className="grid grid-cols-2 gap-y-16 gap-x-12">
+                                            
+                                            <div className="border-l-2 border-[#D4AF37] pl-6">
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280] block mb-2">Guests</span>
+                                                <span className="font-serif text-2xl text-[#111827]">{profile.adults} Adults {profile.children > 0 ? `• ${profile.children} Children` : ''}</span>
                                             </div>
 
-                                            {/* Day Content */}
-                                            <div className="flex-1 pt-1">
-                                                <div className="space-y-10">
-                                                    {dayBlocks.map((block, idx) => (
-                                                        <div key={block.id} className="group">
-                                                            <div className="flex justify-between items-baseline border-b border-[#1D265A]/5 pb-3 mb-3">
-                                                                <h5 className="font-serif text-xl text-[#1D265A] font-medium">{block.name}</h5>
-                                                                {block.startTime && (
-                                                                    <div className="flex items-center gap-2 text-[10px] font-sans tracking-[0.2em] text-[#C5A572] uppercase">
-                                                                        <Clock size={10} />
-                                                                        {block.startTime} {block.endTime ? `- ${block.endTime}` : ''}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            
-                                                            {block.locationName && (
-                                                                <p className="text-[11px] font-sans text-[#1D265A]/60 flex items-center gap-1.5 uppercase tracking-[0.2em] mb-4">
-                                                                    <MapPin size={10} className="text-[#C5A572]" /> {block.locationName}
-                                                                </p>
-                                                            )}
-                                                            
-                                                            {block.clientVisibleNotes && (
-                                                                <p className="text-sm font-serif text-[#1D265A]/70 leading-relaxed italic mb-4">
-                                                                    {block.clientVisibleNotes}
-                                                                </p>
-                                                            )}
+                                            <div className="border-l-2 border-[#D4AF37] pl-6">
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280] block mb-2">Duration</span>
+                                                <span className="font-serif text-2xl text-[#111827]">{profile.durationDays} Days of Discovery</span>
+                                            </div>
 
-                                                            {/* Render Bound Logistics Data */}
-                                                            {masterData && (block.transportId || block.driverId || block.guideId || block.vendorId) && (
-                                                                <div className="mt-4 pt-3 border-t border-[#C5A572]/20 flex flex-wrap gap-x-6 gap-y-2">
-                                                                    {block.transportId && masterData.transportProviders && (
-                                                                        <span className="text-[10px] font-sans text-[#1D265A]/80 flex items-center gap-1 uppercase tracking-[0.1em]">
-                                                                            <span className="text-[#C5A572] font-semibold">Transport:</span>
-                                                                            {masterData.transportProviders.find((p:any) => p.id === block.transportId)?.name || 'Assigned'}
-                                                                        </span>
-                                                                    )}
-                                                                    {block.driverId && masterData.drivers && (() => {
-                                                                        const d = masterData.drivers.find((x:any) => x.id === block.driverId);
-                                                                        return d && (
-                                                                            <span className="text-[10px] font-sans text-[#1D265A]/80 flex items-center gap-1 uppercase tracking-[0.1em]">
-                                                                                <span className="text-[#C5A572] font-semibold">Chauffeur:</span>
-                                                                                {`${d.first_name} ${d.last_name}`.trim()}
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                    {block.guideId && masterData.guides && (() => {
-                                                                        const g = masterData.guides.find((x:any) => x.id === block.guideId);
-                                                                        return g && (
-                                                                            <span className="text-[10px] font-sans text-[#1D265A]/80 flex items-center gap-1 uppercase tracking-[0.1em]">
-                                                                                <span className="text-[#C5A572] font-semibold">Guide:</span>
-                                                                                {`${g.first_name} ${g.last_name}`.trim()}
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                    {block.vendorId && masterData.vendors && (
-                                                                        <span className="text-[10px] font-sans text-[#1D265A]/80 flex items-center gap-1 uppercase tracking-[0.1em]">
-                                                                            <span className="text-[#C5A572] font-semibold">Partner:</span>
-                                                                            {masterData.vendors.find((v:any) => v.id === block.vendorId)?.name || 'Assigned'}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                            <div className="border-l-2 border-[#D4AF37] pl-6">
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280] block mb-2">Pace & Style</span>
+                                                <span className="font-serif text-2xl text-[#111827]">{profile.travelStyle}</span>
+                                            </div>
+
+                                            <div className="border-l-2 border-[#D4AF37] pl-6">
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280] block mb-2">Estimated Arrival</span>
+                                                <span className="font-serif text-2xl text-[#111827]">{profile.arrivalDate || 'To Be Determined'}</span>
+                                            </div>
+
+                                        </div>
+
+                                        <div className="h-[1px] w-full bg-[#E5E7EB] my-12"></div>
+
+                                        <div className="grid grid-cols-3 gap-8 text-center">
+                                            <div>
+                                                <span className="font-serif text-4xl text-[#111827] block mb-2">{metrics.cities}</span>
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280]">Destinations</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-serif text-4xl text-[#111827] block mb-2">{metrics.activities}</span>
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280]">Curated Experiences</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-serif text-4xl text-[#111827] block mb-2">{metrics.distance > 0 ? `${metrics.distance}` : '--'}</span>
+                                                <span className="text-[9px] font-sans uppercase tracking-[0.3em] text-[#6B7280]">Est. Kilometers</span>
                                             </div>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 4. Options & Commercials */}
-                {hasCommercials && (
-                    <div className="px-24 pb-16 max-w-[900px] mx-auto break-before-page">
-                        
-                        <div className="mb-24">
-                            <div className="text-center mb-16">
-                                <h3 className="text-xs text-[#C5A572] uppercase tracking-[0.4em] font-semibold mb-4">Curation</h3>
-                                <h2 className="text-4xl font-serif text-[#1D265A] font-light">Residences & Logistics</h2>
-                            </div>
-                            
-                            {hasValidHotels && (
-                                <div className="mb-16">
-                                    <h4 className="text-[10px] font-sans text-[#1D265A] uppercase tracking-[0.4em] border-b border-[#1D265A]/20 pb-4 mb-8 text-center">Accommodations</h4>
-                                    <div className="space-y-6">
-                                        {[...validAccommodations].sort((a, b) => a.nightIndex - b.nightIndex).map((acc, idx) => {
-                                            const roomSummaries = acc.selectedRooms && acc.selectedRooms.length > 0
-                                                ? acc.selectedRooms.map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard}`).join(', ')
-                                                : (acc.roomName || acc.roomStandard || 'Standard Room');
-                                                
-                                            const mealPlans = acc.selectedRooms && acc.selectedRooms.length > 0
-                                                ? Array.from(new Set(acc.selectedRooms.map((sr: any) => sr.mealPlan || 'BB'))).join(' / ')
-                                                : (acc.mealPlan || 'BB');
-
-                                            return (
-                                                <div key={idx} className="flex justify-between items-center py-4 border-b border-[#1D265A]/5">
-                                                    <div>
-                                                        <strong className="block text-xl font-serif text-[#1D265A] mb-2">{acc.hotelName || 'Pending Assignment'}</strong>
-                                                        <span className="text-[10px] text-[#1D265A]/50 font-sans uppercase tracking-[0.2em]">
-                                                            Night {acc.nightIndex} &nbsp;|&nbsp; {roomSummaries}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <span className="text-[9px] font-sans text-[#C5A572] uppercase tracking-[0.3em] border border-[#C5A572]/30 px-3 py-1 rounded-full">
-                                                            {mealPlans}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
                                 </div>
-                            )}
 
-                            {hasValidTransports && (
-                                <div>
-                                    <h4 className="text-[10px] font-sans text-[#1D265A] uppercase tracking-[0.4em] border-b border-[#1D265A]/20 pb-4 mb-8 text-center">Transportation</h4>
-                                    <div className="space-y-6">
-                                        {transports.map((t, idx) => {
-                                            let displaySupplier = t.supplier;
-                                            let displayVehicle = t.vehicleNumber;
-                                            let displayDriver = t.driverName;
-                                            let displayDriverContact = t.driverContact;
-                                            let displayGuide = t.guideDetails;
-                                            let displayGuideAssigned = t.guideAssigned;
+                                {/* 4. THE ITINERARY */}
+                                <div className="px-24 pb-16 max-w-[900px] mx-auto break-before-page print:break-before-auto">
+                                    <div className="mb-20 text-center">
+                                        <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-4">Chronology</h3>
+                                        <h2 className="text-4xl font-serif text-[#111827] font-light italic">The Itinerary</h2>
+                                    </div>
 
-                                            if (!displaySupplier || !displayDriver || !displayGuide) {
-                                                itinerary.forEach(block => {
-                                                    if (!displaySupplier && block.transportId && masterData?.transportProviders) {
-                                                        const p = masterData.transportProviders.find((x:any) => x.id === block.transportId);
-                                                        if (p) displaySupplier = p.name;
-                                                    }
-                                                    if (!displayVehicle && block.vehicleId && masterData?.transportProviders) {
-                                                        masterData.transportProviders.forEach((p:any) => {
-                                                            const v = p.transport_vehicles?.find((vx:any) => vx.id === block.vehicleId);
-                                                            if (v) displayVehicle = v.vehicle_number || v.make_and_model;
-                                                        });
-                                                    }
-                                                    if (!displayDriver && block.driverId && masterData?.drivers) {
-                                                        const d = masterData.drivers.find((x:any) => x.id === block.driverId);
-                                                        if (d) {
-                                                            displayDriver = `${d.first_name} ${d.last_name}`.trim();
-                                                            displayDriverContact = d.phone || d.contact || '';
-                                                        }
-                                                    }
-                                                    if (!displayGuide && block.guideId && masterData?.guides) {
-                                                        const g = masterData.guides.find((x:any) => x.id === block.guideId);
-                                                        if (g) {
-                                                            displayGuide = `${g.first_name} ${g.last_name}`.trim();
-                                                            displayGuideAssigned = true;
-                                                        }
-                                                    }
+                                    <div className="relative">
+                                        {/* Central Timeline Spine */}
+                                        <div className="absolute left-[31px] top-6 bottom-0 w-[1px] bg-[#E5E7EB]"></div>
+
+                                        <div className="space-y-20">
+                                            {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
+                                                const timeToMins = (timeStr?: string, blockType?: string) => {
+                                                    if (!timeStr || !timeStr.includes(':')) return blockType === 'sleep' ? 1440 : -1;
+                                                    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+                                                    if (!match) return blockType === 'sleep' ? 1440 : -1;
+                                                    let h = parseInt(match[1], 10);
+                                                    const m = parseInt(match[2], 10);
+                                                    if (isNaN(h) || isNaN(m)) return blockType === 'sleep' ? 1440 : -1;
+                                                    const period = match[3]?.toUpperCase();
+                                                    if (period === 'PM' && h < 12) h += 12;
+                                                    if (period === 'AM' && h === 12) h = 0;
+                                                    return h * 60 + m;
+                                                };
+
+                                                const dayBlocks = itinerary.filter(b => b.dayNumber === dayNum).sort((a, b) => {
+                                                    return timeToMins(a.startTime, a.type) - timeToMins(b.startTime, b.type);
                                                 });
-                                            }
 
-                                            return (
-                                                <div key={idx} className="flex justify-between items-start py-4 border-b border-[#1D265A]/5">
-                                                    <div>
-                                                        <strong className="block text-xl font-serif text-[#1D265A] mb-2 capitalize">{t.mode.replace(/_/g, ' ')}</strong>
-                                                        
-                                                        {displaySupplier && (
-                                                            <div className="text-[11px] font-sans text-[#1D265A]/80 mb-1">
-                                                                <span className="font-semibold text-[#C5A572]">Provider:</span> {displaySupplier} {displayVehicle ? `(${displayVehicle})` : ''}
+                                                return (
+                                                    <div key={dayNum} className="relative break-inside-avoid">
+                                                        <div className="flex items-start gap-12">
+                                                            
+                                                            {/* Minimal Day Marker */}
+                                                            <div className="flex flex-col items-center bg-white z-10 w-[64px] py-2">
+                                                                <span className="text-[9px] uppercase tracking-[0.2em] text-[#6B7280] mb-1">Day</span>
+                                                                <span className="text-3xl font-serif text-[#D4AF37] leading-none">{String(dayNum).padStart(2, '0')}</span>
                                                             </div>
-                                                        )}
-                                                        
-                                                        {displayDriver && (
-                                                            <div className="text-[11px] font-sans text-[#1D265A]/80 mb-1">
-                                                                <span className="font-semibold text-[#C5A572]">Chauffeur:</span> {displayDriver} {displayDriverContact ? `• ${displayDriverContact}` : ''}
-                                                            </div>
-                                                        )}
-                                                        
-                                                        {displayGuideAssigned && displayGuide && (
-                                                            <div className="text-[11px] font-sans text-[#1D265A]/80 mb-1">
-                                                                <span className="font-semibold text-[#C5A572]">Guide:</span> {displayGuide}
-                                                            </div>
-                                                        )}
 
-                                                        <span className="text-[9px] text-[#1D265A]/50 font-sans uppercase tracking-[0.2em] mt-2 block">
-                                                            {displayGuideAssigned ? 'With Professional Guide' : 'Chauffeur Driven'}
-                                                        </span>
+                                                            {/* Day Content */}
+                                                            <div className="flex-1 pt-2">
+                                                                <div className="space-y-12">
+                                                                    {dayBlocks.map((block) => (
+                                                                        <div key={block.id} className="relative">
+                                                                            <div className="flex justify-between items-baseline mb-2">
+                                                                                <h5 className="font-serif text-2xl text-[#111827] font-light">{block.name}</h5>
+                                                                                {block.startTime && (
+                                                                                    <div className="text-[10px] font-sans tracking-[0.2em] text-[#6B7280] uppercase ml-4 whitespace-nowrap">
+                                                                                        {block.startTime} {block.endTime ? `— ${block.endTime}` : ''}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                            
+                                                                            {block.locationName && (
+                                                                                <p className="text-[10px] font-sans text-[#D4AF37] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                                                                    <span className="w-1 h-1 bg-[#D4AF37] rounded-full"></span>
+                                                                                    {block.locationName}
+                                                                                </p>
+                                                                            )}
+                                                                            
+                                                                            {block.clientVisibleNotes && (
+                                                                                <p className="text-base font-serif text-[#4B5563] leading-relaxed mb-6 font-light">
+                                                                                    {block.clientVisibleNotes}
+                                                                                </p>
+                                                                            )}
+
+                                                                            {/* Bound Logistics Data */}
+                                                                            {masterData && (block.transportId || block.driverId || block.guideId || block.vendorId) && (
+                                                                                <div className="bg-[#FAFAF9] px-6 py-4 border-l border-[#E5E7EB] flex flex-wrap gap-x-8 gap-y-3 mt-4">
+                                                                                    {block.transportId && masterData.transportProviders && (
+                                                                                        <div className="flex flex-col">
+                                                                                            <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Transport</span>
+                                                                                            <span className="text-xs font-serif text-[#111827]">{masterData.transportProviders.find((p:any) => p.id === block.transportId)?.name || 'Assigned'}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    {block.driverId && masterData.drivers && (() => {
+                                                                                        const d = masterData.drivers.find((x:any) => x.id === block.driverId);
+                                                                                        return d && (
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Chauffeur</span>
+                                                                                                <span className="text-xs font-serif text-[#111827]">{`${d.first_name} ${d.last_name}`.trim()}</span>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })()}
+                                                                                    {block.guideId && masterData.guides && (() => {
+                                                                                        const g = masterData.guides.find((x:any) => x.id === block.guideId);
+                                                                                        return g && (
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Guide</span>
+                                                                                                <span className="text-xs font-serif text-[#111827]">{`${g.first_name} ${g.last_name}`.trim()}</span>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })()}
+                                                                                    {block.vendorId && masterData.vendors && (
+                                                                                        <div className="flex flex-col">
+                                                                                            <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Partner</span>
+                                                                                            <span className="text-xs font-serif text-[#111827]">{masterData.vendors.find((v:any) => v.id === block.vendorId)?.name || 'Assigned'}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <span className="text-[9px] font-sans text-[#1D265A]/50 uppercase tracking-[0.3em]">
-                                                            {t.status}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
-                            )}
-                        </div>
 
-                        {/* 5. Costs Table */}
-                        {financials && hasValidHotels && (
-                            <div className="mb-24 break-inside-avoid">
-                                <div className="text-center mb-12">
-                                    <h3 className="text-xs text-[#C5A572] uppercase tracking-[0.4em] font-semibold mb-4">Commercials</h3>
-                                    <h2 className="text-3xl font-serif text-[#1D265A] font-light">Investment Summary</h2>
-                                </div>
-                                
-                                <div className="border-t border-b border-[#1D265A] py-2">
-                                    <table className="w-full text-sm">
-                                        <tbody>
-                                            <tr className="border-b border-[#1D265A]/10">
-                                                <td className="py-8 font-serif text-xl text-[#1D265A]">Total Package Investment</td>
-                                                <td className="py-8 text-right font-serif text-2xl text-[#1D265A]">${financials.sellingPrice?.toLocaleString() || 0}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="py-6 text-[#1D265A]/50 font-sans uppercase tracking-[0.2em] text-[10px]">Estimated Per Person</td>
-                                                <td className="py-6 text-right font-sans text-[#C5A572] text-sm tracking-widest">${pax > 0 ? (financials.sellingPrice / pax).toFixed(0).toLocaleString() : 0}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
+                                {/* 5. Options & Commercials */}
+                                {hasCommercials && (
+                                    <div className="px-24 py-16 max-w-[900px] mx-auto break-before-page">
+                                        
+                                        <div className="mb-24">
+                                            <div className="text-center mb-16">
+                                                <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-4">Curation</h3>
+                                                <h2 className="text-4xl font-serif text-[#111827] font-light italic">Residences & Logistics</h2>
+                                            </div>
+                                            
+                                            {hasValidHotels && (
+                                                <div className="mb-20">
+                                                    <h4 className="text-[11px] font-sans text-[#111827] uppercase tracking-[0.4em] border-b border-[#E5E7EB] pb-4 mb-8">The Sanctuaries</h4>
+                                                    <div className="space-y-8">
+                                                        {[...validAccommodations].sort((a, b) => a.nightIndex - b.nightIndex).map((acc, idx) => {
+                                                            const roomSummaries = acc.selectedRooms && acc.selectedRooms.length > 0
+                                                                ? acc.selectedRooms.map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard}`).join(', ')
+                                                                : (acc.roomName || acc.roomStandard || 'Standard Room');
+                                                                
+                                                            const mealPlans = acc.selectedRooms && acc.selectedRooms.length > 0
+                                                                ? Array.from(new Set(acc.selectedRooms.map((sr: any) => sr.mealPlan || 'BB'))).join(' / ')
+                                                                : (acc.mealPlan || 'BB');
 
-                        {/* 6. Policy Note */}
-                        <div className="mt-32 pt-16 border-t border-[#C5A572]/20 text-center pb-16">
-                            <img src="/images/nilathra-logo.png" alt="Nilathra" className="w-12 mx-auto mb-8 opacity-20 grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
-                            <p className="text-[#C5A572] mb-4 uppercase tracking-[0.3em] text-[8px] font-semibold">Validity & Terms</p>
-                            <p className="text-[11px] text-[#1D265A]/50 font-sans leading-relaxed max-w-xl mx-auto uppercase tracking-wider">
-                                This customized itinerary is valid for a period of two weeks from issuance. Pricing and availability are subject to change upon final confirmation.
-                            </p>
-                        </div>
-                    </div>
-                )}
+                                                            return (
+                                                                <div key={idx} className="flex justify-between items-end pb-6 border-b border-[#F3F4F6]">
+                                                                    <div>
+                                                                        <span className="text-[9px] text-[#D4AF37] font-sans uppercase tracking-[0.2em] mb-1 block">Night {String(acc.nightIndex).padStart(2, '0')}</span>
+                                                                        <strong className="block text-2xl font-serif text-[#111827] font-light mb-2">{acc.hotelName || 'Pending Assignment'}</strong>
+                                                                        <span className="text-[11px] text-[#6B7280] font-sans tracking-[0.1em] block">
+                                                                            {roomSummaries}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <span className="text-[9px] font-sans text-[#111827] uppercase tracking-[0.2em] bg-[#FAFAF9] border border-[#E5E7EB] px-4 py-2">
+                                                                            {mealPlans}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {hasValidTransports && (
+                                                <div>
+                                                    <h4 className="text-[11px] font-sans text-[#111827] uppercase tracking-[0.4em] border-b border-[#E5E7EB] pb-4 mb-8">The Fleet</h4>
+                                                    <div className="space-y-8">
+                                                        {transports.map((t, idx) => {
+                                                            let displaySupplier = t.supplier;
+                                                            let displayVehicle = t.vehicleNumber;
+                                                            let displayDriver = t.driverName;
+                                                            let displayDriverContact = t.driverContact;
+                                                            let displayGuide = t.guideDetails;
+                                                            let displayGuideAssigned = t.guideAssigned;
+
+                                                            if (!displaySupplier || !displayDriver || !displayGuide) {
+                                                                itinerary.forEach(block => {
+                                                                    if (!displaySupplier && block.transportId && masterData?.transportProviders) {
+                                                                        const p = masterData.transportProviders.find((x:any) => x.id === block.transportId);
+                                                                        if (p) displaySupplier = p.name;
+                                                                    }
+                                                                    if (!displayVehicle && block.vehicleId && masterData?.transportProviders) {
+                                                                        masterData.transportProviders.forEach((p:any) => {
+                                                                            const v = p.transport_vehicles?.find((vx:any) => vx.id === block.vehicleId);
+                                                                            if (v) displayVehicle = v.vehicle_number || v.make_and_model;
+                                                                        });
+                                                                    }
+                                                                    if (!displayDriver && block.driverId && masterData?.drivers) {
+                                                                        const d = masterData.drivers.find((x:any) => x.id === block.driverId);
+                                                                        if (d) {
+                                                                            displayDriver = `${d.first_name} ${d.last_name}`.trim();
+                                                                            displayDriverContact = d.phone || d.contact || '';
+                                                                        }
+                                                                    }
+                                                                    if (!displayGuide && block.guideId && masterData?.guides) {
+                                                                        const g = masterData.guides.find((x:any) => x.id === block.guideId);
+                                                                        if (g) {
+                                                                            displayGuide = `${g.first_name} ${g.last_name}`.trim();
+                                                                            displayGuideAssigned = true;
+                                                                        }
+                                                                    }
+                                                                });
+                                                            }
+
+                                                            return (
+                                                                <div key={idx} className="flex justify-between items-start pb-6 border-b border-[#F3F4F6]">
+                                                                    <div>
+                                                                        <strong className="block text-2xl font-serif text-[#111827] font-light mb-4 capitalize">{t.mode.replace(/_/g, ' ')}</strong>
+                                                                        
+                                                                        <div className="grid grid-cols-2 gap-x-12 gap-y-3">
+                                                                            {displaySupplier && (
+                                                                                <div className="text-[11px] font-sans text-[#4B5563]">
+                                                                                    <span className="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] block mb-1">Provider</span>
+                                                                                    {displaySupplier} {displayVehicle ? `(${displayVehicle})` : ''}
+                                                                                </div>
+                                                                            )}
+                                                                            
+                                                                            {displayDriver && (
+                                                                                <div className="text-[11px] font-sans text-[#4B5563]">
+                                                                                    <span className="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] block mb-1">Chauffeur</span>
+                                                                                    {displayDriver} {displayDriverContact ? `• ${displayDriverContact}` : ''}
+                                                                                </div>
+                                                                            )}
+                                                                            
+                                                                            {displayGuideAssigned && displayGuide && (
+                                                                                <div className="text-[11px] font-sans text-[#4B5563] col-span-2 mt-2">
+                                                                                    <span className="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] block mb-1">Professional Guide</span>
+                                                                                    {displayGuide}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-right pt-2">
+                                                                        <span className="text-[9px] font-sans text-[#6B7280] uppercase tracking-[0.2em]">
+                                                                            {t.status}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* 6. Costs Table */}
+                                        {financials && hasValidHotels && (
+                                            <div className="mb-24 break-inside-avoid bg-[#FAFAF9] p-12 border border-[#E5E7EB]">
+                                                <div className="text-center mb-10">
+                                                    <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-3">Commercials</h3>
+                                                    <h2 className="text-3xl font-serif text-[#111827] font-light">Investment Summary</h2>
+                                                </div>
+                                                
+                                                <div className="border-t border-b border-[#E5E7EB] py-6">
+                                                    <div className="flex justify-between items-center mb-6">
+                                                        <span className="font-serif text-xl text-[#111827]">Total Package Investment</span>
+                                                        <span className="font-serif text-3xl text-[#111827]">${financials.sellingPrice?.toLocaleString() || 0}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[10px] font-sans uppercase tracking-[0.2em] text-[#6B7280]">Estimated Per Person</span>
+                                                        <span className="font-sans text-sm tracking-widest text-[#D4AF37]">${pax > 0 ? (financials.sellingPrice / pax).toFixed(0).toLocaleString() : 0}</span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-[9px] text-center uppercase tracking-[0.2em] text-[#6B7280] mt-8">All prices are strictly confidential.</p>
+                                            </div>
+                                        )}
+
+                                        {/* 7. Enhanced Policy Note */}
+                                        <div className="mt-32 pt-16 border-t border-[#E5E7EB] text-center pb-16">
+                                            <div className="mb-10">
+                                                <img src="/images/nilathra-logo.png" alt="Nilathra" className="w-16 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                            </div>
+                                            
+                                            <h4 className="text-[#111827] font-serif text-xl mb-6">Terms & Conditions</h4>
+                                            
+                                            <p className="text-[11px] text-[#6B7280] font-sans leading-relaxed max-w-2xl mx-auto tracking-[0.05em] mb-8">
+                                                This bespoke itinerary is prepared exclusively for you and remains valid for two weeks from issuance. Pricing and specific accommodations are subject to availability upon formal confirmation.
+                                            </p>
+                                            
+                                            <div className="flex justify-center items-center gap-8 text-[9px] uppercase tracking-[0.2em]">
+                                                <a href="http://nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>
+                                                <span className="text-[#E5E7EB]">|</span>
+                                                <a href="http://nilathra.com/terms" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Terms of Service</a>
+                                                <span className="text-[#E5E7EB]">|</span>
+                                                <a href="http://nilathra.com/booking-conditions" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Booking Conditions</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </td>
                         </tr>
                     </tbody>
