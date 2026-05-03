@@ -474,9 +474,9 @@ export async function sendCustomEmailAction(to: string, subject: string, body: s
     }
 }
 
-export async function getAIRulesAction(itineraryId?: string) {
+export async function getAIRulesAction(tourId?: string) {
     try {
-        const rules = await AIService.getRules(itineraryId);
+        const rules = await AIService.getRules(tourId);
         return { success: true, rules };
     } catch (error: any) {
         console.error("Error fetching AI rules:", error);

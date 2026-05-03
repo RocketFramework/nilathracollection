@@ -778,14 +778,14 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             await saveAIRuleAction({
                 rule_type: 'generic',
                 content: aiRules.generic,
-                itinerary_id: null
+                tour_id: null
             });
 
             // Save Specific Rule
             await saveAIRuleAction({
                 rule_type: 'specific',
                 content: aiRules.specific,
-                itinerary_id: tripData.id || null
+                tour_id: tripData.id || null
             });
 
             setShowAIRules(false);

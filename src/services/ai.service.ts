@@ -4,13 +4,13 @@ import { AIRule } from "@/types/ai";
 export class AIService {
     private static TABLE = 'ai_builder_rules';
 
-    static async getRules(itineraryId?: string): Promise<AIRule[]> {
+    static async getRules(tourId?: string): Promise<AIRule[]> {
         const supabase = createAdminClient();
         
         let query = supabase.from(this.TABLE).select('*');
         
-        if (itineraryId) {
-            query = query.or(`itinerary_id.eq.${itineraryId},rule_type.eq.generic`);
+        if (tourId) {
+            query = query.or(`tour_id.eq.${tourId},rule_type.eq.generic`);
         } else {
             query = query.eq('rule_type', 'generic');
         }
@@ -26,12 +26,12 @@ export class AIService {
         const { data, error } = await supabase
             .from(this.TABLE)
             .upsert({
-                itinerary_id: rule.itinerary_id,
+                tour_id: rule.tour_id,
                 rule_type: rule.rule_type,
                 content: rule.content,
                 updated_at: new Date().toISOString()
             }, {
-                onConflict: 'itinerary_id,rule_type'
+                onConflict: 'tour_id,rule_type'
             })
             .select()
             .single();

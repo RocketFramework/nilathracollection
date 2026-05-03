@@ -1,6 +1,6 @@
 export interface AIRule {
     id?: string;
-    itinerary_id?: string | null;
+    tour_id?: string | null;
     rule_type: 'generic' | 'specific';
     content: string;
     created_at?: string;

@@ -7,22 +7,30 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-    const { data, error } = await supabase
-        .from('tours')
-        .select(`
-            id,
-            agent_id,
-            agent:users!tours_agent_id_fkey(
-                email,
-                admin_profile:admin_profiles(first_name, last_name),
-                agent_profile:agent_profiles(first_name, last_name, phone)
-            )
-        `)
-        .eq('id', '6ae893e2-b654-406d-aa3b-5556db17597d')
+    // Check if ai_builder_rules exists
+    const { data: cols, error: colError } = await supabase.rpc('get_schema_info', { table_name: 'ai_builder_rules' }).catch(() => ({data: null, error: 'no rpc'}));
+    console.log("Cols or error:", cols, colError);
+
+    // Try to select
+    const { data: selData, error: selError } = await supabase.from('ai_builder_rules').select('*').limit(1);
+    console.log("Select Error:", selError);
+    console.log("Select Data:", selData);
+
+    // Try upsert
+    const rule = { itinerary_id: null, rule_type: 'generic', content: 'test' };
+    const { data: upData, error: upError } = await supabase
+        .from('ai_builder_rules')
+        .upsert({
+            itinerary_id: rule.itinerary_id,
+            rule_type: rule.rule_type,
+            content: rule.content,
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'itinerary_id,rule_type'
+        })
+        .select()
         .single();
-        
-    console.log("Error:", error);
-    console.log("Data:", JSON.stringify(data, null, 2));
+    console.log("Upsert Error:", upError);
 }
 
 run();
