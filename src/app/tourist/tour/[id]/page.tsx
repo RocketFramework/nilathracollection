@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRight, BedDouble, Calendar, ArrowLeft, ReceiptText } from "lucide-react";
+import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRight, BedDouble, Calendar, ArrowLeft, ReceiptText, Navigation } from "lucide-react";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { createClient } from "@/utils/supabase/client";
 import { ItineraryPdfTemplate } from "@/app/admin/(authenticated)/planner/components/ItineraryPdfTemplate";
@@ -222,12 +222,21 @@ export default function TourDetailsPage() {
                                                     </div>
                                                     <div className="w-px bg-neutral-100 shrink-0"></div>
                                                     <div className="flex-1">
-                                                        <p className="font-bold text-brand-charcoal">{block.name}</p>
-                                                        {block.locationName && (
-                                                            <p className="text-[11px] font-bold uppercase tracking-wider text-brand-gold mt-1 flex items-center gap-1">
-                                                                <MapPin size={12} /> {block.locationName}
-                                                            </p>
-                                                        )}
+                                                        <div className="flex justify-between items-start gap-4">
+                                                            <div>
+                                                                <p className="font-bold text-brand-charcoal">{block.name}</p>
+                                                                {block.locationName && (
+                                                                    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-gold mt-1 flex items-center gap-1">
+                                                                        <MapPin size={12} /> {block.locationName}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {block.type === 'travel' && block.distance && (
+                                                                <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 bg-neutral-100 px-2 py-1 rounded-md flex items-center gap-1 shrink-0">
+                                                                    <Navigation size={10} /> {block.distance}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         <div className="mt-4 w-full border border-neutral-100 rounded-xl overflow-hidden bg-neutral-50/30">
                                                             <div className="bg-neutral-50 px-3 py-2 border-b border-neutral-100 flex justify-between items-center">
                                                                 <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Line-Item Discussion</span>
