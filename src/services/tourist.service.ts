@@ -147,20 +147,22 @@ export class TouristService {
             rawPlannerData: tripData
         };
     }
-    static async addTouristNoteToBlock(tourId: string, blockId: string, note: string) {
+    static async addCommentToBlock(tourId: string, blockId: string, role: 'agent' | 'tourist', text: string) {
         const supabase = createClient();
         
-        // Ensure user is authenticated and is the owner
+        // Ensure user is authenticated
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
         // Fetch current tour planner_data
-        const { data: tour, error: fetchErr } = await supabase
-            .from('tours')
-            .select('planner_data')
-            .eq('id', tourId)
-            .eq('tourist_id', user.id)
-            .single();
+        let query = supabase.from('tours').select('planner_data').eq('id', tourId);
+        
+        // If tourist, ensure they own it. Admin/Agent policies handle the rest automatically in RLS but we can be safe.
+        if (role === 'tourist') {
+            query = query.eq('tourist_id', user.id);
+        }
+
+        const { data: tour, error: fetchErr } = await query.single();
 
         if (fetchErr || !tour) throw new Error("Tour not found or access denied");
 
@@ -172,7 +174,14 @@ export class TouristService {
         plannerData.itinerary = plannerData.itinerary.map(block => {
             if (block.id === blockId) {
                 blockFound = true;
-                return { ...block, touristNotes: note };
+                const newComment = {
+                    id: crypto.randomUUID(),
+                    role,
+                    text,
+                    timestamp: new Date().toISOString()
+                };
+                const comments = block.comments ? [...block.comments, newComment] : [newComment];
+                return { ...block, comments };
             }
             return block;
         });

@@ -115,6 +115,25 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
     const [loadingMaster, setLoadingMaster] = useState(false);
     const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: string } | null>(null);
+    const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+
+    const handleAddComment = (blockId: string) => {
+        const text = commentDrafts[blockId];
+        if (!text?.trim()) return;
+
+        const block = tripData.itinerary.find(b => b.id === blockId);
+        if (block) {
+            const newComment = {
+                id: crypto.randomUUID(),
+                role: 'agent' as const,
+                text: text.trim(),
+                timestamp: new Date().toISOString()
+            };
+            const comments = block.comments ? [...block.comments, newComment] : [newComment];
+            updateBlock(blockId, { comments });
+            setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+        }
+    };
 
     useEffect(() => {
         async function loadData() {
@@ -1230,13 +1249,36 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            <div className="mt-2 w-full">
-                                                                <DebouncedInput
-                                                                    value={block.clientVisibleNotes || ''}
-                                                                    onChange={v => updateBlock(block.id, { clientVisibleNotes: v })}
-                                                                    placeholder="Add note for tourist (visible on itinerary)..."
-                                                                    className="w-full text-xs text-neutral-600 bg-neutral-50/50 rounded-lg px-3 py-2 border border-transparent focus:border-brand-gold/30 focus:bg-white focus:ring-0 transition-colors placeholder:text-neutral-300 placeholder:italic"
-                                                                />
+                                                            <div className="mt-3 w-full border border-neutral-100 rounded-xl overflow-hidden bg-neutral-50/30">
+                                                                <div className="bg-neutral-50 px-3 py-2 border-b border-neutral-100 flex justify-between items-center">
+                                                                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Line-Item Discussion</span>
+                                                                </div>
+                                                                {block.comments && block.comments.length > 0 && (
+                                                                    <div className="p-3 max-h-40 overflow-y-auto space-y-2 flex flex-col">
+                                                                        {block.comments.map(c => (
+                                                                            <div key={c.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${c.role === 'agent' ? 'bg-brand-gold/10 border-brand-gold/20 text-brand-charcoal self-end' : 'bg-blue-50 border-blue-100 text-blue-900 self-start'} border`}>
+                                                                                <div className={`text-[9px] font-bold uppercase mb-1 ${c.role === 'agent' ? 'text-brand-gold' : 'text-blue-600'}`}>{c.role}</div>
+                                                                                <div>{c.text}</div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <div className="p-2 bg-white flex gap-2 border-t border-neutral-100">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={commentDrafts[block.id] || ''}
+                                                                        onChange={e => setCommentDrafts(prev => ({ ...prev, [block.id]: e.target.value }))}
+                                                                        onKeyDown={e => e.key === 'Enter' && handleAddComment(block.id)}
+                                                                        placeholder="Add a reply..."
+                                                                        className="flex-1 text-xs bg-neutral-50 border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-gold/50"
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => handleAddComment(block.id)}
+                                                                        className="px-3 py-1.5 bg-brand-gold text-white text-xs font-bold rounded-md hover:bg-brand-gold/90 transition-colors"
+                                                                    >
+                                                                        Send
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
 

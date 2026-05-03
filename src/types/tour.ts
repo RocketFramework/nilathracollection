@@ -1,5 +1,13 @@
 import { Activity } from "@/data/activities";
 
+export interface BlockComment {
+    id: string;
+    role: 'agent' | 'tourist';
+    text: string;
+    timestamp: string;
+}
+
+
 export type ServiceScope =
     | 'Book International Flights'
     | 'Plan Activities & Experiences'
@@ -196,7 +204,7 @@ export interface InternalItineraryBlock {
     confirmationStatus: 'Pending' | 'Confirmed';
     paymentStatus: 'Pending' | 'Paid';
     internalNotes: string;
-    clientVisibleNotes: string;
+    comments?: BlockComment[];
     touristNotes?: string; // Feedback from tourist
     locationName?: string;
     distance?: string;

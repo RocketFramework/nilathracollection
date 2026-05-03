@@ -461,7 +461,7 @@ export class TourService {
                     title: b.name,
                     location_name: b.locationName || null,
                     distance: b.distance || null,
-                    description: b.clientVisibleNotes || b.internalNotes || '',
+                    description: b.comments && b.comments.length > 0 ? JSON.stringify(b.comments) : (b.internalNotes || ''),
                     time_start: b.startTime || null,
                     time_end: b.endTime || null,
                     vendor_id: vendorId, // Map to the resolved UUID

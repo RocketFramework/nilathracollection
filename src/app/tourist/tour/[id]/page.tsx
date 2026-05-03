@@ -15,6 +15,44 @@ export default function TourDetailsPage() {
     const [tour, setTour] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
+    const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+    const [savingNote, setSavingNote] = useState<string | null>(null);
+
+    const handleAddComment = async (blockId: string) => {
+        const text = commentDrafts[blockId];
+        if (!text?.trim()) return;
+
+        setSavingNote(blockId);
+        try {
+            const { TouristService } = await import('@/services/tourist.service');
+            await TouristService.addCommentToBlock(id, blockId, 'tourist', text.trim());
+            
+            // Optimistic update
+            setTour((prev: any) => {
+                const newTour = { ...prev };
+                if (newTour.detailedItinerary) {
+                    newTour.detailedItinerary = newTour.detailedItinerary.map((b: any) => {
+                        if (b.id === blockId) {
+                            const newComment = {
+                                id: Math.random().toString(),
+                                role: 'tourist',
+                                text: text.trim(),
+                                timestamp: new Date().toISOString()
+                            };
+                            return { ...b, comments: b.comments ? [...b.comments, newComment] : [newComment] };
+                        }
+                        return b;
+                    });
+                }
+                return newTour;
+            });
+            setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSavingNote(null);
+        }
+    };
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -190,11 +228,39 @@ export default function TourDetailsPage() {
                                                                 <MapPin size={12} /> {block.locationName}
                                                             </p>
                                                         )}
-                                                        {block.clientVisibleNotes && (
-                                                            <p className="text-sm text-neutral-600 mt-2 bg-neutral-50 p-3 rounded-xl border border-neutral-100 leading-relaxed">
-                                                                {block.clientVisibleNotes}
-                                                            </p>
-                                                        )}
+                                                        <div className="mt-4 w-full border border-neutral-100 rounded-xl overflow-hidden bg-neutral-50/30">
+                                                            <div className="bg-neutral-50 px-3 py-2 border-b border-neutral-100 flex justify-between items-center">
+                                                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Line-Item Discussion</span>
+                                                            </div>
+                                                            {block.comments && block.comments.length > 0 && (
+                                                                <div className="p-3 max-h-40 overflow-y-auto space-y-2 flex flex-col">
+                                                                    {block.comments.map((c: any) => (
+                                                                        <div key={c.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${c.role === 'tourist' ? 'bg-brand-green/10 border-brand-green/20 text-brand-charcoal self-end' : 'bg-neutral-100 border-neutral-200 text-neutral-700 self-start'} border`}>
+                                                                            <div className={`text-[9px] font-bold uppercase mb-1 ${c.role === 'tourist' ? 'text-brand-green' : 'text-neutral-500'}`}>{c.role === 'agent' ? tour.agent.name : 'You'}</div>
+                                                                            <div>{c.text}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            <div className="p-2 bg-white flex gap-2 border-t border-neutral-100">
+                                                                <input
+                                                                    type="text"
+                                                                    value={commentDrafts[block.id] || ''}
+                                                                    onChange={e => setCommentDrafts(prev => ({ ...prev, [block.id]: e.target.value }))}
+                                                                    onKeyDown={e => e.key === 'Enter' && handleAddComment(block.id)}
+                                                                    disabled={savingNote === block.id}
+                                                                    placeholder="Add a reply..."
+                                                                    className="flex-1 text-xs bg-neutral-50 border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-green/50 disabled:opacity-50"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleAddComment(block.id)}
+                                                                    disabled={savingNote === block.id}
+                                                                    className="px-3 py-1.5 bg-brand-green text-white text-xs font-bold rounded-md hover:bg-brand-green/90 transition-colors disabled:opacity-50"
+                                                                >
+                                                                    {savingNote === block.id ? '...' : 'Send'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
