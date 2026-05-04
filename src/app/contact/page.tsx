@@ -206,9 +206,9 @@ export default function ContactPage() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Phone Number (Optional)</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Phone Number</label>
                                                 <PhoneInput
-                                                    required={false}
+                                                    required={true}
                                                     value={form.phone}
                                                     onPhoneChange={(val) => setForm({ ...form, phone: val })}
                                                     onCountryChange={(countryName) => setForm(prev => ({ ...prev, departureCountry: countryName }))}

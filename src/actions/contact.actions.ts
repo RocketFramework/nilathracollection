@@ -114,8 +114,8 @@ export async function submitInquiryAction(formData: {
             adults, children, infants
         } = formData;
 
-        if (!email || !message || !name) {
-            return { error: "Name, email, and message are required." };
+        if (!email || !message || !name || !phone) {
+            return { error: "Name, email, phone number, and message are required." };
         }
 
         // Lazy register user or get existing

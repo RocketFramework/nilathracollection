@@ -76,7 +76,7 @@ export class AdminService {
 
     static async assignAgentToRequest(requestId: string, agentId: string) {
         const supabaseAdmin = createAdminClient();
-        
+
         // Fetch request and agent details for email
         const { data: request, error: fetchError } = await supabaseAdmin
             .from('requests')
@@ -113,10 +113,10 @@ export class AdminService {
         // Send email notification
         try {
             const touristProfile = request.tourist?.tourist_profile?.[0];
-            const customerName = touristProfile?.first_name 
+            const customerName = touristProfile?.first_name
                 ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
                 : request.name || 'Client';
-            
+
             const customerEmail = request.email || request.tourist?.email;
             const agentName = `${agent.first_name} ${agent.last_name || ''}`.trim();
             const packageName = request.details?.[0]?.package_name || request.request_type;
@@ -161,7 +161,16 @@ export class AdminService {
 
         const newUserId = authUser.user.id;
 
-        // 2. Fetch the role ID
+        // Ensure public.users record exists before assigning roles or profiles (handles missing triggers)
+        const { error: usersError } = await supabaseAdmin.from('users').upsert([
+            { id: newUserId, email: dto.email }
+        ], { onConflict: 'id' });
+
+        if (usersError) {
+            throw new Error(`Auth user created, but failed to create public user record: ${usersError.message || JSON.stringify(usersError)}`);
+        }
+
+        // 2. Fetch the requested role ID
         const { data: roleData, error: roleError } = await supabaseAdmin
             .from("roles")
             .select("id")
@@ -173,23 +182,23 @@ export class AdminService {
         // 3. Assign User Role
         const { error: assignError } = await supabaseAdmin
             .from("user_roles")
-            .insert([{ user_id: newUserId, role_id: roleData.id }]);
+            .upsert([{ user_id: newUserId, role_id: roleData.id }], { onConflict: 'user_id, role_id' });
 
-        if (assignError) throw new Error("Account created, but role assignment failed.");
+        if (assignError) throw new Error(`Account created, but role assignment failed: ${assignError.message || JSON.stringify(assignError)}`);
 
         // 4. Create Profile
         const profileTable = `${dto.role}_profiles`;
         const { error: profileError } = await supabaseAdmin
             .from(profileTable)
-            .insert([{
+            .upsert([{
                 id: newUserId,
                 first_name: dto.first_name,
                 last_name: dto.last_name,
                 phone: dto.phone || null,
                 is_active: true
-            }]);
+            }], { onConflict: 'id' });
 
-        if (profileError) throw new Error(`Role assigned, but ${dto.role} profile creation failed.`);
+        if (profileError) throw new Error(`Role assigned, but ${dto.role} profile creation failed: ${profileError.message || JSON.stringify(profileError)}`);
 
         return { id: newUserId, ...dto };
     }
