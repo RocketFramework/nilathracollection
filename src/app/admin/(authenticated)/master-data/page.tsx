@@ -1,21 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye } from "lucide-react";
-import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant } from "@/services/master-data.service";
+import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin } from "lucide-react";
+import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
 import TourGuideFormModal from "./components/TourGuideFormModal";
 import TransportProviderFormModal from "./components/TransportProviderFormModal";
 import RestaurantFormModal from "./components/RestaurantFormModal";
+import ActivityFormModal from "./components/ActivityFormModal";
 import ApprovalReviewModal from "./components/ApprovalReviewModal";
 import { MasterDataApprovalsService, ApprovalRequest } from "@/services/master-data-approvals.service";
 
 const DATABASES = [
     { id: 'hotels', label: 'Hotels & Resorts', icon: Building2 },
+    { id: 'activities', label: 'Activities', icon: MapPin },
     { id: 'vendors', label: 'Activity Vendors', icon: Compass },
     { id: 'restaurants', label: 'Restaurants', icon: Utensils },
     { id: 'transports', label: 'Transport Providers', icon: Car },
@@ -30,6 +32,7 @@ export default function MasterDataPage() {
     const [userRole, setUserRole] = useState<string>("agent");
 
     const [hotels, setHotels] = useState<Hotel[]>([]);
+    const [activities, setActivities] = useState<Activity[]>([]);
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -47,6 +50,9 @@ export default function MasterDataPage() {
     // Modal State
     const [isHotelModalOpen, setIsHotelModalOpen] = useState(false);
     const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+
+    const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+    const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
 
     const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
     const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
@@ -89,6 +95,8 @@ export default function MasterDataPage() {
         setCurrentPage(0);
         if (activeTab === 'drivers' || activeTab === 'guides') {
             setSortBy('first_name');
+        } else if (activeTab === 'activities') {
+            setSortBy('activity_name');
         } else {
             setSortBy('name');
         }
@@ -101,11 +109,16 @@ export default function MasterDataPage() {
     const loadData = async () => {
         setLoading(true);
         try {
+            // Prevent race condition on tab switch where sortBy hasn't updated yet
+            let currentSortBy = sortBy;
+            if (activeTab === 'activities' && currentSortBy === 'name') currentSortBy = 'activity_name';
+            if ((activeTab === 'drivers' || activeTab === 'guides') && currentSortBy === 'name') currentSortBy = 'first_name';
+
             const options = {
                 searchTerm: debouncedSearch,
                 page: currentPage,
                 pageSize,
-                sortBy,
+                sortBy: currentSortBy,
                 sortOrder
             };
 
@@ -113,6 +126,14 @@ export default function MasterDataPage() {
                 const { data, count } = await HotelService.getHotels(options);
                 setHotels(data);
                 setTotalCount(count);
+            } else if (activeTab === 'activities') {
+                const result = await getActivitiesAction(options);
+                if (result.success && result.data) {
+                    setActivities(result.data);
+                    setTotalCount(result.count || 0);
+                } else {
+                    console.error(result.error);
+                }
             } else if (activeTab === 'vendors') {
                 const { data, count } = await MasterDataService.getVendors(options);
                 setVendors(data);
@@ -153,6 +174,9 @@ export default function MasterDataPage() {
         if (activeTab === 'hotels') {
             setSelectedHotel(null);
             setIsHotelModalOpen(true);
+        } else if (activeTab === 'activities') {
+            setSelectedActivity(null);
+            setIsActivityModalOpen(true);
         } else if (activeTab === 'vendors') {
             setSelectedVendor(null);
             setIsVendorModalOpen(true);
@@ -171,30 +195,34 @@ export default function MasterDataPage() {
         }
     };
 
-    const handleEdit = async (id: string) => {
+    const handleEdit = async (id: string | number) => {
         try {
             if (activeTab === 'hotels') {
-                const fullItem = await HotelService.getHotel(id);
+                const fullItem = await HotelService.getHotel(id as string);
                 setSelectedHotel(fullItem);
                 setIsHotelModalOpen(true);
+            } else if (activeTab === 'activities') {
+                const fullItem = await MasterDataService.getActivity(id as number);
+                setSelectedActivity(fullItem);
+                setIsActivityModalOpen(true);
             } else if (activeTab === 'vendors') {
-                const fullItem = await MasterDataService.getVendor(id);
+                const fullItem = await MasterDataService.getVendor(id as string);
                 setSelectedVendor(fullItem);
                 setIsVendorModalOpen(true);
             } else if (activeTab === 'restaurants') {
-                const fullItem = await MasterDataService.getRestaurant(id);
+                const fullItem = await MasterDataService.getRestaurant(id as string);
                 setSelectedRestaurant(fullItem);
                 setIsRestaurantModalOpen(true);
             } else if (activeTab === 'transports') {
-                const fullItem = await MasterDataService.getTransportProvider(id);
+                const fullItem = await MasterDataService.getTransportProvider(id as string);
                 setSelectedTransport(fullItem);
                 setIsTransportModalOpen(true);
             } else if (activeTab === 'drivers') {
-                const fullItem = await MasterDataService.getDriver(id);
+                const fullItem = await MasterDataService.getDriver(id as string);
                 setSelectedDriver(fullItem);
                 setIsDriverModalOpen(true);
             } else if (activeTab === 'guides') {
-                const fullItem = await MasterDataService.getTourGuide(id);
+                const fullItem = await MasterDataService.getTourGuide(id as string);
                 setSelectedGuide(fullItem);
                 setIsGuideModalOpen(true);
             }
@@ -203,15 +231,16 @@ export default function MasterDataPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: string | number) => {
         if (confirm(`Are you sure you want to delete this ${activeTab.slice(0, -1)}?`)) {
             try {
-                if (activeTab === 'hotels') await HotelService.deleteHotel(id);
-                else if (activeTab === 'vendors') await MasterDataService.deleteVendor(id);
-                else if (activeTab === 'restaurants') await MasterDataService.deleteRestaurant(id);
-                else if (activeTab === 'transports') await MasterDataService.deleteTransportProvider(id);
-                else if (activeTab === 'drivers') await MasterDataService.deleteDriver(id);
-                else if (activeTab === 'guides') await MasterDataService.deleteTourGuide(id);
+                if (activeTab === 'hotels') await HotelService.deleteHotel(id as string);
+                else if (activeTab === 'activities') await MasterDataService.deleteActivity(id as number);
+                else if (activeTab === 'vendors') await MasterDataService.deleteVendor(id as string);
+                else if (activeTab === 'restaurants') await MasterDataService.deleteRestaurant(id as string);
+                else if (activeTab === 'transports') await MasterDataService.deleteTransportProvider(id as string);
+                else if (activeTab === 'drivers') await MasterDataService.deleteDriver(id as string);
+                else if (activeTab === 'guides') await MasterDataService.deleteTourGuide(id as string);
                 loadData();
             } catch (error) {
                 console.error("Failed to delete record:", error);
@@ -250,10 +279,11 @@ export default function MasterDataPage() {
                 )}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden flex flex-col min-h-[600px]">
+                
                 {/* Tabs */}
-                <div className="flex items-center overflow-x-auto border-b border-neutral-100 px-6">
-                    {(userRole === 'admin' ? [{ id: 'approvals', label: 'Pending Approvals', icon: Inbox }, ...DATABASES] : DATABASES).map(db => {
+                <div className="flex border-b border-[#E5E7EB] overflow-x-auto bg-[#F9FAFB]">
+                    {DATABASES.map(db => {
                         const Icon = db.icon;
                         const isActive = activeTab === db.id;
                         return (
@@ -290,25 +320,20 @@ export default function MasterDataPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-neutral-50 border-b border-neutral-200 text-xs uppercase tracking-wider font-bold text-neutral-500">
-                                <th className="p-4 pl-6">
-                                    {activeTab === 'approvals' ? 'Request Type' : 'Identifier name'}
-                                </th>
-                                <th className="p-4">
-                                    {activeTab === 'approvals' ? 'Entity Context' : 'Category'}
-                                </th>
-                                <th onClick={() => activeTab !== 'approvals' && toggleSort(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : 'name')} className={`p-4 pl-6 text-left text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
+                                <th onClick={() => activeTab !== 'approvals' && toggleSort(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : (activeTab === 'activities' ? 'activity_name' : 'name'))} className={`p-4 pl-6 text-left text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
                                     <div className="flex items-center">
-                                        {activeTab === 'approvals' ? 'Requested By' : activeTab === 'drivers' || activeTab === 'guides' ? 'Full Name' : (activeTab === 'hotels' ? 'Hotel Name' : 'Name')}
-                                        {activeTab !== 'approvals' && renderSortIcon(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : 'name')}
+                                        {activeTab === 'approvals' ? 'Request Type' : activeTab === 'drivers' || activeTab === 'guides' ? 'Full Name' : (activeTab === 'hotels' ? 'Hotel Name' : (activeTab === 'activities' ? 'Activity Name' : 'Name'))}
+                                        {activeTab !== 'approvals' && renderSortIcon(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : (activeTab === 'activities' ? 'activity_name' : 'name'))}
                                     </div>
                                 </th>
                                 <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
-                                    {activeTab === 'approvals' ? 'Date' : 'Category'}
+                                    {activeTab === 'approvals' ? 'Entity Context' : (activeTab === 'activities' ? 'Category' : 'Type/Category')}
                                 </th>
-                                {activeTab !== 'approvals' && (
-                                    <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
-                                        {activeTab === 'hotels' ? 'Rooms' : (activeTab === 'vendors' ? 'Phone' : (activeTab === 'restaurants' ? 'Cuisine / Phone' : (activeTab === 'transports' ? 'Vehicles' : 'Contact')))}
-                                    </th>
+                                <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
+                                    {activeTab === 'approvals' ? 'Requested By' : (activeTab === 'activities' ? 'Location' : 'Details')}
+                                </th>
+                                {activeTab === 'approvals' && (
+                                    <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">Date</th>
                                 )}
                                 <th onClick={() => activeTab !== 'approvals' && toggleSort('is_suspended')} className={`p-4 text-center text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
                                     <div className="flex items-center justify-center">
@@ -382,6 +407,31 @@ export default function MasterDataPage() {
                                                     <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                                         <Trash2 size={16} />
                                                     </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )
+                            ) : activeTab === 'activities' ? (
+                                loading ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">Loading records...</td></tr>
+                                ) : activities.length === 0 ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">No records found.</td></tr>
+                                ) : (
+                                    activities.map(row => (
+                                        <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
+                                            <td className="p-4 pl-6 font-bold">{row.activity_name}</td>
+                                            <td className="p-4 text-neutral-500">{row.category || 'Not Specified'}</td>
+                                            <td className="p-4 text-neutral-500">{row.location_name || 'Not Specified'}</td>
+                                            <td className="p-4 text-center">
+                                                <span className="inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full bg-green-100 text-green-700">
+                                                    Active
+                                                </span>
+                                            </td>
+                                            <td className="p-4 pr-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                    <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -587,6 +637,12 @@ export default function MasterDataPage() {
                 hotel={selectedHotel}
                 onSave={loadData}
                 userRole={userRole}
+            />
+            <ActivityFormModal
+                isOpen={isActivityModalOpen}
+                onClose={() => setIsActivityModalOpen(false)}
+                onSave={loadData}
+                activity={selectedActivity}
             />
             <VendorFormModal
                 isOpen={isVendorModalOpen}

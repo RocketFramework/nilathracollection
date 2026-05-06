@@ -236,7 +236,7 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
                                                     />
                                                     <div className="flex flex-col truncate">
                                                         <span className="text-sm font-bold text-neutral-700 group-hover:text-brand-charcoal truncate">{activity.activity_name}</span>
-                                                        <span className="text-xs text-neutral-500 truncate">{activity.location_name} • Base: ${activity.price}</span>
+                                                        <span className="text-xs text-neutral-500 truncate">{activity.location_name} • Duration: {activity.duration_hours}h</span>
                                                     </div>
                                                 </label>
 

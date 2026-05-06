@@ -214,16 +214,7 @@ export async function deleteRestaurantAction(id: string) {
         return { error: error.message || "Failed to delete restaurant." };
     }
 }
-export async function getActivitiesAction() {
-    try {
-        const supabase = createAdminClient();
-        const { data: activities } = await MasterDataService.getActivities({ client: supabase });
-        return { success: true, activities };
-    } catch (error: any) {
-        console.error("Error fetching activities:", error);
-        return { error: error.message || "Failed to load activities." };
-    }
-}
+
 export async function getVendorsAction() {
     try {
         const supabase = createAdminClient();
@@ -255,6 +246,29 @@ export async function saveTransportProviderAction(provider: TransportProvider) {
     } catch (error: any) {
         console.error("Error saving transport provider:", error);
         return { error: error.message || "Failed to save transport provider." };
+    }
+}
+
+export async function getActivitiesAction(options?: any) {
+    try {
+        const supabase = createAdminClient();
+        const result = await MasterDataService.getActivities({ ...options, client: supabase });
+        return { success: true, data: result.data, count: result.count };
+    } catch (error: any) {
+        console.error("Error fetching activities:", error);
+        return { success: false, error: error.message || "Failed to load activities." };
+    }
+}
+
+export async function saveActivityAction(activityData: any) {
+    try {
+        const supabase = createAdminClient();
+        const newId = await MasterDataService.saveActivity(activityData, supabase);
+        revalidatePath(`/admin/master-data`);
+        return { success: true, id: newId };
+    } catch (error: any) {
+        console.error("Error saving activity:", error);
+        return { success: false, error: error.message || "Failed to save activity." };
     }
 }
 

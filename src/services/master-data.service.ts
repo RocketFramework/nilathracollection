@@ -33,7 +33,6 @@ export interface Activity {
     optimal_start_time?: string;
     optimal_end_time?: string;
     time_flexible: boolean;
-    price?: number;
 }
 
 export interface Vendor {
@@ -189,6 +188,34 @@ export class MasterDataService {
         const { data, error, count } = await query;
         if (error) throw error;
         return { data: data as Activity[], count: count || 0 };
+    }
+
+    static async saveActivity(activity: Activity, client?: SupabaseClient): Promise<number> {
+        const dbClient = client || supabase;
+        const { id, ...activityData } = activity;
+
+        if (id) {
+            const { error } = await dbClient.from('activities').update(activityData).eq('id', id);
+            if (error) throw error;
+            return id;
+        } else {
+            const { data, error } = await dbClient.from('activities').insert([activityData]).select().single();
+            if (error) throw error;
+            return data.id;
+        }
+    }
+
+    static async getActivity(id: string | number, client?: SupabaseClient): Promise<Activity> {
+        const dbClient = client || supabase;
+        const { data, error } = await dbClient.from('activities').select('*').eq('id', id).single();
+        if (error) throw error;
+        return data as Activity;
+    }
+
+    static async deleteActivity(id: string | number, client?: SupabaseClient): Promise<void> {
+        const dbClient = client || supabase;
+        const { error } = await dbClient.from('activities').delete().eq('id', id);
+        if (error) throw error;
     }
 
     // ==========================================

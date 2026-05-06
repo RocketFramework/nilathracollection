@@ -155,7 +155,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                     guides: g.success ? g.guides : [],
                     restaurants: r.success ? r.restaurants : [],
                     transportProviders: tp.success ? tp.providers : [],
-                    activities: act.success ? act.activities : []
+                    activities: act.success ? (act.data || (act as any).activities || []) : []
                 });
             } catch (err) {
                 console.error("Failed to load master data for assignment:", err);
