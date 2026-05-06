@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type, Paperclip, LayoutTemplate, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type, Paperclip, LayoutTemplate, X, Code } from "lucide-react";
 import { sendCustomEmailAction, getEmailTemplatesAction } from "@/actions/admin.actions";
 import { EmailTemplate } from "@/services/email-template.service";
 
@@ -9,9 +9,11 @@ export default function SendEmailPage() {
     const [to, setTo] = useState("");
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
+    const editorRef = useRef<HTMLDivElement>(null);
     const [templates, setTemplates] = useState<EmailTemplate[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
     const [attachments, setAttachments] = useState<File[]>([]);
+    const [showHtml, setShowHtml] = useState(false);
     
     const [isSending, setIsSending] = useState(false);
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
@@ -35,12 +37,17 @@ export default function SendEmailPage() {
             const template = templates.find(t => t.id === tId);
             if (template) {
                 setSubject(template.subject);
-                // Simple regex to replace `<br/>` with newlines for the text area
-                setBody(template.body_html.replace(/<br\s*\/?>/gi, '\n'));
+                setBody(template.body_html);
+                if (editorRef.current) {
+                    editorRef.current.innerHTML = template.body_html;
+                }
             }
         } else {
             setSubject("");
             setBody("");
+            if (editorRef.current) {
+                editorRef.current.innerHTML = "";
+            }
         }
     };
 
@@ -54,8 +61,19 @@ export default function SendEmailPage() {
         setAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
+    const handleInput = () => {
+        if (editorRef.current) {
+            setBody(editorRef.current.innerHTML);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!body.trim()) {
+            setMessage({ type: 'error', text: "Message body cannot be empty." });
+            return;
+        }
+        
         setIsSending(true);
         setMessage(null);
 
@@ -63,10 +81,7 @@ export default function SendEmailPage() {
             const formData = new FormData();
             formData.append('to', to);
             formData.append('subject', subject);
-            
-            // Convert newlines back to <br/> for email HTML if it's not already HTML
-            const htmlBody = body.replace(/\n/g, '<br/>');
-            formData.append('body', htmlBody);
+            formData.append('body', body);
 
             attachments.forEach(file => {
                 formData.append('attachments', file);
@@ -162,17 +177,38 @@ export default function SendEmailPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
-                                <MessageSquare size={14} className="text-brand-gold" /> Message Body
-                            </label>
-                            <textarea
-                                required
-                                rows={10}
-                                value={body}
-                                onChange={(e) => setBody(e.target.value)}
-                                placeholder="Type your message here... (Support basic formatting like new lines)"
-                                className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all resize-none"
-                            />
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                                    <MessageSquare size={14} className="text-brand-gold" /> Message Body
+                                </label>
+                                <button type="button" onClick={() => setShowHtml(!showHtml)} className="text-xs flex items-center gap-1 text-neutral-500 hover:text-brand-charcoal transition-colors">
+                                    <Code size={14} /> {showHtml ? "View Formatted" : "View HTML Source"}
+                                </button>
+                            </div>
+                            
+                            {showHtml ? (
+                                <textarea
+                                    required
+                                    rows={10}
+                                    value={body}
+                                    onChange={(e) => {
+                                        setBody(e.target.value);
+                                        if (editorRef.current) {
+                                            editorRef.current.innerHTML = e.target.value;
+                                        }
+                                    }}
+                                    placeholder="Type your HTML message here..."
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all resize-none font-mono text-sm"
+                                />
+                            ) : (
+                                <div
+                                    ref={editorRef}
+                                    contentEditable
+                                    onInput={handleInput}
+                                    onBlur={handleInput}
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all overflow-y-auto min-h-[250px] prose prose-sm max-w-none"
+                                />
+                            )}
                         </div>
 
                         <div className="space-y-2">

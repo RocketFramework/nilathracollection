@@ -8,6 +8,7 @@ import { MasterDataService, Restaurant, TransportProvider } from "@/services/mas
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
+import { EmailTemplateService, EmailTemplate } from "@/services/email-template.service";
 import { CurrencyService } from "@/services/currency.service";
 import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
 import { createClient } from "@/utils/supabase/server";
@@ -499,11 +500,10 @@ export async function sendCustomEmailAction(formData: FormData) {
         return { success: true };
     } catch (error: any) {
         console.error("Error sending custom email:", error);
+        require('fs').writeFileSync('/home/nirosh/Code/NilathraCollection/public/email_error_log.txt', error.stack || error.message);
         return { success: false, error: error.message || "Failed to send email." };
     }
 }
-
-import { EmailTemplateService, EmailTemplate } from "@/services/email-template.service";
 
 export async function getEmailTemplatesAction() {
     try {

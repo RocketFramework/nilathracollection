@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { LayoutTemplate, Plus, Edit2, Trash2, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { LayoutTemplate, Plus, Edit2, Trash2, CheckCircle, AlertCircle, RefreshCw, Code } from "lucide-react";
 import { getEmailTemplatesAction, saveEmailTemplateAction, deleteEmailTemplateAction } from "@/actions/admin.actions";
 import { EmailTemplate } from "@/services/email-template.service";
 
@@ -11,6 +11,8 @@ export default function EmailTemplatesPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [showHtml, setShowHtml] = useState(false);
+    const editorRef = useRef<HTMLDivElement>(null);
 
     const [formData, setFormData] = useState<Partial<EmailTemplate>>({
         name: "",
@@ -58,6 +60,19 @@ export default function EmailTemplatesPage() {
         setIsModalOpen(false);
         setEditingTemplate(null);
         setMessage(null);
+        setShowHtml(false);
+    };
+
+    useEffect(() => {
+        if (isModalOpen && !showHtml && editorRef.current) {
+            editorRef.current.innerHTML = formData.body_html || '';
+        }
+    }, [isModalOpen, showHtml]);
+
+    const handleInput = () => {
+        if (editorRef.current) {
+            setFormData(prev => ({ ...prev, body_html: editorRef.current!.innerHTML }));
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -225,15 +240,36 @@ export default function EmailTemplatesPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-neutral-500 mb-1">HTML Body</label>
-                                    <textarea
-                                        required
-                                        rows={8}
-                                        value={formData.body_html}
-                                        onChange={e => setFormData({ ...formData, body_html: e.target.value })}
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2.5 outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold font-mono text-sm"
-                                        placeholder="Use HTML tags and {{variables}}"
-                                    />
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-sm font-bold text-neutral-500">HTML Body</label>
+                                        <button type="button" onClick={() => setShowHtml(!showHtml)} className="text-xs flex items-center gap-1 text-neutral-500 hover:text-brand-charcoal transition-colors">
+                                            <Code size={14} /> {showHtml ? "View Formatted" : "View HTML Source"}
+                                        </button>
+                                    </div>
+                                    
+                                    {showHtml ? (
+                                        <textarea
+                                            required
+                                            rows={8}
+                                            value={formData.body_html}
+                                            onChange={e => {
+                                                setFormData({ ...formData, body_html: e.target.value });
+                                                if (editorRef.current) {
+                                                    editorRef.current.innerHTML = e.target.value;
+                                                }
+                                            }}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2.5 outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold font-mono text-sm"
+                                            placeholder="Use HTML tags and {{variables}}"
+                                        />
+                                    ) : (
+                                        <div
+                                            ref={editorRef}
+                                            contentEditable
+                                            onInput={handleInput}
+                                            onBlur={handleInput}
+                                            className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-lg p-3 focus:ring-1 focus:ring-brand-gold outline-none transition-all overflow-y-auto min-h-[200px] max-h-[400px] prose prose-sm max-w-none"
+                                        />
+                                    )}
                                     <p className="text-xs text-neutral-500 mt-2">
                                         Use <code>{'{{variableName}}'}</code> syntax to insert dynamic variables in the template.
                                     </p>
