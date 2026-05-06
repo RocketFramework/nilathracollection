@@ -137,17 +137,18 @@ export interface Restaurant {
 }
 
 // --- Helper to save Payment Details ---
-async function savePaymentDetails(details: PaymentDetails): Promise<string | undefined> {
+async function savePaymentDetails(details: PaymentDetails, client?: any): Promise<string | undefined> {
+    const dbClient = client || supabase;
     if (!details || Object.keys(details).length === 0 || (!details.bank_name && !details.account_number)) return undefined;
 
     if (details.id) {
         // Update
-        const { error } = await supabase.from('payment_details').update(details).eq('id', details.id);
+        const { error } = await dbClient.from('payment_details').update(details).eq('id', details.id);
         if (error) throw error;
         return details.id;
     } else {
         // Insert
-        const { data, error } = await supabase.from('payment_details').insert([details]).select().single();
+        const { data, error } = await dbClient.from('payment_details').insert([details]).select().single();
         if (error) throw error;
         return data.id;
     }
@@ -460,12 +461,13 @@ export class MasterDataService {
         return data as TransportProvider;
     }
 
-    static async saveTransportProvider(provider: TransportProvider) {
+    static async saveTransportProvider(provider: TransportProvider, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
         const { payment_details, transport_vehicles, id, payment_detail_id, ...providerData } = provider;
 
         let activePaymentId = payment_detail_id;
         if (payment_details) {
-            activePaymentId = await savePaymentDetails(payment_details);
+            activePaymentId = await savePaymentDetails(payment_details, dbClient);
         }
 
         const payload = { ...providerData, payment_detail_id: activePaymentId };
@@ -473,12 +475,12 @@ export class MasterDataService {
         let savedProviderId = id;
 
         if (id) {
-            const { error } = await supabase.from('transport_providers').update(payload).eq('id', id);
+            const { error } = await dbClient.from('transport_providers').update(payload).eq('id', id);
             if (error) throw error;
 
-            await supabase.from('transport_vehicles').delete().eq('provider_id', id);
+            await dbClient.from('transport_vehicles').delete().eq('provider_id', id);
         } else {
-            const { data, error } = await supabase.from('transport_providers').insert([payload]).select().single();
+            const { data, error } = await dbClient.from('transport_providers').insert([payload]).select().single();
             if (error) throw error;
             savedProviderId = data.id;
         }
@@ -496,7 +498,7 @@ export class MasterDataService {
                 max_km_per_day: v.max_km_per_day,
                 additional_km_rate: v.additional_km_rate
             }));
-            const { error: vehError } = await supabase.from('transport_vehicles').insert(mappedVehicles);
+            const { error: vehError } = await dbClient.from('transport_vehicles').insert(mappedVehicles);
             if (vehError) throw vehError;
         }
 

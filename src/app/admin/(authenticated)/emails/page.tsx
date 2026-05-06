@@ -1,15 +1,58 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type } from "lucide-react";
-import { sendCustomEmailAction } from "@/actions/admin.actions";
+import { useState, useEffect } from "react";
+import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type, Paperclip, LayoutTemplate, X } from "lucide-react";
+import { sendCustomEmailAction, getEmailTemplatesAction } from "@/actions/admin.actions";
+import { EmailTemplate } from "@/services/email-template.service";
 
 export default function SendEmailPage() {
     const [to, setTo] = useState("");
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
+    const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+    const [attachments, setAttachments] = useState<File[]>([]);
+    
     const [isSending, setIsSending] = useState(false);
+    const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    useEffect(() => {
+        async function fetchTemplates() {
+            const res = await getEmailTemplatesAction();
+            if (res.success && res.templates) {
+                setTemplates(res.templates);
+            }
+            setIsLoadingTemplates(false);
+        }
+        fetchTemplates();
+    }, []);
+
+    const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const tId = e.target.value;
+        setSelectedTemplateId(tId);
+        if (tId) {
+            const template = templates.find(t => t.id === tId);
+            if (template) {
+                setSubject(template.subject);
+                // Simple regex to replace `<br/>` with newlines for the text area
+                setBody(template.body_html.replace(/<br\s*\/?>/gi, '\n'));
+            }
+        } else {
+            setSubject("");
+            setBody("");
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+        }
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -17,12 +60,26 @@ export default function SendEmailPage() {
         setMessage(null);
 
         try {
-            const res = await sendCustomEmailAction(to, subject, body);
+            const formData = new FormData();
+            formData.append('to', to);
+            formData.append('subject', subject);
+            
+            // Convert newlines back to <br/> for email HTML if it's not already HTML
+            const htmlBody = body.replace(/\n/g, '<br/>');
+            formData.append('body', htmlBody);
+
+            attachments.forEach(file => {
+                formData.append('attachments', file);
+            });
+
+            const res = await sendCustomEmailAction(formData);
             if (res.success) {
                 setMessage({ type: 'success', text: "Email sent successfully!" });
                 setTo("");
                 setSubject("");
                 setBody("");
+                setSelectedTemplateId("");
+                setAttachments([]);
             } else {
                 setMessage({ type: 'error', text: res.error || "Failed to send email." });
             }
@@ -57,6 +114,23 @@ export default function SendEmailPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                                <LayoutTemplate size={14} className="text-brand-gold" /> Use Template (Optional)
+                            </label>
+                            <select
+                                value={selectedTemplateId}
+                                onChange={handleTemplateChange}
+                                disabled={isLoadingTemplates}
+                                className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all"
+                            >
+                                <option value="">-- Start from scratch --</option>
+                                {templates.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
@@ -101,6 +175,32 @@ export default function SendEmailPage() {
                             />
                         </div>
 
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                                <Paperclip size={14} className="text-brand-gold" /> Attachments
+                            </label>
+                            <div className="flex flex-col gap-3">
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileChange}
+                                    className="w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-gold/10 file:text-brand-gold hover:file:bg-brand-gold/20 transition-all cursor-pointer"
+                                />
+                                {attachments.length > 0 && (
+                                    <ul className="space-y-2 mt-2">
+                                        {attachments.map((file, idx) => (
+                                            <li key={idx} className="flex items-center justify-between bg-neutral-50 p-2 px-4 rounded-lg border border-neutral-200 text-sm">
+                                                <span className="truncate text-brand-charcoal">{file.name}</span>
+                                                <button type="button" onClick={() => removeAttachment(idx)} className="text-red-500 hover:text-red-700 transition-colors">
+                                                    <X size={16} />
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="pt-4 border-t border-neutral-100 flex justify-end">
                             <button
                                 type="submit"
@@ -126,15 +226,6 @@ export default function SendEmailPage() {
                         </div>
                     </form>
                 </div>
-            </div>
-
-            <div className="mt-8 p-6 bg-brand-gold/5 border border-brand-gold/10 rounded-2xl">
-                <h3 className="text-brand-gold font-bold text-sm uppercase tracking-widest mb-3">Professional Standards</h3>
-                <ul className="text-sm text-neutral-600 space-y-2 list-disc list-inside">
-                    <li>Emails sent from this interface will use the official <strong>Nilathra Collection</strong> branded template.</li>
-                    <li>The recipient will see the sender as your configured system email address.</li>
-                    <li>Ensure all communication follows Nilathra's luxury brand voice and concierge guidelines.</li>
-                </ul>
             </div>
         </div>
     );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check, Trash2, Plus } from "lucide-react";
 import { MasterDataService, TransportProvider, TransportVehicle } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
+import { saveTransportProviderAction } from "@/actions/admin.actions";
 
 interface TransportProviderFormModalProps {
     isOpen: boolean;
@@ -125,7 +126,11 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const savedId = await MasterDataService.saveTransportProvider(formData as TransportProvider);
+                const res = await saveTransportProviderAction(formData as TransportProvider);
+                if (!res.success) {
+                    throw new Error(res.error || "Failed to save transport provider");
+                }
+                const savedId = res.savedId;
                 onSave();
 
                 // Re-fetch the saved provider to update form data with any new IDs (from DB)
@@ -141,8 +146,9 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
 
                 alert("Transport provider saved successfully.");
             }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "An unknown error occurred";
+        } catch (error: any) {
+            console.error("Save Transport Provider Error:", error);
+            const message = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
             alert(`Error saving transport provider: ${message}`);
         } finally {
             setLoading(false);

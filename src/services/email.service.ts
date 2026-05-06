@@ -6,6 +6,7 @@ interface SendEmailOptions {
     text?: string;
     html?: string;
     from?: string;
+    attachments?: { filename: string; content?: Buffer | string; path?: string; contentType?: string }[];
 }
 
 export class EmailService {
@@ -39,6 +40,7 @@ export class EmailService {
             subject: options.subject,
             text: options.text,
             html: options.html,
+            attachments: options.attachments,
         };
 
         try {

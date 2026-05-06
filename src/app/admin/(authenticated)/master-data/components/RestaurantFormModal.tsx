@@ -118,8 +118,9 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                 }
                 alert("Restaurant saved successfully.");
             }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "An unknown error occurred";
+        } catch (error: any) {
+            console.error("Save Restaurant Error:", error);
+            const message = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
             alert(`Error saving restaurant: ${message}`);
         } finally {
             setLoading(false);

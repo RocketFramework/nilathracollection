@@ -143,8 +143,9 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
                 }
                 alert("Vendor saved successfully.");
             }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "An unknown error occurred";
+        } catch (error: any) {
+            console.error("Save Vendor Error:", error);
+            const message = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
             alert(`Error saving vendor: ${message}`);
         } finally {
             setLoading(false);

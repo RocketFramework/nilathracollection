@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Settings, LogOut, Package, Compass, MapPin, Database, UserPlus, Navigation, Mail } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, Package, Compass, MapPin, Database, UserPlus, Navigation, Mail, LayoutTemplate } from "lucide-react";
 import { logoutAction } from "../../actions/auth";
 
 import { createClient } from "@/utils/supabase/server";
@@ -84,6 +84,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                     <Link href="/admin/emails" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                         <Mail size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                         <span className="font-medium tracking-wide">Send Email</span>
+                    </Link>
+                    <Link href="/admin/email-templates" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                        <LayoutTemplate size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                        <span className="font-medium tracking-wide">Email Templates</span>
                     </Link>
 
                     {isAdmin && (

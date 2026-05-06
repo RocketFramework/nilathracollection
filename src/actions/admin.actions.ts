@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { HotelService } from "@/services/hotel.service";
-import { MasterDataService, Restaurant } from "@/services/master-data.service";
+import { MasterDataService, Restaurant, TransportProvider } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
@@ -245,6 +245,18 @@ export async function getTransportProvidersAction() {
     }
 }
 
+export async function saveTransportProviderAction(provider: TransportProvider) {
+    try {
+        const supabase = createAdminClient();
+        const savedId = await MasterDataService.saveTransportProvider(provider, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true, savedId };
+    } catch (error: any) {
+        console.error("Error saving transport provider:", error);
+        return { error: error.message || "Failed to save transport provider." };
+    }
+}
+
 export async function getDriversAction() {
     try {
         const supabase = createAdminClient();
@@ -447,9 +459,25 @@ export async function getToursAction(statuses: string[]) {
     }
 }
 
-export async function sendCustomEmailAction(to: string, subject: string, body: string) {
-
+export async function sendCustomEmailAction(formData: FormData) {
     try {
+        const to = formData.get('to') as string;
+        const subject = formData.get('subject') as string;
+        const body = formData.get('body') as string;
+        const files = formData.getAll('attachments') as File[];
+
+        const attachments = [];
+        for (const file of files) {
+            if (file && file.size > 0) {
+                const buffer = Buffer.from(await file.arrayBuffer());
+                attachments.push({
+                    filename: file.name,
+                    content: buffer,
+                    contentType: file.type
+                });
+            }
+        }
+
         const contentHtml = `
               <div style="font-size:15px;color:#4a4a4a;line-height:1.7;white-space:pre-wrap;">${body}</div>
               
@@ -464,13 +492,45 @@ export async function sendCustomEmailAction(to: string, subject: string, body: s
             to,
             subject,
             html,
-            text: body
+            text: body,
+            attachments
         });
-        
+
         return { success: true };
     } catch (error: any) {
         console.error("Error sending custom email:", error);
         return { success: false, error: error.message || "Failed to send email." };
+    }
+}
+
+import { EmailTemplateService, EmailTemplate } from "@/services/email-template.service";
+
+export async function getEmailTemplatesAction() {
+    try {
+        const templates = await EmailTemplateService.getTemplates();
+        return { success: true, templates };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function saveEmailTemplateAction(template: EmailTemplate) {
+    try {
+        await EmailTemplateService.saveTemplate(template);
+        revalidatePath("/admin/email-templates");
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteEmailTemplateAction(id: string) {
+    try {
+        await EmailTemplateService.deleteTemplate(id);
+        revalidatePath("/admin/email-templates");
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
     }
 }
 
