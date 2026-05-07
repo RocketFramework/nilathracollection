@@ -19,6 +19,7 @@ export default function EmailTemplatesPage() {
         type: "CUSTOM",
         subject: "",
         body_html: "",
+        from_email: "",
         variables: []
     });
 
@@ -50,6 +51,7 @@ export default function EmailTemplatesPage() {
                 type: "CUSTOM",
                 subject: "",
                 body_html: "",
+                from_email: "",
                 variables: []
             });
         }
@@ -236,6 +238,17 @@ export default function EmailTemplatesPage() {
                                         onChange={e => setFormData({ ...formData, subject: e.target.value })}
                                         className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2.5 outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
                                         placeholder="Use {{variables}} for dynamic content"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-neutral-500 mb-1">Default From Email (Optional)</label>
+                                    <input
+                                        type="email"
+                                        value={formData.from_email || ""}
+                                        onChange={e => setFormData({ ...formData, from_email: e.target.value })}
+                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2.5 outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
+                                        placeholder="agent@nilathra.com"
                                     />
                                 </div>
 

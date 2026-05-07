@@ -477,6 +477,7 @@ export async function getToursAction(statuses: string[]) {
 export async function sendCustomEmailAction(formData: FormData) {
     try {
         const to = formData.get('to') as string;
+        const from = formData.get('from') as string;
         const subject = formData.get('subject') as string;
         const body = formData.get('body') as string;
         const files = formData.getAll('attachments') as File[];
@@ -504,6 +505,7 @@ export async function sendCustomEmailAction(formData: FormData) {
         const html = emailService.generateEmailHtml('Concierge Communication', 'Concierge Message', contentHtml);
 
         await emailService.sendEmail({
+            from,
             to,
             subject,
             html,

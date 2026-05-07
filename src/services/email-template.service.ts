@@ -6,6 +6,7 @@ export interface EmailTemplate {
     type: string;
     subject: string;
     body_html: string;
+    from_email?: string;
     variables?: string[];
     created_at?: string;
     updated_at?: string;

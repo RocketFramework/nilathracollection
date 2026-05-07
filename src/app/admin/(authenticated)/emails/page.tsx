@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type, Paperclip, LayoutTemplate, X, Code } from "lucide-react";
-import { sendCustomEmailAction, getEmailTemplatesAction } from "@/actions/admin.actions";
+import { sendCustomEmailAction, getEmailTemplatesAction, getUserRoleAction } from "@/actions/admin.actions";
 import { EmailTemplate } from "@/services/email-template.service";
+import { createClient } from "@/utils/supabase/client";
 
 export default function SendEmailPage() {
+    const [from, setFrom] = useState("");
     const [to, setTo] = useState("");
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
@@ -15,6 +17,8 @@ export default function SendEmailPage() {
     const [attachments, setAttachments] = useState<File[]>([]);
     const [showHtml, setShowHtml] = useState(false);
     
+    const [loginEmail, setLoginEmail] = useState("");
+    const [isAdmin, setIsAdmin] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -27,7 +31,23 @@ export default function SendEmailPage() {
             }
             setIsLoadingTemplates(false);
         }
+        
+        async function fetchUser() {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && user.email) {
+                setFrom(user.email);
+                setLoginEmail(user.email);
+            }
+            
+            const roleRes = await getUserRoleAction();
+            if (roleRes.success && roleRes.role === 'admin') {
+                setIsAdmin(true);
+            }
+        }
+        
         fetchTemplates();
+        fetchUser();
     }, []);
 
     const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -38,6 +58,7 @@ export default function SendEmailPage() {
             if (template) {
                 setSubject(template.subject);
                 setBody(template.body_html);
+                setFrom(template.from_email || loginEmail);
                 if (editorRef.current) {
                     editorRef.current.innerHTML = template.body_html;
                 }
@@ -45,6 +66,7 @@ export default function SendEmailPage() {
         } else {
             setSubject("");
             setBody("");
+            setFrom(loginEmail);
             if (editorRef.current) {
                 editorRef.current.innerHTML = "";
             }
@@ -79,6 +101,7 @@ export default function SendEmailPage() {
 
         try {
             const formData = new FormData();
+            formData.append('from', from);
             formData.append('to', to);
             formData.append('subject', subject);
             formData.append('body', body);
@@ -129,6 +152,12 @@ export default function SendEmailPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Hidden honeypot fields to trap aggressive browser autofill */}
+                        <div style={{ display: 'none' }} aria-hidden="true">
+                            <input type="email" name="fake_email_for_autofill" autoComplete="email" />
+                            <input type="text" name="fake_username_for_autofill" autoComplete="username" />
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
                                 <LayoutTemplate size={14} className="text-brand-gold" /> Use Template (Optional)
@@ -149,10 +178,29 @@ export default function SendEmailPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                                    <User size={14} className="text-brand-gold" /> Sender Email (From)
+                                </label>
+                                <input
+                                    type="text"
+                                    name="sender_address_field"
+                                    autoComplete="new-password"
+                                    required
+                                    value={from}
+                                    onChange={(e) => setFrom(e.target.value)}
+                                    disabled={!isAdmin}
+                                    placeholder="your-email@nilathra.com"
+                                    className={`w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
                                     <User size={14} className="text-brand-gold" /> Recipient Email
                                 </label>
                                 <input
-                                    type="email"
+                                    type="text"
+                                    name="recipient_address_field"
+                                    autoComplete="new-password"
                                     required
                                     value={to}
                                     onChange={(e) => setTo(e.target.value)}
@@ -161,7 +209,7 @@ export default function SendEmailPage() {
                                 />
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-2 md:col-span-2">
                                 <label className="text-sm font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
                                     <Type size={14} className="text-brand-gold" /> Subject Line
                                 </label>
