@@ -33,7 +33,7 @@ export default function Footer() {
                             />
                         </div>
                         <span className="font-serif text-2xl font-bold tracking-tighter uppercase">
-                            NILATHRA <span className="text-brand-gold">COLLECTION</span>
+                            NILATHRA <span className="text-[#016795]">COLLECTION</span>
                         </span>
                     </Link>
                     <p className="text-white/70 text-sm leading-relaxed max-w-xs">

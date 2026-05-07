@@ -51,7 +51,7 @@ export default function Hero() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 1 }}
-                    className="flex flex-col md:flex-row gap-6"
+                    className="flex flex-col md:flex-row gap-6 -translate-x-[25px]"
                 >
                     <Link href="/custom-plan" className="luxury-button border border-white/20 rounded-full">
                         {t.hero.btn_design}
