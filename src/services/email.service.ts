@@ -87,7 +87,7 @@ export class EmailService {
           <tr>
             <td style="background:#F5F3EF;padding:28px 48px;text-align:center;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Nilathra Collection · Luxury Unfiltered</p>
-              <p style="margin:0;font-size:11px;color:#c3c3c3;">Colombo, Sri Lanka · <a href="https://nilathra.com" style="color:#C9A84C;text-decoration:none;">nilathra.com</a></p>
+              <p style="margin:0;font-size:11px;color:#c3c3c3;">Colombo, Sri Lanka · <a href="https://www.nilathra.com" style="color:#C9A84C;text-decoration:none;">nilathra.com</a></p>
             </td>
           </tr>
         </table>
