@@ -38,6 +38,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return {
         title: `${data.name} | Luxury Travel Sri Lanka`,
         description: data.description,
+        alternates: {
+            canonical: `https://www.nilathra.com/destinations/${slug}`,
+        },
     };
 }
 

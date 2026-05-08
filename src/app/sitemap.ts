@@ -14,7 +14,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
         '/plans/premium',
         '/plans/regular',
         '/plans/ultra-vip',
-        '/packages',
         '/for-vip',
         '/elite-journeys',
         '/destinations',

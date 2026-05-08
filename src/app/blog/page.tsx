@@ -17,12 +17,12 @@ export const metadata: Metadata = {
         "sigiriya rock fortress",
     ],
     alternates: {
-        canonical: "https://nilathra.com/blog",
+        canonical: "https://www.nilathra.com/blog",
     },
     openGraph: {
         title: "Travel Blog | Travel to Sri Lanka Tips & Guides",
         description: "Discover the secrets of the island with Nilathra Collection.",
-        url: "https://nilathra.com/blog",
+        url: "https://www.nilathra.com/blog",
         siteName: "Nilathra Collection",
         images: [
             {

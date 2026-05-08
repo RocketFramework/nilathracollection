@@ -570,3 +570,25 @@ export async function saveAIRuleAction(rule: AIRule) {
     }
 }
 
+export async function getInboxEmailsAction() {
+    try {
+        const { gmailService } = await import('@/services/gmail.service');
+        const emails = await gmailService.getRecentEmails(30);
+        return { success: true, emails };
+    } catch (error: any) {
+        console.error("Error fetching inbox emails:", error);
+        return { success: false, error: error.message || "Failed to fetch inbox emails." };
+    }
+}
+
+export async function markEmailAsReadAction(messageId: string) {
+    try {
+        const { gmailService } = await import('@/services/gmail.service');
+        await gmailService.markAsRead(messageId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error marking email as read:", error);
+        return { success: false, error: error.message || "Failed to mark email as read." };
+    }
+}
+

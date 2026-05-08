@@ -307,14 +307,14 @@ export default function HomeClient() {
             "@type": "TravelAgency",
             "name": "Nilathra Collection",
             "description": "The best travel agency in Sri Lanka specializing in luxury, curated, and VIP travel experiences.",
-            "url": "https://nilathra.com",
+            "url": "https://www.nilathra.com",
             "telephone": "+94777278282",
             "address": {
               "@type": "PostalAddress",
               "addressLocality": "Colombo",
               "addressCountry": "LK"
             },
-            "image": "https://nilathra.com/images/luxury_resort_sunset.avif",
+            "image": "https://www.nilathra.com/images/luxury_resort_sunset.avif",
             "priceRange": "$$$$"
           }),
         }}
