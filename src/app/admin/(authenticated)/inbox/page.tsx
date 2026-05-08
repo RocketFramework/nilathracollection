@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Inbox as InboxIcon, MailOpen, Mail, RefreshCw, Clock, ArrowLeft, MoreHorizontal, User } from "lucide-react";
-import { getInboxEmailsAction, markEmailAsReadAction } from "@/actions/admin.actions";
+import { Inbox as InboxIcon, MailOpen, Mail, RefreshCw, Clock, ArrowLeft, MoreHorizontal, User, Send } from "lucide-react";
+import { getInboxEmailsAction, markEmailAsReadAction, replyToInboxEmailAction } from "@/actions/admin.actions";
 import type { GmailMessage } from "@/services/gmail.service";
 
 export default function InboxPage() {
@@ -10,6 +10,10 @@ export default function InboxPage() {
     const [selectedEmail, setSelectedEmail] = useState<GmailMessage | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [replyText, setReplyText] = useState("");
+    const [replying, setReplying] = useState(false);
+    const [replyError, setReplyError] = useState<string | null>(null);
+    const [replySuccess, setReplySuccess] = useState(false);
 
     const fetchEmails = async () => {
         setLoading(true);
@@ -34,6 +38,9 @@ export default function InboxPage() {
 
     const handleSelectEmail = async (email: GmailMessage) => {
         setSelectedEmail(email);
+        setReplyText("");
+        setReplyError(null);
+        setReplySuccess(false);
         
         // Mark as read locally
         if (email.isUnread) {
@@ -43,15 +50,52 @@ export default function InboxPage() {
         }
     };
 
+    const handleReply = async () => {
+        if (!selectedEmail || !replyText.trim()) return;
+        
+        setReplying(true);
+        setReplyError(null);
+        setReplySuccess(false);
+        
+        try {
+            // Reply to the original sender
+            const toEmail = extractNameAndEmail(selectedEmail.from).email;
+            const messageId = selectedEmail.messageIdHeader || '';
+            
+            const res = await replyToInboxEmailAction(
+                selectedEmail.threadId, 
+                toEmail, 
+                selectedEmail.subject, 
+                messageId, 
+                replyText
+            );
+            
+            if (res.success) {
+                setReplySuccess(true);
+                setReplyText("");
+            } else {
+                setReplyError(res.error || "Failed to send reply");
+            }
+        } catch (err: any) {
+            setReplyError(err.message || "An unexpected error occurred");
+        } finally {
+            setReplying(false);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    const extractNameAndEmail = (fromStr: string) => {
+    const extractNameAndEmail = (fromStr: string | undefined | null) => {
+        if (!fromStr) return { name: 'Unknown', email: '' };
         const match = fromStr.match(/(.*?)<([^>]+)>/);
         if (match) {
-            return { name: match[1].replace(/"/g, '').trim(), email: match[2].trim() };
+            return { name: match[1].replace(/"/g, '').trim() || match[2].trim(), email: match[2].trim() };
+        }
+        if (fromStr.includes('@')) {
+            return { name: fromStr.split('@')[0], email: fromStr.trim() };
         }
         return { name: fromStr, email: '' };
     };
@@ -187,6 +231,51 @@ export default function InboxPage() {
                                         {selectedEmail.bodyText || "No content available."}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Reply Box */}
+                            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-neutral-100 max-w-4xl mx-auto mt-6 mb-8">
+                                <h3 className="text-lg font-playfair font-bold text-brand-charcoal mb-4">Reply to {extractNameAndEmail(selectedEmail.from).name}</h3>
+                                
+                                <textarea
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    placeholder="Type your reply here..."
+                                    className="w-full min-h-[150px] p-4 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none transition-all resize-y text-neutral-700"
+                                    disabled={replying}
+                                />
+                                
+                                {replyError && (
+                                    <div className="mt-3 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
+                                        {replyError}
+                                    </div>
+                                )}
+                                
+                                {replySuccess && (
+                                    <div className="mt-3 text-emerald-700 text-sm bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                        Reply sent successfully!
+                                    </div>
+                                )}
+                                
+                                <div className="mt-4 flex justify-end">
+                                    <button
+                                        onClick={handleReply}
+                                        disabled={replying || !replyText.trim()}
+                                        className="flex items-center gap-2 bg-brand-charcoal hover:bg-black text-white px-6 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {replying ? (
+                                            <>
+                                                <RefreshCw size={18} className="animate-spin" />
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send size={18} />
+                                                Send Reply
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </>

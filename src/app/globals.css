@@ -10,6 +10,9 @@
   --charcoal: #2B2B2B;
   --logo-blue: #1D265A;
   --logo-red: #E11B22;
+
+  --font-outfit: "Outfit", sans-serif;
+  --font-playfair: "Playfair Display", serif;
 }
 
 @theme inline {

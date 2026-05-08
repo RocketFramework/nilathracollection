@@ -1,18 +1,7 @@
 import type { Metadata } from "next";
-import { Outfit, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.nilathra.com"),
@@ -73,6 +62,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet" />
         <meta name="ahrefs-site-verification" content="22fc30d51e6331979f27c2c228517f2c5970fd11f1da7bcf396ddc32b41d4e56"></meta>
         {/* Ahrefs Analytics */}
         <Script
@@ -112,9 +104,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body
-        className={`${outfit.variable} ${playfair.variable} antialiased min-h-screen bg-[#F5F3EF] text-[#2B2B2B] font-sans`}
-      >
+      <body className="antialiased min-h-screen bg-[#F5F3EF] text-[#2B2B2B] font-sans">
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe

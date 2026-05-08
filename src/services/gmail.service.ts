@@ -12,6 +12,7 @@ export interface GmailMessage {
     isUnread: boolean;
     bodyHtml?: string;
     bodyText?: string;
+    messageIdHeader?: string;
 }
 
 export class GmailService {
@@ -54,7 +55,7 @@ export class GmailService {
             const response = await this.gmail.users.messages.list({
                 userId: 'me',
                 maxResults,
-                q: '-in:chats', // Exclude chats, you can customize the query (e.g., 'is:unread')
+                q: '-in:chats to:@nilathra.com -to:admin@nilathra.com -to:champikanirosh@gmail.com', // Filter to only show emails forwarded via the @nilathra.com domain, excluding specific addresses
             });
 
             const messages = response.data.messages || [];
@@ -65,9 +66,15 @@ export class GmailService {
                 messages.map((msg) => this.getMessageDetails(msg.id!))
             );
 
-            // Filter out nulls and sort by date descending
+            // Filter out nulls, apply strict recipient rules, and sort by date descending
             return detailedMessages
                 .filter((msg): msg is GmailMessage => msg !== null)
+                .filter(msg => {
+                    const toLower = msg.to.toLowerCase();
+                    return toLower.includes('@nilathra.com') && 
+                           !toLower.includes('admin@nilathra.com') && 
+                           !toLower.includes('champikanirosh@gmail.com');
+                })
                 .sort((a, b) => Number(b.internalDate) - Number(a.internalDate));
                 
         } catch (error) {
@@ -95,6 +102,7 @@ export class GmailService {
             const from = headers.find(h => h.name?.toLowerCase() === 'from')?.value || 'Unknown Sender';
             const to = headers.find(h => h.name?.toLowerCase() === 'to')?.value || '';
             const date = headers.find(h => h.name?.toLowerCase() === 'date')?.value || '';
+            const messageIdHeader = headers.find(h => h.name?.toLowerCase() === 'message-id')?.value || '';
 
             // Determine if unread
             const isUnread = data.labelIds?.includes('UNREAD') || false;
@@ -128,7 +136,8 @@ export class GmailService {
                 date,
                 isUnread,
                 bodyHtml,
-                bodyText
+                bodyText,
+                messageIdHeader
             };
         } catch (error) {
             console.error(`Error fetching message details for ${messageId}:`, error);
@@ -151,6 +160,52 @@ export class GmailService {
             return true;
         } catch (error) {
             console.error(`Error marking message ${messageId} as read:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Reply to an email
+     */
+    async replyToEmail(threadId: string, to: string, subject: string, originalMessageId: string, replyHtml: string): Promise<boolean> {
+        try {
+            // Ensure subject has Re:
+            const replySubject = subject.toLowerCase().startsWith('re:') ? subject : `Re: ${subject}`;
+            const utf8Subject = `=?utf-8?B?${Buffer.from(replySubject).toString('base64')}?=`;
+            
+            const messageParts = [
+                `To: ${to}`,
+                `Subject: ${utf8Subject}`,
+                'Content-Type: text/html; charset=utf-8',
+                'MIME-Version: 1.0'
+            ];
+            
+            if (originalMessageId) {
+                messageParts.push(`In-Reply-To: ${originalMessageId}`);
+                messageParts.push(`References: ${originalMessageId}`);
+            }
+            
+            messageParts.push('', replyHtml);
+            const message = messageParts.join('\n');
+
+            // Base64url encode
+            const encodedMessage = Buffer.from(message)
+                .toString('base64')
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+
+            await this.gmail.users.messages.send({
+                userId: 'me',
+                requestBody: {
+                    raw: encodedMessage,
+                    threadId: threadId
+                }
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error replying to email:', error);
             return false;
         }
     }

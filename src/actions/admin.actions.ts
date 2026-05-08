@@ -592,3 +592,15 @@ export async function markEmailAsReadAction(messageId: string) {
     }
 }
 
+export async function replyToInboxEmailAction(threadId: string, to: string, subject: string, originalMessageId: string, replyText: string) {
+    try {
+        const { gmailService } = await import('@/services/gmail.service');
+        const formattedHtml = replyText.replace(/\n/g, '<br/>');
+        const success = await gmailService.replyToEmail(threadId, to, subject, originalMessageId, formattedHtml);
+        if (!success) throw new Error("Failed to send reply");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error replying to email:", error);
+        return { success: false, error: error.message || "Failed to reply to email." };
+    }
+}
