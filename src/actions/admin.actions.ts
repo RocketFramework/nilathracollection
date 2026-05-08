@@ -182,6 +182,17 @@ export async function getHotelsListAction() {
         return { error: error.message || "Failed to load hotels." };
     }
 }
+
+export async function getHotelAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const hotel = await HotelService.getHotel(id, { client: supabase });
+        return { success: true, hotel };
+    } catch (error: any) {
+        console.error("Error fetching hotel:", error);
+        return { error: error.message || "Failed to load hotel." };
+    }
+}
 export async function getRestaurantsAction() {
     try {
         const supabase = createAdminClient();

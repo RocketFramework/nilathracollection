@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
-import { Hotel, HotelRoom, HotelService } from "@/services/hotel.service";
+import { Hotel, HotelRoom, RoomRate, HotelService } from "@/services/hotel.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
 
 interface HotelFormModalProps {
@@ -115,21 +115,35 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
     };
 
     const addRoom = () => {
-        const currentRooms = formData.rooms || [];
-        const lastRoom = currentRooms.length > 0 ? currentRooms[currentRooms.length - 1] : null;
-
         const newRoom: HotelRoom = {
-            room_name: "", room_standard: ROOM_STANDARDS[0], max_guests: 1, breakfast_included: false,
-            summer_bb_rate: 0, summer_hb_rate: 0, summer_fb_rate: 0,
-            winter_bb_rate: 0, winter_hb_rate: 0, winter_fb_rate: 0,
-            summer_start_date: lastRoom?.summer_start_date || "",
-            summer_end_date: lastRoom?.summer_end_date || "",
-            winter_start_date: lastRoom?.winter_start_date || "",
-            winter_end_date: lastRoom?.winter_end_date || "",
-            rate_received_date: lastRoom?.rate_received_date || "",
-            rate_years_applicable: lastRoom?.rate_years_applicable || 1
+            room_name: "", room_standard: ROOM_STANDARDS[0], max_guests: 1, room_rates: []
         };
         setFormData(prev => ({ ...prev, rooms: [...(prev.rooms || []), newRoom] }));
+    };
+
+    const addRoomRate = (roomIndex: number) => {
+        const updatedRooms = [...(formData.rooms || [])];
+        const currentRates = updatedRooms[roomIndex].room_rates || [];
+        updatedRooms[roomIndex].room_rates = [...currentRates, { start_date: "", end_date: "", rate: 0, meal_plan_type: "BB", breakfast_included: true }];
+        setFormData(prev => ({ ...prev, rooms: updatedRooms }));
+    };
+
+    const removeRoomRate = (roomIndex: number, rateIndex: number) => {
+        const updatedRooms = [...(formData.rooms || [])];
+        if (updatedRooms[roomIndex].room_rates) {
+            updatedRooms[roomIndex].room_rates.splice(rateIndex, 1);
+        }
+        setFormData(prev => ({ ...prev, rooms: updatedRooms }));
+    };
+
+    const handleRateChange = (roomIndex: number, rateIndex: number, field: keyof RoomRate, value: string | number | boolean | undefined) => {
+        const updatedRooms = [...(formData.rooms || [])];
+        if (updatedRooms[roomIndex].room_rates) {
+            const newRates = [...updatedRooms[roomIndex].room_rates];
+            newRates[rateIndex] = { ...newRates[rateIndex], [field]: value };
+            updatedRooms[roomIndex].room_rates = newRates;
+        }
+        setFormData(prev => ({ ...prev, rooms: updatedRooms }));
     };
 
     const removeRoom = (index: number) => {
@@ -436,69 +450,56 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                                             <label className="text-[10px] font-bold text-neutral-500 uppercase">Max Guests</label>
                                             <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium" value={room.max_guests || 1} onChange={e => handleRoomChange(index, 'max_guests', parseInt(e.target.value))} />
                                         </div>
-                                        <div className="col-span-1 border border-neutral-200 rounded-xl px-3 py-2 flex items-center h-full">
-                                            <label className="flex items-center gap-2 cursor-pointer pt-2">
-                                                <input type="checkbox" className="w-4 h-4 accent-brand-green rounded border-neutral-300" checked={room.breakfast_included || false} onChange={e => handleRoomChange(index, 'breakfast_included', e.target.checked)} />
-                                                <span className="text-xs font-bold text-neutral-600">Incl. Breakfast</span>
-                                            </label>
+                                    </div>
+                                    
+                                    {/* Rates Section */}
+                                    <div className="mt-4 border border-neutral-100 rounded-xl p-4 bg-neutral-50/50">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Room Rates</h4>
+                                            <button onClick={(e) => { e.preventDefault(); addRoomRate(index); }} className="text-xs font-bold text-brand-green hover:text-brand-charcoal transition-colors flex items-center gap-1 bg-brand-green/10 px-2 py-1 rounded-lg">
+                                                <Plus size={12} /> Add Rate
+                                            </button>
                                         </div>
-
-                                        {/* Rates Summer */}
-                                        <div className="col-span-2 border border-amber-200/50 bg-amber-50/30 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-amber-600 uppercase">Summer Start</label>
-                                            <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.summer_start_date || ''} onChange={e => handleRoomChange(index, 'summer_start_date', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-2 border border-amber-200/50 bg-amber-50/30 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-amber-600 uppercase">Summer End</label>
-                                            <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.summer_end_date || ''} onChange={e => handleRoomChange(index, 'summer_end_date', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-4 grid grid-cols-3 gap-2 border border-amber-200/50 bg-amber-50/30 rounded-xl p-3">
-                                            <div>
-                                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">Summer BB (USD)</label>
-                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-amber-200/50" value={room.summer_bb_rate || ''} onChange={e => handleRoomChange(index, 'summer_bb_rate', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">Summer HB (USD)</label>
-                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-amber-200/50" value={room.summer_hb_rate || ''} onChange={e => handleRoomChange(index, 'summer_hb_rate', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">Summer FB (USD)</label>
-                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-amber-200/50" value={room.summer_fb_rate || ''} onChange={e => handleRoomChange(index, 'summer_fb_rate', parseFloat(e.target.value))} />
-                                            </div>
-                                        </div>
-
-                                        {/* Rates Winter */}
-                                        <div className="col-span-2 border border-blue-200/50 bg-blue-50/30 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-blue-600 uppercase">Winter Start</label>
-                                            <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.winter_start_date || ''} onChange={e => handleRoomChange(index, 'winter_start_date', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-2 border border-blue-200/50 bg-blue-50/30 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-blue-600 uppercase">Winter End</label>
-                                            <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent" value={room.winter_end_date || ''} onChange={e => handleRoomChange(index, 'winter_end_date', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-4 grid grid-cols-3 gap-2 border border-blue-200/50 bg-blue-50/30 rounded-xl p-3">
-                                            <div>
-                                                <label className="text-[10px] font-bold text-blue-600 uppercase block mb-1">Winter BB (USD)</label>
-                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-blue-200/50" value={room.winter_bb_rate || ''} onChange={e => handleRoomChange(index, 'winter_bb_rate', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-blue-600 uppercase block mb-1">Winter HB (USD)</label>
-                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-blue-200/50" value={room.winter_hb_rate || ''} onChange={e => handleRoomChange(index, 'winter_hb_rate', parseFloat(e.target.value))} />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] font-bold text-blue-600 uppercase block mb-1">Winter FB (USD)</label>
-                                                <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium bg-transparent border-b border-blue-200/50" value={room.winter_fb_rate || ''} onChange={e => handleRoomChange(index, 'winter_fb_rate', parseFloat(e.target.value))} />
-                                            </div>
-                                        </div>
-
-                                        {/* Rate details */}
-                                        <div className="col-span-2 border border-neutral-200 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-neutral-500 uppercase">Rate Received Date</label>
-                                            <input type="date" className="w-full text-sm outline-none text-brand-charcoal font-medium" value={room.rate_received_date || ''} onChange={e => handleRoomChange(index, 'rate_received_date', e.target.value)} />
-                                        </div>
-                                        <div className="col-span-2 border border-neutral-200 rounded-xl px-3 py-2">
-                                            <label className="text-[10px] font-bold text-neutral-500 uppercase">Rate Applicable Years</label>
-                                            <input type="number" className="w-full text-sm outline-none text-brand-charcoal font-medium" value={room.rate_years_applicable || 1} onChange={e => handleRoomChange(index, 'rate_years_applicable', parseInt(e.target.value))} />
+                                        <div className="space-y-3">
+                                            {room.room_rates?.map((rate, rIndex) => (
+                                                <div key={rIndex} className="flex flex-wrap md:flex-nowrap gap-3 items-end bg-white p-3 rounded-lg border border-neutral-200 shadow-sm relative group">
+                                                    <div className="flex-1 min-w-[120px]">
+                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Start Date</label>
+                                                        <input type="date" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.start_date || ''} onChange={e => handleRateChange(index, rIndex, 'start_date', e.target.value)} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-[120px]">
+                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">End Date</label>
+                                                        <input type="date" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.end_date || ''} onChange={e => handleRateChange(index, rIndex, 'end_date', e.target.value)} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-[80px]">
+                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Meal Plan</label>
+                                                        <select className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.meal_plan_type || 'BB'} onChange={e => handleRateChange(index, rIndex, 'meal_plan_type', e.target.value)}>
+                                                            <option value="BB">BB</option>
+                                                            <option value="HB">HB</option>
+                                                            <option value="FB">FB</option>
+                                                            <option value="AI">AI</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex-1 min-w-[80px]">
+                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Rate ($)</label>
+                                                        <input type="number" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.rate || ''} onChange={e => handleRateChange(index, rIndex, 'rate', parseFloat(e.target.value))} />
+                                                    </div>
+                                                    <div className="flex items-center min-w-[100px] pb-1">
+                                                        <label className="flex items-center gap-1 cursor-pointer">
+                                                            <input type="checkbox" className="w-3 h-3 accent-brand-green" checked={rate.breakfast_included || false} onChange={e => handleRateChange(index, rIndex, 'breakfast_included', e.target.checked)} />
+                                                            <span className="text-[9px] font-bold text-neutral-600">Incl. Breakfast</span>
+                                                        </label>
+                                                    </div>
+                                                    <button onClick={(e) => { e.preventDefault(); removeRoomRate(index, rIndex); }} className="text-red-400 hover:text-red-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity absolute -right-2 -top-2 bg-white shadow-sm border border-neutral-100">
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(!room.room_rates || room.room_rates.length === 0) && (
+                                                <div className="text-center py-4 text-xs text-neutral-400 italic border-2 border-dashed border-neutral-200 rounded-lg">
+                                                    No rates defined for this room yet.
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

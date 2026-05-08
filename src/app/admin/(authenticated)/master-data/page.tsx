@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -198,9 +198,13 @@ export default function MasterDataPage() {
     const handleEdit = async (id: string | number) => {
         try {
             if (activeTab === 'hotels') {
-                const fullItem = await HotelService.getHotel(id as string);
-                setSelectedHotel(fullItem);
-                setIsHotelModalOpen(true);
+                const result = await getHotelAction(id as string);
+                if (result.success && result.hotel) {
+                    setSelectedHotel(result.hotel);
+                    setIsHotelModalOpen(true);
+                } else {
+                    console.error("Failed to load hotel:", result.error);
+                }
             } else if (activeTab === 'activities') {
                 const fullItem = await MasterDataService.getActivity(id as number);
                 setSelectedActivity(fullItem);
