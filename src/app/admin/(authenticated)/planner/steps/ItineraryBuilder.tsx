@@ -36,7 +36,7 @@ import {
 import { HotelRoom } from "@/services/hotel.service";
 
 // Local component for time input to prevent jumping while typing
-function TimeInput({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+function TimeInput({ value, onChange, disabled }: { value: string, onChange: (val: string) => void, disabled?: boolean }) {
     const [localVal, setLocalVal] = useState(value);
 
     // Sync from parent if changed externally
@@ -55,17 +55,18 @@ function TimeInput({ value, onChange }: { value: string, onChange: (val: string)
             value={localVal}
             onChange={e => setLocalVal(e.target.value)}
             onBlur={handleCommit}
+            disabled={disabled}
             onKeyDown={e => {
                 if (e.key === 'Enter') {
                     e.currentTarget.blur();
                 }
             }}
-            className="w-16 text-xs font-mono font-bold text-center border-b border-dashed border-neutral-300 bg-transparent focus:outline-none focus:border-brand-gold"
+            className="w-16 text-xs font-mono font-bold text-center border-b border-dashed border-neutral-300 bg-transparent focus:outline-none focus:border-brand-gold disabled:opacity-70 disabled:cursor-not-allowed"
         />
     );
 }
 
-function DebouncedInput({ value, onChange, className, placeholder }: { value: string, onChange: (val: string) => void, className?: string, placeholder?: string }) {
+function DebouncedInput({ value, onChange, className, placeholder, disabled }: { value: string, onChange: (val: string) => void, className?: string, placeholder?: string, disabled?: boolean }) {
     const [localVal, setLocalVal] = useState(value);
 
     useEffect(() => {
@@ -78,13 +79,26 @@ function DebouncedInput({ value, onChange, className, placeholder }: { value: st
             onChange={e => setLocalVal(e.target.value)}
             onBlur={() => { if (localVal !== value) onChange(localVal) }}
             onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
-            className={className}
+            disabled={disabled}
+            className={`${className} disabled:opacity-70 disabled:cursor-not-allowed`}
             placeholder={placeholder}
         />
     );
 }
 
-export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
+export function ItineraryBuilder({ 
+    tripData, 
+    updateData, 
+    readOnly = false,
+    currentUserRole = 'agent',
+    onAddComment
+}: { 
+    tripData: TripData, 
+    updateData: (d: Partial<TripData>) => void,
+    readOnly?: boolean,
+    currentUserRole?: 'agent' | 'tourist',
+    onAddComment?: (blockId: string, text: string) => Promise<void> | void
+}) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [optScore, setOptScore] = useState<number | null>(null);
     const [engineChoice, setEngineChoice] = useState<'standard' | 'ai'>('standard');
@@ -117,22 +131,33 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
     const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: string } | null>(null);
     const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
     const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+    const [savingNote, setSavingNote] = useState<string | null>(null);
 
-    const handleAddComment = (blockId: string) => {
+    const handleAddComment = async (blockId: string) => {
         const text = commentDrafts[blockId];
         if (!text?.trim()) return;
 
-        const block = tripData.itinerary.find(b => b.id === blockId);
-        if (block) {
-            const newComment = {
-                id: crypto.randomUUID(),
-                role: 'agent' as const,
-                text: text.trim(),
-                timestamp: new Date().toISOString()
-            };
-            const comments = block.comments ? [...block.comments, newComment] : [newComment];
-            updateBlock(blockId, { comments });
-            setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+        if (onAddComment) {
+            setSavingNote(blockId);
+            try {
+                await onAddComment(blockId, text.trim());
+                setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+            } finally {
+                setSavingNote(null);
+            }
+        } else {
+            const block = tripData.itinerary.find(b => b.id === blockId);
+            if (block) {
+                const newComment = {
+                    id: crypto.randomUUID(),
+                    role: currentUserRole as any,
+                    text: text.trim(),
+                    timestamp: new Date().toISOString()
+                };
+                const comments = block.comments ? [...block.comments, newComment] : [newComment];
+                updateBlock(blockId, { comments });
+                setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+            }
         }
     };
 
@@ -342,7 +367,13 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
         // Count hotel costs
         tripData.accommodations.forEach(h => {
-            hotels += (h.pricePerNight || 0) * (h.numberOfRooms || 1);
+            if (h.selectedRooms && h.selectedRooms.length > 0) {
+                h.selectedRooms.forEach((sr: any) => {
+                    hotels += sr.agreedTotal !== undefined ? sr.agreedTotal : ((sr.pricePerNight || 0) * (sr.quantity || 1));
+                });
+            } else {
+                hotels += (h.pricePerNight || 0) * (h.numberOfRooms || 1);
+            }
         });
 
         // Count transport costs
@@ -863,7 +894,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
             const acc = tripData.accommodations.find(a => a.nightIndex === block.dayNumber);
             let label = h?.name || 'Linked Hotel';
             if (acc?.selectedRooms && acc.selectedRooms.length > 0) {
-                const roomSummaries = acc.selectedRooms.map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard} (${sr.mealPlan || 'BB'})`);
+                const roomSummaries = (acc.selectedRooms || []).map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard} (${sr.mealPlan || 'BB'})`);
                 label += ` - ${roomSummaries.join(', ')}`;
             } else if (acc?.roomName || acc?.roomStandard) {
                 label += ` - ${acc.roomName || acc.roomStandard}`;
@@ -956,62 +987,64 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
         <div className="relative">
             <div className="space-y-6">
                 {/* Dashboard Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-brand-gold/20 shadow-sm">
-                    <div>
-                        <h3 className="text-xl font-serif text-brand-green flex items-center gap-2">
-                            <CalendarDays size={20} className="text-brand-gold" /> Itinerary Assignment Stage
-                        </h3>
-                        <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider font-bold">Step 4: Bind Master Data to Operational Blocks</p>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                        <div className="flex gap-4">
-                            <div className="text-right">
-                                <p className="text-[10px] text-neutral-400 uppercase font-bold">Planned Cost</p>
-                                <p className="text-sm font-bold text-neutral-800">${totalCosts.total.toLocaleString()}</p>
-                            </div>
-                            <div className="text-right border-l pl-4">
-                                <p className="text-[10px] text-neutral-400 uppercase font-bold">Quote Margin</p>
-                                <p className="text-sm font-bold text-brand-green">
-                                    {tripData.financials.sellingPrice > 0
-                                        ? `${(((tripData.financials.sellingPrice - totalCosts.total) / tripData.financials.sellingPrice) * 100).toFixed(1)}%`
-                                        : '0%'
-                                    }
-                                </p>
-                            </div>
+                {!readOnly && (
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-brand-gold/20 shadow-sm">
+                        <div>
+                            <h3 className="text-xl font-serif text-brand-green flex items-center gap-2">
+                                <CalendarDays size={20} className="text-brand-gold" /> Itinerary Assignment Stage
+                            </h3>
+                            <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider font-bold">Step 4: Bind Master Data to Operational Blocks</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <select
-                                value={engineChoice}
-                                onChange={e => setEngineChoice(e.target.value as 'standard' | 'ai')}
-                                className="bg-neutral-50 border border-neutral-200 text-sm font-bold text-neutral-600 px-3 py-2.5 rounded-xl focus:ring-1 focus:ring-brand-gold outline-none"
-                            >
-                                <option value="standard">Standard Engine</option>
-                                <option value="ai">AI Smart Builder ✦</option>
-                            </select>
 
-                            {engineChoice === 'ai' && (
-                                <button
-                                    onClick={() => setShowAIRules(true)}
-                                    className="flex items-center gap-2 bg-white border border-brand-gold/50 text-brand-gold px-4 py-2.5 rounded-xl hover:bg-brand-gold/5 transition-all font-bold text-sm shadow-sm"
+                        <div className="flex items-center gap-6">
+                            <div className="flex gap-4">
+                                <div className="text-right">
+                                    <p className="text-[10px] text-neutral-400 uppercase font-bold">Planned Cost</p>
+                                    <p className="text-sm font-bold text-neutral-800">${totalCosts.total.toLocaleString()}</p>
+                                </div>
+                                <div className="text-right border-l pl-4">
+                                    <p className="text-[10px] text-neutral-400 uppercase font-bold">Quote Margin</p>
+                                    <p className="text-sm font-bold text-brand-green">
+                                        {tripData.financials.sellingPrice > 0
+                                            ? `${(((tripData.financials.sellingPrice - totalCosts.total) / tripData.financials.sellingPrice) * 100).toFixed(1)}%`
+                                            : '0%'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <select
+                                    value={engineChoice}
+                                    onChange={e => setEngineChoice(e.target.value as 'standard' | 'ai')}
+                                    className="bg-neutral-50 border border-neutral-200 text-sm font-bold text-neutral-600 px-3 py-2.5 rounded-xl focus:ring-1 focus:ring-brand-gold outline-none"
                                 >
-                                    <ShieldCheck size={16} />
-                                    AI Rules
+                                    <option value="standard">Standard Engine</option>
+                                    <option value="ai">AI Smart Builder ✦</option>
+                                </select>
+
+                                {engineChoice === 'ai' && (
+                                    <button
+                                        onClick={() => setShowAIRules(true)}
+                                        className="flex items-center gap-2 bg-white border border-brand-gold/50 text-brand-gold px-4 py-2.5 rounded-xl hover:bg-brand-gold/5 transition-all font-bold text-sm shadow-sm"
+                                    >
+                                        <ShieldCheck size={16} />
+                                        AI Rules
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={runEngine}
+                                    disabled={isGenerating || tripData.activities.length === 0}
+                                    className="flex items-center gap-2 bg-gradient-to-r from-brand-charcoal to-brand-green text-white px-5 py-2.5 rounded-xl hover:shadow-md transition-all font-semibold disabled:opacity-50"
+                                >
+                                    {isGenerating ? <RefreshCcw className="animate-spin" size={16} /> : <Rocket size={16} className="text-brand-gold" />}
+                                    {tripData.itinerary.length > 0 ? 'Regenerate Base' : 'Auto-Generate Route'}
                                 </button>
-                            )}
-
-
-                            <button
-                                onClick={runEngine}
-                                disabled={isGenerating || tripData.activities.length === 0}
-                                className="flex items-center gap-2 bg-gradient-to-r from-brand-charcoal to-brand-green text-white px-5 py-2.5 rounded-xl hover:shadow-md transition-all font-semibold disabled:opacity-50"
-                            >
-                                {isGenerating ? <RefreshCcw className="animate-spin" size={16} /> : <Rocket size={16} className="text-brand-gold" />}
-                                {tripData.itinerary.length > 0 ? 'Regenerate Base' : 'Auto-Generate Route'}
-                            </button>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
+
 
                 {/* Itinerary Summary Dashboard */}
                 {tripData.summary && (
@@ -1055,7 +1088,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                 )}
 
                 {/* Assignment Defaults */}
-                {tripData.itinerary.length > 0 && (
+                {!readOnly && tripData.itinerary.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex items-center gap-4">
                             <div className="p-2 bg-white rounded-lg shadow-sm"><Rocket className="text-blue-500" size={18} /></div>
@@ -1128,7 +1161,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                     </div>
                 )}
 
-                {tripData.itinerary.length > 0 && (
+                {!readOnly && tripData.itinerary.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-center gap-4">
                             <div className="p-2 bg-white rounded-lg shadow-sm"><UserCheck className="text-amber-500" size={18} /></div>
@@ -1189,7 +1222,8 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                             {actualDate && <span className="text-sm font-sans text-neutral-400 font-normal ml-2">({actualDate})</span>}
                                             {isUnscheduled ? <span className="text-xs font-sans text-orange-400 ml-2 font-bold uppercase tracking-widest">(Needs Action)</span> : ' Journey'}
                                         </h4>
-                                        <div className="flex gap-4 opacity-0 group-hover/day:opacity-100 transition-opacity">
+                                        {!readOnly && (
+                                            <div className="flex gap-4 opacity-0 group-hover/day:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => sortDayBlocks(dayNum)}
                                                 className="text-neutral-300 hover:text-brand-green font-bold text-[10px] uppercase tracking-widest flex items-center gap-1"
@@ -1204,6 +1238,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                 Remove Day
                                             </button>
                                         </div>
+                                        )}
                                     </div>
 
                                     <div className="grid gap-3">
@@ -1213,9 +1248,9 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                 <div key={block.id} className="bg-white rounded-2xl border border-neutral-100 p-4 shadow-sm hover:shadow-md hover:border-brand-gold/30 transition-all group flex flex-col md:flex-row gap-4 items-center">
                                                     <div className="flex items-center gap-4 flex-1 w-full">
                                                         <div className="w-20 text-center">
-                                                            <TimeInput value={block.startTime} onChange={v => updateBlock(block.id, { startTime: v })} />
+                                                            <TimeInput value={block.startTime} onChange={v => updateBlock(block.id, { startTime: v })} disabled={readOnly} />
                                                             <div className="h-4 w-[1px] bg-neutral-100 mx-auto my-1"></div>
-                                                            <TimeInput value={block.endTime} onChange={v => updateBlock(block.id, { endTime: v })} />
+                                                            <TimeInput value={block.endTime} onChange={v => updateBlock(block.id, { endTime: v })} disabled={readOnly} />
                                                         </div>
 
                                                         <div className="p-2.5 bg-neutral-50 rounded-xl">
@@ -1224,7 +1259,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
 
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-2">
-                                                                <DebouncedInput value={block.name} onChange={v => updateBlock(block.id, { name: v })} className="font-bold text-neutral-800 bg-transparent border-none p-0 focus:ring-0 w-full" />
+                                                                <DebouncedInput value={block.name} onChange={v => updateBlock(block.id, { name: v })} disabled={readOnly} className="font-bold text-neutral-800 bg-transparent border-none p-0 focus:ring-0 w-full" />
                                                             </div>
                                                             {block.type !== 'guide' && (
                                                                 <div className="flex items-center gap-2 mt-1">
@@ -1234,6 +1269,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                             value={block.locationName || ''}
                                                                             onChange={v => updateBlock(block.id, { locationName: v })}
                                                                             placeholder="Location"
+                                                                            disabled={readOnly}
                                                                             className="text-[10px] text-neutral-500 bg-transparent border-none p-0 focus:ring-0 w-full placeholder:text-neutral-300"
                                                                         />
                                                                     </div>
@@ -1244,6 +1280,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                                 value={block.distance || ''}
                                                                                 onChange={v => updateBlock(block.id, { distance: v })}
                                                                                 placeholder="Distance"
+                                                                                disabled={readOnly}
                                                                                 className="text-[10px] text-neutral-500 bg-transparent border-none p-0 focus:ring-0 w-full placeholder:text-neutral-300"
                                                                             />
                                                                         </div>
@@ -1282,15 +1319,57 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                                 const room = acc.selectedRooms?.find((sr: any) => sr.reqId === rType);
                                                                                 if (!room || room.quantity === 0) return null;
                                                                                 totalRooms += room.quantity;
-                                                                                const price = room.pricePerNight * room.quantity;
+                                                                                const price = room.agreedTotal !== undefined ? room.agreedTotal : (room.pricePerNight * room.quantity);
                                                                                 totalPrice += price;
                                                                                 return (
                                                                                     <div key={rType} className="grid grid-cols-[1fr_2fr_1fr_1fr_1fr] gap-2 py-1 items-center text-indigo-900">
                                                                                         <div className="font-bold">{rType}</div>
                                                                                         <div className="truncate" title={`${room.roomName} (${room.roomStandard})`}>{room.roomName} <span className="text-indigo-400">({room.roomStandard})</span></div>
-                                                                                        <div className="text-center font-bold bg-white border border-indigo-50 rounded w-8 mx-auto py-0.5 shadow-sm">{room.quantity}</div>
-                                                                                        <div className="text-center text-[10px] font-bold">{room.mealPlan}</div>
-                                                                                        <div className="text-right font-bold">${price.toFixed(0)}</div>
+                                                                                        <div className="text-center">
+                                                                                            <input 
+                                                                                                type="number" 
+                                                                                                min="0"
+                                                                                                value={room.quantity}
+                                                                                                disabled={readOnly}
+                                                                                                onChange={(e) => {
+                                                                                                    const newQty = parseInt(e.target.value) || 0;
+                                                                                                    const newSelected = (acc.selectedRooms || []).map((sr: any) => sr.reqId === rType ? { ...sr, quantity: newQty } : sr).filter((sr: any) => sr.quantity > 0);
+                                                                                                    updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected } : a) });
+                                                                                                }}
+                                                                                                className="w-12 text-center font-bold bg-white border border-indigo-200 rounded py-0.5 shadow-sm outline-none focus:border-indigo-500 disabled:bg-neutral-50"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <div className="text-center">
+                                                                                            <select 
+                                                                                                value={room.mealPlan}
+                                                                                                disabled={readOnly}
+                                                                                                onChange={(e) => {
+                                                                                                    const newSelected = (acc.selectedRooms || []).map((sr: any) => sr.reqId === rType ? { ...sr, mealPlan: e.target.value } : sr);
+                                                                                                    updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected } : a) });
+                                                                                                }}
+                                                                                                className="w-14 text-[10px] font-bold bg-white border border-indigo-200 rounded py-1 outline-none focus:border-indigo-500 disabled:bg-neutral-50"
+                                                                                            >
+                                                                                                <option value="BB">BB</option>
+                                                                                                <option value="HB">HB</option>
+                                                                                                <option value="FB">FB</option>
+                                                                                                <option value="AI">AI</option>
+                                                                                            </select>
+                                                                                        </div>
+                                                                                        <div className="text-right flex items-center justify-end gap-1">
+                                                                                            <span className="text-indigo-400 font-bold">$</span>
+                                                                                            <input 
+                                                                                                type="number" 
+                                                                                                min="0"
+                                                                                                value={price}
+                                                                                                disabled={readOnly}
+                                                                                                onChange={(e) => {
+                                                                                                    const newTotal = parseFloat(e.target.value) || 0;
+                                                                                                    const newSelected = (acc.selectedRooms || []).map((sr: any) => sr.reqId === rType ? { ...sr, agreedTotal: newTotal } : sr);
+                                                                                                    updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected } : a) });
+                                                                                                }}
+                                                                                                className="w-16 text-right font-bold bg-white border border-indigo-200 rounded py-0.5 shadow-sm outline-none focus:border-indigo-500 disabled:bg-neutral-50"
+                                                                                            />
+                                                                                        </div>
                                                                                     </div>
                                                                                 );
                                                                             })}
@@ -1307,20 +1386,20 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                             {/* Logistics Configuration (Driver/Guide) */}
                                                                             <div className="mt-4 pt-3 border-t border-indigo-100 flex flex-wrap gap-4 text-[10px]">
                                                                                 <label className="flex items-center gap-1.5 cursor-pointer">
-                                                                                    <input type="checkbox" checked={!!block.driverMealIncluded} onChange={e => updateBlock(block.id, { driverMealIncluded: e.target.checked })} className="rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500" />
+                                                                                    <input type="checkbox" checked={!!block.driverMealIncluded} onChange={e => updateBlock(block.id, { driverMealIncluded: e.target.checked })} disabled={readOnly} className="rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500 disabled:opacity-50" />
                                                                                     <span className="font-bold text-indigo-700">Driver Meal</span>
                                                                                 </label>
                                                                                 <label className="flex items-center gap-1.5 cursor-pointer">
-                                                                                    <input type="checkbox" checked={!!block.driverAccIncluded} onChange={e => updateBlock(block.id, { driverAccIncluded: e.target.checked })} className="rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500" />
+                                                                                    <input type="checkbox" checked={!!block.driverAccIncluded} onChange={e => updateBlock(block.id, { driverAccIncluded: e.target.checked })} disabled={readOnly} className="rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500 disabled:opacity-50" />
                                                                                     <span className="font-bold text-indigo-700">Driver Accommodation</span>
                                                                                 </label>
                                                                                 <label className="flex items-center gap-1.5 cursor-pointer">
-                                                                                    <input type="checkbox" checked={!!block.parkingIncluded} onChange={e => updateBlock(block.id, { parkingIncluded: e.target.checked })} className="rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500" />
+                                                                                    <input type="checkbox" checked={!!block.parkingIncluded} onChange={e => updateBlock(block.id, { parkingIncluded: e.target.checked })} disabled={readOnly} className="rounded border-indigo-300 text-indigo-500 focus:ring-indigo-500 disabled:opacity-50" />
                                                                                     <span className="font-bold text-indigo-700">Parking</span>
                                                                                 </label>
                                                                                 <label className="flex items-center gap-1.5 cursor-pointer ml-auto">
                                                                                     <span className="font-bold text-indigo-700">Guide Discount:</span>
-                                                                                    <select value={block.guideRoomDiscount || ''} onChange={e => updateBlock(block.id, { guideRoomDiscount: e.target.value as any })} className="bg-white border border-indigo-200 text-indigo-700 font-bold rounded px-2 py-0.5 outline-none focus:border-indigo-400">
+                                                                                    <select value={block.guideRoomDiscount || ''} onChange={e => updateBlock(block.id, { guideRoomDiscount: e.target.value as any })} disabled={readOnly} className="bg-white border border-indigo-200 text-indigo-700 font-bold rounded px-2 py-0.5 outline-none focus:border-indigo-400 disabled:bg-neutral-50 disabled:opacity-50">
                                                                                         <option value="">None</option>
                                                                                         <option value="Half Price">Half Price</option>
                                                                                         <option value="Free">Free</option>
@@ -1338,12 +1417,15 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                 </div>
                                                                 {block.comments && block.comments.length > 0 && (
                                                                     <div className="p-3 max-h-40 overflow-y-auto space-y-2 flex flex-col">
-                                                                        {block.comments.map(c => (
-                                                                            <div key={c.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${c.role === 'agent' ? 'bg-brand-gold/10 border-brand-gold/20 text-brand-charcoal self-end' : 'bg-blue-50 border-blue-100 text-blue-900 self-start'} border`}>
-                                                                                <div className={`text-[9px] font-bold uppercase mb-1 ${c.role === 'agent' ? 'text-brand-gold' : 'text-blue-600'}`}>{c.role}</div>
-                                                                                <div>{c.text}</div>
-                                                                            </div>
-                                                                        ))}
+                                                                        {block.comments.map(c => {
+                                                                            const isCurrentUser = c.role === currentUserRole;
+                                                                            return (
+                                                                                <div key={c.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${isCurrentUser ? 'bg-brand-gold/10 border-brand-gold/20 text-brand-charcoal self-end' : 'bg-blue-50 border-blue-100 text-blue-900 self-start'} border`}>
+                                                                                    <div className={`text-[9px] font-bold uppercase mb-1 ${isCurrentUser ? 'text-brand-gold' : 'text-blue-600'}`}>{c.role}</div>
+                                                                                    <div>{c.text}</div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 )}
                                                                 <div className="p-2 bg-white flex gap-2 border-t border-neutral-100">
@@ -1353,24 +1435,26 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                         onChange={e => setCommentDrafts(prev => ({ ...prev, [block.id]: e.target.value }))}
                                                                         onKeyDown={e => e.key === 'Enter' && handleAddComment(block.id)}
                                                                         placeholder="Add a reply..."
-                                                                        className="flex-1 text-xs bg-neutral-50 border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-gold/50"
+                                                                        disabled={savingNote === block.id}
+                                                                        className="flex-1 text-xs bg-neutral-50 border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-gold/50 disabled:opacity-50"
                                                                     />
                                                                     <button
                                                                         onClick={() => handleAddComment(block.id)}
-                                                                        className="px-3 py-1.5 bg-brand-gold text-white text-xs font-bold rounded-md hover:bg-brand-gold/90 transition-colors"
+                                                                        disabled={savingNote === block.id || !commentDrafts[block.id]?.trim()}
+                                                                        className="px-3 py-1.5 bg-brand-gold text-white text-xs font-bold rounded-md hover:bg-brand-gold/90 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[50px]"
                                                                     >
-                                                                        Send
+                                                                        {savingNote === block.id ? <RefreshCcw size={12} className="animate-spin" /> : 'Send'}
                                                                     </button>
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-center gap-3 w-full md:w-auto">
-                                                            {binding ? (
+                                                            {binding && (!readOnly || block.type !== 'sleep') ? (
                                                                 <div className="flex flex-col items-end gap-1 shrink-0 max-w-[200px]">
                                                                     <button
-                                                                        onClick={() => setActiveAssignment({ blockId: block.id, type: block.type })}
-                                                                        className="flex items-center gap-2 px-3 py-1.5 bg-brand-gold/5 border border-brand-gold/20 rounded-full text-[11px] font-bold text-brand-gold hover:bg-brand-gold/10 transition-colors w-full justify-center"
+                                                                        onClick={() => !readOnly && setActiveAssignment({ blockId: block.id, type: block.type })}
+                                                                        className={`flex items-center gap-2 px-3 py-1.5 bg-brand-gold/5 border border-brand-gold/20 rounded-full text-[11px] font-bold text-brand-gold transition-colors w-full justify-center ${readOnly ? 'cursor-default' : 'hover:bg-brand-gold/10'}`}
                                                                     >
                                                                         {binding.icon}
                                                                         <span className="truncate" title={binding.name}>{binding.name}</span>
@@ -1390,7 +1474,7 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                         </a>
                                                                     )}
                                                                 </div>
-                                                            ) : (
+                                                            ) : !readOnly ? (
                                                                 <button
                                                                     onClick={() => setActiveAssignment({ blockId: block.id, type: block.type })}
                                                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 border border-neutral-100 rounded-full text-[11px] font-bold text-neutral-400 hover:bg-neutral-100 transition-colors"
@@ -1398,79 +1482,83 @@ export function ItineraryBuilder({ tripData, updateData }: { tripData: TripData,
                                                                     <Link size={12} />
                                                                     Bind Provider
                                                                 </button>
+                                                            ) : null}
+
+                                                            {!readOnly && (
+                                                                <div className="flex gap-1 items-center">
+                                                                    <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all justify-center">
+                                                                        <button
+                                                                            onClick={() => moveBlockDay(block.id, 'prev')}
+                                                                            className="p-1 text-neutral-300 hover:text-blue-500 disabled:opacity-30"
+                                                                            disabled={block.dayNumber === 0}
+                                                                            title="Move to Previous Day"
+                                                                        >
+                                                                            <ChevronLeft size={14} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => moveBlockDay(block.id, 'next')}
+                                                                            className="p-1 text-neutral-300 hover:text-blue-500 disabled:opacity-30"
+                                                                            title="Move to Next Day"
+                                                                        >
+                                                                            <ChevronRight size={14} />
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all">
+                                                                        <button
+                                                                            onClick={() => moveBlockPosition(block.id, 'up')}
+                                                                            className="p-1 text-neutral-300 hover:text-brand-green disabled:opacity-30"
+                                                                            disabled={idx === 0}
+                                                                            title="Move Up"
+                                                                        >
+                                                                            <ArrowUp size={14} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => moveBlockPosition(block.id, 'down')}
+                                                                            className="p-1 text-neutral-300 hover:text-brand-green disabled:opacity-30"
+                                                                            disabled={idx === blocks.length - 1}
+                                                                            title="Move Down"
+                                                                        >
+                                                                            <ArrowDown size={14} />
+                                                                        </button>
+                                                                    </div>
+                                                                    <button onClick={() => removeBlock(block.id, block.dayNumber)} className="p-1.5 text-neutral-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all ml-1">
+                                                                        <Trash2 size={16} />
+                                                                    </button>
+                                                                </div>
                                                             )}
-
-                                                            <div className="flex gap-1 items-center">
-                                                                <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all justify-center">
-                                                                    <button
-                                                                        onClick={() => moveBlockDay(block.id, 'prev')}
-                                                                        className="p-1 text-neutral-300 hover:text-blue-500 disabled:opacity-30"
-                                                                        disabled={block.dayNumber === 0}
-                                                                        title="Move to Previous Day"
-                                                                    >
-                                                                        <ChevronLeft size={14} />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => moveBlockDay(block.id, 'next')}
-                                                                        className="p-1 text-neutral-300 hover:text-blue-500 disabled:opacity-30"
-                                                                        title="Move to Next Day"
-                                                                    >
-                                                                        <ChevronRight size={14} />
-                                                                    </button>
-                                                                </div>
-
-                                                                <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-all">
-                                                                    <button
-                                                                        onClick={() => moveBlockPosition(block.id, 'up')}
-                                                                        className="p-1 text-neutral-300 hover:text-brand-green disabled:opacity-30"
-                                                                        disabled={idx === 0}
-                                                                        title="Move Up"
-                                                                    >
-                                                                        <ArrowUp size={14} />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => moveBlockPosition(block.id, 'down')}
-                                                                        className="p-1 text-neutral-300 hover:text-brand-green disabled:opacity-30"
-                                                                        disabled={idx === blocks.length - 1}
-                                                                        title="Move Down"
-                                                                    >
-                                                                        <ArrowDown size={14} />
-                                                                    </button>
-                                                                </div>
-                                                                <button onClick={() => removeBlock(block.id, block.dayNumber)} className="p-1.5 text-neutral-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all ml-1">
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             );
                                         })}
 
-                                        <div className="mt-4 p-4 border-2 border-dashed border-neutral-100 rounded-[32px] bg-neutral-50/30">
-                                            <p className="text-[10px] text-center font-bold text-neutral-400 uppercase tracking-[0.2em] mb-4">Manual Addition • Day {dayStr}</p>
-                                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                                                {[
-                                                    { type: 'activity', label: 'Activity', icon: <ActivityIcon size={14} />, color: 'orange' },
-                                                    { type: 'sleep', label: 'Stay', icon: <BedDouble size={14} />, color: 'indigo' },
-                                                    { type: 'travel', label: 'Journey', icon: <Navigation size={14} />, color: 'blue' },
-                                                    { type: 'meal', label: 'Meal', icon: <Utensils size={14} />, color: 'green' },
-                                                    { type: 'guide', label: 'Guide', icon: <UserCheck size={14} />, color: 'amber' },
-                                                    { type: 'custom', label: 'Other', icon: <PlusCircle size={14} />, color: 'neutral' },
-                                                ].map((btn) => (
-                                                    <button
-                                                        key={btn.type}
-                                                        onClick={() => addNewBlock(Number(dayStr), btn.type as any)}
-                                                        className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-white border border-neutral-100 hover:border-brand-gold/50 hover:shadow-sm transition-all group"
-                                                    >
-                                                        <div className={`text-${btn.color}-500 group-hover:scale-110 transition-transform`}>
-                                                            {btn.icon}
-                                                        </div>
+                                        {!readOnly && (
+                                            <div className="mt-4 p-4 border-2 border-dashed border-neutral-100 rounded-[32px] bg-neutral-50/30">
+                                                <p className="text-[10px] text-center font-bold text-neutral-400 uppercase tracking-[0.2em] mb-4">Manual Addition • Day {dayStr}</p>
+                                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                                    {[
+                                                        { type: 'activity', label: 'Activity', icon: <ActivityIcon size={14} />, color: 'orange' },
+                                                        { type: 'sleep', label: 'Stay', icon: <BedDouble size={14} />, color: 'indigo' },
+                                                        { type: 'travel', label: 'Journey', icon: <Navigation size={14} />, color: 'blue' },
+                                                        { type: 'meal', label: 'Meal', icon: <Utensils size={14} />, color: 'green' },
+                                                        { type: 'guide', label: 'Guide', icon: <UserCheck size={14} />, color: 'amber' },
+                                                        { type: 'custom', label: 'Other', icon: <PlusCircle size={14} />, color: 'neutral' },
+                                                    ].map((btn) => (
+                                                        <button
+                                                            key={btn.type}
+                                                            onClick={() => addNewBlock(Number(dayStr), btn.type as any)}
+                                                            className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-white border border-neutral-100 hover:border-brand-gold/50 hover:shadow-sm transition-all group"
+                                                        >
+                                                            <div className={`text-${btn.color}-500 group-hover:scale-110 transition-transform`}>
+                                                                {btn.icon}
+                                                            </div>
                                                         <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-tight">{btn.label}</span>
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
+                                        )}
                                     </div>
                                 </div>
                             );

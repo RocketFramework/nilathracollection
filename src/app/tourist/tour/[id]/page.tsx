@@ -7,6 +7,7 @@ import { MapPin, Phone, Mail, MessageSquare, Download, CheckCircle2, ChevronRigh
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { createClient } from "@/utils/supabase/client";
 import { ItineraryPdfTemplate } from "@/app/admin/(authenticated)/planner/components/ItineraryPdfTemplate";
+import { ItineraryBuilder } from "@/app/admin/(authenticated)/planner/steps/ItineraryBuilder";
 
 export default function TourDetailsPage() {
     const params = useParams();
@@ -32,6 +33,20 @@ export default function TourDetailsPage() {
                 const newTour = { ...prev };
                 if (newTour.detailedItinerary) {
                     newTour.detailedItinerary = newTour.detailedItinerary.map((b: any) => {
+                        if (b.id === blockId) {
+                            const newComment = {
+                                id: Math.random().toString(),
+                                role: 'tourist',
+                                text: text.trim(),
+                                timestamp: new Date().toISOString()
+                            };
+                            return { ...b, comments: b.comments ? [...b.comments, newComment] : [newComment] };
+                        }
+                        return b;
+                    });
+                }
+                if (newTour.rawPlannerData && newTour.rawPlannerData.itinerary) {
+                    newTour.rawPlannerData.itinerary = newTour.rawPlannerData.itinerary.map((b: any) => {
                         if (b.id === blockId) {
                             const newComment = {
                                 id: Math.random().toString(),
@@ -197,85 +212,14 @@ export default function TourDetailsPage() {
                         </div>
 
                         <div className="space-y-6">
-                            {tour.detailedItinerary && tour.detailedItinerary.length > 0 ? (
-                                Object.entries(
-                                    tour.detailedItinerary.reduce((acc: any, block: any) => {
-                                        if (block.dayNumber > 0) {
-                                            if (!acc[block.dayNumber]) acc[block.dayNumber] = [];
-                                            acc[block.dayNumber].push(block);
-                                        }
-                                        return acc;
-                                    }, {})
-                                ).map(([dayStr, blocks]: [string, any]) => (
-                                    <div key={dayStr} className="mb-8 last:mb-0">
-                                        <h3 className="text-xl font-bold font-serif text-brand-charcoal mb-4 flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-brand-green/10 text-brand-green flex items-center justify-center font-bold text-sm">
-                                                {dayStr}
-                                            </div>
-                                            Day {dayStr}
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {blocks.map((block: any) => (
-                                                <div key={block.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-neutral-100 shadow-sm hover:border-brand-gold/30 transition-colors">
-                                                    <div className="text-xs font-bold text-neutral-400 w-16 pt-1 text-right shrink-0">
-                                                        {block.startTime}
-                                                    </div>
-                                                    <div className="w-px bg-neutral-100 shrink-0"></div>
-                                                    <div className="flex-1">
-                                                        <div className="flex justify-between items-start gap-4">
-                                                            <div>
-                                                                <p className="font-bold text-brand-charcoal">{block.name}</p>
-                                                                {block.locationName && (
-                                                                    <p className="text-[11px] font-bold uppercase tracking-wider text-brand-gold mt-1 flex items-center gap-1">
-                                                                        <MapPin size={12} /> {block.locationName}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            {block.type === 'travel' && block.distance && (
-                                                                <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 bg-neutral-100 px-2 py-1 rounded-md flex items-center gap-1 shrink-0">
-                                                                    <Navigation size={10} /> {block.distance}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="mt-4 w-full border border-neutral-100 rounded-xl overflow-hidden bg-neutral-50/30">
-                                                            <div className="bg-neutral-50 px-3 py-2 border-b border-neutral-100 flex justify-between items-center">
-                                                                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Line-Item Discussion</span>
-                                                            </div>
-                                                            {block.comments && block.comments.length > 0 && (
-                                                                <div className="p-3 max-h-40 overflow-y-auto space-y-2 flex flex-col">
-                                                                    {block.comments.map((c: any) => (
-                                                                        <div key={c.id} className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${c.role === 'tourist' ? 'bg-brand-green/10 border-brand-green/20 text-brand-charcoal self-end' : 'bg-neutral-100 border-neutral-200 text-neutral-700 self-start'} border`}>
-                                                                            <div className={`text-[9px] font-bold uppercase mb-1 ${c.role === 'tourist' ? 'text-brand-green' : 'text-neutral-500'}`}>{c.role === 'agent' ? tour.agent.name : 'You'}</div>
-                                                                            <div>{c.text}</div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                            <div className="p-2 bg-white flex gap-2 border-t border-neutral-100">
-                                                                <input
-                                                                    type="text"
-                                                                    value={commentDrafts[block.id] || ''}
-                                                                    onChange={e => setCommentDrafts(prev => ({ ...prev, [block.id]: e.target.value }))}
-                                                                    onKeyDown={e => e.key === 'Enter' && handleAddComment(block.id)}
-                                                                    disabled={savingNote === block.id}
-                                                                    placeholder="Add a reply..."
-                                                                    className="flex-1 text-xs bg-neutral-50 border border-neutral-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-brand-green/50 disabled:opacity-50"
-                                                                />
-                                                                <button
-                                                                    onClick={() => handleAddComment(block.id)}
-                                                                    disabled={savingNote === block.id}
-                                                                    className="px-3 py-1.5 bg-brand-green text-white text-xs font-bold rounded-md hover:bg-brand-green/90 transition-colors disabled:opacity-50"
-                                                                >
-                                                                    {savingNote === block.id ? '...' : 'Send'}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))
+                            {tour.rawPlannerData?.itinerary?.length > 0 ? (
+                                <ItineraryBuilder 
+                                    tripData={tour.rawPlannerData}
+                                    updateData={() => {}}
+                                    readOnly={true}
+                                    currentUserRole="tourist"
+                                    onAddComment={handleAddComment}
+                                />
                             ) : tour.itinerarySummary.length === 0 ? (
                                 <p className="text-neutral-500 italic">Your agent is currently building your day-by-day itinerary.</p>
                             ) : (
