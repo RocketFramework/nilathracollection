@@ -208,11 +208,7 @@ export function FinanceAndBookingStep({
                 let vendorEmail = '';
                 let vendorRef: any = {};
 
-                let price = block.agreedPrice || 0;
-                let qty = 1;
-                let roomConfig = '';
-                let mlPlan = '';
-                let vhType = '';
+                let generatedItems: Partial<DBPurchaseOrderItem>[] = [];
 
                 if (block.type === 'sleep' && block.hotelId) {
                     const hotel = hotels.find((h: any) => h.id === block.hotelId);
@@ -224,24 +220,52 @@ export function FinanceAndBookingStep({
                     vendorEmail = hotel?.sales_agent_name || '';
                     vendorType = 'hotel';
                     const acc = tripData.accommodations?.find(a => a.nightIndex === block.dayNumber && (a.hotelId === block.hotelId || a.hotelName === hotel?.name));
-                    roomConfig = acc?.beddingConfiguration || acc?.roomStandard || 'Standard Room';
-                    mlPlan = acc?.mealPlan || 'BB';
-                    price = acc?.pricePerNight || 0;
-                    qty = acc?.numberOfRooms || 1;
+                    
+                    if (acc?.selectedRooms && acc.selectedRooms.length > 0) {
+                        // Modern Granular Multi-Room Generation
+                        acc.selectedRooms.forEach(sr => {
+                            if (sr.quantity > 0) {
+                                const totalRoomPrice = sr.agreedTotal !== undefined ? sr.agreedTotal : ((sr.pricePerNight || 0) * sr.quantity);
+                                const unitRoomPrice = totalRoomPrice / sr.quantity;
 
-                    // Smart Room Count: If totalPax is high and user hasn't explicitly set more rooms, 
-                    // calculate based on capacity (Double=2, Triple=3, Single=1)
-                    if (totalPax > 1 && qty <= 1) {
-                        let capacity = 2; // Default to Double/Twin
-                        const cfg = roomConfig.toLowerCase();
-                        if (cfg.includes('triple')) capacity = 3;
-                        else if (cfg.includes('single')) capacity = 1;
-                        else if (cfg.includes('quad')) capacity = 4;
+                                generatedItems.push({
+                                    id: crypto.randomUUID(),
+                                    description: `${block.name} - ${sr.roomName}`,
+                                    quantity: sr.quantity,
+                                    unit_price: unitRoomPrice * exchangeRate,
+                                    total_price: totalRoomPrice * exchangeRate,
+                                    room_type: sr.roomName,
+                                    meal_plan: sr.mealPlan || 'BB'
+                                });
+                            }
+                        });
+                    } else {
+                        // Legacy Fallback
+                        let roomConfig = acc?.beddingConfiguration || acc?.roomStandard || 'Standard Room';
+                        let mlPlan = acc?.mealPlan || 'BB';
+                        let price = acc?.pricePerNight || 0;
+                        let qty = acc?.numberOfRooms || 1;
 
-                        const suggestedRooms = Math.ceil(totalPax / capacity);
-                        if (suggestedRooms > qty) {
-                            qty = suggestedRooms;
+                        if (totalPax > 1 && qty <= 1) {
+                            let capacity = 2;
+                            const cfg = roomConfig.toLowerCase();
+                            if (cfg.includes('triple')) capacity = 3;
+                            else if (cfg.includes('single')) capacity = 1;
+                            else if (cfg.includes('quad')) capacity = 4;
+
+                            const suggestedRooms = Math.ceil(totalPax / capacity);
+                            if (suggestedRooms > qty) qty = suggestedRooms;
                         }
+
+                        generatedItems.push({
+                            id: crypto.randomUUID(),
+                            description: block.name,
+                            quantity: qty,
+                            unit_price: price * exchangeRate,
+                            total_price: (price * exchangeRate) * qty,
+                            room_type: roomConfig,
+                            meal_plan: mlPlan
+                        });
                     }
                 } else if (block.type === 'activity' && (block.vendorId || block.vendorActivityId)) {
                     const vendor = vendors.find((v: any) => v.id === block.vendorId);
@@ -252,14 +276,20 @@ export function FinanceAndBookingStep({
                     vendorPhone = vendor?.phone || '';
                     vendorEmail = vendor?.email || '';
                     vendorType = 'vendor';
-                    qty = totalPax;
-                    price = block.agreedPrice || 0;
+                    let price = block.agreedPrice || 0;
 
-                    // If we have a guide assigned to an activity, track it
                     if (block.guideId || tripData.defaultGuideId) {
                         if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
                         dayServiceMap.get(block.dayNumber)!.add('guide');
                     }
+
+                    generatedItems.push({
+                        id: crypto.randomUUID(),
+                        description: block.name,
+                        quantity: totalPax,
+                        unit_price: price * exchangeRate,
+                        total_price: (price * exchangeRate) * totalPax
+                    });
                 } else if (block.type === 'travel') {
                     const effectiveTransportId = block.transportId || tripData.defaultTransportId;
                     if (effectiveTransportId) {
@@ -274,11 +304,20 @@ export function FinanceAndBookingStep({
 
                         const effectiveVehicleId = block.vehicleId || tripData.defaultVehicleId;
                         const vehicleMatch = provider?.transport_vehicles?.find((v: any) => v.id === effectiveVehicleId);
-                        vhType = vehicleMatch ? (vehicleMatch.make_and_model || vehicleMatch.vehicle_type) : (tripData.transports?.[0]?.mode || 'Standard Vehicle');
-                        price = vehicleMatch?.day_rate || 0;
+                        let vhType = vehicleMatch ? (vehicleMatch.make_and_model || vehicleMatch.vehicle_type) : (tripData.transports?.[0]?.mode || 'Standard Vehicle');
+                        let price = vehicleMatch?.day_rate || 0;
 
                         if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
                         dayServiceMap.get(block.dayNumber)!.add('transport');
+
+                        generatedItems.push({
+                            id: crypto.randomUUID(),
+                            description: block.name,
+                            quantity: 1,
+                            unit_price: price * exchangeRate,
+                            total_price: price * exchangeRate,
+                            vehicle_type: vhType
+                        });
                     }
                 } else if (block.type === 'guide') {
                     const effectiveGuideId = block.guideId || tripData.defaultGuideId;
@@ -289,10 +328,18 @@ export function FinanceAndBookingStep({
                         vendorName = guide ? `${guide.first_name} ${guide.last_name || ''}`.trim() : (block.serviceProvider || block.name);
                         vendorPhone = guide?.phone || '';
                         vendorType = 'guide';
-                        price = guide?.per_day_rate || 0;
+                        let price = guide?.per_day_rate || 0;
 
                         if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
                         dayServiceMap.get(block.dayNumber)!.add('guide');
+
+                        generatedItems.push({
+                            id: crypto.randomUUID(),
+                            description: block.name,
+                            quantity: 1,
+                            unit_price: price * exchangeRate,
+                            total_price: price * exchangeRate
+                        });
                     }
                 } else if (block.type === 'meal' && block.restaurantId) {
                     const rest = restaurants.find((r: any) => r.id === block.restaurantId);
@@ -300,47 +347,27 @@ export function FinanceAndBookingStep({
                     vendorRef = { restaurant_id: block.restaurantId };
                     vendorName = rest ? rest.name : (block.serviceProvider || block.name);
                     vendorAddress = rest?.address || '';
-
-                    // Use the specifically selected meal price, or fallback to lunch rate
-                    price = block.agreedPrice || rest?.lunch_rate_per_head || 0;
-                    qty = totalPax;
-
+                    let price = block.agreedPrice || rest?.lunch_rate_per_head || 0;
                     vendorPhone = rest?.contact_number || '';
                     vendorEmail = rest?.email || '';
                     vendorType = 'vendor';
+
+                    generatedItems.push({
+                        id: crypto.randomUUID(),
+                        description: block.mealType ? `${block.name} - ${block.mealType}` : block.name,
+                        quantity: totalPax,
+                        unit_price: price * exchangeRate,
+                        total_price: (price * exchangeRate) * totalPax
+                    });
                 }
 
-                if (!vendorId) return;
+                if (!vendorId || generatedItems.length === 0) return;
 
                 let calculatedDate = '';
                 if (tripData.profile.arrivalDate) {
                     const dateObj = new Date(tripData.profile.arrivalDate);
                     dateObj.setDate(dateObj.getDate() + (block.dayNumber - 1));
                     calculatedDate = dateObj.toISOString().split('T')[0];
-                }
-
-                const item: Partial<DBPurchaseOrderItem> = {
-                    id: crypto.randomUUID(),
-                    description: block.mealType ? `${block.name} - ${block.mealType}` : block.name,
-                    service_date: calculatedDate, // Must be YYYY-MM-DD
-                    quantity: qty,
-                    total_price: (price * exchangeRate) * qty,
-                    tour_itinerary_id: block.id,
-                    day_number: block.dayNumber,
-                    room_type: roomConfig,
-                    meal_plan: mlPlan,
-                    unit_price: price * exchangeRate,
-                    vehicle_type: vhType,
-                    number_of_guests: totalPax
-                };
-
-                // Add hotel specific dates if applicable
-                if (block.type === 'sleep' && calculatedDate) {
-                    item.check_in_date = calculatedDate;
-                    const outDate = new Date(calculatedDate);
-                    outDate.setDate(outDate.getDate() + 1);
-                    item.check_out_date = outDate.toISOString().split('T')[0];
-                    item.number_of_nights = 1;
                 }
 
                 if (!vendorMap.has(vendorId)) {
@@ -354,7 +381,23 @@ export function FinanceAndBookingStep({
                         items: []
                     });
                 }
-                vendorMap.get(vendorId)!.items.push(item);
+
+                generatedItems.forEach(item => {
+                    item.service_date = calculatedDate;
+                    item.tour_itinerary_id = block.id;
+                    item.day_number = block.dayNumber;
+                    item.number_of_guests = totalPax;
+
+                    if (block.type === 'sleep' && calculatedDate) {
+                        item.check_in_date = calculatedDate;
+                        const outDate = new Date(calculatedDate);
+                        outDate.setDate(outDate.getDate() + 1);
+                        item.check_out_date = outDate.toISOString().split('T')[0];
+                        item.number_of_nights = 1;
+                    }
+
+                    vendorMap.get(vendorId)!.items.push(item);
+                });
             });
 
             // 2. Global Assignment Injector: Catch days where no blocks triggered a PO for global services
@@ -601,7 +644,8 @@ export function FinanceAndBookingStep({
             return item;
         });
         const newTotal = updatedItems.reduce((sum, i) => sum + i.total_price, 0);
-        await savePurchaseOrderAction({ ...po, total_amount: newTotal, subtotal: newTotal }, updatedItems);
+        const finalTotal = newTotal + (po.tax || 0) + (po.service_charge || 0) - (po.discount || 0);
+        await savePurchaseOrderAction({ ...po, total_amount: finalTotal, subtotal: newTotal }, updatedItems);
         await loadPOs();
     };
 
@@ -618,7 +662,8 @@ export function FinanceAndBookingStep({
             };
             const updatedItems = [...(prev.items || []), newItem];
             const newTotal = updatedItems.reduce((sum, i: any) => sum + (i.total_price || 0), 0);
-            return { ...prev, items: updatedItems as DBPurchaseOrderItem[], total_amount: newTotal, subtotal: newTotal };
+            const finalTotal = newTotal + (prev.tax || 0) + (prev.service_charge || 0) - (prev.discount || 0);
+            return { ...prev, items: updatedItems as DBPurchaseOrderItem[], total_amount: finalTotal, subtotal: newTotal };
         });
     };
 
@@ -627,7 +672,8 @@ export function FinanceAndBookingStep({
             if (!prev) return null;
             const updatedItems = (prev.items || []).filter(item => item.id !== itemId);
             const newTotal = updatedItems.reduce((sum, i) => sum + (i.total_price || 0), 0);
-            return { ...prev, items: updatedItems, total_amount: newTotal, subtotal: newTotal };
+            const finalTotal = newTotal + (prev.tax || 0) + (prev.service_charge || 0) - (prev.discount || 0);
+            return { ...prev, items: updatedItems, total_amount: finalTotal, subtotal: newTotal };
         });
     };
 
@@ -643,7 +689,17 @@ export function FinanceAndBookingStep({
                 return item;
             });
             const newTotal = updatedItems.reduce((sum, i) => sum + (i.total_price || 0), 0);
-            return { ...prev, items: updatedItems, total_amount: newTotal, subtotal: newTotal };
+            const finalTotal = newTotal + (prev.tax || 0) + (prev.service_charge || 0) - (prev.discount || 0);
+            return { ...prev, items: updatedItems, total_amount: finalTotal, subtotal: newTotal };
+        });
+    };
+
+    const updateLocalPOTotals = (updates: Partial<DBPurchaseOrder>) => {
+        setEditingPO(prev => {
+            if (!prev) return null;
+            const updated = { ...prev, ...updates };
+            updated.total_amount = (updated.subtotal || 0) + (updated.tax || 0) + (updated.service_charge || 0) - (updated.discount || 0);
+            return updated;
         });
     };
 
@@ -1503,6 +1559,46 @@ export function FinanceAndBookingStep({
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                </div>
+
+                                {/* Financial Adjustments (Tax, Service Charge, Discount) */}
+                                <div className="space-y-4">
+                                    <h5 className="text-[10px] font-black text-brand-gold uppercase tracking-[0.2em]">Financial Adjustments</h5>
+                                    <div className="bg-neutral-50 p-6 rounded-[32px] border border-neutral-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-neutral-400 uppercase font-black">Discount (LKR)</label>
+                                            <input
+                                                type="number"
+                                                value={editingPO?.discount || 0}
+                                                onChange={(e) => updateLocalPOTotals({ discount: Number(e.target.value) })}
+                                                className="w-full text-sm font-bold bg-white border border-neutral-200 rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold text-red-500"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-neutral-400 uppercase font-black">Tax (LKR)</label>
+                                            <input
+                                                type="number"
+                                                value={editingPO?.tax || 0}
+                                                onChange={(e) => updateLocalPOTotals({ tax: Number(e.target.value) })}
+                                                className="w-full text-sm font-bold bg-white border border-neutral-200 rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold text-brand-charcoal"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-neutral-400 uppercase font-black">Service Charge (LKR)</label>
+                                            <input
+                                                type="number"
+                                                value={editingPO?.service_charge || 0}
+                                                onChange={(e) => updateLocalPOTotals({ service_charge: Number(e.target.value) })}
+                                                className="w-full text-sm font-bold bg-white border border-neutral-200 rounded-xl px-4 py-2 focus:ring-1 focus:ring-brand-gold text-brand-charcoal"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end pr-4 text-sm">
+                                        <div className="text-right">
+                                            <div className="text-neutral-500 text-xs">Subtotal: <span className="font-mono">LKR {(editingPO?.subtotal || 0).toLocaleString()}</span></div>
+                                            <div className="text-brand-charcoal font-bold mt-1 text-base">Net Total: <span className="font-mono">LKR {(editingPO?.total_amount || 0).toLocaleString()}</span></div>
+                                        </div>
                                     </div>
                                 </div>
 

@@ -79,7 +79,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                     quantity = acc.numberOfRooms || 1;
                     referenceTotal = unitPrice * quantity;
                     items.push({
-                        id: b.id, block: b, title: b.name, vendorName, icon: <Building2 size={18} className="text-blue-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice
+                        id: b.id, block: b, title: b.name, vendorName, icon: <Building2 size={18} className="text-blue-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice, mealPlan: acc.mealPlan || 'BB'
                     });
                     return;
                 }
@@ -187,7 +187,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                         </div>
                     ) : (
                         negotiableItems.map(item => {
-                            const { id, block: b, title, vendorName, unitPrice, quantity, referenceTotal, icon, isHotelWithRooms, accIndex, rooms, agreedPrice } = item;
+                            const { id, block: b, title, vendorName, unitPrice, quantity, referenceTotal, icon, isHotelWithRooms, accIndex, rooms, agreedPrice, mealPlan } = item;
 
                             return (
                                 <div key={id} className="p-6 hover:bg-neutral-50/50 transition-colors">
@@ -222,7 +222,10 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                             <div key={rIdx} className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-4 border-b border-neutral-100 last:border-0 last:pb-0">
                                                                 <div className="flex-1 min-w-[120px]">
                                                                     <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Room Setup</span>
-                                                                    <span className="block font-mono font-bold text-neutral-700 text-sm">{parsedReqType} ({room.roomName})</span>
+                                                                    <span className="block font-mono font-bold text-neutral-700 text-sm">
+                                                                        {parsedReqType} ({room.roomName}) 
+                                                                        <span className="text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded text-[10px] ml-2 tracking-wider">{room.mealPlan || 'BB'}</span>
+                                                                    </span>
                                                                 </div>
 
                                                                 <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
@@ -266,6 +269,12 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-2">
+                                                    {mealPlan && b.type === 'sleep' && (
+                                                        <div className="flex flex-col justify-center bg-brand-gold/5 px-4 py-2 rounded-xl border border-brand-gold/20 shrink-0">
+                                                            <span className="block text-[10px] text-brand-gold uppercase font-bold tracking-wider mb-1">Meal Plan</span>
+                                                            <span className="font-mono font-bold text-brand-charcoal text-sm">{mealPlan}</span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
                                                         <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
                                                         <div className="flex items-center gap-2 text-sm justify-between w-full">

@@ -124,7 +124,13 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
     const addRoomRate = (roomIndex: number) => {
         const updatedRooms = [...(formData.rooms || [])];
         const currentRates = updatedRooms[roomIndex].room_rates || [];
-        updatedRooms[roomIndex].room_rates = [...currentRates, { start_date: "", end_date: "", rate: 0, meal_plan_type: "BB", breakfast_included: true }];
+        updatedRooms[roomIndex].room_rates = [...currentRates, { 
+            start_date: "", end_date: "", rate: 0, meal_plan_type: "BB", breakfast_included: true,
+            sgl_bb_rate: 0, sgl_hb_rate: 0, sgl_fb_rate: 0, sgl_ai_rate: 0,
+            dbl_bb_rate: 0, dbl_hb_rate: 0, dbl_fb_rate: 0, dbl_ai_rate: 0,
+            tpl_bb_rate: 0, tpl_hb_rate: 0, tpl_fb_rate: 0, tpl_ai_rate: 0,
+            qud_bb_rate: 0, qud_hb_rate: 0, qud_fb_rate: 0, qud_ai_rate: 0
+        }];
         setFormData(prev => ({ ...prev, rooms: updatedRooms }));
     };
 
@@ -462,36 +468,92 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                                         </div>
                                         <div className="space-y-3">
                                             {room.room_rates?.map((rate, rIndex) => (
-                                                <div key={rIndex} className="flex flex-wrap md:flex-nowrap gap-3 items-end bg-white p-3 rounded-lg border border-neutral-200 shadow-sm relative group">
-                                                    <div className="flex-1 min-w-[120px]">
-                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Start Date</label>
-                                                        <input type="date" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.start_date || ''} onChange={e => handleRateChange(index, rIndex, 'start_date', e.target.value)} />
+                                                <div key={rIndex} className="flex flex-col gap-3 bg-white p-4 rounded-lg border border-neutral-200 shadow-sm relative group mb-4">
+                                                    <div className="flex gap-4 mb-2">
+                                                        <div className="flex-1">
+                                                            <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Start Date</label>
+                                                            <input type="date" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.start_date || ''} onChange={e => handleRateChange(index, rIndex, 'start_date', e.target.value)} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">End Date</label>
+                                                            <input type="date" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.end_date || ''} onChange={e => handleRateChange(index, rIndex, 'end_date', e.target.value)} />
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-[120px]">
-                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">End Date</label>
-                                                        <input type="date" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.end_date || ''} onChange={e => handleRateChange(index, rIndex, 'end_date', e.target.value)} />
+                                                    
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-left text-xs border-collapse">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th className="pb-2 font-bold text-neutral-500 uppercase text-[9px] border-b border-neutral-200">Occupancy</th>
+                                                                    <th className="pb-2 font-bold text-neutral-500 uppercase text-[9px] border-b border-neutral-200">BB Rate ($)</th>
+                                                                    <th className="pb-2 font-bold text-neutral-500 uppercase text-[9px] border-b border-neutral-200">HB Rate ($)</th>
+                                                                    <th className="pb-2 font-bold text-neutral-500 uppercase text-[9px] border-b border-neutral-200">FB Rate ($)</th>
+                                                                    <th className="pb-2 font-bold text-neutral-500 uppercase text-[9px] border-b border-neutral-200">AI Rate ($)</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {/* Single */}
+                                                                <tr>
+                                                                    <td className="py-2 font-medium text-neutral-700">Single</td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.sgl_bb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'sgl_bb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.sgl_hb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'sgl_hb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.sgl_fb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'sgl_fb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.sgl_ai_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'sgl_ai_rate', parseFloat(e.target.value))} /></td>
+                                                                </tr>
+                                                                {/* Double */}
+                                                                <tr>
+                                                                    <td className="py-2 font-medium text-neutral-700">Double</td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.dbl_bb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'dbl_bb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.dbl_hb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'dbl_hb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.dbl_fb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'dbl_fb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.dbl_ai_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'dbl_ai_rate', parseFloat(e.target.value))} /></td>
+                                                                </tr>
+                                                                {/* Triple */}
+                                                                <tr>
+                                                                    <td className="py-2 font-medium text-neutral-700">Triple</td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.tpl_bb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'tpl_bb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.tpl_hb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'tpl_hb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.tpl_fb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'tpl_fb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.tpl_ai_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'tpl_ai_rate', parseFloat(e.target.value))} /></td>
+                                                                </tr>
+                                                                {/* Quad */}
+                                                                <tr>
+                                                                    <td className="py-2 font-medium text-neutral-700">Family/Quad</td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.qud_bb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'qud_bb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.qud_hb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'qud_hb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2 pr-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.qud_fb_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'qud_fb_rate', parseFloat(e.target.value))} /></td>
+                                                                    <td className="py-2"><input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.qud_ai_rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'qud_ai_rate', parseFloat(e.target.value))} /></td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
                                                     </div>
-                                                    <div className="flex-1 min-w-[80px]">
-                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Meal Plan</label>
-                                                        <select className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.meal_plan_type || 'BB'} onChange={e => handleRateChange(index, rIndex, 'meal_plan_type', e.target.value)}>
-                                                            <option value="BB">BB</option>
-                                                            <option value="HB">HB</option>
-                                                            <option value="FB">FB</option>
-                                                            <option value="AI">AI</option>
-                                                        </select>
+
+                                                    {/* Legacy / Custom Rate fields */}
+                                                    <div className="mt-3 pt-3 border-t border-neutral-100 grid grid-cols-3 gap-4">
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Custom Base Rate ($)</label>
+                                                            <input type="number" placeholder="0.00" className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.rate ?? ''} onChange={e => handleRateChange(index, rIndex, 'rate', parseFloat(e.target.value))} />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Custom Meal Plan</label>
+                                                            <select className="w-full bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-xs" value={rate.meal_plan_type || 'BB'} onChange={e => handleRateChange(index, rIndex, 'meal_plan_type', e.target.value)}>
+                                                                <option value="BB">BB</option>
+                                                                <option value="HB">HB</option>
+                                                                <option value="FB">FB</option>
+                                                                <option value="AI">AI</option>
+                                                                <option value="RO">Room Only</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="flex items-end pb-1">
+                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                                <input type="checkbox" className="w-4 h-4 accent-brand-green" checked={rate.breakfast_included || false} onChange={e => handleRateChange(index, rIndex, 'breakfast_included', e.target.checked)} />
+                                                                <span className="text-[10px] font-bold text-neutral-600">Incl. Breakfast</span>
+                                                            </label>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-[80px]">
-                                                        <label className="text-[9px] font-bold text-neutral-500 uppercase block mb-1">Rate ($)</label>
-                                                        <input type="number" className="w-full text-xs outline-none text-brand-charcoal font-medium bg-transparent border-b border-neutral-200 pb-1" value={rate.rate || ''} onChange={e => handleRateChange(index, rIndex, 'rate', parseFloat(e.target.value))} />
-                                                    </div>
-                                                    <div className="flex items-center min-w-[100px] pb-1">
-                                                        <label className="flex items-center gap-1 cursor-pointer">
-                                                            <input type="checkbox" className="w-3 h-3 accent-brand-green" checked={rate.breakfast_included || false} onChange={e => handleRateChange(index, rIndex, 'breakfast_included', e.target.checked)} />
-                                                            <span className="text-[9px] font-bold text-neutral-600">Incl. Breakfast</span>
-                                                        </label>
-                                                    </div>
-                                                    <button onClick={(e) => { e.preventDefault(); removeRoomRate(index, rIndex); }} className="text-red-400 hover:text-red-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity absolute -right-2 -top-2 bg-white shadow-sm border border-neutral-100">
-                                                        <X size={12} />
+                                                    
+                                                    <button onClick={(e) => { e.preventDefault(); removeRoomRate(index, rIndex); }} className="text-red-400 hover:text-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity absolute -right-2 -top-2 bg-white shadow-sm border border-neutral-100">
+                                                        <X size={14} />
                                                     </button>
                                                 </div>
                                             ))}

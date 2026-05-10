@@ -193,6 +193,7 @@ export interface InternalItineraryBlock {
     driverId?: string;
     guideId?: string;
     restaurantId?: string;
+    restaurantQuantity?: number;
 
     // Negotiation Flags
     driverMealIncluded?: boolean;

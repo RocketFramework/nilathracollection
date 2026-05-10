@@ -21,7 +21,26 @@ export class FinanceService {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data as DBPurchaseOrder[];
+
+        // Restore tour_itinerary_id from special_notes hack to bypass obsolete FK constraint
+        const processedData = data?.map(po => ({
+            ...po,
+            items: po.items?.map((item: any) => {
+                if (item.special_notes?.includes('BLOCK_REF:')) {
+                    const parts = item.special_notes.split('|| BLOCK_REF:');
+                    if (parts.length > 1) {
+                        item.special_notes = parts[0].trim();
+                        item.tour_itinerary_id = parts[1];
+                    } else {
+                        item.tour_itinerary_id = item.special_notes.replace('BLOCK_REF:', '');
+                        item.special_notes = undefined;
+                    }
+                }
+                return item;
+            })
+        }));
+
+        return processedData as DBPurchaseOrder[];
     }
 
     /**
@@ -68,7 +87,15 @@ export class FinanceService {
         // Insert items
         if (items && items.length > 0) {
             const itemsToInsert = items.map(item => {
-                const { total_price: _, ...itemData } = item as any;
+                const { total_price: _, tour_itinerary_id, ...itemData } = item as any;
+                
+                // Encode the daily_activity block UUID into special_notes to bypass the obsolete tour_itineraries FK constraint
+                if (tour_itinerary_id) {
+                    itemData.special_notes = itemData.special_notes 
+                        ? `${itemData.special_notes} || BLOCK_REF:${tour_itinerary_id}` 
+                        : `BLOCK_REF:${tour_itinerary_id}`;
+                }
+
                 return {
                     ...itemData,
                     purchase_order_id: savedPOId

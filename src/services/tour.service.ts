@@ -484,6 +484,7 @@ export class TourService {
                     const acc = tripData.accommodations?.find(a => a.nightIndex === day);
                     if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
                         let totalAgreedPrice = 0;
+                        let totalRooms = 0;
                         let mealPlan = null;
 
                         if (!basePayload.hotel_id && acc.hotelId?.includes('-')) {
@@ -493,6 +494,7 @@ export class TourService {
                         for (const room of acc.selectedRooms) {
                             const reqType = (room as any).reqId?.split('-')[0]; // Extract 'Single', 'Double', 'Family' etc.
                             const validRoomId = room.roomId?.includes('-') ? room.roomId : null;
+                            totalRooms += room.quantity;
 
                             if (reqType === 'Single') {
                                 basePayload.single_room_id = validRoomId;
@@ -517,6 +519,8 @@ export class TourService {
                         }
 
                         basePayload.agreed_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
+                        basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
+                        basePayload.agreed_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
                         basePayload.meal_plan = mealPlan;
                         activitiesToInsert.push(basePayload);
                     } else if (acc) {
@@ -525,6 +529,8 @@ export class TourService {
                         const assumedQty = acc.numberOfRooms || 1;
                         basePayload.double_room_id = assumedRoomId;
                         basePayload.double_room_count = assumedQty;
+                        basePayload.quantity = assumedQty;
+                        basePayload.agreed_unit_price = acc.pricePerNight || null;
                         basePayload.agreed_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
                         basePayload.meal_plan = acc.mealPlan || null;
                         activitiesToInsert.push(basePayload);
@@ -533,11 +539,17 @@ export class TourService {
                     }
                 } else {
                     let quantity = b.transportQuantity || tripData.profile?.adults || 1;
+                    if (b.type === 'meal' && b.restaurantQuantity) {
+                        quantity = b.restaurantQuantity;
+                    }
                     let agreedUnitPrice = b.agreedPrice || null;
+                    let agreedTotalPrice = agreedUnitPrice ? agreedUnitPrice * quantity : null;
+
                     activitiesToInsert.push({
                         ...basePayload,
-                        single_room_count: quantity, // Fallback alias
-                        agreed_total_price: agreedUnitPrice,
+                        quantity: quantity,
+                        agreed_unit_price: agreedUnitPrice,
+                        agreed_total_price: agreedTotalPrice,
                         meal_plan: b.mealType || null
                     });
                 }

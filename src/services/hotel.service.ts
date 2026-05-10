@@ -11,6 +11,22 @@ export interface RoomRate {
     rate?: number;
     meal_plan_type?: string;
     breakfast_included?: boolean;
+    sgl_bb_rate?: number;
+    sgl_hb_rate?: number;
+    sgl_fb_rate?: number;
+    sgl_ai_rate?: number;
+    dbl_bb_rate?: number;
+    dbl_hb_rate?: number;
+    dbl_fb_rate?: number;
+    dbl_ai_rate?: number;
+    tpl_bb_rate?: number;
+    tpl_hb_rate?: number;
+    tpl_fb_rate?: number;
+    tpl_ai_rate?: number;
+    qud_bb_rate?: number;
+    qud_hb_rate?: number;
+    qud_fb_rate?: number;
+    qud_ai_rate?: number;
 }
 
 export interface HotelRoom {

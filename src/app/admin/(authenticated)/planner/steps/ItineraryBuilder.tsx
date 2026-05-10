@@ -1411,6 +1411,72 @@ export function ItineraryBuilder({
                                                                 );
                                                             })()}
 
+                                                            {block.type === 'meal' && block.restaurantId && activeAssignment?.blockId !== block.id && (() => {
+                                                                const restaurant = masterData.restaurants.find(r => r.id === block.restaurantId);
+                                                                if (!restaurant) return null;
+
+                                                                const quantity = block.restaurantQuantity || tripData.profile?.adults || 1;
+                                                                const unitPrice = block.agreedPrice || 0;
+                                                                const totalPrice = unitPrice * quantity;
+
+                                                                return (
+                                                                    <div className="mt-3 w-full bg-emerald-50/20 border border-emerald-100 rounded-xl overflow-hidden text-xs">
+                                                                        <div className="bg-emerald-50/50 px-3 py-2 border-b border-emerald-100 flex justify-between items-center">
+                                                                            <span className="font-bold text-emerald-900">{restaurant.name} <span className="text-emerald-500 font-normal">({restaurant.cuisine_type || 'General'} Cuisine)</span></span>
+                                                                            {restaurant.contact_number ? (
+                                                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                                                    📞 {restaurant.contact_number}
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </div>
+                                                                        <div className="p-3">
+                                                                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 pb-2 mb-2 border-b border-emerald-100 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
+                                                                                <div>Meal Type</div>
+                                                                                <div className="text-center">Pax Count</div>
+                                                                                <div className="text-right">Unit Price</div>
+                                                                                <div className="text-right">Total Price</div>
+                                                                            </div>
+                                                                            
+                                                                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 py-1 items-center text-emerald-900">
+                                                                                <div className="font-bold">
+                                                                                    {block.mealType || 'Meal'}
+                                                                                </div>
+                                                                                <div className="text-center">
+                                                                                    <input 
+                                                                                        type="number" 
+                                                                                        min="1"
+                                                                                        value={quantity}
+                                                                                        disabled={readOnly}
+                                                                                        onChange={(e) => {
+                                                                                            const newQty = parseInt(e.target.value) || 1;
+                                                                                            updateBlock(block.id, { restaurantQuantity: newQty });
+                                                                                        }}
+                                                                                        className="w-16 text-center font-bold bg-white border border-emerald-200 rounded py-0.5 shadow-sm outline-none focus:border-emerald-500 disabled:bg-neutral-50"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="text-right flex items-center justify-end gap-1">
+                                                                                    <span className="text-emerald-400 font-bold">LKR</span>
+                                                                                    <input 
+                                                                                        type="number" 
+                                                                                        min="0"
+                                                                                        value={unitPrice}
+                                                                                        disabled={readOnly}
+                                                                                        onChange={(e) => {
+                                                                                            const newPrice = parseFloat(e.target.value) || 0;
+                                                                                            updateBlock(block.id, { agreedPrice: newPrice });
+                                                                                        }}
+                                                                                        className="w-20 text-right font-bold bg-white border border-emerald-200 rounded py-0.5 shadow-sm outline-none focus:border-emerald-500 disabled:bg-neutral-50"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="text-right font-black">
+                                                                                    LKR {totalPrice.toLocaleString()}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
+
                                                             <div className="mt-3 w-full border border-neutral-100 rounded-xl overflow-hidden bg-neutral-50/30">
                                                                 <div className="bg-neutral-50 px-3 py-2 border-b border-neutral-100 flex justify-between items-center">
                                                                     <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Line-Item Discussion</span>
@@ -1707,14 +1773,21 @@ export function ItineraryBuilder({
                                                         const isSelected = assignedHotelId === h.id;
 
                                                         const rooms = h.hotel_rooms || [];
-                                                        const applicableRates = rooms.map((r: any) => {
-                                                            if (stayDate && r.summer_start_date && r.summer_end_date && stayDate >= r.summer_start_date && stayDate <= r.summer_end_date) {
-                                                                return r.summer_bb_rate;
-                                                            }
-                                                            if (stayDate && r.winter_start_date && r.winter_end_date && stayDate >= r.winter_start_date && stayDate <= r.winter_end_date) {
-                                                                return r.winter_bb_rate;
-                                                            }
-                                                            return r.summer_bb_rate || r.winter_bb_rate;
+                                                        const applicableRates = rooms.flatMap((r: any) => {
+                                                            if (!r.room_rates || r.room_rates.length === 0) return [];
+                                                            return r.room_rates.filter((rr: any) => {
+                                                                if (!stayDate) return true;
+                                                                if (rr.start_date && rr.end_date) {
+                                                                    return stayDate >= rr.start_date && stayDate <= rr.end_date;
+                                                                }
+                                                                return true;
+                                                            }).flatMap((rr: any) => [
+                                                                rr.sgl_bb_rate, rr.sgl_hb_rate, rr.sgl_fb_rate, rr.sgl_ai_rate,
+                                                                rr.dbl_bb_rate, rr.dbl_hb_rate, rr.dbl_fb_rate, rr.dbl_ai_rate,
+                                                                rr.tpl_bb_rate, rr.tpl_hb_rate, rr.tpl_fb_rate, rr.tpl_ai_rate,
+                                                                rr.qud_bb_rate, rr.qud_hb_rate, rr.qud_fb_rate, rr.qud_ai_rate,
+                                                                rr.rate
+                                                            ]);
                                                         }).filter((rate: any) => rate && rate > 0);
 
                                                         const minRate = applicableRates.length > 0 ? Math.min(...applicableRates) : (h.base_rate || 0);
@@ -1862,7 +1935,7 @@ export function ItineraryBuilder({
                                                                                                         {h.hotel_rooms?.map((room: any) => {
                                                                                                             const isRoomSelectedHere = assignedRoom?.roomId === room.id;
 
-                                                                                                            const calculateRoomPrice = (hotel: any, room: any, mealPlan: string) => {
+                                                                                                            const calculateRoomPrice = (hotel: any, room: any, mealPlan: string, roomType: string) => {
                                                                                                                 let baseRate = 0;
                                                                                                                 let seasonLabel = "Standard";
                                                                                                                 if (room.room_rates && room.room_rates.length > 0) {
@@ -1874,11 +1947,25 @@ export function ItineraryBuilder({
                                                                                                                         return true;
                                                                                                                     });
                                                                                                                     
-                                                                                                                    const exactRate = applicableRates.find((r: any) => r.meal_plan_type === mealPlan);
-                                                                                                                    const rateObj = exactRate || applicableRates[0] || room.room_rates[0];
+                                                                                                                    const rateObj = applicableRates[0] || room.room_rates[0];
                                                                                                                     
                                                                                                                     if (rateObj) {
-                                                                                                                        baseRate = rateObj.rate || 0;
+                                                                                                                        let prefix = 'dbl';
+                                                                                                                        if (roomType === 'Single') prefix = 'sgl';
+                                                                                                                        else if (roomType === 'Double' || roomType === 'Twin') prefix = 'dbl';
+                                                                                                                        else if (roomType === 'Triple') prefix = 'tpl';
+                                                                                                                        else if (roomType === 'Family') prefix = 'qud';
+
+                                                                                                                        const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
+                                                                                                                        
+                                                                                                                        if (rateObj[fieldName] !== undefined && rateObj[fieldName] !== null && rateObj[fieldName] > 0) {
+                                                                                                                            baseRate = rateObj[fieldName];
+                                                                                                                        } else if (rateObj.meal_plan_type === mealPlan && rateObj.rate > 0) {
+                                                                                                                            baseRate = rateObj.rate;
+                                                                                                                        } else {
+                                                                                                                            baseRate = rateObj.rate || 0;
+                                                                                                                        }
+
                                                                                                                         if (rateObj.start_date && rateObj.end_date) {
                                                                                                                             seasonLabel = `Rate applied`;
                                                                                                                         }
@@ -1887,7 +1974,7 @@ export function ItineraryBuilder({
                                                                                                                 return { total: baseRate, seasonLabel };
                                                                                                             };
 
-                                                                                                            const pricing = calculateRoomPrice(h, room, currentMealPlan);
+                                                                                                            const pricing = calculateRoomPrice(h, room, currentMealPlan, rType);
 
                                                                                                             return (
                                                                                                                 <button
@@ -2175,18 +2262,30 @@ export function ItineraryBuilder({
                                                                 {isSelected && <div className="w-2 h-2 bg-brand-green rounded-full" />}
                                                             </button>
                                                             {isSelected && (
-                                                                <div className="bg-neutral-50 rounded-2xl p-2 grid grid-cols-1 gap-2 border border-neutral-100 mx-1">
+                                                                <div className="bg-neutral-50 rounded-2xl p-3 grid grid-cols-1 gap-3 border border-neutral-100 mx-1">
+                                                                    <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-neutral-100">
+                                                                        <span className="text-xs font-bold text-neutral-600 px-2">Pax Count</span>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            min="1"
+                                                                            className="w-16 text-center text-sm font-bold bg-neutral-50 border border-neutral-200 rounded-md py-1 outline-none focus:border-brand-green"
+                                                                            value={currentBlock?.restaurantQuantity || tripData.profile?.adults || 1}
+                                                                            onChange={(e) => updateBlock(activeAssignment.blockId, { restaurantQuantity: parseInt(e.target.value) || 1 })}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 gap-2">
                                                                     {[
                                                                         { id: 'breakfast', label: 'Breakfast', active: r.has_breakfast, price: r.breakfast_rate_per_head },
                                                                         { id: 'lunch', label: 'Lunch', active: r.has_lunch, price: r.lunch_rate_per_head },
                                                                         { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head }
                                                                     ].filter(m => m.active).map(meal => (
                                                                         <button key={meal.id} onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, agreedPrice: meal.price || 0 })}
-                                                                            className={`p-3 rounded-lg flex items-center justify-between text-xs font-bold ${currentBlock?.mealType === meal.label ? 'bg-white border-brand-gold border' : 'bg-white/50 border-transparent hover:border-neutral-200 border'}`}>
+                                                                            className={`p-3 rounded-lg flex items-center justify-between text-xs font-bold ${currentBlock?.mealType === meal.label ? 'bg-white border-brand-gold border shadow-sm' : 'bg-white/50 border-transparent hover:border-neutral-200 border'}`}>
                                                                             <span>{meal.label}</span>
                                                                             <span className="text-brand-green">LKR {(meal.price || 0).toLocaleString()}</span>
                                                                         </button>
                                                                     ))}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
