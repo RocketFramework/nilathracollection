@@ -677,3 +677,26 @@ export async function replyToInboxEmailAction(threadId: string, to: string, subj
         return { success: false, error: error.message || "Failed to reply to email." };
     }
 }
+
+export async function getRoomMarkupAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase.from('app_settings').select('setting_value').eq('setting_key', 'room_markup').single();
+        if (error) return { success: true, markup: 10 }; // Default to 10%
+        return { success: true, markup: Number(data.setting_value) };
+    } catch (error) {
+        return { success: true, markup: 10 };
+    }
+}
+
+export async function saveRoomMarkupAction(markup: number) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { error } = await adminSupabase.from('app_settings').upsert({ setting_key: 'room_markup', setting_value: markup });
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving room markup:", error);
+        return { success: false, error: error.message };
+    }
+}

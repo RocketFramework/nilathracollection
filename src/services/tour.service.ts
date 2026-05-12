@@ -484,6 +484,7 @@ export class TourService {
                     const acc = tripData.accommodations?.find(a => a.nightIndex === day);
                     if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
                         let totalAgreedPrice = 0;
+                        let totalContractedPrice = 0;
                         let totalRooms = 0;
                         let mealPlan = null;
 
@@ -515,12 +516,17 @@ export class TourService {
 
                             const roomTotal = (room as any).agreedTotal !== undefined ? (room as any).agreedTotal : (room.pricePerNight * room.quantity);
                             if (roomTotal !== undefined) totalAgreedPrice += roomTotal;
+                            
+                            const roomContracted = (room as any).contractedPrice !== undefined ? ((room as any).contractedPrice * room.quantity) : roomTotal;
+                            if (roomContracted !== undefined) totalContractedPrice += roomContracted;
+
                             if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
                         }
 
                         basePayload.agreed_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
                         basePayload.agreed_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
+                        basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
                         basePayload.meal_plan = mealPlan;
                         activitiesToInsert.push(basePayload);
                     } else if (acc) {

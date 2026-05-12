@@ -22,7 +22,8 @@ import {
     getRestaurantsAction,
     getActivitiesAction,
     getAIRulesAction,
-    saveAIRuleAction
+    saveAIRuleAction,
+    getRoomMarkupAction
 } from "@/actions/admin.actions";
 import { AIRule } from "@/types/ai";
 import { ItineraryPdfTemplate } from "../components/ItineraryPdfTemplate";
@@ -135,6 +136,9 @@ export function ItineraryBuilder({
     const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
     const [savingNote, setSavingNote] = useState<string | null>(null);
 
+    // Settings State
+    const [roomMarkup, setRoomMarkup] = useState<number>(10);
+
     // Hotel Search State
     const [hotelSearchCity, setHotelSearchCity] = useState('');
     const [hotelSearchName, setHotelSearchName] = useState('');
@@ -178,14 +182,15 @@ export function ItineraryBuilder({
                     .filter(b => b.type === 'sleep' && b.hotelId)
                     .map(b => b.hotelId as string);
 
-                const [h, v, d, g, r, tp, act] = await Promise.all([
+                const [h, v, d, g, r, tp, act, markupRes] = await Promise.all([
                     getAssignedHotelsAction(assignedHotelIds),
                     getVendorsAction(),
                     getDriversAction(),
                     getTourGuidesAction(),
                     getRestaurantsAction(),
                     getTransportProvidersAction(),
-                    getActivitiesAction()
+                    getActivitiesAction(),
+                    getRoomMarkupAction()
                 ]);
                 setMasterData({
                     hotels: h.success ? h.hotels : [],
@@ -196,6 +201,9 @@ export function ItineraryBuilder({
                     transportProviders: tp.success ? tp.providers : [],
                     activities: act.success ? (act.data || (act as any).activities || []) : []
                 });
+                if (markupRes && markupRes.success && markupRes.markup !== undefined) {
+                    setRoomMarkup(markupRes.markup);
+                }
             } catch (err) {
                 console.error("Failed to load master data for assignment:", err);
             } finally {
@@ -978,7 +986,7 @@ export function ItineraryBuilder({
                 const price = va?.vendor_price || block.agreedPrice;
 
                 let label = `${v.name} - ${activityLabel}`;
-                if (price) label += ` (LKR ${price.toLocaleString()})`;
+                if (price) label += ` ($${price.toLocaleString()})`;
                 return {
                     name: label,
                     icon: <ActivityIcon size={12} className="text-orange-500" />,
@@ -988,7 +996,7 @@ export function ItineraryBuilder({
 
             // Fallback: show block name + price even if vendor data is not yet loaded in UI
             let fallbackLabel = block.name || 'Linked Activity';
-            if (block.agreedPrice) fallbackLabel += ` (LKR ${block.agreedPrice.toLocaleString()})`;
+            if (block.agreedPrice) fallbackLabel += ` ($${block.agreedPrice.toLocaleString()})`;
 
             return { name: fallbackLabel, icon: <ActivityIcon size={12} className="text-orange-500" /> };
         }
@@ -1031,7 +1039,7 @@ export function ItineraryBuilder({
             const r = masterData.restaurants.find(x => x.id === block.restaurantId);
             let label = r?.name || 'Linked Restaurant';
             if (block.mealType) label += ` - ${block.mealType}`;
-            if (block.agreedPrice) label += ` (LKR ${block.agreedPrice.toLocaleString()})`;
+            if (block.agreedPrice) label += ` ($${block.agreedPrice.toLocaleString()})`;
             return {
                 name: label,
                 icon: <Utensils size={12} className="text-green-500" />,
@@ -1068,6 +1076,10 @@ export function ItineraryBuilder({
                                             : '0%'
                                         }
                                     </p>
+                                </div>
+                                <div className="text-right border-l pl-4 hidden md:block">
+                                    <p className="text-[10px] text-neutral-400 uppercase font-bold">Room Markup</p>
+                                    <p className="text-sm font-bold text-brand-gold">{roomMarkup}%</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
@@ -1513,7 +1525,7 @@ export function ItineraryBuilder({
                                                                                     />
                                                                                 </div>
                                                                                 <div className="text-right flex items-center justify-end gap-1">
-                                                                                    <span className="text-emerald-400 font-bold">LKR</span>
+                                                                                    <span className="text-emerald-400 font-bold">$</span>
                                                                                     <input 
                                                                                         type="number" 
                                                                                         min="0"
@@ -1527,7 +1539,7 @@ export function ItineraryBuilder({
                                                                                     />
                                                                                 </div>
                                                                                 <div className="text-right font-black">
-                                                                                    LKR {totalPrice.toLocaleString()}
+                                                                                    ${totalPrice.toLocaleString()}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -2129,6 +2141,8 @@ export function ItineraryBuilder({
                                                                                                             };
 
                                                                                                             const pricing = calculateRoomPrice(h, room, currentMealPlan, rType);
+                                                                                                            const contractedPrice = pricing.total;
+                                                                                                            const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
 
                                                                                                             return (
                                                                                                                 <button
@@ -2143,7 +2157,8 @@ export function ItineraryBuilder({
                                                                                                                             roomName: room.room_name,
                                                                                                                             roomStandard: room.room_standard,
                                                                                                                             quantity: displayCount,
-                                                                                                                            pricePerNight: pricing.total,
+                                                                                                                            contractedPrice: contractedPrice,
+                                                                                                                            pricePerNight: agreedUnitPrice,
                                                                                                                             mealPlan: currentMealPlan
                                                                                                                         });
                                                                                                                         // Overwrite legacy params dynamically for hybrid compatibility
@@ -2167,7 +2182,8 @@ export function ItineraryBuilder({
                                                                                                                         </div>
                                                                                                                     </div>
                                                                                                                     <div className="text-right">
-                                                                                                                        <p className="text-sm font-black text-brand-charcoal">${pricing.total?.toFixed(0)}</p>
+                                                                                                                        <p className="text-sm font-black text-brand-charcoal">${agreedUnitPrice?.toFixed(0)}</p>
+                                                                                                                        <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tighter line-through">${contractedPrice?.toFixed(0)} Base</p>
                                                                                                                         <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Per Night</p>
                                                                                                                     </div>
                                                                                                                 </button>
@@ -2248,7 +2264,7 @@ export function ItineraryBuilder({
                                                                 className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-brand-green bg-brand-green/5' : 'border-neutral-200 bg-white hover:border-brand-green/30'}`}>
                                                                 <div className="flex-1">
                                                                     <p className="font-bold text-sm text-neutral-800">{v.name}</p>
-                                                                    {va && <p className="text-xs font-black text-brand-green mt-1">LKR {va.vendor_price?.toLocaleString()}</p>}
+                                                                    {va && <p className="text-xs font-black text-brand-green mt-1">${va.vendor_price?.toLocaleString()}</p>}
                                                                 </div>
                                                                 <ChevronRight size={16} className={isSelected ? 'text-brand-green' : 'text-neutral-300'} />
                                                             </button>
@@ -2343,7 +2359,7 @@ export function ItineraryBuilder({
                                                                                             </div>
                                                                                         </div>
                                                                                         <div className="text-right shrink-0">
-                                                                                            <p className="text-xs font-black text-brand-green">LKR {v.day_rate?.toLocaleString()}<span className="text-[10px] text-neutral-400 font-normal">/day</span></p>
+                                                                                            <p className="text-xs font-black text-brand-green">${v.day_rate?.toLocaleString()}<span className="text-[10px] text-neutral-400 font-normal">/day</span></p>
                                                                                         </div>
                                                                                     </div>
                                                                                 </button>
@@ -2371,7 +2387,7 @@ export function ItineraryBuilder({
                                                                 <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-tight">Professional Driver</p>
                                                             </div>
                                                             <div className="text-right">
-                                                                <p className="text-xs font-black text-brand-green">LKR {d.per_day_rate?.toLocaleString()}<span className="text-[10px] text-neutral-400 font-normal">/day</span></p>
+                                                                <p className="text-xs font-black text-brand-green">${d.per_day_rate?.toLocaleString()}<span className="text-[10px] text-neutral-400 font-normal">/day</span></p>
                                                             </div>
                                                         </button>
                                                     );
@@ -2436,7 +2452,7 @@ export function ItineraryBuilder({
                                                                         <button key={meal.id} onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, agreedPrice: meal.price || 0 })}
                                                                             className={`p-3 rounded-lg flex items-center justify-between text-xs font-bold ${currentBlock?.mealType === meal.label ? 'bg-white border-brand-gold border shadow-sm' : 'bg-white/50 border-transparent hover:border-neutral-200 border'}`}>
                                                                             <span>{meal.label}</span>
-                                                                            <span className="text-brand-green">LKR {(meal.price || 0).toLocaleString()}</span>
+                                                                            <span className="text-brand-green">${(meal.price || 0).toLocaleString()}</span>
                                                                         </button>
                                                                     ))}
                                                                     </div>

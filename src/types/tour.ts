@@ -102,7 +102,8 @@ export interface AccommodationBooking {
         roomName: string;
         roomStandard: string;
         quantity: number;
-        pricePerNight: number;
+        contractedPrice?: number; // The actual room rate from room_rates table
+        pricePerNight: number; // Agreed unit price (Contracted * Markup)
         agreedTotal?: number; // The dynamically negotiated total rate for this exact room category
         mealPlan: 'BB' | 'HB' | 'FB' | 'AI' | string;
     }[];
@@ -187,6 +188,7 @@ export interface InternalItineraryBlock {
     vendorId?: string;
     activityId?: number;
     vendorActivityId?: string;
+    contractedPrice?: number;
     agreedPrice?: number;
     transportId?: string;
     vehicleId?: string;
