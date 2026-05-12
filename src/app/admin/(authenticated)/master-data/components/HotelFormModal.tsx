@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { Hotel, HotelRoom, RoomRate, HotelService } from "@/services/hotel.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
+import { refreshPlannerCacheAction, saveHotelAction } from "@/actions/admin.actions";
 
 interface HotelFormModalProps {
     isOpen: boolean;
@@ -206,12 +207,11 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                let savedHotel: Hotel;
-                if (formData.id) {
-                    savedHotel = await HotelService.updateHotel(formData as Hotel);
-                } else {
-                    savedHotel = await HotelService.createHotel(formData as Hotel);
+                const response = await saveHotelAction(formData as Hotel);
+                if (response.error) {
+                    throw new Error(response.error);
                 }
+                const savedHotel = response.hotel!;
                 onSave();
 
                 // Re-fetch to get all nested IDs and full state
@@ -220,6 +220,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                     setFormData({ ...updated });
                 }
 
+                await refreshPlannerCacheAction();
                 alert("Hotel saved successfully.");
             }
         } catch (err: unknown) {

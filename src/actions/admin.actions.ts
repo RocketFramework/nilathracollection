@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
-import { HotelService } from "@/services/hotel.service";
+import { HotelService, Hotel } from "@/services/hotel.service";
 import { MasterDataService, Restaurant, TransportProvider } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateUserDTO } from "@/dtos/user-vendor.dto";
@@ -183,6 +183,29 @@ export async function getHotelsListAction() {
     }
 }
 
+export async function getAssignedHotelsAction(ids: string[]) {
+    try {
+        const supabase = createAdminClient();
+        if (!ids || ids.length === 0) return { success: true, hotels: [] };
+        const { data: hotels } = await HotelService.getHotels({ client: supabase, ids });
+        return { success: true, hotels };
+    } catch (error: any) {
+        console.error("Error fetching assigned hotels:", error);
+        return { error: error.message || "Failed to load assigned hotels." };
+    }
+}
+
+export async function searchHotelsAction(city: string, name: string) {
+    try {
+        const supabase = createAdminClient();
+        const { data: hotels } = await HotelService.getHotels({ client: supabase, city, searchTerm: name });
+        return { success: true, hotels };
+    } catch (error: any) {
+        console.error("Error searching hotels:", error);
+        return { error: error.message || "Failed to search hotels." };
+    }
+}
+
 export async function getHotelAction(id: string) {
     try {
         const supabase = createAdminClient();
@@ -191,6 +214,35 @@ export async function getHotelAction(id: string) {
     } catch (error: any) {
         console.error("Error fetching hotel:", error);
         return { error: error.message || "Failed to load hotel." };
+    }
+}
+
+export async function saveHotelAction(hotel: Hotel) {
+    try {
+        const adminSupabase = createAdminClient();
+        let savedHotel;
+        if (hotel.id) {
+            savedHotel = await HotelService.updateHotel(hotel, { client: adminSupabase });
+        } else {
+            savedHotel = await HotelService.createHotel(hotel, { client: adminSupabase });
+        }
+        revalidatePath("/admin/master-data/hotels");
+        return { success: true, hotel: savedHotel };
+    } catch (error: any) {
+        console.error("Error saving hotel:", error);
+        return { error: error.message || "Failed to save hotel." };
+    }
+}
+
+export async function deleteHotelAction(id: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        await HotelService.deleteHotel(id, { client: adminSupabase });
+        revalidatePath("/admin/master-data/hotels");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting hotel:", error);
+        return { error: error.message || "Failed to delete hotel." };
     }
 }
 export async function getRestaurantsAction() {
@@ -257,6 +309,16 @@ export async function saveTransportProviderAction(provider: TransportProvider) {
     } catch (error: any) {
         console.error("Error saving transport provider:", error);
         return { error: error.message || "Failed to save transport provider." };
+    }
+}
+
+export async function refreshPlannerCacheAction() {
+    try {
+        revalidatePath('/admin/planner');
+        revalidatePath('/admin/master-data');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false };
     }
 }
 
@@ -439,9 +501,9 @@ export async function resolveApprovalAction(id: string, status: 'APPROVED' | 'RE
                 switch (entity_type) {
                     case 'hotel':
                         if (proposed_data.id) {
-                            await HotelService.updateHotel(proposed_data);
+                            await HotelService.updateHotel(proposed_data, { client: adminSupabase });
                         } else {
-                            await HotelService.createHotel(proposed_data);
+                            await HotelService.createHotel(proposed_data, { client: adminSupabase });
                         }
                         break;
                     case 'vendor':

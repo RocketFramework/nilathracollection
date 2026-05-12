@@ -93,16 +93,26 @@ export class HotelService {
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
         client?: any;
+        ids?: string[];
+        city?: string;
     }) {
         const supabaseClient = options?.client || supabase;
         let query = supabaseClient.from('hotels').select('*, hotel_rooms(*), payment_details(*)', { count: 'exact' });
+
+        if (options?.ids && options.ids.length > 0) {
+            query = query.in('id', options.ids);
+        }
+
+        if (options?.city) {
+            query = query.ilike('closest_city', `%${options.city}%`);
+        }
 
         if (options?.searchTerm) {
             query = query.or(`name.ilike.%${options.searchTerm}%,location_address.ilike.%${options.searchTerm}%,closest_city.ilike.%${options.searchTerm}%`);
         }
 
         if (options?.sortBy) {
-            query = query.order(options.sortBy, { ascending: options.sortOrder !== 'desc' });
+            query = query.order(options.sortBy, { ascending: options.sortOrder === 'asc' });
         } else {
             query = query.order('name');
         }
@@ -123,7 +133,8 @@ export class HotelService {
             const { data: ratesData, error: ratesError } = await supabaseClient
                 .from('room_rates')
                 .select('*')
-                .in('hotel_room_id', allRoomIds);
+                .in('hotel_room_id', allRoomIds)
+                .limit(10000);
                 
             if (!ratesError && ratesData) {
                 hotels.forEach(h => {
@@ -168,7 +179,8 @@ export class HotelService {
                 const { data: ratesData } = await supabaseClient
                     .from('room_rates')
                     .select('*')
-                    .in('hotel_room_id', roomIds);
+                    .in('hotel_room_id', roomIds)
+                    .limit(10000);
                     
                 if (ratesData) {
                     roomsData.forEach((r: any) => {
@@ -235,21 +247,22 @@ export class HotelService {
     /**
      * Create a new hotel with its rooms and recreations
      */
-    static async createHotel(hotel: Hotel) {
+    static async createHotel(hotel: Hotel, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
         // 1. Insert Hotel
         const { rooms, recreations, id: _, payment_details, payment_detail_id, ...hotelData } = hotel;
 
         // Handle Payment Details
         let activePaymentId = payment_detail_id;
         if (payment_details && (payment_details.bank_name || payment_details.account_number)) {
-            const { data: pdData, error: pdError } = await supabase.from('payment_details').insert([payment_details]).select().single();
+            const { data: pdData, error: pdError } = await dbClient.from('payment_details').insert([payment_details]).select().single();
             if (pdError) throw pdError;
             activePaymentId = pdData.id;
         }
 
         const payload = { ...hotelData, payment_detail_id: activePaymentId };
 
-        const { data: newHotel, error: hotelError } = await supabase
+        const { data: newHotel, error: hotelError } = await dbClient
             .from('hotels')
             .insert([payload])
             .select()
@@ -263,7 +276,7 @@ export class HotelService {
         if (rooms && rooms.length > 0) {
             for (const r of rooms) {
                 const { room_rates, id: _rid, ...roomData } = r;
-                const { data: newRoom, error: roomError } = await supabase
+                const { data: newRoom, error: roomError } = await dbClient
                     .from('hotel_rooms')
                     .insert([{ ...roomData, hotel_id: hotelId }])
                     .select()
@@ -274,9 +287,18 @@ export class HotelService {
                 if (room_rates && room_rates.length > 0) {
                     const ratesToInsert = room_rates.map(rate => {
                         const { id: _rateId, ...rateData } = rate;
-                        return { ...rateData, hotel_room_id: newRoom.id };
+                        const cleanRateData = { ...rateData, hotel_room_id: newRoom.id };
+                        if (cleanRateData.start_date === "") cleanRateData.start_date = null as any;
+                        if (cleanRateData.end_date === "") cleanRateData.end_date = null as any;
+                        // Clean NaN values from rates
+                        for (const key in cleanRateData) {
+                            if (Number.isNaN(cleanRateData[key as keyof typeof cleanRateData])) {
+                                (cleanRateData as any)[key] = null;
+                            }
+                        }
+                        return cleanRateData;
                     });
-                    const { error: ratesError } = await supabase
+                    const { error: ratesError } = await dbClient
                         .from('room_rates')
                         .insert(ratesToInsert);
                     if (ratesError) throw ratesError;
@@ -291,7 +313,7 @@ export class HotelService {
                 recreation_id: r.recreation_id,
                 additional_charge: r.additional_charge
             }));
-            const { error: recsError } = await supabase
+            const { error: recsError } = await dbClient
                 .from('hotel_recreations')
                 .insert(recsToInsert);
 
@@ -304,8 +326,10 @@ export class HotelService {
     /**
      * Update an existing hotel (fully syncs rooms and recreations)
      */
-    static async updateHotel(hotel: Hotel) {
+    static async updateHotel(hotel: Hotel, options?: { client?: any }) {
         if (!hotel.id) throw new Error("Hotel ID is required for update");
+        
+        const dbClient = options?.client || supabase;
 
         const { rooms, recreations, id: _, payment_details, payment_detail_id, ...hotelData } = hotel;
         const hotelId = hotel.id as string;
@@ -314,10 +338,10 @@ export class HotelService {
         let activePaymentId = payment_detail_id;
         if (payment_details && (payment_details.bank_name || payment_details.account_number)) {
             if (payment_details.id) {
-                const { error: pdError } = await supabase.from('payment_details').update(payment_details).eq('id', payment_details.id);
+                const { error: pdError } = await dbClient.from('payment_details').update(payment_details).eq('id', payment_details.id);
                 if (pdError) throw pdError;
             } else {
-                const { data: pdData, error: pdError } = await supabase.from('payment_details').insert([payment_details]).select().single();
+                const { data: pdData, error: pdError } = await dbClient.from('payment_details').insert([payment_details]).select().single();
                 if (pdError) throw pdError;
                 activePaymentId = pdData.id;
             }
@@ -326,7 +350,7 @@ export class HotelService {
         const payload = { ...hotelData, payment_detail_id: activePaymentId };
 
         // 1. Update Hotel record
-        const { error: hotelError } = await supabase
+        const { error: hotelError } = await dbClient
             .from('hotels')
             .update(payload)
             .eq('id', hotelId);
@@ -334,40 +358,75 @@ export class HotelService {
         if (hotelError) throw hotelError;
 
         // 2. Sync Rooms
-        // We will delete existing rooms. Because room_rates has ON DELETE CASCADE, they will be deleted too.
-        await supabase.from('hotel_rooms').delete().eq('hotel_id', hotelId);
+        const incomingRoomIds = (rooms || []).map(r => r.id).filter(Boolean);
+        
+        // Delete rooms that are no longer in the list
+        if (incomingRoomIds.length > 0) {
+            const { error: delError } = await dbClient.from('hotel_rooms')
+                .delete()
+                .eq('hotel_id', hotelId)
+                .not('id', 'in', `(${incomingRoomIds.join(',')})`);
+            if (delError) console.error("Error deleting old rooms:", delError);
+        } else {
+            const { error: delError } = await dbClient.from('hotel_rooms')
+                .delete()
+                .eq('hotel_id', hotelId);
+            if (delError) console.error("Error deleting old rooms:", delError);
+        }
 
         if (rooms && rooms.length > 0) {
             for (const r of rooms) {
                 const { room_rates, id: _rid, ...roomData } = r;
-                // If there's an existing id and we wanted to preserve it to avoid breaking foreign keys in itinerary, we should do upsert instead.
-                // But the current logic wipes rooms, so we will keep the wiping logic for now, but supply the old ID if it exists so references don't break!
                 const roomPayload = _rid ? { ...roomData, hotel_id: hotelId, id: _rid } : { ...roomData, hotel_id: hotelId };
 
-                const { data: newRoom, error: roomError } = await supabase
+                const { data: newRoom, error: roomError } = await dbClient
                     .from('hotel_rooms')
-                    .insert([roomPayload])
+                    .upsert([roomPayload])
                     .select()
                     .single();
 
                 if (roomError) throw roomError;
 
+                // Sync Room Rates
+                const incomingRateIds = (room_rates || []).map(rate => rate.id).filter(Boolean);
+                
+                if (incomingRateIds.length > 0) {
+                    const { error: delRatesError } = await dbClient.from('room_rates')
+                        .delete()
+                        .eq('hotel_room_id', newRoom.id)
+                        .not('id', 'in', `(${incomingRateIds.join(',')})`);
+                    if (delRatesError) console.error("Error deleting old rates:", delRatesError);
+                } else {
+                    const { error: delRatesError } = await dbClient.from('room_rates')
+                        .delete()
+                        .eq('hotel_room_id', newRoom.id);
+                    if (delRatesError) console.error("Error deleting old rates:", delRatesError);
+                }
+
                 if (room_rates && room_rates.length > 0) {
                     const ratesToInsert = room_rates.map(rate => {
                         const { id: _rateId, ...rateData } = rate;
-                        // Always create fresh rates since we cascaded delete
-                        return { ...rateData, hotel_room_id: newRoom.id };
+                        const cleanRateData = _rateId ? { ...rateData, hotel_room_id: newRoom.id, id: _rateId } : { ...rateData, hotel_room_id: newRoom.id };
+                        if (cleanRateData.start_date === "") cleanRateData.start_date = null as any;
+                        if (cleanRateData.end_date === "") cleanRateData.end_date = null as any;
+                        // Clean NaN values from rates
+                        for (const key in cleanRateData) {
+                            if (Number.isNaN(cleanRateData[key as keyof typeof cleanRateData])) {
+                                (cleanRateData as any)[key] = null;
+                            }
+                        }
+                        return cleanRateData;
                     });
-                    const { error: ratesError } = await supabase
+                    const { error: ratesError } = await dbClient
                         .from('room_rates')
-                        .insert(ratesToInsert);
+                        .upsert(ratesToInsert);
                     if (ratesError) throw ratesError;
                 }
             }
         }
 
         // 3. Sync Recreations
-        await supabase.from('hotel_recreations').delete().eq('hotel_id', hotelId);
+        await dbClient.from('hotel_recreations').delete().eq('hotel_id', hotelId);
 
         if (recreations && recreations.length > 0) {
             const recsToInsert = recreations.map(r => ({
@@ -375,7 +434,7 @@ export class HotelService {
                 recreation_id: r.recreation_id,
                 additional_charge: r.additional_charge
             }));
-            const { error: recsError } = await supabase
+            const { error: recsError } = await dbClient
                 .from('hotel_recreations')
                 .insert(recsToInsert);
 
@@ -388,8 +447,9 @@ export class HotelService {
     /**
      * Delete a hotel
      */
-    static async deleteHotel(id: string) {
-        const { error } = await supabase
+    static async deleteHotel(id: string, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
+        const { error } = await dbClient
             .from('hotels')
             .delete()
             .eq('id', id);

@@ -13,6 +13,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Activity } from "@/data/activities";
 import {
     getHotelsListAction,
+    getAssignedHotelsAction,
+    searchHotelsAction,
     getVendorsAction,
     getTransportProvidersAction,
     getDriversAction,
@@ -133,6 +135,12 @@ export function ItineraryBuilder({
     const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
     const [savingNote, setSavingNote] = useState<string | null>(null);
 
+    // Hotel Search State
+    const [hotelSearchCity, setHotelSearchCity] = useState('');
+    const [hotelSearchName, setHotelSearchName] = useState('');
+    const [hotelSearchResults, setHotelSearchResults] = useState<any[] | null>(null);
+    const [isSearchingHotels, setIsSearchingHotels] = useState(false);
+
     const handleAddComment = async (blockId: string) => {
         const text = commentDrafts[blockId];
         if (!text?.trim()) return;
@@ -165,8 +173,13 @@ export function ItineraryBuilder({
         async function loadData() {
             setLoadingMaster(true);
             try {
+                // Get all hotel IDs that are currently assigned in the itinerary
+                const assignedHotelIds = tripData.itinerary
+                    .filter(b => b.type === 'sleep' && b.hotelId)
+                    .map(b => b.hotelId as string);
+
                 const [h, v, d, g, r, tp, act] = await Promise.all([
-                    getHotelsListAction(),
+                    getAssignedHotelsAction(assignedHotelIds),
                     getVendorsAction(),
                     getDriversAction(),
                     getTourGuidesAction(),
@@ -190,7 +203,52 @@ export function ItineraryBuilder({
             }
         }
         loadData();
-    }, []);
+    }, [tripData.id]); // tripData.itinerary change shouldn't trigger reload since it's just state
+
+    const handleSearchHotels = async () => {
+        setIsSearchingHotels(true);
+        try {
+            const res = await searchHotelsAction(hotelSearchCity, hotelSearchName);
+            if (res.success && res.hotels) {
+                setHotelSearchResults(res.hotels);
+                // Merge into masterData.hotels to ensure newly selected hotels can render in the itinerary
+                setMasterData(prev => {
+                    const existingIds = new Set(prev.hotels.map(h => h.id));
+                    const newHotels = res.hotels.filter((h: any) => !existingIds.has(h.id));
+                    return { ...prev, hotels: [...prev.hotels, ...newHotels] };
+                });
+            } else {
+                setHotelSearchResults([]);
+            }
+        } catch (err) {
+            console.error(err);
+            setHotelSearchResults([]);
+        } finally {
+            setIsSearchingHotels(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeAssignment?.type === 'sleep') {
+            const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
+            if (block) {
+                let cityToSearch = '';
+                if (block.hotelId) {
+                    const hotel = masterData.hotels.find((h: any) => h.id === block.hotelId);
+                    if (hotel && hotel.closest_city) {
+                        cityToSearch = hotel.closest_city;
+                    }
+                }
+                if (!cityToSearch && block.locationName) {
+                    cityToSearch = block.locationName.split(',')[0].trim();
+                }
+                
+                if (cityToSearch) {
+                    setHotelSearchCity(cityToSearch);
+                }
+            }
+        }
+    }, [activeAssignment?.blockId, activeAssignment?.type, tripData.itinerary, masterData.hotels]);
 
     // Load AI Rules
     useEffect(() => {
@@ -1735,24 +1793,75 @@ export function ItineraryBuilder({
                 activeAssignment && (
                     <div className="fixed inset-0 z-50 flex items-center justify-end bg-brand-charcoal/20 backdrop-blur-sm">
                         <div className="w-full max-w-md h-full bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
-                            <div className="p-6 border-b flex items-center justify-between">
-                                <div>
-                                    <h4 className="text-lg font-serif font-bold text-brand-green uppercase tracking-wide">Assign Specialist</h4>
-                                    <p className="text-xs text-neutral-400 mt-1">Provider Database for {activeAssignment.type.toUpperCase()} segments</p>
+                            <div className="p-6 border-b flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-lg font-serif font-bold text-brand-green uppercase tracking-wide">Assign Specialist</h4>
+                                        <p className="text-xs text-neutral-400 mt-1">Provider Database for {activeAssignment.type.toUpperCase()} segments</p>
+                                    </div>
+                                    <button onClick={() => { setActiveAssignment(null); setSearchTerm(""); }} className="p-2 hover:bg-neutral-50 rounded-full transition-colors"><X size={20} /></button>
                                 </div>
-                                <button onClick={() => { setActiveAssignment(null); setSearchTerm(""); }} className="p-2 hover:bg-neutral-50 rounded-full transition-colors"><X size={20} /></button>
+                                {activeAssignment.type === 'sleep' && (
+                                    <div className="mt-2 text-[10px] text-red-500 font-mono bg-red-50 p-2 rounded">
+                                        DEBUG: Day {tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.dayNumber} | Arr: {tripData.profile?.arrivalDate || 'null'} | Date: {(() => {
+                                            const dayNumber = tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.dayNumber || 1;
+                                            if (tripData.profile?.arrivalDate) {
+                                                const d = new Date(tripData.profile.arrivalDate);
+                                                d.setDate(d.getDate() + (dayNumber - 1));
+                                                return d.toISOString().split('T')[0];
+                                            }
+                                            return 'none';
+                                        })()}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto space-y-4">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-2.5 text-neutral-300" size={16} />
-                                    <input
-                                        value={searchTerm}
-                                        onChange={e => setSearchTerm(e.target.value)}
-                                        placeholder="Search master data..."
-                                        className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold transition-all"
-                                    />
-                                </div>
+                                {activeAssignment.type !== 'sleep' && (
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 text-neutral-300" size={16} />
+                                        <input
+                                            value={searchTerm}
+                                            onChange={e => setSearchTerm(e.target.value)}
+                                            placeholder="Search master data..."
+                                            className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold transition-all"
+                                        />
+                                    </div>
+                                )}
+
+                                {activeAssignment.type === 'sleep' && (
+                                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-sm mb-4 space-y-3">
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <label className="text-xs font-semibold text-neutral-500 mb-1 block">City (Required)</label>
+                                                <input
+                                                    value={hotelSearchCity}
+                                                    onChange={e => setHotelSearchCity(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
+                                                    placeholder="E.g. Colombo"
+                                                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-xs font-semibold text-neutral-500 mb-1 block">Hotel Name</label>
+                                                <input
+                                                    value={hotelSearchName}
+                                                    onChange={e => setHotelSearchName(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
+                                                    placeholder="Optional name"
+                                                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleSearchHotels}
+                                            disabled={!hotelSearchCity.trim() || isSearchingHotels}
+                                            className="w-full py-2 bg-black text-white text-sm font-medium rounded-lg disabled:opacity-50 hover:bg-neutral-800 transition-colors"
+                                        >
+                                            {isSearchingHotels ? "Searching..." : "Search Hotels"}
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div className="divide-y border rounded-2xl overflow-hidden shadow-sm bg-white">
                                     {activeAssignment.type === 'sleep' && (() => {
@@ -1765,10 +1874,20 @@ export function ItineraryBuilder({
                                             stayDate = d.toISOString().split('T')[0];
                                         }
 
+                                        const dataToRender = hotelSearchResults !== null ? hotelSearchResults : [];
+
+                                        if (hotelSearchResults === null) {
+                                            return <div className="p-8 text-center text-neutral-400 text-sm">Please search for a city to view available hotels.</div>;
+                                        }
+
+                                        if (hotelSearchResults.length === 0) {
+                                            return <div className="p-8 text-center text-neutral-400 text-sm">No hotels found. Try adjusting your search.</div>;
+                                        }
+
                                         return (
                                             <>
                                                 <div className="grid grid-cols-1 gap-4 p-4">
-                                                    {(filteredMasterData as any[]).map(h => {
+                                                    {dataToRender.map((h: any) => {
                                                         const assignedHotelId = tripData.itinerary.find(b => b.id === activeAssignment.blockId)?.hotelId;
                                                         const isSelected = assignedHotelId === h.id;
 
@@ -1777,17 +1896,26 @@ export function ItineraryBuilder({
                                                             if (!r.room_rates || r.room_rates.length === 0) return [];
                                                             return r.room_rates.filter((rr: any) => {
                                                                 if (!stayDate) return true;
-                                                                if (rr.start_date && rr.end_date) {
-                                                                    return stayDate >= rr.start_date && stayDate <= rr.end_date;
+                                                                if (rr.start_date) {
+                                                                    if (stayDate < rr.start_date) return false;
+                                                                    if (rr.end_date && stayDate > rr.end_date) return false;
+                                                                    return true;
                                                                 }
                                                                 return true;
-                                                            }).flatMap((rr: any) => [
-                                                                rr.sgl_bb_rate, rr.sgl_hb_rate, rr.sgl_fb_rate, rr.sgl_ai_rate,
-                                                                rr.dbl_bb_rate, rr.dbl_hb_rate, rr.dbl_fb_rate, rr.dbl_ai_rate,
-                                                                rr.tpl_bb_rate, rr.tpl_hb_rate, rr.tpl_fb_rate, rr.tpl_ai_rate,
-                                                                rr.qud_bb_rate, rr.qud_hb_rate, rr.qud_fb_rate, rr.qud_ai_rate,
-                                                                rr.rate
-                                                            ]);
+                                                            }).sort((a: any, b: any) => {
+                                                                const aHasDates = a.start_date ? 1 : 0;
+                                                                const bHasDates = b.start_date ? 1 : 0;
+                                                                return bHasDates - aHasDates;
+                                                            }).flatMap((rr: any) => {
+                                                                const matrixRates = [
+                                                                    rr.sgl_bb_rate, rr.sgl_hb_rate, rr.sgl_fb_rate, rr.sgl_ai_rate,
+                                                                    rr.dbl_bb_rate, rr.dbl_hb_rate, rr.dbl_fb_rate, rr.dbl_ai_rate,
+                                                                    rr.tpl_bb_rate, rr.tpl_hb_rate, rr.tpl_fb_rate, rr.tpl_ai_rate,
+                                                                    rr.qud_bb_rate, rr.qud_hb_rate, rr.qud_fb_rate, rr.qud_ai_rate
+                                                                ].filter(v => v && v > 0);
+
+                                                                return matrixRates;
+                                                            });
                                                         }).filter((rate: any) => rate && rate > 0);
 
                                                         const minRate = applicableRates.length > 0 ? Math.min(...applicableRates) : (h.base_rate || 0);
@@ -1941,15 +2069,22 @@ export function ItineraryBuilder({
                                                                                                                 if (room.room_rates && room.room_rates.length > 0) {
                                                                                                                     const applicableRates = room.room_rates.filter((r: any) => {
                                                                                                                         if (!stayDate) return true;
-                                                                                                                        if (r.start_date && r.end_date) {
-                                                                                                                            return stayDate >= r.start_date && stayDate <= r.end_date;
+                                                                                                                        if (r.start_date) {
+                                                                                                                            if (stayDate < r.start_date) return false;
+                                                                                                                            if (r.end_date && stayDate > r.end_date) return false;
+                                                                                                                            return true;
                                                                                                                         }
                                                                                                                         return true;
+                                                                                                                    }).sort((a: any, b: any) => {
+                                                                                                                        const aHasDates = a.start_date ? 1 : 0;
+                                                                                                                        const bHasDates = b.start_date ? 1 : 0;
+                                                                                                                        return bHasDates - aHasDates;
                                                                                                                     });
                                                                                                                     
-                                                                                                                    const rateObj = applicableRates[0] || room.room_rates[0];
+                                                                                                                    // Fallback if no dates matched: use all rates to find absolute lowest
+                                                                                                                    const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
                                                                                                                     
-                                                                                                                    if (rateObj) {
+                                                                                                                    if (ratesToSearch.length > 0) {
                                                                                                                         let prefix = 'dbl';
                                                                                                                         if (roomType === 'Single') prefix = 'sgl';
                                                                                                                         else if (roomType === 'Double' || roomType === 'Twin') prefix = 'dbl';
@@ -1958,16 +2093,35 @@ export function ItineraryBuilder({
 
                                                                                                                         const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
                                                                                                                         
-                                                                                                                        if (rateObj[fieldName] !== undefined && rateObj[fieldName] !== null && rateObj[fieldName] > 0) {
-                                                                                                                            baseRate = rateObj[fieldName];
-                                                                                                                        } else if (rateObj.meal_plan_type === mealPlan && rateObj.rate > 0) {
-                                                                                                                            baseRate = rateObj.rate;
+                                                                                                                        // First try to find matrix rate in ANY applicable rate
+                                                                                                                        const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
+                                                                                                                        
+                                                                                                                        if (matrixRateObj) {
+                                                                                                                            baseRate = matrixRateObj[fieldName];
+                                                                                                                            if (matrixRateObj.start_date) seasonLabel = `Rate applied`;
                                                                                                                         } else {
-                                                                                                                            baseRate = rateObj.rate || 0;
-                                                                                                                        }
-
-                                                                                                                        if (rateObj.start_date && rateObj.end_date) {
-                                                                                                                            seasonLabel = `Rate applied`;
+                                                                                                                            // Fallback: get the lowest available matrix rate for this occupancy across ANY meal plan
+                                                                                                                            const fallbackFields = [`${prefix}_bb_rate`, `${prefix}_hb_rate`, `${prefix}_fb_rate`, `${prefix}_ai_rate`];
+                                                                                                                            let lowestRate = Infinity;
+                                                                                                                            let foundDate = false;
+                                                                                                                            
+                                                                                                                            ratesToSearch.forEach((r: any) => {
+                                                                                                                                fallbackFields.forEach(ff => {
+                                                                                                                                    if (r[ff] !== undefined && r[ff] !== null && r[ff] > 0) {
+                                                                                                                                        if (r[ff] < lowestRate) {
+                                                                                                                                            lowestRate = r[ff];
+                                                                                                                                            if (r.start_date) foundDate = true;
+                                                                                                                                        }
+                                                                                                                                    }
+                                                                                                                                });
+                                                                                                                            });
+                                                                                                                            
+                                                                                                                            if (lowestRate !== Infinity) {
+                                                                                                                                baseRate = lowestRate;
+                                                                                                                                if (foundDate) seasonLabel = `Rate applied`;
+                                                                                                                            } else {
+                                                                                                                                baseRate = 0;
+                                                                                                                            }
                                                                                                                         }
                                                                                                                     }
                                                                                                                 }

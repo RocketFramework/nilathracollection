@@ -94,9 +94,9 @@ export class MasterDataApprovalsService {
                 switch (entity_type) {
                     case 'hotel':
                         if ((proposed_data as Hotel).id) {
-                            await HotelService.updateHotel(proposed_data as Hotel);
+                            await HotelService.updateHotel(proposed_data as Hotel, { client: supabase });
                         } else {
-                            await HotelService.createHotel(proposed_data as Hotel);
+                            await HotelService.createHotel(proposed_data as Hotel, { client: supabase });
                         }
                         break;
                     case 'vendor':

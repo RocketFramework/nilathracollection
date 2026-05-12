@@ -478,11 +478,11 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                             </p>
                                             
                                             <div className="flex justify-center items-center gap-8 text-[9px] uppercase tracking-[0.2em]">
-                                                <a href="http://nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>
+                                                <a href="https://www.nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>
                                                 <span className="text-[#E5E7EB]">|</span>
-                                                <a href="http://nilathra.com/terms" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Terms of Service</a>
+                                                <a href="https://www.nilathra.com/terms" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Terms of Service</a>
                                                 <span className="text-[#E5E7EB]">|</span>
-                                                <a href="http://nilathra.com/booking-conditions" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Booking Conditions</a>
+                                                <a href="https://www.nilathra.com/booking-conditions" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Booking Conditions</a>
                                             </div>
                                         </div>
                                     </div>
