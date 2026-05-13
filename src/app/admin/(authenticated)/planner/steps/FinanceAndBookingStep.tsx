@@ -225,7 +225,7 @@ export function FinanceAndBookingStep({
                         // Modern Granular Multi-Room Generation
                         acc.selectedRooms.forEach(sr => {
                             if (sr.quantity > 0) {
-                                const totalRoomPrice = sr.agreedTotal !== undefined ? sr.agreedTotal : ((sr.pricePerNight || 0) * sr.quantity);
+                                const totalRoomPrice = sr.contractedPrice !== undefined ? (sr.contractedPrice * sr.quantity) : ((sr.pricePerNight || 0) * sr.quantity);
                                 const unitRoomPrice = totalRoomPrice / sr.quantity;
 
                                 generatedItems.push({

@@ -435,7 +435,8 @@ export function ItineraryBuilder({
         tripData.accommodations.forEach(h => {
             if (h.selectedRooms && h.selectedRooms.length > 0) {
                 h.selectedRooms.forEach((sr: any) => {
-                    hotels += sr.agreedTotal !== undefined ? sr.agreedTotal : ((sr.pricePerNight || 0) * (sr.quantity || 1));
+                    const baseCost = sr.contractedPrice !== undefined ? sr.contractedPrice : (sr.pricePerNight || 0);
+                    hotels += baseCost * (sr.quantity || 1);
                 });
             } else {
                 hotels += (h.pricePerNight || 0) * (h.numberOfRooms || 1);
