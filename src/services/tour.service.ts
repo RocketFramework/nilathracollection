@@ -416,6 +416,13 @@ export class TourService {
                 throw new Error(`Failed to save itinerary day ${day}: ${err.message}`);
             }
 
+            // Fetch markup for dynamic pricing calculation
+            const { data: markupData, error: markupError } = await supabaseAdmin.from('app_settings').select('setting_value').eq('setting_key', 'room_markup').single();
+            let roomMarkup = 10;
+            if (!markupError && markupData?.setting_value !== undefined) {
+                roomMarkup = Number(markupData.setting_value);
+            }
+
             const blocks = blocksByDay[day];
 
             // B) Insert all blocks for this day into 'daily_activities'
@@ -467,7 +474,9 @@ export class TourService {
                     vendor_id: vendorId, // Map to the resolved UUID
                     activity_id: b.activityId,
                     vendor_activity_id: b.vendorActivityId,
-                    agreed_price: b.agreedPrice,
+                    contracted_price: b.contractedPrice,
+                    charged_unit_price: b.agreedPrice,
+                    charged_total_price: b.agreedPrice,
                     transport_id: (b.transportId && b.transportId.includes('-')) ? b.transportId : (tripData.defaultTransportId || null),
                     vehicle_id: (b.vehicleId && b.vehicleId.includes('-')) ? b.vehicleId : (tripData.defaultVehicleId || null),
                     driver_id: (b.driverId && b.driverId.includes('-')) ? b.driverId : (tripData.defaultDriverId || null),
@@ -514,18 +523,21 @@ export class TourService {
                                 basePayload.family_room_count = room.quantity;
                             }
 
-                            const roomTotal = (room as any).agreedTotal !== undefined ? (room as any).agreedTotal : (room.pricePerNight * room.quantity);
-                            if (roomTotal !== undefined) totalAgreedPrice += roomTotal;
-                            
-                            const roomContracted = (room as any).contractedPrice !== undefined ? ((room as any).contractedPrice * room.quantity) : roomTotal;
-                            if (roomContracted !== undefined) totalContractedPrice += roomContracted;
+                            const baseContractedUnit = (room as any).contractedPrice !== undefined ? (room as any).contractedPrice : room.pricePerNight;
+                            const roomContractedTotal = baseContractedUnit * room.quantity;
+                            totalContractedPrice += roomContractedTotal;
+
+                            // Calculate agreed price dynamically using fetched markup
+                            const dynamicAgreedUnit = baseContractedUnit * (1 + (roomMarkup / 100));
+                            const roomAgreedTotal = (room as any).agreedTotal !== undefined ? (room as any).agreedTotal : (dynamicAgreedUnit * room.quantity);
+                            totalAgreedPrice += roomAgreedTotal;
 
                             if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
                         }
 
-                        basePayload.agreed_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
+                        basePayload.charged_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
-                        basePayload.agreed_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
+                        basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
                         basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
                         basePayload.meal_plan = mealPlan;
                         activitiesToInsert.push(basePayload);
@@ -536,8 +548,8 @@ export class TourService {
                         basePayload.double_room_id = assumedRoomId;
                         basePayload.double_room_count = assumedQty;
                         basePayload.quantity = assumedQty;
-                        basePayload.agreed_unit_price = acc.pricePerNight || null;
-                        basePayload.agreed_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
+                        basePayload.charged_unit_price = acc.pricePerNight || null;
+                        basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
                         basePayload.meal_plan = acc.mealPlan || null;
                         activitiesToInsert.push(basePayload);
                     } else {
@@ -554,8 +566,8 @@ export class TourService {
                     activitiesToInsert.push({
                         ...basePayload,
                         quantity: quantity,
-                        agreed_unit_price: agreedUnitPrice,
-                        agreed_total_price: agreedTotalPrice,
+                        charged_unit_price: agreedUnitPrice,
+                        charged_total_price: agreedTotalPrice,
                         meal_plan: b.mealType || null
                     });
                 }

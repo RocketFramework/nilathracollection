@@ -1,19 +1,25 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { getRoomMarkupAction, saveRoomMarkupAction } from '@/actions/admin.actions';
+import { getAppMarkupsAction, saveAppMarkupsAction } from '@/actions/admin.actions';
 import { Save, Loader2 } from 'lucide-react';
 
 export default function SettingsPage() {
-    const [roomMarkup, setRoomMarkup] = useState<number>(10);
+    const [markups, setMarkups] = useState({
+        room_markup: 10,
+        diver_markup: 10,
+        restaurant_markup: 10,
+        tour_guide_markup: 10,
+        vendor_activity_markup: 10,
+    });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
     useEffect(() => {
-        getRoomMarkupAction().then(res => {
-            if (res.success && res.markup !== undefined) {
-                setRoomMarkup(res.markup);
+        getAppMarkupsAction().then(res => {
+            if (res.success && res.markups) {
+                setMarkups(res.markups as any);
             }
             setLoading(false);
         });
@@ -23,7 +29,7 @@ export default function SettingsPage() {
         setSaving(true);
         setMessage(null);
         try {
-            const res = await saveRoomMarkupAction(roomMarkup);
+            const res = await saveAppMarkupsAction(markups);
             if (res.success) {
                 setMessage({ text: 'Settings saved successfully!', type: 'success' });
             } else {
@@ -57,23 +63,90 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-bold text-neutral-700 mb-2">Room Markup Percentage (%)</label>
-                        <div className="flex items-center max-w-xs relative">
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Room Markup (%)</label>
+                        <div className="flex items-center relative">
                             <input
                                 type="number"
                                 min="0"
                                 max="100"
                                 step="0.1"
-                                value={roomMarkup}
-                                onChange={(e) => setRoomMarkup(parseFloat(e.target.value) || 0)}
+                                value={markups.room_markup}
+                                onChange={(e) => setMarkups({ ...markups, room_markup: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">%</span>
                         </div>
-                        <p className="text-xs text-neutral-500 mt-2">
-                            This markup will be applied automatically to the base contracted hotel rates in the Itinerary Builder. 
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Diver Markup (%)</label>
+                        <div className="flex items-center relative">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={markups.diver_markup}
+                                onChange={(e) => setMarkups({ ...markups, diver_markup: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
+                            />
+                            <span className="absolute right-4 text-neutral-400 font-bold">%</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Restaurant Markup (%)</label>
+                        <div className="flex items-center relative">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={markups.restaurant_markup}
+                                onChange={(e) => setMarkups({ ...markups, restaurant_markup: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
+                            />
+                            <span className="absolute right-4 text-neutral-400 font-bold">%</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Tour Guide Markup (%)</label>
+                        <div className="flex items-center relative">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={markups.tour_guide_markup}
+                                onChange={(e) => setMarkups({ ...markups, tour_guide_markup: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
+                            />
+                            <span className="absolute right-4 text-neutral-400 font-bold">%</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Vendor Activity Markup (%)</label>
+                        <div className="flex items-center relative">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={markups.vendor_activity_markup}
+                                onChange={(e) => setMarkups({ ...markups, vendor_activity_markup: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
+                            />
+                            <span className="absolute right-4 text-neutral-400 font-bold">%</span>
+                        </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2 mt-2">
+                        <p className="text-xs text-neutral-500">
+                            These markups will be applied automatically to the base contracted rates in the Itinerary Builder.
                             <br/>Example: A rate of $100 with a 10% markup will result in an agreed unit price of $110.
                         </p>
                     </div>

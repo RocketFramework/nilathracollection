@@ -700,3 +700,53 @@ export async function saveRoomMarkupAction(markup: number) {
         return { success: false, error: error.message };
     }
 }
+
+export async function getAppMarkupsAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase.from('app_settings').select('setting_key, setting_value');
+        if (error) throw error;
+        
+        const markups = {
+            room_markup: 10,
+            diver_markup: 10,
+            restaurant_markup: 10,
+            tour_guide_markup: 10,
+            vendor_activity_markup: 10,
+        };
+
+        if (data) {
+            data.forEach(item => {
+                if (item.setting_key in markups) {
+                    (markups as any)[item.setting_key] = Number(item.setting_value);
+                }
+            });
+        }
+        
+        return { success: true, markups };
+    } catch (error) {
+        return { success: true, markups: {
+            room_markup: 10,
+            diver_markup: 10,
+            restaurant_markup: 10,
+            tour_guide_markup: 10,
+            vendor_activity_markup: 10,
+        } };
+    }
+}
+
+export async function saveAppMarkupsAction(markups: Record<string, number>) {
+    try {
+        const adminSupabase = createAdminClient();
+        const updates = Object.entries(markups).map(([key, value]) => ({
+            setting_key: key,
+            setting_value: value.toString()
+        }));
+        const { error } = await adminSupabase.from('app_settings').upsert(updates);
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving markups:", error);
+        return { success: false, error: error.message };
+    }
+}
