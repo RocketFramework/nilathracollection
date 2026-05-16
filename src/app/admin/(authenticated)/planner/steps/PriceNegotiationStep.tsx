@@ -1,7 +1,7 @@
 "use client";
 
 import { TripData, InternalItineraryBlock } from "../types";
-import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info } from "lucide-react";
+import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import {
     getHotelsListAction,
@@ -9,6 +9,7 @@ import {
     getTransportProvidersAction,
     getTourGuidesAction,
     getRestaurantsAction,
+    savePurchaseOrderAction,
 } from "@/actions/admin.actions";
 
 export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
@@ -50,7 +51,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         let items: any[] = [];
         tripData.itinerary.forEach(b => {
             let vendorName = "Unknown Vendor";
-            let unitPrice = 0;
+            let unitPrice = b.contractedPrice ?? 0;
             let quantity = 1;
             let referenceTotal = 0;
             let icon: React.ReactNode = <Compass size={18} />;
@@ -75,7 +76,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                     });
                     return; // Skip normal block push
                 } else if (acc) {
-                    unitPrice = acc.pricePerNight || 0;
+                    if (unitPrice === 0) unitPrice = acc.pricePerNight || 0;
                     quantity = acc.numberOfRooms || 1;
                     referenceTotal = unitPrice * quantity;
                     items.push({
@@ -88,9 +89,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 const rest = masterRestaurants.find(r => r.id === rId);
                 if (rest) {
                     vendorName = rest.name;
-                    unitPrice = rest.lunch_rate_per_head || 0;
+                    if (unitPrice === 0) unitPrice = rest.lunch_rate_per_head || 0;
                 }
-                quantity = (tripData.profile?.adults || 1) + (tripData.profile?.children || 0);
+                quantity = b.restaurantQuantity || (tripData.profile?.adults || 1) + (tripData.profile?.children || 0);
                 referenceTotal = unitPrice * quantity;
                 items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Utensils size={18} className="text-orange-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
             } else if (b.type === 'travel' && (b.transportId || b.vehicleId || b.driverId || tripData.defaultTransportId || tripData.defaultVehicleId || tripData.defaultDriverId)) {
@@ -100,10 +101,14 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                     vendorName = trans.name;
                     const vId = b.vehicleId || tripData.defaultVehicleId;
                     const veh = trans.transport_vehicles?.find((v: any) => v.id === vId);
-                    if (veh) unitPrice = veh.per_km_rate || veh.day_rate || 0;
+                    if (veh && unitPrice === 0) unitPrice = veh.per_km_rate || veh.day_rate || 0;
                 }
-                const parsedDistance = parseFloat(b.distance?.replace(/[^0-9.]/g, '') || '0');
-                quantity = parsedDistance > 0 ? parsedDistance : 1;
+                if (b.contractedPrice !== undefined) {
+                    quantity = b.transportQuantity || 1;
+                } else {
+                    const parsedDistance = parseFloat(b.distance?.replace(/[^0-9.]/g, '') || '0');
+                    quantity = parsedDistance > 0 ? parsedDistance : 1;
+                }
                 referenceTotal = unitPrice * quantity;
                 items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Car size={18} className="text-indigo-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
             } else if (b.type === 'guide' && (b.guideId || tripData.defaultGuideId)) {
@@ -111,7 +116,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 const guide = masterGuides.find(g => g.id === gId);
                 if (guide) {
                     vendorName = `${guide.first_name} ${guide.last_name || ''}`.trim();
-                    unitPrice = guide.per_day_rate || 0;
+                    if (unitPrice === 0) unitPrice = guide.per_day_rate || 0;
                 }
                 quantity = 1;
                 referenceTotal = unitPrice * quantity;
@@ -121,7 +126,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 const vend = masterVendors.find(v => v.id === vId);
                 if (vend) vendorName = vend.name;
                 const actBooking = tripData.activities.find(a => a.activityId === b.activityId);
-                if (actBooking && (actBooking.activityData as any).price) {
+                if (actBooking && (actBooking.activityData as any).price && unitPrice === 0) {
                     unitPrice = (actBooking.activityData as any).price;
                 }
                 quantity = b.transportQuantity || ((tripData.profile?.adults || 1) + (tripData.profile?.children || 0));
@@ -148,6 +153,68 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             rooms[roomIndex] = { ...rooms[roomIndex], agreedTotal };
             updatedAccs[accIndex] = { ...acc, selectedRooms: rooms };
             updateData({ accommodations: updatedAccs });
+        }
+    };
+
+    const handleDraftPO = async (vendorGroup: string, items: any[]) => {
+        if (!tripData.id) {
+            alert("Tour must be saved first.");
+            return;
+        }
+
+        const total = items.reduce((sum, item) => {
+            const itemTotal = item.isHotelWithRooms 
+                ? item.rooms.reduce((rSum: number, r: any) => rSum + (r.agreedTotal || (r.contractedPrice ?? r.pricePerNight ?? 0) * (r.quantity || 1)), 0)
+                : (item.agreedPrice || item.referenceTotal || 0);
+            return sum + itemTotal;
+        }, 0);
+
+        const poItems = [];
+        for (const item of items) {
+            if (item.isHotelWithRooms) {
+                for (const r of item.rooms) {
+                    const unitPrice = r.contractedPrice ?? r.pricePerNight ?? 0;
+                    const rQty = r.quantity || 1;
+                    const rTotal = r.agreedTotal || (unitPrice * rQty);
+                    poItems.push({
+                        id: crypto.randomUUID(),
+                        description: `${item.title} - ${r.roomName}`,
+                        quantity: rQty,
+                        unit_price: r.agreedTotal ? (r.agreedTotal / rQty) : unitPrice,
+                        total_price: rTotal
+                    });
+                }
+            } else {
+                const qty = item.quantity || 1;
+                const iTotal = item.agreedPrice || item.referenceTotal || 0;
+                poItems.push({
+                    id: crypto.randomUUID(),
+                    description: item.title,
+                    quantity: qty,
+                    unit_price: item.agreedPrice ? (item.agreedPrice / qty) : item.unitPrice,
+                    total_price: iTotal
+                });
+            }
+        }
+
+        try {
+            const res = await savePurchaseOrderAction({
+                tour_id: tripData.id,
+                vendor_name: vendorGroup,
+                vendor_type: 'other', 
+                status: 'Draft',
+                total_amount: total,
+                subtotal: total
+            }, poItems);
+            
+            if (res.success) {
+                alert(`Draft PO for ${vendorGroup} created successfully! You can find it in the Booking & Finance step.`);
+            } else {
+                alert("Failed to create PO.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error creating PO.");
         }
     };
 
@@ -178,7 +245,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                     <span className="text-xs font-bold bg-brand-gold/10 text-brand-gold px-3 py-1 rounded-full uppercase tracking-widest">{negotiableItems.length} Items</span>
                 </div>
 
-                <div className="divide-y divide-neutral-100">
+                <div className="flex flex-col gap-6 p-6 bg-neutral-50/30">
                     {negotiableItems.length === 0 ? (
                         <div className="p-12 text-center flex flex-col items-center justify-center opacity-70">
                             <AlertTriangle className="text-neutral-400 w-12 h-12 mb-4" />
@@ -186,36 +253,65 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                             <p className="text-sm text-neutral-400 mt-1">Assign vendors in the Itinerary Builder first.</p>
                         </div>
                     ) : (
-                        negotiableItems.map(item => {
-                            const { id, block: b, title, vendorName, unitPrice, quantity, referenceTotal, icon, isHotelWithRooms, accIndex, rooms, agreedPrice, mealPlan } = item;
+                        Object.entries(
+                            negotiableItems.reduce((acc, item) => {
+                                const vendor = item.vendorName || "Unknown Vendor";
+                                if (!acc[vendor]) acc[vendor] = [];
+                                acc[vendor].push(item);
+                                return acc;
+                            }, {} as Record<string, typeof negotiableItems>)
+                        ).map(([vendorGroup, items]) => (
+                            <div key={vendorGroup} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
+                                <div className="bg-neutral-50 px-6 py-4 border-b border-neutral-200 flex items-center gap-3">
+                                    <Building2 className="text-brand-gold w-5 h-5" />
+                                    <h5 className="font-bold text-brand-charcoal text-lg">{vendorGroup}</h5>
+                                    <span className="text-xs bg-white border border-neutral-200 text-neutral-500 px-2 py-1 rounded-full ml-auto mr-2">{items.length} {items.length === 1 ? 'Service' : 'Services'}</span>
+                                    <button 
+                                        onClick={() => handleDraftPO(vendorGroup, items)}
+                                        className="flex items-center gap-1 text-xs font-bold bg-brand-green text-white px-3 py-1.5 rounded-full hover:bg-brand-green/90 transition-colors shadow-sm"
+                                    >
+                                        <FileText size={12} />
+                                        Draft PO
+                                    </button>
+                                </div>
+                                <div className="divide-y divide-neutral-100">
+                                    {items.map(item => {
+                                        const { id, block: b, title, vendorName, unitPrice, quantity, referenceTotal, icon, isHotelWithRooms, accIndex, rooms, agreedPrice, mealPlan } = item;
 
-                            return (
-                                <div key={id} className="p-6 hover:bg-neutral-50/50 transition-colors">
-                                    <div className="flex flex-col lg:flex-row gap-6 justify-between">
+                                        let exactDateStr = "";
+                                        if (tripData.profile?.arrivalDate) {
+                                            const dateObj = new Date(tripData.profile.arrivalDate);
+                                            dateObj.setDate(dateObj.getDate() + (b.dayNumber - 1));
+                                            exactDateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                        }
 
-                                        {/* Left: Info */}
-                                        <div className="flex gap-4 w-full lg:w-1/4 shrink-0">
-                                            <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 shadow-sm flex items-center justify-center shrink-0">
-                                                {icon}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded uppercase tracking-wider">Day {b.dayNumber}</span>
-                                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded uppercase tracking-wider">{b.type}</span>
-                                                </div>
-                                                <h5 className="font-bold text-brand-charcoal text-base">{title}</h5>
-                                                <p className="text-sm text-neutral-500 mt-0.5 flex items-center gap-1">
-                                                    <Building2 size={12} className="inline opacity-50" /> {vendorName}
-                                                </p>
-                                            </div>
-                                        </div>
+                                        return (
+                                            <div key={id} className="p-6 hover:bg-neutral-50/50 transition-colors">
+                                                <div className="flex flex-col lg:flex-row gap-6 justify-between">
+
+                                                    {/* Left: Info */}
+                                                    <div className="flex gap-4 w-full lg:w-1/4 shrink-0">
+                                                        <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 shadow-sm flex items-center justify-center shrink-0">
+                                                            {icon}
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded uppercase tracking-wider">
+                                                                    Day {b.dayNumber} {exactDateStr && `• ${exactDateStr}`}
+                                                                </span>
+                                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded uppercase tracking-wider">{b.type}</span>
+                                                            </div>
+                                                            <h5 className="font-bold text-brand-charcoal text-base">{title}</h5>
+                                                        </div>
+                                                    </div>
 
                                         {/* Center/Right: Pricing & Negotiation */}
                                         <div className="flex flex-col flex-1 shrink-0 gap-4">
                                             {isHotelWithRooms ? (
                                                 <div className="space-y-4">
                                                     {rooms.map((room: any, rIdx: number) => {
-                                                        const roomRefTotal = (room.pricePerNight || 0) * (room.quantity || 1);
+                                                        const roomRefPrice = room.contractedPrice ?? room.pricePerNight ?? 0;
+                                                        const roomRefTotal = roomRefPrice * (room.quantity || 1);
                                                         const roomAgreedPrice = room.agreedTotal;
                                                         const parsedReqType = room.reqId?.split('-')[0] || '';
                                                         return (
@@ -231,7 +327,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                 <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
                                                                     <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
                                                                     <div className="flex items-center gap-2 text-sm justify-between w-full">
-                                                                        <span className="font-mono text-neutral-500">{room.pricePerNight > 0 ? room.pricePerNight.toLocaleString() : '-'}</span>
+                                                                        <span className="font-mono text-neutral-500">{roomRefPrice > 0 ? roomRefPrice.toLocaleString() : '-'}</span>
                                                                         <span className="text-neutral-400 text-xs font-bold">× {room.quantity}</span>
                                                                         <span className="text-neutral-300 font-bold">=</span>
                                                                         <span className="font-mono font-bold text-brand-charcoal">{roomRefTotal > 0 ? roomRefTotal.toLocaleString() : '-'}</span>
@@ -382,10 +478,13 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                             )}
                                         </div>
 
-                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })
+                            </div>
+                        ))
                     )}
                 </div>
             </div>
