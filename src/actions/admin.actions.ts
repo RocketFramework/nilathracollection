@@ -256,6 +256,17 @@ export async function getRestaurantsAction() {
     }
 }
 
+export async function searchRestaurantsAction(searchTerm: string) {
+    try {
+        const supabase = createAdminClient();
+        const { data: restaurants } = await MasterDataService.getRestaurants({ client: supabase, searchTerm });
+        return { success: true, restaurants };
+    } catch (error: any) {
+        console.error("Error searching restaurants:", error);
+        return { error: error.message || "Failed to search restaurants." };
+    }
+}
+
 export async function saveRestaurantAction(restaurant: Restaurant) {
     try {
         await MasterDataService.saveRestaurant(restaurant);
@@ -713,6 +724,11 @@ export async function getAppMarkupsAction() {
             restaurant_markup: 10,
             tour_guide_markup: 10,
             vendor_activity_markup: 10,
+            transport_markup: 10,
+            regular_vehicle_km_rate: 0,
+            premium_vehicle_km_rate: 0,
+            luxury_vehicle_km_rate: 0,
+            ultra_vip_vehicle_km_rate: 0,
         };
 
         if (data) {
@@ -731,6 +747,11 @@ export async function getAppMarkupsAction() {
             restaurant_markup: 10,
             tour_guide_markup: 10,
             vendor_activity_markup: 10,
+            transport_markup: 10,
+            regular_vehicle_km_rate: 0,
+            premium_vehicle_km_rate: 0,
+            luxury_vehicle_km_rate: 0,
+            ultra_vip_vehicle_km_rate: 0,
         } };
     }
 }

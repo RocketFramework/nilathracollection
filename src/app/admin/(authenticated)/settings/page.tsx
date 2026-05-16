@@ -11,6 +11,11 @@ export default function SettingsPage() {
         restaurant_markup: 10,
         tour_guide_markup: 10,
         vendor_activity_markup: 10,
+        transport_markup: 10,
+        regular_vehicle_km_rate: 0,
+        premium_vehicle_km_rate: 0,
+        luxury_vehicle_km_rate: 0,
+        ultra_vip_vehicle_km_rate: 0,
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -144,11 +149,116 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Transport Markup (%)</label>
+                        <div className="flex items-center relative">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={markups.transport_markup}
+                                onChange={(e) => setMarkups({ ...markups, transport_markup: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
+                            />
+                            <span className="absolute right-4 text-neutral-400 font-bold">%</span>
+                        </div>
+                    </div>
+
                     <div className="col-span-1 md:col-span-2 mt-2">
                         <p className="text-xs text-neutral-500">
                             These markups will be applied automatically to the base contracted rates in the Itinerary Builder.
                             <br/>Example: A rate of $100 with a 10% markup will result in an agreed unit price of $110.
                         </p>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">Transport Vehicle Per KM Rates</h2>
+                        <p className="text-sm text-neutral-500">Configure global per km charges for different vehicle classes.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Regular Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.regular_vehicle_km_rate}
+                                onChange={(e) => setMarkups({ ...markups, regular_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Premium Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.premium_vehicle_km_rate}
+                                onChange={(e) => setMarkups({ ...markups, premium_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Luxury Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.luxury_vehicle_km_rate}
+                                onChange={(e) => setMarkups({ ...markups, luxury_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Ultra VIP Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.ultra_vip_vehicle_km_rate}
+                                onChange={(e) => setMarkups({ ...markups, ultra_vip_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
                     </div>
                 </div>
 

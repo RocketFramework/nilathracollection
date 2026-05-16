@@ -20,10 +20,12 @@ import {
     getDriversAction,
     getTourGuidesAction,
     getRestaurantsAction,
+    searchRestaurantsAction,
     getActivitiesAction,
     getAIRulesAction,
     saveAIRuleAction,
-    getRoomMarkupAction
+    getRoomMarkupAction,
+    getAppMarkupsAction
 } from "@/actions/admin.actions";
 import { AIRule } from "@/types/ai";
 import { ItineraryPdfTemplate } from "../components/ItineraryPdfTemplate";
@@ -138,12 +140,19 @@ export function ItineraryBuilder({
 
     // Settings State
     const [roomMarkup, setRoomMarkup] = useState<number>(10);
+    const [markups, setMarkups] = useState<Record<string, number>>({});
 
     // Hotel Search State
     const [hotelSearchCity, setHotelSearchCity] = useState('');
     const [hotelSearchName, setHotelSearchName] = useState('');
     const [hotelSearchResults, setHotelSearchResults] = useState<any[] | null>(null);
     const [isSearchingHotels, setIsSearchingHotels] = useState(false);
+
+    // Restaurant Search State
+    const [restaurantSearchCity, setRestaurantSearchCity] = useState('');
+    const [restaurantSearchName, setRestaurantSearchName] = useState('');
+    const [restaurantSearchResults, setRestaurantSearchResults] = useState<any[] | null>(null);
+    const [isSearchingRestaurants, setIsSearchingRestaurants] = useState(false);
 
     const handleAddComment = async (blockId: string) => {
         const text = commentDrafts[blockId];
@@ -190,7 +199,7 @@ export function ItineraryBuilder({
                     getRestaurantsAction(),
                     getTransportProvidersAction(),
                     getActivitiesAction(),
-                    getRoomMarkupAction()
+                    getAppMarkupsAction()
                 ]);
                 setMasterData({
                     hotels: h.success ? h.hotels : [],
@@ -201,8 +210,9 @@ export function ItineraryBuilder({
                     transportProviders: tp.success ? tp.providers : [],
                     activities: act.success ? (act.data || (act as any).activities || []) : []
                 });
-                if (markupRes && markupRes.success && markupRes.markup !== undefined) {
-                    setRoomMarkup(markupRes.markup);
+                if (markupRes && markupRes.success && markupRes.markups) {
+                    setMarkups(markupRes.markups);
+                    setRoomMarkup(markupRes.markups.room_markup ?? 10);
                 }
             } catch (err) {
                 console.error("Failed to load master data for assignment:", err);
@@ -236,6 +246,30 @@ export function ItineraryBuilder({
         }
     };
 
+    const handleSearchRestaurants = async () => {
+        setIsSearchingRestaurants(true);
+        try {
+            // we combine city and name if available
+            const searchTerm = [restaurantSearchName, restaurantSearchCity].filter(Boolean).join(' ');
+            const res = await searchRestaurantsAction(searchTerm);
+            if (res.success && res.restaurants) {
+                setRestaurantSearchResults(res.restaurants);
+                setMasterData(prev => {
+                    const existingIds = new Set(prev.restaurants.map((r:any) => r.id));
+                    const newRests = res.restaurants.filter((r: any) => !existingIds.has(r.id));
+                    return { ...prev, restaurants: [...prev.restaurants, ...newRests] };
+                });
+            } else {
+                setRestaurantSearchResults([]);
+            }
+        } catch (err) {
+            console.error(err);
+            setRestaurantSearchResults([]);
+        } finally {
+            setIsSearchingRestaurants(false);
+        }
+    };
+
     useEffect(() => {
         if (activeAssignment?.type === 'sleep') {
             const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
@@ -255,8 +289,26 @@ export function ItineraryBuilder({
                     setHotelSearchCity(cityToSearch);
                 }
             }
+        } else if (activeAssignment?.type === 'meal') {
+            const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
+            if (block) {
+                let cityToSearch = '';
+                if (block.restaurantId) {
+                    const r = masterData.restaurants.find((r: any) => r.id === block.restaurantId);
+                    if (r && r.city) {
+                        cityToSearch = r.city;
+                    }
+                }
+                if (!cityToSearch && block.locationName) {
+                    cityToSearch = block.locationName.split(',')[0].trim();
+                }
+                
+                if (cityToSearch) {
+                    setRestaurantSearchCity(cityToSearch);
+                }
+            }
         }
-    }, [activeAssignment?.blockId, activeAssignment?.type, tripData.itinerary, masterData.hotels]);
+    }, [activeAssignment?.blockId, activeAssignment?.type, tripData.itinerary, masterData.hotels, masterData.restaurants]);
 
     // Load AI Rules
     useEffect(() => {
@@ -426,42 +478,72 @@ export function ItineraryBuilder({
 
     const totalCosts = useMemo(() => {
         let hotels = 0;
+        let hotelsContracted = 0;
         let acts = 0;
-        const rest = 0;
+        let actsContracted = 0;
         let trans = 0;
+        let transContracted = 0;
         const pax = (tripData.profile.adults || 0) + (tripData.profile.children || 0);
+        const roomMarkup = markups.room_markup ?? 10;
 
         // Count hotel costs
         tripData.accommodations.forEach(h => {
             if (h.selectedRooms && h.selectedRooms.length > 0) {
                 h.selectedRooms.forEach((sr: any) => {
                     const baseCost = sr.contractedPrice !== undefined ? sr.contractedPrice : (sr.pricePerNight || 0);
-                    hotels += baseCost * (sr.quantity || 1);
+                    const dynamicAgreedUnit = baseCost * (1 + (roomMarkup / 100));
+                    const roomAgreedTotal = sr.agreedTotal !== undefined ? sr.agreedTotal : (dynamicAgreedUnit * (sr.quantity || 1));
+                    
+                    hotelsContracted += baseCost * (sr.quantity || 1);
+                    hotels += roomAgreedTotal;
                 });
             } else {
-                hotels += (h.pricePerNight || 0) * (h.numberOfRooms || 1);
+                const baseCost = h.pricePerNight || 0;
+                const dynamicAgreedUnit = baseCost * (1 + (roomMarkup / 100));
+                hotelsContracted += baseCost * (h.numberOfRooms || 1);
+                hotels += dynamicAgreedUnit * (h.numberOfRooms || 1);
             }
         });
 
         // Count transport costs
+        const travelStyle = tripData.profile?.travelStyle || 'Standard';
+        let vehicleKmRate = markups.regular_vehicle_km_rate || 0;
+        if (travelStyle === 'Premium') vehicleKmRate = markups.premium_vehicle_km_rate || 0;
+        else if (travelStyle === 'Luxury') vehicleKmRate = markups.luxury_vehicle_km_rate || 0;
+        else if (travelStyle === 'Ultra VIP') vehicleKmRate = markups.ultra_vip_vehicle_km_rate || 0;
+        const transportMarkup = markups.transport_markup || 10;
+
         // 1. Segment-specific costs
         tripData.itinerary.forEach(b => {
-            if (b.type === 'travel' && b.transportId && b.vehicleId) {
-                const provider = masterData.transportProviders.find(p => p.id === b.transportId);
-                const vehicle = provider?.transport_vehicles?.find(v => v.id === b.vehicleId);
-                const qty = b.transportQuantity || 1;
+            if (b.type === 'travel') {
+                let distanceNum = 0;
+                if (b.distance) {
+                    const d = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                    if (!isNaN(d)) distanceNum = d;
+                }
 
-                if (vehicle) {
-                    if (b.transportRateType === 'km') {
-                        trans += (vehicle.km_rate || 0) * qty;
-                    } else {
-                        trans += (vehicle.day_rate || 0) * qty;
-                    }
+                if (distanceNum > 0) {
+                    const baseCost = distanceNum * vehicleKmRate;
+                    const agreedCost = baseCost * (1 + (transportMarkup / 100));
+                    transContracted += baseCost;
+                    trans += agreedCost;
+                } else if (b.transportId && b.vehicleId) {
+                    // Fallback to provider day rate if no distance is provided but vehicle is assigned
+                    const provider = masterData.transportProviders.find(p => p.id === b.transportId);
+                    const vehicle = provider?.transport_vehicles?.find(v => v.id === b.vehicleId);
+                    const qty = b.transportQuantity || 1;
 
-                    // Handle driver cost if not included
-                    if (!vehicle.with_driver && b.driverId) {
-                        const driver = masterData.drivers.find(d => d.id === b.driverId);
-                        trans += (driver?.per_day_rate || 0) * qty;
+                    if (vehicle) {
+                        let cost = (vehicle.day_rate || 0) * qty;
+
+                        // Handle driver cost if not included
+                        if (!vehicle.with_driver && b.driverId) {
+                            const driver = masterData.drivers.find(d => d.id === b.driverId);
+                            cost += (driver?.per_day_rate || 0) * qty;
+                        }
+
+                        transContracted += cost;
+                        trans += b.agreedPrice !== undefined ? (b.agreedPrice * qty) : cost;
                     }
                 }
             }
@@ -478,31 +560,54 @@ export function ItineraryBuilder({
                 .find(v => v.id === tripData.defaultVehicleId);
 
             if (defaultVehicle) {
-                trans += (defaultVehicle.day_rate || 0) * uncoveredDays;
+                let cost = (defaultVehicle.day_rate || 0) * uncoveredDays;
 
                 if (!defaultVehicle.with_driver && tripData.defaultDriverId) {
                     const driver = masterData.drivers.find(d => d.id === tripData.defaultDriverId);
-                    trans += (driver?.per_day_rate || 0) * uncoveredDays;
+                    cost += (driver?.per_day_rate || 0) * uncoveredDays;
                 }
+                
+                transContracted += cost;
+                trans += cost;
             }
         }
 
         // Current block costs (Activities & Restaurants)
+        const restaurantMarkup = markups.restaurant_markup ?? 10;
+        const activityMarkup = markups.vendor_activity_markup ?? 10;
+
         tripData.itinerary.forEach(b => {
             if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
                 const vendor = masterData.vendors.find(v => v.id === b.vendorId);
                 const va = vendor?.vendor_activities?.find(va => va.id === b.vendorActivityId);
                 const fallbackVa = vendor?.vendor_activities?.find(va => va.activity_id === b.activityId);
-                acts += (b.agreedPrice || va?.vendor_price || fallbackVa?.vendor_price || 0);
+                
+                const base = b.contractedPrice !== undefined ? b.contractedPrice : (va?.vendor_price || fallbackVa?.vendor_price || 0);
+                const agreedCost = b.agreedPrice !== undefined ? b.agreedPrice : (base * (1 + (activityMarkup / 100)));
+                const qty = pax || 1; // Activities are generally per-person
+                
+                actsContracted += base * qty;
+                acts += agreedCost * qty;
             }
             if (b.type === 'meal' && b.restaurantId) {
                 const rest = masterData.restaurants.find(r => r.id === b.restaurantId);
-                acts += (rest?.lunch_rate_per_head || 25) * pax;
+                const qty = b.restaurantQuantity || pax;
+                const base = b.contractedPrice !== undefined ? b.contractedPrice : (rest?.lunch_rate_per_head || 25);
+                const agreedCost = b.agreedPrice !== undefined ? b.agreedPrice : (base * (1 + (restaurantMarkup / 100)));
+                
+                actsContracted += base * qty;
+                acts += agreedCost * qty;
             }
         });
 
-        return { hotels, activities: acts, transport: trans, total: hotels + acts + trans };
-    }, [tripData.itinerary, tripData.accommodations, masterData, tripData.profile, tripData.defaultDriverId, tripData.defaultVehicleId]);
+        return { 
+            hotels, 
+            activities: acts, 
+            transport: trans, 
+            total: hotels + acts + trans,
+            totalContracted: hotelsContracted + actsContracted + transContracted
+        };
+    }, [tripData.itinerary, tripData.accommodations, masterData, tripData.profile, tripData.defaultDriverId, tripData.defaultVehicleId, markups.room_markup]);
 
     const itinerarySummary = useMemo(() => {
         const blocks = tripData.itinerary || [];
@@ -874,6 +979,23 @@ export function ItineraryBuilder({
             }
         }
 
+        // Sync logic for restaurants
+        if (field === 'restaurantId' && block.type === 'meal') {
+            const restaurant = masterData.restaurants.find(r => r.id === value);
+            if (restaurant) {
+                const contractedRate = restaurant.lunch_rate_per_head || 25;
+                const markupPercent = markups.restaurant_markup ?? 10;
+                const agreedPrice = contractedRate * (1 + markupPercent / 100);
+                
+                updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? { 
+                    ...b, 
+                    [field]: value,
+                    contractedPrice: contractedRate,
+                    agreedPrice: agreedPrice
+                } : b);
+            }
+        }
+
         // Sync logic for transport defaults
         if (field === 'transportId' && block.type === 'travel') {
             const provider = masterData.transportProviders.find(p => p.id === value);
@@ -997,7 +1119,7 @@ export function ItineraryBuilder({
 
             // Fallback: show block name + price even if vendor data is not yet loaded in UI
             let fallbackLabel = block.name || 'Linked Activity';
-            if (block.agreedPrice) fallbackLabel += ` ($${block.agreedPrice.toLocaleString()})`;
+            if (block.agreedPrice && currentUserRole !== 'tourist') fallbackLabel += ` ($${block.agreedPrice.toLocaleString()})`;
 
             return { name: fallbackLabel, icon: <ActivityIcon size={12} className="text-orange-500" /> };
         }
@@ -1040,7 +1162,7 @@ export function ItineraryBuilder({
             const r = masterData.restaurants.find(x => x.id === block.restaurantId);
             let label = r?.name || 'Linked Restaurant';
             if (block.mealType) label += ` - ${block.mealType}`;
-            if (block.agreedPrice) label += ` ($${block.agreedPrice.toLocaleString()})`;
+            if (block.agreedPrice && currentUserRole !== 'tourist') label += ` ($${block.agreedPrice.toLocaleString()})`;
             return {
                 name: label,
                 icon: <Utensils size={12} className="text-green-500" />,
@@ -1054,7 +1176,7 @@ export function ItineraryBuilder({
         <div className="relative">
             <div className="space-y-6">
                 {/* Dashboard Header */}
-                {!readOnly && (
+                {!readOnly && currentUserRole !== 'tourist' && (
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-brand-gold/20 shadow-sm">
                         <div>
                             <h3 className="text-xl font-serif text-brand-green flex items-center gap-2">
@@ -1066,22 +1188,23 @@ export function ItineraryBuilder({
                         <div className="flex items-center gap-6">
                             <div className="flex gap-4">
                                 <div className="text-right">
+                                    <p className="text-[10px] text-neutral-400 uppercase font-bold">Contracted Cost</p>
+                                    <p className="text-sm font-bold text-neutral-500">${totalCosts.totalContracted.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                                </div>
+                                <div className="text-right border-l pl-4">
                                     <p className="text-[10px] text-neutral-400 uppercase font-bold">Planned Cost</p>
-                                    <p className="text-sm font-bold text-neutral-800">${totalCosts.total.toLocaleString()}</p>
+                                    <p className="text-sm font-bold text-neutral-800">${totalCosts.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                                 </div>
                                 <div className="text-right border-l pl-4">
                                     <p className="text-[10px] text-neutral-400 uppercase font-bold">Quote Margin</p>
                                     <p className="text-sm font-bold text-brand-green">
-                                        {tripData.financials.sellingPrice > 0
-                                            ? `${(((tripData.financials.sellingPrice - totalCosts.total) / tripData.financials.sellingPrice) * 100).toFixed(1)}%`
-                                            : '0%'
+                                        {totalCosts.total > 0
+                                            ? `${(((totalCosts.total - totalCosts.totalContracted) / totalCosts.total) * 100).toFixed(1)}%`
+                                            : '0.0%'
                                         }
                                     </p>
                                 </div>
-                                <div className="text-right border-l pl-4 hidden md:block">
-                                    <p className="text-[10px] text-neutral-400 uppercase font-bold">Room Markup</p>
-                                    <p className="text-sm font-bold text-brand-gold">{roomMarkup}%</p>
-                                </div>
+
                             </div>
                             <div className="flex items-center gap-3">
                                 <select
@@ -1384,7 +1507,7 @@ export function ItineraryBuilder({
                                                                                 <div>Room Name & Standard</div>
                                                                                 <div className="text-center">Count</div>
                                                                                 <div className="text-center">Meal Plan</div>
-                                                                                <div className="text-right">Total Price</div>
+                                                                                {currentUserRole !== 'tourist' && <div className="text-right">Total Price</div>}
                                                                             </div>
                                                                             {['Single', 'Double', 'Twin', 'Triple', 'Family'].map(rType => {
                                                                                 const room = acc.selectedRooms?.find((sr: any) => sr.reqId === rType);
@@ -1426,28 +1549,32 @@ export function ItineraryBuilder({
                                                                                                 <option value="AI">AI</option>
                                                                                             </select>
                                                                                         </div>
-                                                                                        <div className="text-right flex items-center justify-end gap-1">
-                                                                                            <span className="text-indigo-400 font-bold">$</span>
-                                                                                            <input 
-                                                                                                type="number" 
-                                                                                                min="0"
-                                                                                                value={price}
-                                                                                                disabled={readOnly}
-                                                                                                onChange={(e) => {
-                                                                                                    const newTotal = parseFloat(e.target.value) || 0;
-                                                                                                    const newSelected = (acc.selectedRooms || []).map((sr: any) => sr.reqId === rType ? { ...sr, agreedTotal: newTotal } : sr);
-                                                                                                    updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected } : a) });
-                                                                                                }}
-                                                                                                className="w-16 text-right font-bold bg-white border border-indigo-200 rounded py-0.5 shadow-sm outline-none focus:border-indigo-500 disabled:bg-neutral-50"
-                                                                                            />
-                                                                                        </div>
+                                                                                        {currentUserRole !== 'tourist' ? (
+                                                                                            <div className="text-right flex items-center justify-end gap-1">
+                                                                                                <span className="text-indigo-400 font-bold">$</span>
+                                                                                                <input 
+                                                                                                    type="number" 
+                                                                                                    min="0"
+                                                                                                    value={price}
+                                                                                                    disabled={readOnly}
+                                                                                                    onChange={(e) => {
+                                                                                                        const newTotal = parseFloat(e.target.value) || 0;
+                                                                                                        const newSelected = (acc.selectedRooms || []).map((sr: any) => sr.reqId === rType ? { ...sr, agreedTotal: newTotal } : sr);
+                                                                                                        updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected } : a) });
+                                                                                                    }}
+                                                                                                    className="w-16 text-right font-bold bg-white border border-indigo-200 rounded py-0.5 shadow-sm outline-none focus:border-indigo-500 disabled:bg-neutral-50"
+                                                                                                />
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <div></div>
+                                                                                        )}
                                                                                     </div>
                                                                                 );
                                                                             })}
                                                                             {totalRooms === 0 && (
                                                                                 <div className="text-center py-2 text-indigo-300 italic font-medium text-[10px]">No rooms configured. Select rooms in the binder drawer.</div>
                                                                             )}
-                                                                            {totalRooms > 0 && (
+                                                                            {totalRooms > 0 && currentUserRole !== 'tourist' && (
                                                                                 <div className="flex justify-between items-center pt-2 mt-2 border-t border-indigo-100 text-indigo-900 font-black">
                                                                                     <span>Total ({totalRooms} Rooms)</span>
                                                                                     <span>${totalPrice.toFixed(0)}</span>
@@ -1504,8 +1631,12 @@ export function ItineraryBuilder({
                                                                             <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 pb-2 mb-2 border-b border-emerald-100 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
                                                                                 <div>Meal Type</div>
                                                                                 <div className="text-center">Pax Count</div>
-                                                                                <div className="text-right">Unit Price</div>
-                                                                                <div className="text-right">Total Price</div>
+                                                                                {currentUserRole !== 'tourist' && (
+                                                                                    <>
+                                                                                        <div className="text-right">Unit Price</div>
+                                                                                        <div className="text-right">Total Price</div>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                             
                                                                             <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 py-1 items-center text-emerald-900">
@@ -1525,23 +1656,27 @@ export function ItineraryBuilder({
                                                                                         className="w-16 text-center font-bold bg-white border border-emerald-200 rounded py-0.5 shadow-sm outline-none focus:border-emerald-500 disabled:bg-neutral-50"
                                                                                     />
                                                                                 </div>
-                                                                                <div className="text-right flex items-center justify-end gap-1">
-                                                                                    <span className="text-emerald-400 font-bold">$</span>
-                                                                                    <input 
-                                                                                        type="number" 
-                                                                                        min="0"
-                                                                                        value={unitPrice}
-                                                                                        disabled={readOnly}
-                                                                                        onChange={(e) => {
-                                                                                            const newPrice = parseFloat(e.target.value) || 0;
-                                                                                            updateBlock(block.id, { agreedPrice: newPrice });
-                                                                                        }}
-                                                                                        className="w-20 text-right font-bold bg-white border border-emerald-200 rounded py-0.5 shadow-sm outline-none focus:border-emerald-500 disabled:bg-neutral-50"
-                                                                                    />
-                                                                                </div>
-                                                                                <div className="text-right font-black">
-                                                                                    ${totalPrice.toLocaleString()}
-                                                                                </div>
+                                                                                {currentUserRole !== 'tourist' && (
+                                                                                    <>
+                                                                                        <div className="text-right flex items-center justify-end gap-1">
+                                                                                            <span className="text-emerald-400 font-bold">$</span>
+                                                                                            <input 
+                                                                                                type="number" 
+                                                                                                min="0"
+                                                                                                value={unitPrice}
+                                                                                                disabled={readOnly}
+                                                                                                onChange={(e) => {
+                                                                                                    const newPrice = parseFloat(e.target.value) || 0;
+                                                                                                    updateBlock(block.id, { agreedPrice: newPrice });
+                                                                                                }}
+                                                                                                className="w-20 text-right font-bold bg-white border border-emerald-200 rounded py-0.5 shadow-sm outline-none focus:border-emerald-500 disabled:bg-neutral-50"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <div className="text-right font-black">
+                                                                                            ${totalPrice.toLocaleString()}
+                                                                                        </div>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -1830,7 +1965,7 @@ export function ItineraryBuilder({
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto space-y-4">
-                                {activeAssignment.type !== 'sleep' && (
+                                {activeAssignment.type !== 'sleep' && activeAssignment.type !== 'meal' && (
                                     <div className="relative">
                                         <Search className="absolute left-3 top-2.5 text-neutral-300" size={16} />
                                         <input
@@ -1872,6 +2007,40 @@ export function ItineraryBuilder({
                                             className="w-full py-2 bg-black text-white text-sm font-medium rounded-lg disabled:opacity-50 hover:bg-neutral-800 transition-colors"
                                         >
                                             {isSearchingHotels ? "Searching..." : "Search Hotels"}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {activeAssignment.type === 'meal' && (
+                                    <div className="bg-white p-4 rounded-2xl border border-neutral-200 shadow-sm mb-4 space-y-3">
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <label className="text-xs font-semibold text-neutral-500 mb-1 block">City (Required)</label>
+                                                <input
+                                                    value={restaurantSearchCity}
+                                                    onChange={e => setRestaurantSearchCity(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
+                                                    placeholder="E.g. Colombo"
+                                                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-xs font-semibold text-neutral-500 mb-1 block">Restaurant Name</label>
+                                                <input
+                                                    value={restaurantSearchName}
+                                                    onChange={e => setRestaurantSearchName(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
+                                                    placeholder="Optional name"
+                                                    className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                                                />
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleSearchRestaurants}
+                                            disabled={!restaurantSearchCity.trim() || isSearchingRestaurants}
+                                            className="w-full py-2 bg-black text-white text-sm font-medium rounded-lg disabled:opacity-50 hover:bg-neutral-800 transition-colors"
+                                        >
+                                            {isSearchingRestaurants ? "Searching..." : "Search Restaurants"}
                                         </button>
                                     </div>
                                 )}
@@ -2403,10 +2572,21 @@ export function ItineraryBuilder({
                                         </>
                                     )}
 
-                                    {activeAssignment.type === 'meal' && (
+                                    {activeAssignment.type === 'meal' && (() => {
+                                        const dataToRender = restaurantSearchResults !== null ? restaurantSearchResults : [];
+
+                                        if (restaurantSearchResults === null) {
+                                            return <div className="p-8 text-center text-neutral-400 text-sm">Please search for a city to view available restaurants.</div>;
+                                        }
+
+                                        if (restaurantSearchResults.length === 0) {
+                                            return <div className="p-8 text-center text-neutral-400 text-sm">No restaurants found. Try adjusting your search.</div>;
+                                        }
+                                        
+                                        return (
                                         <>
                                             <div className="grid grid-cols-1 gap-4 p-4">
-                                                {(filteredMasterData as any[]).map(r => {
+                                                {dataToRender.map(r => {
                                                     const currentBlock = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
                                                     const isSelected = currentBlock?.restaurantId === r.id;
                                                     return (
@@ -2449,13 +2629,17 @@ export function ItineraryBuilder({
                                                                         { id: 'breakfast', label: 'Breakfast', active: r.has_breakfast, price: r.breakfast_rate_per_head },
                                                                         { id: 'lunch', label: 'Lunch', active: r.has_lunch, price: r.lunch_rate_per_head },
                                                                         { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head }
-                                                                    ].filter(m => m.active).map(meal => (
-                                                                        <button key={meal.id} onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, agreedPrice: meal.price || 0 })}
+                                                                    ].filter(m => m.active).map(meal => {
+                                                                        const contractedRate = meal.price || 0;
+                                                                        const markupPercent = markups.restaurant_markup ?? 10;
+                                                                        const agreedPrice = contractedRate * (1 + markupPercent / 100);
+                                                                        return (
+                                                                        <button key={meal.id} onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}
                                                                             className={`p-3 rounded-lg flex items-center justify-between text-xs font-bold ${currentBlock?.mealType === meal.label ? 'bg-white border-brand-gold border shadow-sm' : 'bg-white/50 border-transparent hover:border-neutral-200 border'}`}>
                                                                             <span>{meal.label}</span>
-                                                                            <span className="text-brand-green">${(meal.price || 0).toLocaleString()}</span>
+                                                                            <span className="text-brand-green">${agreedPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                                                         </button>
-                                                                    ))}
+                                                                    )})}
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -2470,7 +2654,8 @@ export function ItineraryBuilder({
                                                 </button>
                                             </div>
                                         </>
-                                    )}
+                                        );
+                                    })()}
 
                                     {activeAssignment.type === 'guide' && (
                                         <>
@@ -2529,7 +2714,12 @@ export function ItineraryBuilder({
                                     <button
                                         onClick={() => {
                                             const block = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
-                                            const fields: (keyof InternalItineraryBlock)[] = ['hotelId', 'vendorId', 'transportId', 'driverId', 'restaurantId', 'guideId', 'vehicleId'];
+                                            const fields: (keyof InternalItineraryBlock)[] = [
+                                                'hotelId', 'vendorId', 'transportId', 'driverId', 
+                                                'restaurantId', 'guideId', 'vehicleId', 
+                                                'contractedPrice', 'agreedPrice', 'vendorActivityId', 
+                                                'mealType', 'transportRateType', 'transportQuantity'
+                                            ];
                                             const blockUpdates: Partial<InternalItineraryBlock> = {};
                                             fields.forEach(f => (blockUpdates as any)[f] = undefined);
 

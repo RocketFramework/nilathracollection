@@ -276,7 +276,7 @@ export function FinanceAndBookingStep({
                     vendorPhone = vendor?.phone || '';
                     vendorEmail = vendor?.email || '';
                     vendorType = 'vendor';
-                    let price = block.agreedPrice || 0;
+                    let price = block.contractedPrice !== undefined ? block.contractedPrice : (block.agreedPrice || 0);
 
                     if (block.guideId || tripData.defaultGuideId) {
                         if (!dayServiceMap.has(block.dayNumber)) dayServiceMap.set(block.dayNumber, new Set());
@@ -347,7 +347,7 @@ export function FinanceAndBookingStep({
                     vendorRef = { restaurant_id: block.restaurantId };
                     vendorName = rest ? rest.name : (block.serviceProvider || block.name);
                     vendorAddress = rest?.address || '';
-                    let price = block.agreedPrice || rest?.lunch_rate_per_head || 0;
+                    let price = block.contractedPrice !== undefined ? block.contractedPrice : (block.agreedPrice || rest?.lunch_rate_per_head || 0);
                     vendorPhone = rest?.contact_number || '';
                     vendorEmail = rest?.email || '';
                     vendorType = 'vendor';

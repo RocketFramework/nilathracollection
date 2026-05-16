@@ -275,6 +275,22 @@ export class TourService {
     static async saveTour(tourId: string, tripData: TripData) {
         const supabaseAdmin = createAdminClient();
 
+        const { data: rawSettings } = await supabaseAdmin.from('app_settings').select('setting_key, setting_value');
+        const settingsMap: Record<string, number> = {};
+        if (rawSettings) {
+            rawSettings.forEach(s => settingsMap[s.setting_key] = Number(s.setting_value) || 0);
+        }
+        const roomMarkup = settingsMap.room_markup || 10;
+        const transportMarkup = settingsMap.transport_markup || 10;
+        const restaurantMarkup = settingsMap.restaurant_markup || 10;
+        const activityMarkup = settingsMap.vendor_activity_markup || 10;
+        
+        const travelStyle = tripData.profile?.travelStyle || 'Standard';
+        let vehicleKmRate = settingsMap.regular_vehicle_km_rate || 0;
+        if (travelStyle === 'Premium') vehicleKmRate = settingsMap.premium_vehicle_km_rate || 0;
+        else if (travelStyle === 'Luxury') vehicleKmRate = settingsMap.luxury_vehicle_km_rate || 0;
+        else if (travelStyle === 'Ultra VIP') vehicleKmRate = settingsMap.ultra_vip_vehicle_km_rate || 0;
+
         // Dynamically recalculate itinerary summary to prevent React state staleness
         const blocks = tripData.itinerary || [];
         const processedDistances = new Set<string>();
@@ -307,11 +323,10 @@ export class TourService {
             }
         });
 
-        // 1. SAVE RAW JSONB STATE & BASIC RELATIONAL TOUR INFO
+        // 1. SAVE BASIC RELATIONAL TOUR INFO
         const { data: tourData, error: tourErr } = await supabaseAdmin
             .from('tours')
             .update({
-                planner_data: { ...tripData, id: tourId },
                 title: tripData.clientName,
                 status: tripData.status,
                 start_date: tripData.profile?.arrivalDate || null,
@@ -341,8 +356,12 @@ export class TourService {
         }
 
         // 2. SYNC ITINERARY TO RELATIONAL TABLES
-        // Delete old itineraries (Cascade deletes daily_activities)
-        await supabaseAdmin.from('tour_itineraries').delete().eq('tour_id', tourId);
+        // Explicitly delete daily_activities and tour_itineraries directly by tour_id
+        const { error: daDeleteErr } = await supabaseAdmin.from('daily_activities').delete().eq('tour_id', tourId);
+        if (daDeleteErr) console.error("Failed to delete daily_activities by tour_id:", daDeleteErr);
+        
+        const { error: itinDeleteErr } = await supabaseAdmin.from('tour_itineraries').delete().eq('tour_id', tourId);
+        if (itinDeleteErr) console.error("Failed to delete tour_itineraries by tour_id:", itinDeleteErr);
 
         // Map TripData.itinerary into days
         if (!tripData.itinerary || tripData.itinerary.length === 0) return;
@@ -355,6 +374,8 @@ export class TourService {
         }
 
         const days = Object.keys(blocksByDay).map(Number).sort((a, b) => a - b);
+
+        let grandTotalCost = 0;
 
         for (const day of days) {
 
@@ -416,12 +437,7 @@ export class TourService {
                 throw new Error(`Failed to save itinerary day ${day}: ${err.message}`);
             }
 
-            // Fetch markup for dynamic pricing calculation
-            const { data: markupData, error: markupError } = await supabaseAdmin.from('app_settings').select('setting_value').eq('setting_key', 'room_markup').single();
-            let roomMarkup = 10;
-            if (!markupError && markupData?.setting_value !== undefined) {
-                roomMarkup = Number(markupData.setting_value);
-            }
+            // Room markup is now fetched at the beginning of saveTour
 
             const blocks = blocksByDay[day];
 
@@ -462,7 +478,7 @@ export class TourService {
                 }
 
                 let basePayload: any = {
-                    id: crypto.randomUUID(),
+                    id: b.id, // Bind directly to the JSON block ID to ensure 1:1 mapping with the UI
                     tour_id: tourId,
                     itinerary_id: dbItin.id,
                     title: b.name,
@@ -560,12 +576,50 @@ export class TourService {
                     if (b.type === 'meal' && b.restaurantQuantity) {
                         quantity = b.restaurantQuantity;
                     }
+                    
+                    let contractedPrice = b.contractedPrice;
                     let agreedUnitPrice = b.agreedPrice || null;
                     let agreedTotalPrice = agreedUnitPrice ? agreedUnitPrice * quantity : null;
+
+                    if (b.type === 'travel') {
+                        // Dynamically calculate based on km and travel style if we have a distance
+                        let distanceNum = 0;
+                        if (b.distance) {
+                            const d = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                            if (!isNaN(d)) distanceNum = d;
+                        }
+                        
+                        if (distanceNum > 0) {
+                            contractedPrice = distanceNum * vehicleKmRate;
+                            agreedUnitPrice = contractedPrice * (1 + (transportMarkup / 100));
+                            agreedTotalPrice = agreedUnitPrice; // total for the distance
+                            quantity = 1; // It's not a per-person unit here, it's a per-segment unit
+                        }
+                    } else if (b.type === 'meal') {
+                        if (contractedPrice !== undefined && contractedPrice !== null && !b.agreedPrice) {
+                            agreedUnitPrice = contractedPrice * (1 + (restaurantMarkup / 100));
+                            agreedTotalPrice = agreedUnitPrice * quantity;
+                        }
+                    } else if (b.type === 'activity') {
+                        if (contractedPrice !== undefined && contractedPrice !== null && !b.agreedPrice) {
+                            agreedUnitPrice = contractedPrice * (1 + (activityMarkup / 100));
+                            agreedTotalPrice = agreedUnitPrice * quantity;
+                        }
+                    }
+
+                    // Enforce mutations on the original block reference so it persists to JSON planner_data
+                    b.contractedPrice = contractedPrice;
+                    b.agreedPrice = agreedUnitPrice ?? undefined;
+                    if (b.type === 'travel') {
+                        b.transportQuantity = quantity;
+                    } else if (b.type === 'meal') {
+                        b.restaurantQuantity = quantity;
+                    }
 
                     activitiesToInsert.push({
                         ...basePayload,
                         quantity: quantity,
+                        contracted_price: contractedPrice,
                         charged_unit_price: agreedUnitPrice,
                         charged_total_price: agreedTotalPrice,
                         meal_plan: b.mealType || null
@@ -579,7 +633,20 @@ export class TourService {
                     console.error("Failed to insert activities for day", day, actErr);
                     throw new Error(`Failed to save activities for Day ${day}: ${actErr.message}`);
                 }
+
+                // Accumulate grand total cost
+                for (const act of activitiesToInsert) {
+                    if (act.charged_total_price) {
+                        grandTotalCost += act.charged_total_price;
+                    }
+                }
             }
         }
+
+        // Final update for total_cost AND fully enriched planner_data JSON
+        await supabaseAdmin.from('tours').update({ 
+            total_cost: grandTotalCost,
+            planner_data: { ...tripData, id: tourId }
+        }).eq('id', tourId);
     }
 }
