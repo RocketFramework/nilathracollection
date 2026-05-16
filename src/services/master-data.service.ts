@@ -505,7 +505,21 @@ export class MasterDataService {
             const { error } = await dbClient.from('transport_providers').update(payload).eq('id', id);
             if (error) throw error;
 
-            await dbClient.from('transport_vehicles').delete().eq('provider_id', id);
+            // Attempt to clean up vehicles that were removed in the UI
+            if (transport_vehicles) {
+                const { data: existingVehicles } = await dbClient.from('transport_vehicles').select('id').eq('provider_id', id);
+                const incomingIds = transport_vehicles.map(v => v.id).filter(Boolean);
+                
+                if (existingVehicles) {
+                    const toDelete = existingVehicles.map((v: any) => v.id).filter((vid: any) => !incomingIds.includes(vid));
+                    if (toDelete.length > 0) {
+                        const { error: delErr } = await dbClient.from('transport_vehicles').delete().in('id', toDelete);
+                        if (delErr) {
+                            console.warn("Skipping deletion of some vehicles due to active database relationships:", delErr);
+                        }
+                    }
+                }
+            }
         } else {
             const { data, error } = await dbClient.from('transport_providers').insert([payload]).select().single();
             if (error) throw error;
@@ -514,6 +528,7 @@ export class MasterDataService {
 
         if (transport_vehicles && transport_vehicles.length > 0 && savedProviderId) {
             const mappedVehicles = transport_vehicles.map(v => ({
+                ...(v.id ? { id: v.id } : {}), // Persist ID for upsert logic
                 provider_id: savedProviderId,
                 vehicle_type: v.vehicle_type,
                 make_and_model: v.make_and_model,
@@ -525,7 +540,8 @@ export class MasterDataService {
                 max_km_per_day: v.max_km_per_day,
                 additional_km_rate: v.additional_km_rate
             }));
-            const { error: vehError } = await dbClient.from('transport_vehicles').insert(mappedVehicles);
+            
+            const { error: vehError } = await dbClient.from('transport_vehicles').upsert(mappedVehicles, { onConflict: 'id' });
             if (vehError) throw vehError;
         }
 

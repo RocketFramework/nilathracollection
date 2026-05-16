@@ -547,6 +547,9 @@ export class TourService {
                             const dynamicAgreedUnit = baseContractedUnit * (1 + (roomMarkup / 100));
                             const roomAgreedTotal = (room as any).agreedTotal !== undefined ? (room as any).agreedTotal : (dynamicAgreedUnit * room.quantity);
                             totalAgreedPrice += roomAgreedTotal;
+                            
+                            // Mutate the original room object so it persists to JSON for the Negotiation UI
+                            (room as any).agreedTotal = roomAgreedTotal;
 
                             if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
                         }
@@ -556,6 +559,8 @@ export class TourService {
                         basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
                         basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
                         basePayload.meal_plan = mealPlan;
+                        
+                        b.agreedPrice = basePayload.charged_total_price ?? undefined;
                         activitiesToInsert.push(basePayload);
                     } else if (acc) {
                         // Legacy single-room fallback mapping targeting standard double default
@@ -567,6 +572,8 @@ export class TourService {
                         basePayload.charged_unit_price = acc.pricePerNight || null;
                         basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
                         basePayload.meal_plan = acc.mealPlan || null;
+                        
+                        b.agreedPrice = basePayload.charged_total_price ?? undefined;
                         activitiesToInsert.push(basePayload);
                     } else {
                         activitiesToInsert.push(basePayload);
@@ -578,8 +585,10 @@ export class TourService {
                     }
                     
                     let contractedPrice = b.contractedPrice;
-                    let agreedUnitPrice = b.agreedPrice || null;
-                    let agreedTotalPrice = agreedUnitPrice ? agreedUnitPrice * quantity : null;
+                    
+                    // b.agreedPrice from the UI represents the TOTAL negotiated price for the block
+                    let agreedTotalPrice = b.agreedPrice || null;
+                    let agreedUnitPrice = agreedTotalPrice ? agreedTotalPrice / quantity : null;
 
                     if (b.type === 'travel') {
                         // Dynamically calculate based on km and travel style if we have a distance
@@ -590,10 +599,34 @@ export class TourService {
                         }
                         
                         if (distanceNum > 0) {
-                            contractedPrice = distanceNum * vehicleKmRate;
-                            agreedUnitPrice = contractedPrice * (1 + (transportMarkup / 100));
-                            agreedTotalPrice = agreedUnitPrice; // total for the distance
-                            quantity = 1; // It's not a per-person unit here, it's a per-segment unit
+                            let dynamicVehicleKmRate = vehicleKmRate; // Fallback to global settings
+                            const effectiveVehicleId = (b.vehicleId && b.vehicleId.includes('-')) ? b.vehicleId : (tripData.defaultVehicleId || null);
+                            
+                            if (effectiveVehicleId) {
+                                const { data: vData } = await supabaseAdmin
+                                    .from('transport_vehicles')
+                                    .select('additional_km_rate')
+                                    .eq('id', effectiveVehicleId)
+                                    .single();
+                                
+                                if (vData && vData.additional_km_rate) {
+                                    dynamicVehicleKmRate = vData.additional_km_rate;
+                                }
+                            }
+
+                            // Always enforce the actual vehicle's km rate as the contracted base unit rate
+                            contractedPrice = dynamicVehicleKmRate;
+                            
+                            quantity = distanceNum; // Distance is the multiplier (quantity)
+                            
+                            // Respect manually negotiated agreed TOTAL price if it exists
+                            if (b.agreedPrice) {
+                                agreedTotalPrice = b.agreedPrice;
+                                agreedUnitPrice = agreedTotalPrice / quantity;
+                            } else {
+                                agreedUnitPrice = (contractedPrice || 0) * (1 + (transportMarkup / 100));
+                                agreedTotalPrice = agreedUnitPrice * quantity;
+                            }
                         }
                     } else if (b.type === 'meal') {
                         if (contractedPrice !== undefined && contractedPrice !== null && !b.agreedPrice) {
@@ -609,7 +642,7 @@ export class TourService {
 
                     // Enforce mutations on the original block reference so it persists to JSON planner_data
                     b.contractedPrice = contractedPrice;
-                    b.agreedPrice = agreedUnitPrice ?? undefined;
+                    b.agreedPrice = agreedTotalPrice ?? undefined; // Always store total in JSON so UI Final Price works correctly
                     if (b.type === 'travel') {
                         b.transportQuantity = quantity;
                     } else if (b.type === 'meal') {

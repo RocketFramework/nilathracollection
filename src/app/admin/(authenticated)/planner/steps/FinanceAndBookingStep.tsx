@@ -220,7 +220,7 @@ export function FinanceAndBookingStep({
                     vendorEmail = hotel?.sales_agent_name || '';
                     vendorType = 'hotel';
                     const acc = tripData.accommodations?.find(a => a.nightIndex === block.dayNumber && (a.hotelId === block.hotelId || a.hotelName === hotel?.name));
-                    
+
                     if (acc?.selectedRooms && acc.selectedRooms.length > 0) {
                         // Modern Granular Multi-Room Generation
                         acc.selectedRooms.forEach(sr => {

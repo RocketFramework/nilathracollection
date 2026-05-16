@@ -1,7 +1,7 @@
 "use client";
 
 import { TripData, InternalItineraryBlock } from "../types";
-import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText } from "lucide-react";
+import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import {
     getHotelsListAction,
@@ -163,7 +163,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         }
 
         const total = items.reduce((sum, item) => {
-            const itemTotal = item.isHotelWithRooms 
+            const itemTotal = item.isHotelWithRooms
                 ? item.rooms.reduce((rSum: number, r: any) => rSum + (r.agreedTotal || (r.contractedPrice ?? r.pricePerNight ?? 0) * (r.quantity || 1)), 0)
                 : (item.agreedPrice || item.referenceTotal || 0);
             return sum + itemTotal;
@@ -201,12 +201,12 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             const res = await savePurchaseOrderAction({
                 tour_id: tripData.id,
                 vendor_name: vendorGroup,
-                vendor_type: 'other', 
+                vendor_type: 'other',
                 status: 'Draft',
                 total_amount: total,
                 subtotal: total
             }, poItems);
-            
+
             if (res.success) {
                 alert(`Draft PO for ${vendorGroup} created successfully! You can find it in the Booking & Finance step.`);
             } else {
@@ -219,6 +219,116 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
     };
 
 
+    const generateQuotationRequestPDF = async (vendorGroup: string, items: any[]) => {
+        const scriptId = 'html2pdf-script';
+        if (!document.getElementById(scriptId)) {
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            document.body.appendChild(script);
+            await new Promise((resolve) => {
+                script.onload = resolve;
+            });
+        }
+
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.fontFamily = 'sans-serif';
+        container.style.color = '#333';
+        container.style.lineHeight = '1.6';
+        
+        let servicesList = '';
+        if (items && items.length > 0) {
+            servicesList = items.map(item => {
+                let exactDateStr = "TBD";
+                if (tripData.profile?.arrivalDate && item.block?.dayNumber) {
+                    const dateObj = new Date(tripData.profile.arrivalDate);
+                    dateObj.setDate(dateObj.getDate() + (item.block.dayNumber - 1));
+                    exactDateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
+
+                let details = '';
+                if (item.isHotelWithRooms) {
+                    details = item.rooms.map((r: any) => `${r.quantity || 1}x ${r.roomName} (${r.mealPlan || 'BB'})`).join('<br/>');
+                } else {
+                    details = `Quantity: ${item.quantity || 1}`;
+                }
+
+                return `
+                <li style="margin-bottom: 10px;">
+                    <strong>${item.title || 'Service'}</strong><br/>
+                    Date: ${exactDateStr} (Day ${item.block?.dayNumber || 1})<br/>
+                    ${details}
+                </li>
+            `}).join('');
+        }
+
+        const adults = tripData.profile?.adults || 0;
+        const children = tripData.profile?.children || 0;
+        const totalPax = adults + children;
+        const paxInfo = `${totalPax} Pax (${adults} Adults, ${children} Children)`;
+        const guestOrigin = tripData.travelers?.[0]?.nationality || tripData.profile?.departureCountry || 'Not Specified';
+
+        container.innerHTML = `
+            <div style="max-width: 800px; margin: auto;">
+                <div style="page-break-inside: avoid;">
+                    <h2 style="color: #d4af37; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">Quotation Request & Availability Check</h2>
+                    <div style="margin-top: 20px;">
+                        <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
+                        <strong>To:</strong> Reservation / Sales Team<br/>
+                        <strong>Vendor/Property Name:</strong> ${vendorGroup || 'Vendor'}<br/>
+                        <strong>From:</strong> Nilathra Collection Operations<br/>
+                    </div>
+                    
+                    <p style="margin-top: 30px;">Dear Reservation Team,</p>
+                    <p>We are currently organizing an itinerary for our valued clients and would like to request your <strong>best available net rates</strong> and <strong>availability confirmation</strong> for the following requirements:</p>
+                </div>
+                
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; page-break-inside: avoid;">
+                    <h4 style="margin-top: 0;">Guest & Booking Details:</h4>
+                    <strong>Group Size:</strong> ${paxInfo}<br/>
+                    <strong>Country of Origin:</strong> ${guestOrigin}<br/>
+                    <ul style="padding-left: 20px; margin-top: 10px;">
+                        ${servicesList}
+                    </ul>
+                </div>
+
+                <div style="page-break-inside: avoid;">
+                    <p><strong>Please also provide the following information:</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li>Confirmation of availability for the dates mentioned.</li>
+                        <li>Best available B2B/Net Rates.</li>
+                        <li>Any special long-stay, VIP, or corporate rates if applicable.</li>
+                        <li>Your standard Cancellation Policy.</li>
+                        <li>Clear inclusions and exclusions for the quoted rates.</li>
+                    </ul>
+
+                    <p style="margin-top: 30px;">We value our partnership and are looking forward to securing this booking. We anticipate bringing potential future business to your esteemed property/service as we continue to grow our operations.</p>
+                    
+                    <p style="margin-top: 20px;">Thank you for your prompt assistance. We await your timely response.</p>
+                    
+                    <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; color: #666; font-size: 0.9em;">
+                        <strong>Best Regards,</strong><br/>
+                        Operations Team<br/>
+                        Nilathra Collection<br/>
+                        <a href="mailto:info@nilathracollection.com" style="color: #d4af37;">info@nilathracollection.com</a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const opt = {
+            margin:       10,
+            filename:     `Quotation_Request_${(vendorGroup || 'Vendor').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // @ts-ignore
+        window.html2pdf().set(opt).from(container).save();
+    };
+
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-neutral-200">
@@ -227,6 +337,12 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             </div>
         );
     }
+
+    const guestBreakdown = `${tripData.profile?.adults || 0} Adults` +
+        (tripData.profile?.children ? `, ${tripData.profile.children} Children` : '') +
+        (tripData.profile?.infants ? `, ${tripData.profile.infants} Infants` : '');
+
+    const guestOrigin = tripData.travelers?.[0]?.nationality || tripData.profile?.departureCountry || 'Origin Not Specified';
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -253,26 +369,53 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                             <p className="text-sm text-neutral-400 mt-1">Assign vendors in the Itinerary Builder first.</p>
                         </div>
                     ) : (
-                        Object.entries(
+                        (Object.entries(
                             negotiableItems.reduce((acc, item) => {
                                 const vendor = item.vendorName || "Unknown Vendor";
                                 if (!acc[vendor]) acc[vendor] = [];
                                 acc[vendor].push(item);
                                 return acc;
-                            }, {} as Record<string, typeof negotiableItems>)
-                        ).map(([vendorGroup, items]) => (
+                            }, {} as Record<string, any[]>)
+                        ) as [string, any[]][]).map(([vendorGroup, items]) => (
                             <div key={vendorGroup} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
-                                <div className="bg-neutral-50 px-6 py-4 border-b border-neutral-200 flex items-center gap-3">
-                                    <Building2 className="text-brand-gold w-5 h-5" />
-                                    <h5 className="font-bold text-brand-charcoal text-lg">{vendorGroup}</h5>
-                                    <span className="text-xs bg-white border border-neutral-200 text-neutral-500 px-2 py-1 rounded-full ml-auto mr-2">{items.length} {items.length === 1 ? 'Service' : 'Services'}</span>
-                                    <button 
-                                        onClick={() => handleDraftPO(vendorGroup, items)}
-                                        className="flex items-center gap-1 text-xs font-bold bg-brand-green text-white px-3 py-1.5 rounded-full hover:bg-brand-green/90 transition-colors shadow-sm"
-                                    >
-                                        <FileText size={12} />
-                                        Draft PO
-                                    </button>
+                                <div className="bg-neutral-50 px-6 py-4 border-b border-neutral-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="mt-1">
+                                            <Building2 className="text-brand-gold w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h5 className="font-bold text-brand-charcoal text-lg leading-none">{vendorGroup}</h5>
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2.5 text-xs text-neutral-500">
+                                                <span className="flex items-center gap-1.5 font-bold bg-white px-2.5 py-1 rounded-md border border-neutral-200 shadow-sm uppercase tracking-wide">
+                                                    <UserCheck size={12} className="text-brand-gold" />
+                                                    {guestBreakdown}
+                                                </span>
+                                                <span className="flex items-center gap-1.5 font-bold bg-white px-2.5 py-1 rounded-md border border-neutral-200 shadow-sm uppercase tracking-wide">
+                                                    <Compass size={12} className="text-brand-gold" />
+                                                    {guestOrigin}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 self-end md:self-auto">
+                                        <span className="text-xs font-bold bg-white border border-neutral-200 text-neutral-500 px-3 py-1.5 rounded-full shadow-sm">
+                                            {items.length} {items.length === 1 ? 'Service' : 'Services'}
+                                        </span>
+                                        <button
+                                            onClick={() => generateQuotationRequestPDF(vendorGroup, items)}
+                                            className="flex items-center gap-1.5 text-xs font-bold bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full hover:bg-blue-100 transition-colors shadow-sm"
+                                        >
+                                            <Mail size={14} />
+                                            Request Quote
+                                        </button>
+                                        <button
+                                            onClick={() => handleDraftPO(vendorGroup, items)}
+                                            className="flex items-center gap-1.5 text-xs font-bold bg-brand-green text-white px-4 py-1.5 rounded-full hover:bg-brand-green/90 transition-colors shadow-sm"
+                                        >
+                                            <FileText size={14} />
+                                            Draft PO
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="divide-y divide-neutral-100">
                                     {items.map(item => {
@@ -305,178 +448,178 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                         </div>
                                                     </div>
 
-                                        {/* Center/Right: Pricing & Negotiation */}
-                                        <div className="flex flex-col flex-1 shrink-0 gap-4">
-                                            {isHotelWithRooms ? (
-                                                <div className="space-y-4">
-                                                    {rooms.map((room: any, rIdx: number) => {
-                                                        const roomRefPrice = room.contractedPrice ?? room.pricePerNight ?? 0;
-                                                        const roomRefTotal = roomRefPrice * (room.quantity || 1);
-                                                        const roomAgreedPrice = room.agreedTotal;
-                                                        const parsedReqType = room.reqId?.split('-')[0] || '';
-                                                        return (
-                                                            <div key={rIdx} className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-4 border-b border-neutral-100 last:border-0 last:pb-0">
-                                                                <div className="flex-1 min-w-[120px]">
-                                                                    <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Room Setup</span>
-                                                                    <span className="block font-mono font-bold text-neutral-700 text-sm">
-                                                                        {parsedReqType} ({room.roomName}) 
-                                                                        <span className="text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded text-[10px] ml-2 tracking-wider">{room.mealPlan || 'BB'}</span>
-                                                                    </span>
-                                                                </div>
+                                                    {/* Center/Right: Pricing & Negotiation */}
+                                                    <div className="flex flex-col flex-1 shrink-0 gap-4">
+                                                        {isHotelWithRooms ? (
+                                                            <div className="space-y-4">
+                                                                {rooms.map((room: any, rIdx: number) => {
+                                                                    const roomRefPrice = room.contractedPrice ?? room.pricePerNight ?? 0;
+                                                                    const roomRefTotal = roomRefPrice * (room.quantity || 1);
+                                                                    const roomAgreedPrice = room.agreedTotal;
+                                                                    const parsedReqType = room.reqId?.split('-')[0] || '';
+                                                                    return (
+                                                                        <div key={rIdx} className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-4 border-b border-neutral-100 last:border-0 last:pb-0">
+                                                                            <div className="flex-1 min-w-[120px]">
+                                                                                <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Room Setup</span>
+                                                                                <span className="block font-mono font-bold text-neutral-700 text-sm">
+                                                                                    {parsedReqType} ({room.roomName})
+                                                                                    <span className="text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded text-[10px] ml-2 tracking-wider">{room.mealPlan || 'BB'}</span>
+                                                                                </span>
+                                                                            </div>
 
+                                                                            <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
+                                                                                <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
+                                                                                <div className="flex items-center gap-2 text-sm justify-between w-full">
+                                                                                    <span className="font-mono text-neutral-500">{roomRefPrice > 0 ? `$${roomRefPrice.toLocaleString()}` : '-'}</span>
+                                                                                    <span className="text-neutral-400 text-xs font-bold">× {room.quantity}</span>
+                                                                                    <span className="text-neutral-300 font-bold">=</span>
+                                                                                    <span className="font-mono font-bold text-brand-charcoal">{roomRefTotal > 0 ? `$${roomRefTotal.toLocaleString()}` : '-'}</span>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="w-[140px] shrink-0">
+                                                                                <label className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Final Price</label>
+                                                                                <div className="relative">
+                                                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">$</span>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        value={roomAgreedPrice || ''}
+                                                                                        onChange={(e) => handleRoomUpdate(accIndex, rIdx, e.target.value ? Number(e.target.value) : undefined)}
+                                                                                        className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal outline-none transition-all shadow-sm"
+                                                                                        placeholder="Total agreed..."
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Discount Delta per Room */}
+                                                                            {roomAgreedPrice && roomAgreedPrice < roomRefTotal ? (
+                                                                                <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 w-full md:w-auto flex flex-col justify-center">
+                                                                                    <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
+                                                                                    <span className="block font-mono font-bold text-green-700">-$ {(roomRefTotal - roomAgreedPrice).toLocaleString()}</span>
+                                                                                </div>
+                                                                            ) : roomAgreedPrice && roomAgreedPrice > roomRefTotal ? (
+                                                                                <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 w-full md:w-auto flex flex-col justify-center">
+                                                                                    <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
+                                                                                    <span className="block font-mono font-bold text-red-700">+$ {(roomAgreedPrice - roomRefTotal).toLocaleString()}</span>
+                                                                                </div>
+                                                                            ) : null}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-2">
+                                                                {mealPlan && b.type === 'sleep' && (
+                                                                    <div className="flex flex-col justify-center bg-brand-gold/5 px-4 py-2 rounded-xl border border-brand-gold/20 shrink-0">
+                                                                        <span className="block text-[10px] text-brand-gold uppercase font-bold tracking-wider mb-1">Meal Plan</span>
+                                                                        <span className="font-mono font-bold text-brand-charcoal text-sm">{mealPlan}</span>
+                                                                    </div>
+                                                                )}
                                                                 <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
                                                                     <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
                                                                     <div className="flex items-center gap-2 text-sm justify-between w-full">
-                                                                        <span className="font-mono text-neutral-500">{roomRefPrice > 0 ? roomRefPrice.toLocaleString() : '-'}</span>
-                                                                        <span className="text-neutral-400 text-xs font-bold">× {room.quantity}</span>
+                                                                        <span className="font-mono text-neutral-500">{unitPrice === 'Mixed' ? 'Mixed' : (unitPrice > 0 ? `$${unitPrice.toLocaleString()}` : '-')}</span>
+                                                                        <span className="text-neutral-400 text-xs font-bold">× {quantity}</span>
                                                                         <span className="text-neutral-300 font-bold">=</span>
-                                                                        <span className="font-mono font-bold text-brand-charcoal">{roomRefTotal > 0 ? roomRefTotal.toLocaleString() : '-'}</span>
+                                                                        <span className="font-mono font-bold text-brand-charcoal">{referenceTotal > 0 ? `$${referenceTotal.toLocaleString()}` : '-'}</span>
                                                                     </div>
                                                                 </div>
 
+                                                                {/* Negotiated Price Input */}
                                                                 <div className="w-[140px] shrink-0">
                                                                     <label className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Final Price</label>
                                                                     <div className="relative">
-                                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">LKR</span>
+                                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">$</span>
                                                                         <input
                                                                             type="number"
-                                                                            value={roomAgreedPrice || ''}
-                                                                            onChange={(e) => handleRoomUpdate(accIndex, rIdx, e.target.value ? Number(e.target.value) : undefined)}
-                                                                            className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal outline-none transition-all shadow-sm"
-                                                                            placeholder="Total agreed..."
+                                                                            value={agreedPrice || ''}
+                                                                            onChange={(e) => handleBlockUpdate(b.id, { agreedPrice: e.target.value ? Number(e.target.value) : undefined })}
+                                                                            className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold outline-none transition-all shadow-sm"
+                                                                            placeholder="Enter total agreed..."
                                                                         />
                                                                     </div>
                                                                 </div>
-                                                                {/* Discount Delta per Room */}
-                                                                {roomAgreedPrice && roomAgreedPrice < roomRefTotal ? (
-                                                                    <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 w-full md:w-auto flex flex-col justify-center">
+
+                                                                {/* Discount Delta */}
+                                                                {agreedPrice && agreedPrice < referenceTotal ? (
+                                                                    <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 flex flex-col justify-center">
                                                                         <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
-                                                                        <span className="block font-mono font-bold text-green-700">- {(roomRefTotal - roomAgreedPrice).toLocaleString()}</span>
+                                                                        <span className="block font-mono font-bold text-green-700">
+                                                                            -$ {(referenceTotal - agreedPrice).toLocaleString()}
+                                                                        </span>
                                                                     </div>
-                                                                ) : roomAgreedPrice && roomAgreedPrice > roomRefTotal ? (
-                                                                    <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 w-full md:w-auto flex flex-col justify-center">
+                                                                ) : agreedPrice && agreedPrice > referenceTotal ? (
+                                                                    <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 flex flex-col justify-center">
                                                                         <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
-                                                                        <span className="block font-mono font-bold text-red-700">+ {(roomAgreedPrice - roomRefTotal).toLocaleString()}</span>
+                                                                        <span className="block font-mono font-bold text-red-700">
+                                                                            +$ {(agreedPrice - referenceTotal).toLocaleString()}
+                                                                        </span>
                                                                     </div>
                                                                 ) : null}
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-2">
-                                                    {mealPlan && b.type === 'sleep' && (
-                                                        <div className="flex flex-col justify-center bg-brand-gold/5 px-4 py-2 rounded-xl border border-brand-gold/20 shrink-0">
-                                                            <span className="block text-[10px] text-brand-gold uppercase font-bold tracking-wider mb-1">Meal Plan</span>
-                                                            <span className="font-mono font-bold text-brand-charcoal text-sm">{mealPlan}</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex flex-col justify-center bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-100 min-w-[180px] shrink-0">
-                                                        <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Reference Pricing</span>
-                                                        <div className="flex items-center gap-2 text-sm justify-between w-full">
-                                                            <span className="font-mono text-neutral-500">{unitPrice === 'Mixed' ? 'Mixed' : (unitPrice > 0 ? unitPrice.toLocaleString() : '-')}</span>
-                                                            <span className="text-neutral-400 text-xs font-bold">× {quantity}</span>
-                                                            <span className="text-neutral-300 font-bold">=</span>
-                                                            <span className="font-mono font-bold text-brand-charcoal">{referenceTotal > 0 ? referenceTotal.toLocaleString() : '-'}</span>
-                                                        </div>
+                                                        )}
                                                     </div>
 
-                                                    {/* Negotiated Price Input */}
-                                                    <div className="w-[140px] shrink-0">
-                                                        <label className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1">Final Price</label>
-                                                        <div className="relative">
-                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-sm">LKR</span>
-                                                            <input
-                                                                type="number"
-                                                                value={agreedPrice || ''}
-                                                                onChange={(e) => handleBlockUpdate(b.id, { agreedPrice: e.target.value ? Number(e.target.value) : undefined })}
-                                                                className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold outline-none transition-all shadow-sm"
-                                                                placeholder="Enter total agreed..."
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    {/* Specialized Flags */}
+                                                    <div className="w-full lg:w-[250px] shrink-0 flex flex-col gap-2 lg:border-l border-neutral-200 lg:pl-6">
+                                                        {/* Meal Flags */}
+                                                        {(b.type === 'meal' || b.type === 'sleep' || b.type === 'activity') && (
+                                                            <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={!!b.driverMealIncluded}
+                                                                    onChange={(e) => handleBlockUpdate(b.id, { driverMealIncluded: e.target.checked })}
+                                                                    className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                                />
+                                                                <span className="font-medium">Driver Meal Included</span>
+                                                            </label>
+                                                        )}
 
-                                                    {/* Discount Delta */}
-                                                    {agreedPrice && agreedPrice < referenceTotal ? (
-                                                        <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 flex flex-col justify-center">
-                                                            <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
-                                                            <span className="block font-mono font-bold text-green-700">
-                                                                - {(referenceTotal - agreedPrice).toLocaleString()}
+                                                        {/* Sleep/Hotel Flags */}
+                                                        {b.type === 'sleep' && (
+                                                            <>
+                                                                <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!!b.driverAccIncluded}
+                                                                        onChange={(e) => handleBlockUpdate(b.id, { driverAccIncluded: e.target.checked })}
+                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                                    />
+                                                                    <span className="font-medium">Driver Accom. (FOC)</span>
+                                                                </label>
+
+                                                                <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!!b.parkingIncluded}
+                                                                        onChange={(e) => handleBlockUpdate(b.id, { parkingIncluded: e.target.checked })}
+                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                                    />
+                                                                    <span className="font-medium">Parking Included</span>
+                                                                </label>
+
+                                                                <div className="mt-1 pt-2 border-t border-neutral-100">
+                                                                    <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1.5">Guide Room Option</span>
+                                                                    <div className="flex gap-2">
+                                                                        {['Free', 'Half Price', 'None'].map(opt => (
+                                                                            <button
+                                                                                key={opt}
+                                                                                onClick={() => handleBlockUpdate(b.id, { guideRoomDiscount: opt as any })}
+                                                                                className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${b.guideRoomDiscount === opt ? 'bg-brand-gold text-white border-brand-gold' : 'bg-white text-neutral-500 border-neutral-200 hover:border-brand-gold/50'}`}
+                                                                            >
+                                                                                {opt}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        )}
+
+                                                        {b.type !== 'meal' && b.type !== 'sleep' && b.type !== 'activity' && (
+                                                            <span className="text-xs text-neutral-400 italic flex items-center gap-1">
+                                                                <Info size={12} /> No specialized flags for this category.
                                                             </span>
-                                                        </div>
-                                                    ) : agreedPrice && agreedPrice > referenceTotal ? (
-                                                        <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 flex flex-col justify-center">
-                                                            <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
-                                                            <span className="block font-mono font-bold text-red-700">
-                                                                + {(agreedPrice - referenceTotal).toLocaleString()}
-                                                            </span>
-                                                        </div>
-                                                    ) : null}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Specialized Flags */}
-                                        <div className="w-full lg:w-[250px] shrink-0 flex flex-col gap-2 lg:border-l border-neutral-200 lg:pl-6">
-                                            {/* Meal Flags */}
-                                            {(b.type === 'meal' || b.type === 'sleep' || b.type === 'activity') && (
-                                                <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={!!b.driverMealIncluded}
-                                                        onChange={(e) => handleBlockUpdate(b.id, { driverMealIncluded: e.target.checked })}
-                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
-                                                    />
-                                                    <span className="font-medium">Driver Meal Included</span>
-                                                </label>
-                                            )}
-
-                                            {/* Sleep/Hotel Flags */}
-                                            {b.type === 'sleep' && (
-                                                <>
-                                                    <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={!!b.driverAccIncluded}
-                                                            onChange={(e) => handleBlockUpdate(b.id, { driverAccIncluded: e.target.checked })}
-                                                            className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
-                                                        />
-                                                        <span className="font-medium">Driver Accom. (FOC)</span>
-                                                    </label>
-
-                                                    <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer hover:text-brand-green transition-colors">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={!!b.parkingIncluded}
-                                                            onChange={(e) => handleBlockUpdate(b.id, { parkingIncluded: e.target.checked })}
-                                                            className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
-                                                        />
-                                                        <span className="font-medium">Parking Included</span>
-                                                    </label>
-
-                                                    <div className="mt-1 pt-2 border-t border-neutral-100">
-                                                        <span className="block text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-1.5">Guide Room Option</span>
-                                                        <div className="flex gap-2">
-                                                            {['Free', 'Half Price', 'None'].map(opt => (
-                                                                <button
-                                                                    key={opt}
-                                                                    onClick={() => handleBlockUpdate(b.id, { guideRoomDiscount: opt as any })}
-                                                                    className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${b.guideRoomDiscount === opt ? 'bg-brand-gold text-white border-brand-gold' : 'bg-white text-neutral-500 border-neutral-200 hover:border-brand-gold/50'}`}
-                                                                >
-                                                                    {opt}
-                                                                </button>
-                                                            ))}
-                                                        </div>
+                                                        )}
                                                     </div>
-                                                </>
-                                            )}
-
-                                            {b.type !== 'meal' && b.type !== 'sleep' && b.type !== 'activity' && (
-                                                <span className="text-xs text-neutral-400 italic flex items-center gap-1">
-                                                    <Info size={12} /> No specialized flags for this category.
-                                                </span>
-                                            )}
-                                        </div>
 
                                                 </div>
                                             </div>
