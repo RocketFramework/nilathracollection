@@ -10,6 +10,7 @@ import { ActivitiesStep } from "./steps/ActivitiesStep";
 import { ItineraryBuilder } from "./steps/ItineraryBuilder";
 import { FinanceAndBookingStep } from "./steps/FinanceAndBookingStep";
 import { OperationalReadiness } from "./components/OperationalReadiness";
+import { DraftCostStructure } from "./components/DraftCostStructure";
 import { Save, FileCheck, CheckSquare, Users, Plane, Compass, BedDouble, CarFront, CalendarDays, Calculator, Activity, Loader2, MessageSquare, X, Handshake } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { PriceNegotiationStep } from "./steps/PriceNegotiationStep";
@@ -317,6 +318,7 @@ function PlannerWorkspace() {
                     {activeTab === 'itinerary' && (
                         <div className="space-y-8">
                             <ItineraryBuilder tripData={tripData} updateData={updateData} />
+                            <DraftCostStructure tripData={tripData} updateData={updateData} />
                         </div>
                     )}
                     {activeTab === 'negotiation' && (

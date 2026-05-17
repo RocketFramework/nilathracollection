@@ -284,18 +284,71 @@ export default function TourDetailsPage() {
                         <h3 className="text-xl font-serif text-brand-charcoal mb-6">Financial Summary</h3>
 
                         <div className="space-y-4 mb-6">
-                            <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
-                                <span className="text-neutral-500 font-medium">Total Tour Value</span>
-                                <span className="font-bold text-lg">{tour.totalPrice}</span>
-                            </div>
-                            <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
-                                <span className="text-neutral-500 font-medium">Amount Paid</span>
-                                <span className="text-green-600 font-bold">{tour.paidAmount}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-neutral-500 font-medium">Balance Due</span>
-                                <span className="text-red-600 font-bold text-xl">{tour.totalPrice}</span>
-                            </div>
+                            {tour.rawPlannerData?.financials?.draftCosts && tour.rawPlannerData.financials.draftCosts.length > 0 && (
+                                <div className="mb-6 space-y-3 pb-6 border-b border-neutral-100">
+                                    <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Cost Breakdown</h4>
+                                    {Object.entries(
+                                        tour.rawPlannerData.financials.draftCosts.reduce((acc: any, item: any) => {
+                                            acc[item.category] = (acc[item.category] || 0) + (Number(item.totalPrice) || 0);
+                                            return acc;
+                                        }, {})
+                                    ).map(([category, amount]) => (
+                                        <div key={category} className="flex justify-between items-center text-sm">
+                                            <span className="text-neutral-600">
+                                                {category === 'Service and Support' ? 'Tax, Service and Support Fee (20%)' : category}
+                                            </span>
+                                            <span className="font-semibold text-neutral-800">${(amount as number).toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {(() => {
+                                const hasDraftCosts = tour.rawPlannerData?.financials?.draftCosts && tour.rawPlannerData.financials.draftCosts.length > 0;
+                                const draftTotal = hasDraftCosts 
+                                    ? tour.rawPlannerData.financials.draftCosts.reduce((sum: number, item: any) => sum + (Number(item.totalPrice) || 0), 0)
+                                    : 0;
+                                    
+                                const displayTotal = draftTotal > 0 ? `$${draftTotal.toFixed(2)}` : tour.totalPrice;
+                                const displayTotalNum = draftTotal > 0 ? draftTotal : parseFloat((tour.totalPrice || '0').replace(/[^0-9.-]+/g, '')) || 0;
+                                
+                                const adults = tour.rawPlannerData?.profile?.adults || 0;
+                                const children = tour.rawPlannerData?.profile?.children || 0;
+                                const totalPax = Math.max(1, adults + children);
+                                const durationDays = Math.max(1, tour.durationDays || tour.rawPlannerData?.profile?.durationDays || 1);
+                                
+                                const perHeadCost = displayTotalNum / totalPax;
+                                const perHeadPerDayCost = displayTotalNum / (totalPax * durationDays);
+
+                                const paidAmountNum = parseFloat((tour.paidAmount || '0').replace(/[^0-9.-]+/g, '')) || 0;
+                                const balanceDueNum = Math.max(0, displayTotalNum - paidAmountNum);
+
+                                return (
+                                    <>
+                                        <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
+                                            <span className="text-neutral-500 font-medium">Estimated Total Cost</span>
+                                            <span className="font-bold text-lg">{displayTotal}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
+                                            <span className="text-neutral-500 font-medium">Per Person Cost ({totalPax} Pax)</span>
+                                            <span className="font-bold text-brand-green">${perHeadCost.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
+                                            <span className="text-neutral-500 font-medium">Per Person Per Day</span>
+                                            <span className="font-bold text-neutral-800">${perHeadPerDayCost.toFixed(2)}</span>
+                                        </div>
+                                        
+                                        <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
+                                            <span className="text-neutral-500 font-medium">Amount Paid</span>
+                                            <span className="text-green-600 font-bold">{tour.paidAmount || '$0.00'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-neutral-500 font-medium">Balance Due</span>
+                                            <span className="text-red-600 font-bold text-xl">${balanceDueNum.toFixed(2)}</span>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         {tour.invoices && tour.invoices.length > 0 && (

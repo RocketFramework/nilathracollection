@@ -247,9 +247,22 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                     exactDateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 }
 
+                const getMealPlanName = (mp: string) => {
+                    const m = mp?.toUpperCase() || 'BB';
+                    if (m === 'HB') return 'Half Board';
+                    if (m === 'FB') return 'Full Board';
+                    if (m === 'AI') return 'All Inclusive';
+                    if (m === 'BB') return 'Bed & Breakfast';
+                    return m;
+                };
+
                 let details = '';
                 if (item.isHotelWithRooms) {
-                    details = item.rooms.map((r: any) => `${r.quantity || 1}x ${r.roomName} (${r.mealPlan || 'BB'})`).join('<br/>');
+                    details = item.rooms.map((r: any) => `${r.quantity || 1}x ${r.roomName} (${getMealPlanName(r.mealPlan)})`).join('<br/>');
+                } else if (item.block?.type === 'sleep') {
+                    details = `Quantity: ${item.quantity || 1} (${getMealPlanName(item.mealPlan)})`;
+                } else if (item.block?.type === 'travel') {
+                    details = `Quantity: ${item.quantity || 1} km (+/- 10%)`;
                 } else {
                     details = `Quantity: ${item.quantity || 1}`;
                 }
@@ -268,6 +281,26 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         const totalPax = adults + children;
         const paxInfo = `${totalPax} Pax (${adults} Adults, ${children} Children)`;
         const guestOrigin = tripData.travelers?.[0]?.nationality || tripData.profile?.departureCountry || 'Not Specified';
+
+        const isTransportVendor = items.some(item => item.block?.type === 'travel');
+        const isLuxury = tripData.profile?.travelStyle === 'Luxury' || tripData.profile?.travelStyle === 'Ultra VIP';
+        let additionalInfoItems = `
+                        <li>Confirmation of availability for the dates mentioned.</li>
+                        <li>Best available B2B/Net Rates.</li>
+                        <li>Any special long-stay, VIP, or corporate rates if applicable.</li>
+                        <li>Your standard Cancellation Policy.</li>
+                        <li>Clear inclusions and exclusions for the quoted rates.</li>`;
+
+        if (isTransportVendor) {
+            additionalInfoItems += `
+                        <li>Please include rates for the vehicle with driver and without driver.</li>
+                        <li>Max km included for the day.</li>
+                        <li>Vehicle details: Make, model, year of manufacture, and color.</li>`;
+            if (isLuxury) {
+                additionalInfoItems += `
+                        <li><strong>Minimum vehicle condition requirements:</strong> As this is a ${tripData.profile.travelStyle} trip, please ensure pristine condition, leather interiors, recent models, working AC, bottled water provided, and professional driver.</li>`;
+            }
+        }
 
         container.innerHTML = `
             <div style="max-width: 800px; margin: auto;">
@@ -296,11 +329,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 <div style="page-break-inside: avoid;">
                     <p><strong>Please also provide the following information:</strong></p>
                     <ul style="padding-left: 20px;">
-                        <li>Confirmation of availability for the dates mentioned.</li>
-                        <li>Best available B2B/Net Rates.</li>
-                        <li>Any special long-stay, VIP, or corporate rates if applicable.</li>
-                        <li>Your standard Cancellation Policy.</li>
-                        <li>Clear inclusions and exclusions for the quoted rates.</li>
+                        ${additionalInfoItems}
                     </ul>
 
                     <p style="margin-top: 30px;">We value our partnership and are looking forward to securing this booking. We anticipate bringing potential future business to your esteemed property/service as we continue to grow our operations.</p>

@@ -586,9 +586,16 @@ export class TourService {
                     
                     let contractedPrice = b.contractedPrice;
                     
-                    // b.agreedPrice from the UI represents the TOTAL negotiated price for the block
+                    // Extract unit and total price correctly based on block type semantics
+                    // For meals and activities, UI treats b.agreedPrice as the UNIT PRICE.
+                    // For travel and guides, UI and logic expects b.agreedPrice as the TOTAL PRICE.
                     let agreedTotalPrice = b.agreedPrice || null;
                     let agreedUnitPrice = agreedTotalPrice ? agreedTotalPrice / quantity : null;
+
+                    if (b.type === 'meal' || b.type === 'activity') {
+                        agreedUnitPrice = b.agreedPrice || null;
+                        agreedTotalPrice = agreedUnitPrice ? agreedUnitPrice * quantity : null;
+                    }
 
                     if (b.type === 'travel') {
                         // Dynamically calculate based on km and travel style if we have a distance
@@ -642,7 +649,7 @@ export class TourService {
 
                     // Enforce mutations on the original block reference so it persists to JSON planner_data
                     b.contractedPrice = contractedPrice;
-                    b.agreedPrice = agreedTotalPrice ?? undefined; // Always store total in JSON so UI Final Price works correctly
+                    b.agreedPrice = (b.type === 'meal' || b.type === 'activity') ? (agreedUnitPrice ?? undefined) : (agreedTotalPrice ?? undefined); // Store properly so UI doesn't blow up
                     if (b.type === 'travel') {
                         b.transportQuantity = quantity;
                     } else if (b.type === 'meal') {

@@ -106,6 +106,16 @@ export interface DBVendorPayment {
     created_at: string;
 }
 
+export interface DraftCostItem {
+    id: string;
+    category: 'Accommodation' | 'Transportation' | 'Activities & Experiences' | 'Service and Support' | 'Other';
+    vendorName: string;
+    serviceName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+}
+
 export interface Financials {
     costs: {
         flights: number;
@@ -122,4 +132,5 @@ export interface Financials {
     /** @deprecated Use relational vendor_invoices table */
     supplierInvoices: any[];
     sellingPrice: number;
+    draftCosts?: DraftCostItem[];
 }

@@ -112,6 +112,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         <span className="font-medium tracking-wide">Master Data</span>
                     </Link>
 
+                    <Link href="/admin/settings/terms" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                        <LayoutTemplate size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                        <span className="font-medium tracking-wide">Terms & Conditions</span>
+                    </Link>
+
                     {isAdmin && (
                         <>
                             <Link href="/admin/logs" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
