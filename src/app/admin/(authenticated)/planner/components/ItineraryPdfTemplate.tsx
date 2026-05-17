@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TripData } from "../types";
 import { MapPin, Clock } from "lucide-react";
+import { getBookingTermsAction } from "@/actions/terms.actions";
 
 export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData: TripData, masterData?: any }>(
     ({ tripData, masterData }, ref) => {
         const { profile, itinerary, accommodations, transports, financials } = tripData;
+        const [luxuryTerms, setLuxuryTerms] = useState<any>(null);
+
+        useEffect(() => {
+            getBookingTermsAction().then(res => {
+                if (res.success && res.terms) {
+                    const term = res.terms.find((t: any) => t.tier === 'luxury');
+                    if (term) setLuxuryTerms(term);
+                }
+            });
+        }, []);
+
         const pax = (profile.adults || 0) + (profile.children || 0);
 
         const validAccommodations = accommodations.filter(acc => 
@@ -54,10 +66,10 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
         const fontSans = "font-sans";
 
         return (
-            <div ref={ref} className="bg-white mx-auto pdf-container font-sans antialiased selection:bg-[#D4AF37]/20" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+            <div ref={ref} className="bg-white mx-auto pdf-container font-sans antialiased selection:bg-[#D4AF37]/20" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact", width: "210mm", minHeight: "297mm" }}>
                 
                 {/* 1. COVER PAGE - Extremely Luxe & Minimal */}
-                <div className={`h-[1050px] print:h-[100vh] flex flex-col items-center justify-center relative break-after-page ${bgDark} p-12 box-border overflow-hidden`}>
+                <div className={`h-[297mm] print:h-[297mm] flex flex-col items-center justify-center relative break-after-page ${bgDark} p-12 box-border overflow-hidden`}>
                     
                     {/* Golden Border Frame */}
                     <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/30 z-0 pointer-events-none"></div>
@@ -68,7 +80,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                         
                         <div className="flex flex-col items-center">
                             <div className="mb-4">
-                                <img src="/images/nilathra-logo.png" alt="Nilathra Collection" className="w-32 opacity-90 relative z-10 filter brightness-200" onError={(e) => {
+                                <img src="/images/nilathra_logo-02.png" alt="Nilathra Collection" className="w-48 opacity-90 relative z-10 filter brightness-200" onError={(e) => {
                                     e.currentTarget.style.display = 'none';
                                     e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-2xl font-serif text-white uppercase tracking-[0.4em] text-center">Nilathra</h1>');
                                 }} />
@@ -202,7 +214,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                 </div>
 
                                 {/* 4. THE ITINERARY */}
-                                <div className="px-24 pb-16 max-w-[900px] mx-auto break-before-page print:break-before-auto">
+                                <div className="pr-24 pl-12 pb-16 max-w-[900px] mx-auto break-before-page print:break-before-auto">
                                     <div className="mb-20 text-center">
                                         <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-4">Chronology</h3>
                                         <h2 className="text-4xl font-serif text-[#111827] font-light italic">The Itinerary</h2>
@@ -317,167 +329,101 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                     </div>
                                 </div>
 
-                                {/* 5. Options & Commercials */}
-                                {hasCommercials && (
-                                    <div className="px-24 py-16 max-w-[900px] mx-auto break-before-page">
-                                        
-                                        <div className="mb-24">
-                                            <div className="text-center mb-16">
-                                                <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-4">Curation</h3>
-                                                <h2 className="text-4xl font-serif text-[#111827] font-light italic">Residences & Logistics</h2>
-                                            </div>
-                                            
-                                            {hasValidHotels && (
-                                                <div className="mb-20">
-                                                    <h4 className="text-[11px] font-sans text-[#111827] uppercase tracking-[0.4em] border-b border-[#E5E7EB] pb-4 mb-8">The Sanctuaries</h4>
-                                                    <div className="space-y-8">
-                                                        {[...validAccommodations].sort((a, b) => a.nightIndex - b.nightIndex).map((acc, idx) => {
-                                                            const roomSummaries = acc.selectedRooms && acc.selectedRooms.length > 0
-                                                                ? acc.selectedRooms.map((sr: any) => `${sr.quantity}x ${sr.roomName || sr.roomStandard}`).join(', ')
-                                                                : (acc.roomName || acc.roomStandard || 'Standard Room');
-                                                                
-                                                            const mealPlans = acc.selectedRooms && acc.selectedRooms.length > 0
-                                                                ? Array.from(new Set(acc.selectedRooms.map((sr: any) => sr.mealPlan || 'BB'))).join(' / ')
-                                                                : (acc.mealPlan || 'BB');
 
-                                                            return (
-                                                                <div key={idx} className="flex justify-between items-end pb-6 border-b border-[#F3F4F6]">
-                                                                    <div>
-                                                                        <span className="text-[9px] text-[#D4AF37] font-sans uppercase tracking-[0.2em] mb-1 block">Night {String(acc.nightIndex).padStart(2, '0')}</span>
-                                                                        <strong className="block text-2xl font-serif text-[#111827] font-light mb-2">{acc.hotelName || 'Pending Assignment'}</strong>
-                                                                        <span className="text-[11px] text-[#6B7280] font-sans tracking-[0.1em] block">
-                                                                            {roomSummaries}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="text-right">
-                                                                        <span className="text-[9px] font-sans text-[#111827] uppercase tracking-[0.2em] bg-[#FAFAF9] border border-[#E5E7EB] px-4 py-2">
-                                                                            {mealPlans}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
 
-                                            {hasValidTransports && (
-                                                <div>
-                                                    <h4 className="text-[11px] font-sans text-[#111827] uppercase tracking-[0.4em] border-b border-[#E5E7EB] pb-4 mb-8">The Fleet</h4>
-                                                    <div className="space-y-8">
-                                                        {transports.map((t, idx) => {
-                                                            let displaySupplier = t.supplier;
-                                                            let displayVehicle = t.vehicleNumber;
-                                                            let displayDriver = t.driverName;
-                                                            let displayDriverContact = t.driverContact;
-                                                            let displayGuide = t.guideDetails;
-                                                            let displayGuideAssigned = t.guideAssigned;
-
-                                                            if (!displaySupplier || !displayDriver || !displayGuide) {
-                                                                itinerary.forEach(block => {
-                                                                    if (!displaySupplier && block.transportId && masterData?.transportProviders) {
-                                                                        const p = masterData.transportProviders.find((x:any) => x.id === block.transportId);
-                                                                        if (p) displaySupplier = p.name;
-                                                                    }
-                                                                    if (!displayVehicle && block.vehicleId && masterData?.transportProviders) {
-                                                                        masterData.transportProviders.forEach((p:any) => {
-                                                                            const v = p.transport_vehicles?.find((vx:any) => vx.id === block.vehicleId);
-                                                                            if (v) displayVehicle = v.vehicle_number || v.make_and_model;
-                                                                        });
-                                                                    }
-                                                                    if (!displayDriver && block.driverId && masterData?.drivers) {
-                                                                        const d = masterData.drivers.find((x:any) => x.id === block.driverId);
-                                                                        if (d) {
-                                                                            displayDriver = `${d.first_name} ${d.last_name}`.trim();
-                                                                            displayDriverContact = d.phone || d.contact || '';
-                                                                        }
-                                                                    }
-                                                                    if (!displayGuide && block.guideId && masterData?.guides) {
-                                                                        const g = masterData.guides.find((x:any) => x.id === block.guideId);
-                                                                        if (g) {
-                                                                            displayGuide = `${g.first_name} ${g.last_name}`.trim();
-                                                                            displayGuideAssigned = true;
-                                                                        }
-                                                                    }
-                                                                });
-                                                            }
-
-                                                            return (
-                                                                <div key={idx} className="flex justify-between items-start pb-6 border-b border-[#F3F4F6]">
-                                                                    <div>
-                                                                        <strong className="block text-2xl font-serif text-[#111827] font-light mb-4 capitalize">{t.mode.replace(/_/g, ' ')}</strong>
-                                                                        
-                                                                        <div className="grid grid-cols-2 gap-x-12 gap-y-3">
-                                                                            {displaySupplier && (
-                                                                                <div className="text-[11px] font-sans text-[#4B5563]">
-                                                                                    <span className="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] block mb-1">Provider</span>
-                                                                                    {displaySupplier} {displayVehicle ? `(${displayVehicle})` : ''}
-                                                                                </div>
-                                                                            )}
-                                                                            
-                                                                            {displayDriver && (
-                                                                                <div className="text-[11px] font-sans text-[#4B5563]">
-                                                                                    <span className="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] block mb-1">Chauffeur</span>
-                                                                                    {displayDriver} {displayDriverContact ? `• ${displayDriverContact}` : ''}
-                                                                                </div>
-                                                                            )}
-                                                                            
-                                                                            {displayGuideAssigned && displayGuide && (
-                                                                                <div className="text-[11px] font-sans text-[#4B5563] col-span-2 mt-2">
-                                                                                    <span className="text-[9px] uppercase tracking-[0.2em] text-[#D4AF37] block mb-1">Professional Guide</span>
-                                                                                    {displayGuide}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="text-right pt-2">
-                                                                        <span className="text-[9px] font-sans text-[#6B7280] uppercase tracking-[0.2em]">
-                                                                            {t.status}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* 6. Costs Table */}
-                                        {financials && hasValidHotels && (
+                                {/* 6. Draft Cost Structure & Investment Summary */}
+                                <div className="px-24 pb-16 max-w-[900px] mx-auto break-before-page print:break-before-auto">
+                                    {financials && financials.draftCosts && financials.draftCosts.length > 0 && (
                                             <div className="mb-24 break-inside-avoid bg-[#FAFAF9] p-12 border border-[#E5E7EB]">
                                                 <div className="text-center mb-10">
                                                     <h3 className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] mb-3">Commercials</h3>
-                                                    <h2 className="text-3xl font-serif text-[#111827] font-light">Investment Summary</h2>
+                                                    <h2 className="text-3xl font-serif text-[#111827] font-light">Draft Cost Structure</h2>
                                                 </div>
                                                 
-                                                <div className="border-t border-b border-[#E5E7EB] py-6">
-                                                    <div className="flex justify-between items-center mb-6">
+                                                <div className="mb-10">
+                                                    <table className="w-full text-left border-collapse">
+                                                        <thead>
+                                                            <tr className="border-b border-[#E5E7EB]">
+                                                                <th className="py-3 text-[10px] font-sans uppercase tracking-[0.2em] text-[#6B7280]">Service</th>
+                                                                <th className="py-3 text-[10px] font-sans uppercase tracking-[0.2em] text-[#6B7280] text-center">Qty</th>
+                                                                <th className="py-3 text-[10px] font-sans uppercase tracking-[0.2em] text-[#6B7280] text-right">Unit Price</th>
+                                                                <th className="py-3 text-[10px] font-sans uppercase tracking-[0.2em] text-[#6B7280] text-right">Total Price</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {financials.draftCosts.map((item: any) => (
+                                                                <tr key={item.id} className="border-b border-[#F3F4F6]">
+                                                                    <td className="py-4 pr-4">
+                                                                        <div className="font-serif text-[#111827]">{item.vendorName}</div>
+                                                                        <div className="text-[11px] font-sans text-[#6B7280]">{item.serviceName}</div>
+                                                                    </td>
+                                                                    <td className="py-4 text-center font-sans text-sm text-[#4B5563]">{item.quantity}</td>
+                                                                    <td className="py-4 text-right font-sans text-sm text-[#4B5563]">${item.unitPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                                    <td className="py-4 text-right font-sans text-sm text-[#111827] font-bold">${item.totalPrice?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                <div className="border-t-2 border-[#D4AF37] pt-6">
+                                                    <div className="flex justify-between items-center mb-4">
                                                         <span className="font-serif text-xl text-[#111827]">Total Package Investment</span>
-                                                        <span className="font-serif text-3xl text-[#111827]">${financials.sellingPrice?.toLocaleString() || 0}</span>
+                                                        <span className="font-serif text-3xl text-[#111827]">${financials.draftCosts.reduce((sum: number, item: any) => sum + (item.totalPrice || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                                     </div>
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-[10px] font-sans uppercase tracking-[0.2em] text-[#6B7280]">Estimated Per Person</span>
-                                                        <span className="font-sans text-sm tracking-widest text-[#D4AF37]">${pax > 0 ? (financials.sellingPrice / pax).toFixed(0).toLocaleString() : 0}</span>
+                                                        <span className="font-sans text-sm tracking-widest text-[#D4AF37]">${pax > 0 ? (financials.draftCosts.reduce((sum: number, item: any) => sum + (item.totalPrice || 0), 0) / pax).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0}</span>
                                                     </div>
                                                 </div>
-                                                <p className="text-[9px] text-center uppercase tracking-[0.2em] text-[#6B7280] mt-8">All prices are strictly confidential.</p>
                                             </div>
                                         )}
 
-                                        {/* 7. Enhanced Policy Note */}
-                                        <div className="mt-32 pt-16 border-t border-[#E5E7EB] text-center pb-16">
-                                            <div className="mb-10">
-                                                <img src="/images/nilathra-logo.png" alt="Nilathra" className="w-16 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                        {/* 7. Enhanced Policy Note & Booking Terms */}
+                                        <div className="mt-16 bg-amber-50/50 border border-[#D4AF37]/30 p-8 rounded-lg mb-16 break-inside-avoid">
+                                            <div className="flex gap-4 items-start">
+                                                <span className="text-xl">⏰</span>
+                                                <div>
+                                                    <h4 className="text-[#D4AF37] font-serif text-lg mb-2">Special Offer</h4>
+                                                    <p className="text-[12px] text-[#4B5563] font-sans leading-relaxed tracking-wide">
+                                                        This quotation is valid until June 30, 2026. Prices are subject to availability and may change based on hotel rate fluctuations. We recommend confirming soon to secure these rates.
+                                                    </p>
+                                                </div>
                                             </div>
-                                            
-                                            <h4 className="text-[#111827] font-serif text-xl mb-6">Terms & Conditions</h4>
-                                            
-                                            <p className="text-[11px] text-[#6B7280] font-sans leading-relaxed max-w-2xl mx-auto tracking-[0.05em] mb-8">
-                                                This bespoke itinerary is prepared exclusively for you and remains valid for two weeks from issuance. Pricing and specific accommodations are subject to availability upon formal confirmation.
-                                            </p>
-                                            
-                                            <div className="flex justify-center items-center gap-8 text-[9px] uppercase tracking-[0.2em]">
+                                        </div>
+
+                                        {luxuryTerms && (
+                                            <div className="mt-16 pt-16 border-t border-[#E5E7EB] text-left pb-16 break-inside-avoid">
+                                                <h4 className="text-[#111827] font-serif text-2xl mb-8 text-center text-[#D4AF37]">Luxury Tier Booking Terms</h4>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                                    <div>
+                                                        <h5 className="font-sans uppercase tracking-widest text-[10px] text-[#6B7280] mb-4">Booking & Payment</h5>
+                                                        <div className="prose prose-sm prose-neutral text-[11px] leading-relaxed text-[#4B5563]" dangerouslySetInnerHTML={{ __html: luxuryTerms.booking_payment }} />
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-sans uppercase tracking-widest text-[10px] text-[#6B7280] mb-4">Cancellation Policy</h5>
+                                                        <div className="prose prose-sm prose-neutral text-[11px] leading-relaxed text-[#4B5563]" dangerouslySetInnerHTML={{ __html: luxuryTerms.cancellation_policy }} />
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-12">
+                                                    <h5 className="font-sans uppercase tracking-widest text-[10px] text-[#6B7280] mb-4">Important Notes</h5>
+                                                    <div className="prose prose-sm prose-neutral text-[11px] leading-relaxed text-[#4B5563]" dangerouslySetInnerHTML={{ __html: luxuryTerms.important_notes }} />
+                                                </div>
+
+                                                <div className="mt-12">
+                                                    <h5 className="font-sans uppercase tracking-widest text-[10px] text-[#6B7280] mb-4">Health & Safety</h5>
+                                                    <div className="prose prose-sm prose-neutral text-[11px] leading-relaxed text-[#4B5563]" dangerouslySetInnerHTML={{ __html: luxuryTerms.health_safety }} />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="mt-16 pt-8 border-t border-[#E5E7EB] text-center pb-8 break-inside-avoid">
+                                            <div className="mb-6">
+                                                <img src="/images/nilathra-logo.png" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                            </div>
+                                            <div className="flex justify-center items-center gap-8 text-[8px] uppercase tracking-[0.2em]">
                                                 <a href="https://www.nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>
                                                 <span className="text-[#E5E7EB]">|</span>
                                                 <a href="https://www.nilathra.com/terms" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Terms of Service</a>
@@ -485,8 +431,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                 <a href="https://www.nilathra.com/booking-conditions" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Booking Conditions</a>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                </div>
                             </td>
                         </tr>
                     </tbody>
