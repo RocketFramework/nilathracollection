@@ -57,6 +57,7 @@ export interface Hotel {
     sales_agent_contact?: string;
     reservation_agent_name?: string;
     reservation_agent_contact?: string;
+    reservation_email?: string;
     gm_name?: string;
     gm_contact?: string;
     hotel_class?: string;

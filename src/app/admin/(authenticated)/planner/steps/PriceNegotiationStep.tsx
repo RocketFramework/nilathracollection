@@ -1,16 +1,61 @@
 "use client";
 
 import { TripData, InternalItineraryBlock } from "../types";
-import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail, Code } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
     getHotelsListAction,
     getVendorsAction,
     getTransportProvidersAction,
     getTourGuidesAction,
     getRestaurantsAction,
-    savePurchaseOrderAction,
+    updateHotelContactInfoAction,
+    sendCustomEmailAction
 } from "@/actions/admin.actions";
+
+const HotelContactForm = ({ hotelId, initialName, initialContact, initialEmail }: any) => {
+    const [name, setName] = useState(initialName || '');
+    const [contact, setContact] = useState(initialContact || '');
+    const [email, setEmail] = useState(initialEmail || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        setName(initialName || '');
+        setContact(initialContact || '');
+        setEmail(initialEmail || '');
+    }, [initialName, initialContact, initialEmail]);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const res = await updateHotelContactInfoAction(hotelId, name, contact, email);
+        setIsSaving(false);
+        if (res.success) {
+            alert('Hotel contacts updated successfully!');
+        } else {
+            alert(res.error || 'Failed to update hotel contacts');
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap items-end gap-3 mt-4 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+            <div className="flex-1 min-w-[150px]">
+                <label className="block text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-1">Reservation Agent</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg outline-none focus:border-brand-gold shadow-sm" placeholder="Agent Name" />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+                <label className="block text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-1">Contact No</label>
+                <input type="text" value={contact} onChange={e => setContact(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg outline-none focus:border-brand-gold shadow-sm" placeholder="Phone Number" />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+                <label className="block text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-1">Email Address</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg outline-none focus:border-brand-gold shadow-sm" placeholder="Email" />
+            </div>
+            <button onClick={handleSave} disabled={isSaving} className="px-5 py-2 h-[38px] bg-brand-charcoal text-white text-xs font-bold rounded-lg hover:bg-black transition-colors disabled:opacity-50 shadow-sm whitespace-nowrap">
+                {isSaving ? 'Saving...' : 'Update Records'}
+            </button>
+        </div>
+    );
+};
 
 export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
     const [isLoading, setIsLoading] = useState(true);
@@ -156,90 +201,54 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         }
     };
 
-    const handleDraftPO = async (vendorGroup: string, items: any[]) => {
-        if (!tripData.id) {
-            alert("Tour must be saved first.");
-            return;
-        }
+    const [sendingQuote, setSendingQuote] = useState<string | null>(null);
+    const [emailDraft, setEmailDraft] = useState<{
+        vendorGroup: string;
+        to: string;
+        subject: string;
+        body: string;
+    } | null>(null);
+    const [showHtml, setShowHtml] = useState(false);
+    const editorRef = useRef<HTMLDivElement>(null);
 
-        const total = items.reduce((sum, item) => {
-            const itemTotal = item.isHotelWithRooms
-                ? item.rooms.reduce((rSum: number, r: any) => rSum + (r.agreedTotal || (r.contractedPrice ?? r.pricePerNight ?? 0) * (r.quantity || 1)), 0)
-                : (item.agreedPrice || item.referenceTotal || 0);
-            return sum + itemTotal;
-        }, 0);
-
-        const poItems = [];
-        for (const item of items) {
-            if (item.isHotelWithRooms) {
-                for (const r of item.rooms) {
-                    const unitPrice = r.contractedPrice ?? r.pricePerNight ?? 0;
-                    const rQty = r.quantity || 1;
-                    const rTotal = r.agreedTotal || (unitPrice * rQty);
-                    poItems.push({
-                        id: crypto.randomUUID(),
-                        description: `${item.title} - ${r.roomName}`,
-                        quantity: rQty,
-                        unit_price: r.agreedTotal ? (r.agreedTotal / rQty) : unitPrice,
-                        total_price: rTotal
-                    });
-                }
-            } else {
-                const qty = item.quantity || 1;
-                const iTotal = item.agreedPrice || item.referenceTotal || 0;
-                poItems.push({
-                    id: crypto.randomUUID(),
-                    description: item.title,
-                    quantity: qty,
-                    unit_price: item.agreedPrice ? (item.agreedPrice / qty) : item.unitPrice,
-                    total_price: iTotal
-                });
-            }
-        }
-
-        try {
-            const res = await savePurchaseOrderAction({
-                tour_id: tripData.id,
-                vendor_name: vendorGroup,
-                vendor_type: 'other',
-                status: 'Draft',
-                total_amount: total,
-                subtotal: total
-            }, poItems);
-
-            if (res.success) {
-                alert(`Draft PO for ${vendorGroup} created successfully! You can find it in the Booking & Finance step.`);
-            } else {
-                alert("Failed to create PO.");
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Error creating PO.");
+    const handleInput = () => {
+        if (editorRef.current && emailDraft) {
+            setEmailDraft({ ...emailDraft, body: editorRef.current.innerHTML });
         }
     };
 
+    // Initialize contentEditable when draft opens
+    useEffect(() => {
+        if (emailDraft && editorRef.current && !showHtml) {
+            if (editorRef.current.innerHTML !== emailDraft.body) {
+                editorRef.current.innerHTML = emailDraft.body;
+            }
+        }
+    }, [emailDraft, showHtml]);
 
-    const generateQuotationRequestPDF = async (vendorGroup: string, items: any[]) => {
-        const scriptId = 'html2pdf-script';
-        if (!document.getElementById(scriptId)) {
-            const script = document.createElement('script');
-            script.id = scriptId;
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-            document.body.appendChild(script);
-            await new Promise((resolve) => {
-                script.onload = resolve;
-            });
+    const generateQuotationRequestEmail = async (vendorGroup: string, items: any[]) => {
+        const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
+        const hotelId = hotelItem?.block?.hotelId;
+        const masterHotel = hotelId ? masterHotels.find((h: any) => h.id === hotelId) : null;
+        
+        let toEmail = "";
+        let agentName = "Reservation / Sales Team";
+        
+        if (masterHotel?.reservation_email) {
+            toEmail = masterHotel.reservation_email;
+        }
+        if (masterHotel?.reservation_agent_name) {
+            agentName = masterHotel.reservation_agent_name;
         }
 
-        const container = document.createElement('div');
-        container.style.padding = '40px';
-        container.style.fontFamily = 'sans-serif';
-        container.style.color = '#333';
-        container.style.lineHeight = '1.6';
-        
-        let servicesList = '';
+        if (!toEmail) {
+            alert(`No email address found for ${vendorGroup}. Please update their contact details first.`);
+            return;
+        }
+
+        let servicesHtml = '';
         if (items && items.length > 0) {
-            servicesList = items.map(item => {
+            servicesHtml = items.map(item => {
                 let exactDateStr = "TBD";
                 if (tripData.profile?.arrivalDate && item.block?.dayNumber) {
                     const dateObj = new Date(tripData.profile.arrivalDate);
@@ -258,7 +267,10 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
 
                 let details = '';
                 if (item.isHotelWithRooms) {
-                    details = item.rooms.map((r: any) => `${r.quantity || 1}x ${r.roomName} (${getMealPlanName(r.mealPlan)})`).join('<br/>');
+                    details = item.rooms.map((r: any) => {
+                        const roomType = r.reqId ? `[${r.reqId}] ` : '';
+                        return `${r.quantity || 1}x ${roomType}${r.roomName} (${getMealPlanName(r.mealPlan)})`;
+                    }).join('<br/>');
                 } else if (item.block?.type === 'sleep') {
                     details = `Quantity: ${item.quantity || 1} (${getMealPlanName(item.mealPlan)})`;
                 } else if (item.block?.type === 'travel') {
@@ -267,13 +279,8 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                     details = `Quantity: ${item.quantity || 1}`;
                 }
 
-                return `
-                <li style="margin-bottom: 10px;">
-                    <strong>${item.title || 'Service'}</strong><br/>
-                    Date: ${exactDateStr} (Day ${item.block?.dayNumber || 1})<br/>
-                    ${details}
-                </li>
-            `}).join('');
+                return `<li style="margin-bottom:8px;"><strong>${item.title || 'Service'}</strong><br/><span style="color:#666;">Date: ${exactDateStr} (Day ${item.block?.dayNumber || 1})</span><br/>${details}</li>`;
+            }).join('');
         }
 
         const adults = tripData.profile?.adults || 0;
@@ -283,79 +290,74 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         const guestOrigin = tripData.travelers?.[0]?.nationality || tripData.profile?.departureCountry || 'Not Specified';
 
         const isTransportVendor = items.some(item => item.block?.type === 'travel');
+        const isHotelVendor = items.some(item => item.block?.type === 'sleep');
         const isLuxury = tripData.profile?.travelStyle === 'Luxury' || tripData.profile?.travelStyle === 'Ultra VIP';
-        let additionalInfoItems = `
-                        <li>Confirmation of availability for the dates mentioned.</li>
-                        <li>Best available B2B/Net Rates.</li>
-                        <li>Any special long-stay, VIP, or corporate rates if applicable.</li>
-                        <li>Your standard Cancellation Policy.</li>
-                        <li>Clear inclusions and exclusions for the quoted rates.</li>`;
+        
+        let additionalInfoHtml = `<li style="margin-bottom:4px;">Confirmation of availability for the dates mentioned.</li><li style="margin-bottom:4px;">Best available B2B/Net Rates.</li><li style="margin-bottom:4px;">Any special long-stay, VIP, or corporate rates if applicable.</li><li style="margin-bottom:4px;">Your standard Cancellation Policy.</li><li style="margin-bottom:4px;">Clear inclusions and exclusions for the quoted rates.</li>`;
+
+        if (isHotelVendor) {
+            additionalInfoHtml += `<li style="margin-bottom:4px;">Is Driver Accommodation (FOC) provided?</li><li style="margin-bottom:4px;">Are Driver Meals included?</li><li style="margin-bottom:4px;">Is on-site Parking included?</li><li style="margin-bottom:4px;">What are the Guide Room options (Free, Half Price, or None)?</li>`;
+        }
 
         if (isTransportVendor) {
-            additionalInfoItems += `
-                        <li>Please include rates for the vehicle with driver and without driver.</li>
-                        <li>Max km included for the day.</li>
-                        <li>Vehicle details: Make, model, year of manufacture, and color.</li>`;
+            additionalInfoHtml += `<li style="margin-bottom:4px;">Please include rates for the vehicle with driver and without driver.</li><li style="margin-bottom:4px;">Max km included for the day.</li><li style="margin-bottom:4px;">Vehicle details: Make, model, year of manufacture, and color.</li>`;
             if (isLuxury) {
-                additionalInfoItems += `
-                        <li><strong>Minimum vehicle condition requirements:</strong> As this is a ${tripData.profile.travelStyle} trip, please ensure pristine condition, leather interiors, recent models, working AC, bottled water provided, and professional driver.</li>`;
+                additionalInfoHtml += `<li style="margin-bottom:4px;">Minimum vehicle condition requirements: As this is a ${tripData.profile?.travelStyle} trip, please ensure pristine condition, leather interiors, recent models, working AC, bottled water provided, and professional driver.</li>`;
             }
         }
 
-        container.innerHTML = `
-            <div style="max-width: 800px; margin: auto;">
-                <div style="page-break-inside: avoid;">
-                    <h2 style="color: #d4af37; border-bottom: 2px solid #d4af37; padding-bottom: 10px;">Quotation Request & Availability Check</h2>
-                    <div style="margin-top: 20px;">
-                        <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
-                        <strong>To:</strong> Reservation / Sales Team<br/>
-                        <strong>Vendor/Property Name:</strong> ${vendorGroup || 'Vendor'}<br/>
-                        <strong>From:</strong> Nilathra Collection Operations<br/>
-                    </div>
-                    
-                    <p style="margin-top: 30px;">Dear Reservation Team,</p>
-                    <p>We are currently organizing an itinerary for our valued clients and would like to request your <strong>best available net rates</strong> and <strong>availability confirmation</strong> for the following requirements:</p>
-                </div>
-                
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; page-break-inside: avoid;">
-                    <h4 style="margin-top: 0;">Guest & Booking Details:</h4>
-                    <strong>Group Size:</strong> ${paxInfo}<br/>
-                    <strong>Country of Origin:</strong> ${guestOrigin}<br/>
-                    <ul style="padding-left: 20px; margin-top: 10px;">
-                        ${servicesList}
-                    </ul>
-                </div>
+        const subject = `Quotation Request & Availability Check - ${vendorGroup}`;
+        
+        const bodyHtml = `
+<p style="margin:0 0 16px;">Dear ${agentName},</p>
+<p style="margin:0 0 16px;">Greetings from Nilathra Collection.</p>
+<p style="margin:0 0 16px;">Nilathra Collection is a luxury and ultra-VIP travel concierge specializing in curated Sri Lankan journeys and bespoke hospitality experiences for discerning travelers from around the world.</p>
+<p style="margin:0 0 16px;">We are currently organizing an itinerary for our valued clients and would appreciate it if you could provide your best available net rates along with availability confirmation for the following requirements:</p>
+<hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0;" />
+<h4 style="margin:0 0 12px;color:#333;">GUEST & BOOKING DETAILS</h4>
+<p style="margin:0 0 24px;"><strong>Group Size:</strong> ${paxInfo}<br/><strong>Country of Origin:</strong> ${guestOrigin}</p>
+<h4 style="margin:0 0 12px;color:#333;">SERVICES REQUESTED</h4>
+<ul style="margin:0 0 24px;padding-left:20px;">${servicesHtml}</ul>
+<hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0;" />
+<h4 style="margin:0 0 12px;color:#333;">ADDITIONAL REQUIREMENTS</h4>
+<ul style="margin:0 0 24px;padding-left:20px;">${additionalInfoHtml}</ul>
+<p style="margin:0 0 16px;">We value our partnership and are looking forward to securing this booking. We anticipate bringing potential future business to your esteemed property/service as we continue to grow our operations.</p>
+<p style="margin:0 0 16px;">Thank you for your prompt assistance. We await your timely response.</p>
+<p style="margin:0;">Best Regards,<br/><strong>Operations Team</strong><br/>Nilathra Collection</p>
+`.replace(/\n/g, '');
 
-                <div style="page-break-inside: avoid;">
-                    <p><strong>Please also provide the following information:</strong></p>
-                    <ul style="padding-left: 20px;">
-                        ${additionalInfoItems}
-                    </ul>
+        setEmailDraft({
+            vendorGroup,
+            to: toEmail,
+            subject,
+            body: bodyHtml
+        });
+    };
 
-                    <p style="margin-top: 30px;">We value our partnership and are looking forward to securing this booking. We anticipate bringing potential future business to your esteemed property/service as we continue to grow our operations.</p>
-                    
-                    <p style="margin-top: 20px;">Thank you for your prompt assistance. We await your timely response.</p>
-                    
-                    <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; color: #666; font-size: 0.9em;">
-                        <strong>Best Regards,</strong><br/>
-                        Operations Team<br/>
-                        Nilathra Collection<br/>
-                        <a href="mailto:info@nilathracollection.com" style="color: #d4af37;">info@nilathracollection.com</a>
-                    </div>
-                </div>
-            </div>
-        `;
+    const handleSendDraft = async () => {
+        if (!emailDraft) return;
+        setSendingQuote(emailDraft.vendorGroup);
+        try {
+            const formData = new FormData();
+            formData.append('from', 'concierge@nilathra.com');
+            formData.append('to', emailDraft.to);
+            formData.append('subject', emailDraft.subject);
+            
+            // Pass the HTML directly as the body
+            formData.append('body', emailDraft.body);
 
-        const opt = {
-            margin:       10,
-            filename:     `Quotation_Request_${(vendorGroup || 'Vendor').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        // @ts-ignore
-        window.html2pdf().set(opt).from(container).save();
+            const res = await sendCustomEmailAction(formData);
+            if (res.success) {
+                alert(`Quotation request sent successfully to ${emailDraft.vendorGroup} (${emailDraft.to})!`);
+                setEmailDraft(null);
+            } else {
+                alert(`Failed to send email: ${res.error}`);
+            }
+        } catch (error: any) {
+            alert(`Error sending email: ${error.message || error}`);
+        } finally {
+            setSendingQuote(null);
+        }
     };
 
     if (isLoading) {
@@ -405,7 +407,12 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                 acc[vendor].push(item);
                                 return acc;
                             }, {} as Record<string, any[]>)
-                        ) as [string, any[]][]).map(([vendorGroup, items]) => (
+                        ) as [string, any[]][]).map(([vendorGroup, items]) => {
+                            const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
+                            const hotelId = hotelItem?.block?.hotelId;
+                            const masterHotel = hotelId ? masterHotels.find((h: any) => h.id === hotelId) : null;
+
+                            return (
                             <div key={vendorGroup} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
                                 <div className="bg-neutral-50 px-6 py-4 border-b border-neutral-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex items-start gap-3">
@@ -426,26 +433,43 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3 self-end md:self-auto">
-                                        <span className="text-xs font-bold bg-white border border-neutral-200 text-neutral-500 px-3 py-1.5 rounded-full shadow-sm">
-                                            {items.length} {items.length === 1 ? 'Service' : 'Services'}
-                                        </span>
-                                        <button
-                                            onClick={() => generateQuotationRequestPDF(vendorGroup, items)}
-                                            className="flex items-center gap-1.5 text-xs font-bold bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full hover:bg-blue-100 transition-colors shadow-sm"
-                                        >
-                                            <Mail size={14} />
-                                            Request Quote
-                                        </button>
-                                        <button
-                                            onClick={() => handleDraftPO(vendorGroup, items)}
-                                            className="flex items-center gap-1.5 text-xs font-bold bg-brand-green text-white px-4 py-1.5 rounded-full hover:bg-brand-green/90 transition-colors shadow-sm"
-                                        >
-                                            <FileText size={14} />
-                                            Draft PO
-                                        </button>
+                                    <div className="flex flex-col items-end gap-3 self-end md:self-auto w-full md:w-auto">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-bold bg-white border border-neutral-200 text-neutral-500 px-3 py-1.5 rounded-full shadow-sm">
+                                                {items.length} {items.length === 1 ? 'Service' : 'Services'}
+                                            </span>
+                                            <button
+                                                onClick={() => generateQuotationRequestEmail(vendorGroup, items)}
+                                                disabled={sendingQuote === vendorGroup}
+                                                className={`flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-full shadow-sm transition-colors ${sendingQuote === vendorGroup ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                                            >
+                                                {sendingQuote === vendorGroup ? (
+                                                    <>
+                                                        <RefreshCw size={14} className="animate-spin" />
+                                                        Sending...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Mail size={14} />
+                                                        Request Quote
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+                                
+                                {masterHotel && (
+                                    <div className="px-6 pb-4 bg-neutral-50 border-b border-neutral-200">
+                                        <HotelContactForm 
+                                            hotelId={masterHotel.id} 
+                                            initialName={masterHotel.reservation_agent_name} 
+                                            initialContact={masterHotel.reservation_agent_contact} 
+                                            initialEmail={masterHotel.reservation_email} 
+                                        />
+                                    </div>
+                                )}
+
                                 <div className="divide-y divide-neutral-100">
                                     {items.map(item => {
                                         const { id, block: b, title, vendorName, unitPrice, quantity, referenceTotal, icon, isHotelWithRooms, accIndex, rooms, agreedPrice, mealPlan } = item;
@@ -484,7 +508,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                 {rooms.map((room: any, rIdx: number) => {
                                                                     const roomRefPrice = room.contractedPrice ?? room.pricePerNight ?? 0;
                                                                     const roomRefTotal = roomRefPrice * (room.quantity || 1);
-                                                                    const roomAgreedPrice = room.agreedTotal;
+                                                                    const roomAgreedPrice = room.agreedTotal !== undefined ? room.agreedTotal : ((room.pricePerNight ?? room.contractedPrice ?? 0) * (room.quantity || 1));
                                                                     const parsedReqType = room.reqId?.split('-')[0] || '';
                                                                     return (
                                                                         <div key={rIdx} className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-4 border-b border-neutral-100 last:border-0 last:pb-0">
@@ -656,10 +680,105 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                     })}
                                 </div>
                             </div>
-                        ))
+                        );
+                    })
                     )}
                 </div>
             </div>
+            {emailDraft && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between bg-brand-charcoal text-white">
+                            <h3 className="text-lg font-bold font-playfair tracking-wide flex items-center gap-2">
+                                <Mail size={18} className="text-brand-gold" />
+                                Review Quotation Request: {emailDraft.vendorGroup}
+                            </h3>
+                            <button onClick={() => setEmailDraft(null)} className="text-neutral-400 hover:text-white transition-colors text-xl leading-none">
+                                &times;
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">To</label>
+                                    <input 
+                                        type="email" 
+                                        value={emailDraft.to} 
+                                        onChange={e => setEmailDraft({...emailDraft, to: e.target.value})} 
+                                        className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:border-brand-gold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">Subject</label>
+                                    <input 
+                                        type="text" 
+                                        value={emailDraft.subject} 
+                                        onChange={e => setEmailDraft({...emailDraft, subject: e.target.value})} 
+                                        className="w-full px-3 py-2 text-sm bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:border-brand-gold"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col flex-1 min-h-[300px]">
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider">Message Body</label>
+                                    <button type="button" onClick={() => setShowHtml(!showHtml)} className="text-xs flex items-center gap-1 text-neutral-500 hover:text-brand-charcoal transition-colors">
+                                        <Code size={14} /> {showHtml ? "View Formatted" : "View HTML Source"}
+                                    </button>
+                                </div>
+                                {showHtml ? (
+                                    <textarea
+                                        value={emailDraft.body}
+                                        onChange={e => {
+                                            setEmailDraft({...emailDraft, body: e.target.value});
+                                            if (editorRef.current) {
+                                                editorRef.current.innerHTML = e.target.value;
+                                            }
+                                        }}
+                                        className="w-full flex-1 px-4 py-3 text-sm font-mono bg-neutral-50 border border-neutral-200 rounded-xl outline-none focus:border-brand-gold resize-none"
+                                    />
+                                ) : (
+                                    <div
+                                        ref={editorRef}
+                                        contentEditable
+                                        onInput={handleInput}
+                                        onBlur={handleInput}
+                                        className="w-full flex-1 bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all overflow-y-auto prose prose-sm max-w-none"
+                                    />
+                                )}
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-neutral-100 bg-neutral-50 flex justify-end gap-3">
+                            <button 
+                                onClick={() => setEmailDraft(null)}
+                                className="px-5 py-2 rounded-xl text-sm font-bold text-neutral-600 hover:bg-neutral-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSendDraft}
+                                disabled={sendingQuote === emailDraft.vendorGroup}
+                                className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-colors ${
+                                    sendingQuote === emailDraft.vendorGroup 
+                                    ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed' 
+                                    : 'bg-brand-charcoal text-white hover:bg-black shadow-lg hover:shadow-xl'
+                                }`}
+                            >
+                                {sendingQuote === emailDraft.vendorGroup ? (
+                                    <>
+                                        <RefreshCw size={16} className="animate-spin" />
+                                        Sending...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Mail size={16} />
+                                        Send Email
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -50,6 +50,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             let vendorName = acc.serviceProvider || 'Accommodation Provider';
             let roomDetails = acc.name || 'Room/Board';
             let roomsPerNight = 1; // Default to 1 if we can't find room counts
+            let bookingTotalPrice = acc.agreedPrice || 0; // Fallback to agreedPrice
             
             if (booking) {
                 if (booking.hotelName) {
@@ -59,6 +60,14 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
                 if (booking.selectedRooms && booking.selectedRooms.length > 0) {
                     roomDetails = booking.selectedRooms.map(r => `${r.quantity}x ${r.roomName} ${r.mealPlan ? `(${r.mealPlan})` : ''}`).join(', ');
                     roomsPerNight = booking.selectedRooms.reduce((sum, r) => sum + (r.quantity || 1), 0);
+                    // Extract exact cost directly from Room Details table if available
+                    const calculatedTotal = booking.selectedRooms.reduce((sum, r) => {
+                        const price = r.agreedTotal !== undefined ? r.agreedTotal : (r.pricePerNight * r.quantity);
+                        return sum + (price || 0);
+                    }, 0);
+                    if (calculatedTotal > 0 || booking.selectedRooms.some(r => r.agreedTotal !== undefined)) {
+                        bookingTotalPrice = calculatedTotal;
+                    }
                 } else if (booking.roomName) {
                     roomDetails = `${booking.numberOfRooms || 1}x ${booking.roomName} ${booking.mealPlan ? `(${booking.mealPlan})` : ''}`;
                     roomsPerNight = booking.numberOfRooms || 1;
@@ -77,9 +86,9 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             
             groupedAcc[groupKey].dates.add(getDayDate(acc.dayNumber));
             
-            // Increment by total rooms for that night. Price accumulates from charged total (agreedPrice) for that day.
+            // Increment by total rooms for that night. Price accumulates from the Room Details table if populated, otherwise agreedPrice.
             groupedAcc[groupKey].quantity += roomsPerNight;
-            groupedAcc[groupKey].total += (acc.agreedPrice || 0);
+            groupedAcc[groupKey].total += bookingTotalPrice;
         });
 
         Object.keys(groupedAcc).forEach(key => {

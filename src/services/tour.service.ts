@@ -624,7 +624,7 @@ export class TourService {
                             // Always enforce the actual vehicle's km rate as the contracted base unit rate
                             contractedPrice = dynamicVehicleKmRate;
                             
-                            quantity = distanceNum; // Distance is the multiplier (quantity)
+                            quantity = distanceNum > 0 ? distanceNum : 1; // Distance is the multiplier (quantity)
                             
                             // Respect manually negotiated agreed TOTAL price if it exists
                             if (b.agreedPrice) {

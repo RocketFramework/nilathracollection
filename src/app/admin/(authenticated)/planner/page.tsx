@@ -198,9 +198,9 @@ function PlannerWorkspace() {
             } else {
                 throw new Error(res.error || "Failed to save");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save tour", error);
-            alert("Error saving tour. Check console for details.");
+            alert("Error saving tour: " + (error.message || error));
         } finally {
             setIsSaving(false);
         }

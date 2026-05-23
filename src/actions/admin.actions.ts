@@ -168,7 +168,7 @@ export async function saveTourAction(tourId: string, tripData: any) {
         return { success: true };
     } catch (error: any) {
         console.error("Error saving tour data:", error);
-        return { error: error.message || "Failed to save tour data." };
+        return { error: error.stack || error.message || "Failed to save tour data." };
     }
 }
 
@@ -231,6 +231,28 @@ export async function saveHotelAction(hotel: Hotel) {
     } catch (error: any) {
         console.error("Error saving hotel:", error);
         return { error: error.message || "Failed to save hotel." };
+    }
+}
+
+export async function updateHotelContactInfoAction(id: string, name: string, contact: string, email: string) {
+    try {
+        const adminSupabase = await createAdminClient();
+        const { error } = await adminSupabase
+            .from('hotels')
+            .update({
+                reservation_agent_name: name,
+                reservation_agent_contact: contact,
+                reservation_email: email
+            })
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        revalidatePath("/admin/master-data/hotels");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating hotel contacts:", error);
+        return { error: error.message || "Failed to update hotel contacts." };
     }
 }
 

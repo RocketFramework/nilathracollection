@@ -5,7 +5,7 @@ import {
     ListTree, MapPin, CalendarDays, Navigation, Utensils, BedDouble, AlertCircle, GripVertical,
     Rocket, RefreshCcw, ArrowUp, ArrowDown, Activity as ActivityIcon, ChevronLeft, ChevronRight,
     Trash2, Link, Link2Off, UserCheck, ShieldCheck, Car as CarIcon, Coffee, Info, Calculator,
-    CheckCircle2, AlertTriangle, Search, X, Check, XCircle, PlusCircle, Waves, Wifi, Briefcase, HeartPulse, Plane, Phone, Printer
+    CheckCircle2, AlertTriangle, Search, X, Check, XCircle, PlusCircle, Waves, Wifi, Briefcase, HeartPulse, Plane, Phone, Printer, Copy
 } from "lucide-react";
 import { generateRoutePlan, GeoLocation } from "@/lib/route-engine";
 import { generateAIRoutePlan } from "@/lib/ai-route-engine";
@@ -924,6 +924,47 @@ export function ItineraryBuilder({
 
     const [searchTerm, setSearchTerm] = useState("");
 
+    const handleCopyRatePrompt = (block: InternalItineraryBlock) => {
+        if (block.type !== 'sleep' || !block.hotelId) return;
+        const hotel = masterData.hotels.find(h => h.id === block.hotelId);
+        if (!hotel) return;
+
+        const adults = tripData.profile?.adults || 0;
+        const children = tripData.profile?.children || 0;
+
+        let checkInStr = "<check_in_date>";
+        let checkOutStr = "<check_out_date>";
+        
+        if (tripData.profile?.arrivalDate) {
+            const checkInDate = new Date(tripData.profile.arrivalDate);
+            checkInDate.setDate(checkInDate.getDate() + (block.dayNumber - 1));
+            
+            const checkOutDate = new Date(checkInDate);
+            checkOutDate.setDate(checkOutDate.getDate() + 1);
+
+            checkInStr = checkInDate.toISOString().split('T')[0];
+            checkOutStr = checkOutDate.toISOString().split('T')[0];
+        }
+
+        const acc = tripData.accommodations.find(a => a.nightIndex === block.dayNumber);
+        
+        let mealPlan = "<meal_plan>";
+        if (acc?.selectedRooms && acc.selectedRooms.length > 0) {
+            const plans = acc.selectedRooms.map((sr: any) => sr.mealPlan).filter(Boolean);
+            if (plans.length > 0) mealPlan = plans[0];
+        } else if (acc?.mealPlan) {
+            mealPlan = acc.mealPlan;
+        }
+
+        const hotelName = hotel.name || "<hotel_name>";
+        const hotelLocation = hotel.closest_city || "<hotel_location>";
+
+        const prompt = `Could you please provide the rate for a stay at ${hotelName} in ${hotelLocation} for ${adults} adults and ${children} children, from ${checkInStr} to ${checkOutStr}, on a ${mealPlan} basis?`;
+        
+        navigator.clipboard.writeText(prompt);
+        window.alert("Rate prompt copied to clipboard:\n\n" + prompt);
+    };
+
     const bindProvider = (blockId: string, field: keyof InternalItineraryBlock, value: any) => {
         const block = tripData.itinerary.find(b => b.id === blockId);
         if (!block) return;
@@ -1744,6 +1785,16 @@ export function ItineraryBuilder({
                                                                                 <span className="text-neutral-600 font-bold tracking-wider">{binding.contact.phone}</span>
                                                                             </span>
                                                                         </a>
+                                                                    )}
+                                                                    {block.type === 'sleep' && block.hotelId && (
+                                                                        <button
+                                                                            onClick={() => handleCopyRatePrompt(block)}
+                                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-full text-[10px] font-bold text-indigo-500 hover:bg-indigo-100 transition-colors w-full justify-center mt-1"
+                                                                            title="Copy Rate Request Prompt for ChatGPT"
+                                                                        >
+                                                                            <Copy size={10} />
+                                                                            Rate Prompt
+                                                                        </button>
                                                                     )}
                                                                 </div>
                                                             ) : !readOnly ? (
