@@ -207,6 +207,7 @@ export interface InternalItineraryBlock {
     confirmationStatus: 'Pending' | 'Confirmed';
     paymentStatus: 'Pending' | 'Paid';
     internalNotes: string;
+    priceFinalized?: boolean;
     comments?: BlockComment[];
     touristNotes?: string; // Feedback from tourist
     locationName?: string;

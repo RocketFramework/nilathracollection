@@ -5,6 +5,7 @@ import { logoutAction } from "../../actions/auth";
 
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import NotificationBell from "../components/NotificationBell";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
     const supabase = await createClient();
@@ -146,6 +147,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <header className="h-16 bg-white/80 backdrop-blur-md border-b border-[#E5E7EB] flex items-center px-8 justify-between shrink-0 shadow-sm z-10">
                     <h1 className="text-xl font-semibold text-[#2B2B2B] font-playfair tracking-wide flex-shrink-0">Admin Dashboard</h1>
                     <div className="flex items-center gap-4">
+                        <NotificationBell />
                         <div className="flex flex-col items-end mr-2">
                             <span className="text-xs font-semibold text-[#6B7280] uppercase tracking-wider">{displayRole}</span>
                         </div>

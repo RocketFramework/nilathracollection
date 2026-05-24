@@ -1,7 +1,7 @@
 "use client";
 
 import { TripData, InternalItineraryBlock } from "../types";
-import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail, Code } from "lucide-react";
+import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail, Code, CheckCircle2 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
     getHotelsListAction,
@@ -10,8 +10,11 @@ import {
     getTourGuidesAction,
     getRestaurantsAction,
     updateHotelContactInfoAction,
-    sendCustomEmailAction
+    updateTransportProviderContactInfoAction,
+    sendCustomEmailAction,
+    finalizeActivityPricesAction
 } from "@/actions/admin.actions";
+import { getMyNotificationsAction, logQuoteRequestAction } from "@/actions/notification.actions";
 
 const HotelContactForm = ({ hotelId, initialName, initialContact, initialEmail }: any) => {
     const [name, setName] = useState(initialName || '');
@@ -57,6 +60,44 @@ const HotelContactForm = ({ hotelId, initialName, initialContact, initialEmail }
     );
 };
 
+const TransportProviderContactForm = ({ providerId, initialPhone, initialEmail }: any) => {
+    const [phone, setPhone] = useState(initialPhone || '');
+    const [email, setEmail] = useState(initialEmail || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        setPhone(initialPhone || '');
+        setEmail(initialEmail || '');
+    }, [initialPhone, initialEmail]);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const res = await updateTransportProviderContactInfoAction(providerId, phone, email);
+        setIsSaving(false);
+        if (res.success) {
+            alert('Transport provider contacts updated successfully!');
+        } else {
+            alert(res.error || 'Failed to update transport provider contacts');
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap items-end gap-3 mt-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+            <div className="flex-1 min-w-[150px]">
+                <label className="block text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-1">Phone Number</label>
+                <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg outline-none focus:border-brand-gold shadow-sm" placeholder="Phone Number" />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+                <label className="block text-[10px] text-neutral-500 uppercase font-bold tracking-wider mb-1">Email Address</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg outline-none focus:border-brand-gold shadow-sm" placeholder="Email" />
+            </div>
+            <button onClick={handleSave} disabled={isSaving} className="px-5 py-2 h-[38px] bg-brand-charcoal text-white text-xs font-bold rounded-lg hover:bg-black transition-colors disabled:opacity-50 shadow-sm whitespace-nowrap">
+                {isSaving ? 'Saving...' : 'Update Records'}
+            </button>
+        </div>
+    );
+};
+
 export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
     const [isLoading, setIsLoading] = useState(true);
 
@@ -65,17 +106,19 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
     const [masterTransports, setMasterTransports] = useState<any[]>([]);
     const [masterGuides, setMasterGuides] = useState<any[]>([]);
     const [masterRestaurants, setMasterRestaurants] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchMasterData = async () => {
             setIsLoading(true);
             try {
-                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes] = await Promise.all([
+                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes] = await Promise.all([
                     getHotelsListAction(),
                     getVendorsAction(),
                     getTransportProvidersAction(),
                     getTourGuidesAction(),
-                    getRestaurantsAction()
+                    getRestaurantsAction(),
+                    getMyNotificationsAction()
                 ]);
 
                 if (hotelsRes.success) setMasterHotels(hotelsRes.hotels || []);
@@ -83,6 +126,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 if (transportsRes.success) setMasterTransports(transportsRes.providers || []);
                 if (guidesRes.success) setMasterGuides(guidesRes.guides || []);
                 if (restRes.success) setMasterRestaurants(restRes.restaurants || []);
+                if (nRes.success) setNotifications(nRes.data || []);
             } catch (err) {
                 console.error("Failed to fetch initial data", err);
             } finally {
@@ -202,11 +246,14 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
     };
 
     const [sendingQuote, setSendingQuote] = useState<string | null>(null);
+    const [finalizingGroup, setFinalizingGroup] = useState<string | null>(null);
     const [emailDraft, setEmailDraft] = useState<{
         vendorGroup: string;
         to: string;
         subject: string;
         body: string;
+        referenceType: string;
+        referenceId: string;
     } | null>(null);
     const [showHtml, setShowHtml] = useState(false);
     const editorRef = useRef<HTMLDivElement>(null);
@@ -234,11 +281,15 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         let toEmail = "";
         let agentName = "Reservation / Sales Team";
         
-        if (masterHotel?.reservation_email) {
-            toEmail = masterHotel.reservation_email;
-        }
-        if (masterHotel?.reservation_agent_name) {
-            agentName = masterHotel.reservation_agent_name;
+        if (masterHotel) {
+            if (masterHotel.reservation_email) toEmail = masterHotel.reservation_email;
+            if (masterHotel.reservation_agent_name) agentName = masterHotel.reservation_agent_name;
+        } else {
+            const masterTransport = masterTransports.find((t: any) => t.name === vendorGroup);
+            if (masterTransport) {
+                if (masterTransport.email) toEmail = masterTransport.email;
+                agentName = "Transport Operations Team";
+            }
         }
 
         if (!toEmail) {
@@ -330,7 +381,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             vendorGroup,
             to: toEmail,
             subject,
-            body: bodyHtml
+            body: bodyHtml,
+            referenceType: 'daily_activity',
+            referenceId: items[0]?.block?.id || tripData.id || ''
         });
     };
 
@@ -348,6 +401,10 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
 
             const res = await sendCustomEmailAction(formData);
             if (res.success) {
+                await logQuoteRequestAction(emailDraft.vendorGroup, emailDraft.to, window.location.href, emailDraft.referenceId, emailDraft.referenceType);
+                const notifRes = await getMyNotificationsAction();
+                if (notifRes.success) setNotifications(notifRes.data || []);
+                
                 alert(`Quotation request sent successfully to ${emailDraft.vendorGroup} (${emailDraft.to})!`);
                 setEmailDraft(null);
             } else {
@@ -411,6 +468,7 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                             const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
                             const hotelId = hotelItem?.block?.hotelId;
                             const masterHotel = hotelId ? masterHotels.find((h: any) => h.id === hotelId) : null;
+                            const masterTransport = masterTransports.find((t: any) => t.name === vendorGroup);
 
                             return (
                             <div key={vendorGroup} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-sm">
@@ -435,6 +493,25 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                     </div>
                                     <div className="flex flex-col items-end gap-3 self-end md:self-auto w-full md:w-auto">
                                         <div className="flex items-center gap-3">
+                                            {(() => {
+                                                const itemBlockIds = items.map(i => i.block?.id).filter(Boolean);
+                                                const vendorNotif = notifications.find(n => 
+                                                    n.reference_type === 'daily_activity' && 
+                                                    itemBlockIds.includes(n.reference_id) && 
+                                                    n.action_description === `Quotation request sent to ${vendorGroup}`
+                                                );
+                                                if (!vendorNotif) return null;
+                                                const actionDate = new Date(vendorNotif.action_date);
+                                                const dueDate = new Date(actionDate);
+                                                dueDate.setDate(dueDate.getDate() + (vendorNotif.action_duration || 3));
+                                                const isOverdue = new Date() > dueDate;
+                                                return (
+                                                    <div 
+                                                        className={`w-3 h-3 rounded-full shadow-sm cursor-help ${isOverdue ? 'bg-red-500' : 'bg-green-500'}`}
+                                                        title={`Status: ${vendorNotif.status} | Waiting: ${vendorNotif.action_waiting} | Sent: ${actionDate.toLocaleDateString()}`}
+                                                    />
+                                                );
+                                            })()}
                                             <span className="text-xs font-bold bg-white border border-neutral-200 text-neutral-500 px-3 py-1.5 rounded-full shadow-sm">
                                                 {items.length} {items.length === 1 ? 'Service' : 'Services'}
                                             </span>
@@ -455,6 +532,51 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                     </>
                                                 )}
                                             </button>
+                                            {(() => {
+                                                const allFinalized = items.every((i: any) => i.block?.priceFinalized);
+                                                const isFinalizing = finalizingGroup === vendorGroup;
+                                                return (
+                                                    <button
+                                                        onClick={async () => {
+                                                            setFinalizingGroup(vendorGroup);
+                                                            try {
+                                                                const blockIds = items.map((i: any) => i.block?.id).filter(Boolean);
+                                                                if (blockIds.length > 0) {
+                                                                    const res = await finalizeActivityPricesAction(blockIds);
+                                                                    if (!res.success) {
+                                                                        alert("Failed to finalize prices: " + res.error);
+                                                                        return;
+                                                                    }
+                                                                }
+                                                                const updatedItinerary = [...tripData.itinerary];
+                                                                items.forEach((item: any) => {
+                                                                    const idx = updatedItinerary.findIndex(b => b.id === item.block?.id);
+                                                                    if (idx !== -1) {
+                                                                        updatedItinerary[idx] = { ...updatedItinerary[idx], priceFinalized: true };
+                                                                    }
+                                                                });
+                                                                updateData({ itinerary: updatedItinerary });
+                                                            } catch (error) {
+                                                                console.error("Error finalizing prices:", error);
+                                                                alert("An error occurred while finalizing prices.");
+                                                            } finally {
+                                                                setFinalizingGroup(null);
+                                                            }
+                                                        }}
+                                                        disabled={allFinalized || isFinalizing}
+                                                        className={`flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-full shadow-sm transition-colors ${
+                                                            allFinalized 
+                                                            ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                                                            : isFinalizing
+                                                            ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                                                            : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                                        }`}
+                                                    >
+                                                        {isFinalizing ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                                        {allFinalized ? 'Price Finalized' : isFinalizing ? 'Finalizing...' : 'Finalize Price'}
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -466,6 +588,16 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                             initialName={masterHotel.reservation_agent_name} 
                                             initialContact={masterHotel.reservation_agent_contact} 
                                             initialEmail={masterHotel.reservation_email} 
+                                        />
+                                    </div>
+                                )}
+                                
+                                {masterTransport && !masterHotel && (
+                                    <div className="px-6 pb-4 bg-neutral-50 border-b border-neutral-200">
+                                        <TransportProviderContactForm 
+                                            providerId={masterTransport.id} 
+                                            initialPhone={masterTransport.phone} 
+                                            initialEmail={masterTransport.email} 
                                         />
                                     </div>
                                 )}

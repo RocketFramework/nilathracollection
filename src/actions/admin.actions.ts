@@ -256,6 +256,27 @@ export async function updateHotelContactInfoAction(id: string, name: string, con
     }
 }
 
+export async function updateTransportProviderContactInfoAction(id: string, phone: string, email: string) {
+    try {
+        const adminSupabase = await createAdminClient();
+        const { error } = await adminSupabase
+            .from('transport_providers')
+            .update({
+                phone: phone,
+                email: email
+            })
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        revalidatePath("/admin/master-data");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating transport provider contacts:", error);
+        return { error: error.message || "Failed to update transport provider contacts." };
+    }
+}
+
 export async function deleteHotelAction(id: string) {
     try {
         const adminSupabase = createAdminClient();
@@ -406,6 +427,39 @@ export async function getPurchaseOrdersAction(tourId: string) {
     } catch (error: any) {
         console.error("Error fetching purchase orders:", error);
         return { error: error.message || "Failed to load purchase orders." };
+    }
+}
+
+export async function getFinalizedActivitiesAction(tourId: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('daily_activities')
+            .select('*')
+            .eq('tour_id', tourId)
+            .eq('price_finalized', true);
+
+        if (error) throw error;
+        return { success: true, activities: data || [] };
+    } catch (error: any) {
+        console.error("Error fetching finalized activities:", error);
+        return { success: false, error: error.message || "Failed to load activities." };
+    }
+}
+
+export async function finalizeActivityPricesAction(blockIds: string[]) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { error } = await adminSupabase
+            .from('daily_activities')
+            .update({ price_finalized: true })
+            .in('id', blockIds);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error finalizing prices:", error);
+        return { success: false, error: error.message || "Failed to finalize prices." };
     }
 }
 
