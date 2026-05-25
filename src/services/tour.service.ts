@@ -502,7 +502,8 @@ export class TourService {
                     driver_meal_included: b.driverMealIncluded || false,
                     driver_acc_included: b.driverAccIncluded || false,
                     guide_room_discount: b.guideRoomDiscount || null,
-                    parking_included: b.parkingIncluded || false
+                    parking_included: b.parkingIncluded || false,
+                    price_finalized: b.priceFinalized || false
                 };
 
                 if (b.type === 'sleep') {

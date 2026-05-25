@@ -466,11 +466,10 @@ export async function finalizeActivityPricesAction(blockIds: string[]) {
 export async function savePurchaseOrderAction(po: Partial<DBPurchaseOrder>, items: Partial<DBPurchaseOrderItem>[]) {
     try {
         const id = await FinanceService.savePurchaseOrder(po, items);
-        // revalidatePath(`/admin/planner`); 
         return { success: true, id };
     } catch (error: any) {
         console.error("Error saving purchase order:", error);
-        return { error: error.message || "Failed to save purchase order." };
+        return { success: false, error: error.message || "Failed to save purchase order." };
     }
 }
 

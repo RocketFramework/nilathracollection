@@ -12,7 +12,8 @@ import {
     updateHotelContactInfoAction,
     updateTransportProviderContactInfoAction,
     sendCustomEmailAction,
-    finalizeActivityPricesAction
+    finalizeActivityPricesAction,
+    getFinalizedActivitiesAction
 } from "@/actions/admin.actions";
 import { getMyNotificationsAction, logQuoteRequestAction } from "@/actions/notification.actions";
 
@@ -107,18 +108,20 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
     const [masterGuides, setMasterGuides] = useState<any[]>([]);
     const [masterRestaurants, setMasterRestaurants] = useState<any[]>([]);
     const [notifications, setNotifications] = useState<any[]>([]);
+    const [finalizedIds, setFinalizedIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         const fetchMasterData = async () => {
             setIsLoading(true);
             try {
-                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes] = await Promise.all([
+                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes, finalRes] = await Promise.all([
                     getHotelsListAction(),
                     getVendorsAction(),
                     getTransportProvidersAction(),
                     getTourGuidesAction(),
                     getRestaurantsAction(),
-                    getMyNotificationsAction()
+                    getMyNotificationsAction(),
+                    getFinalizedActivitiesAction(tripData.id || '')
                 ]);
 
                 if (hotelsRes.success) setMasterHotels(hotelsRes.hotels || []);
@@ -127,6 +130,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 if (guidesRes.success) setMasterGuides(guidesRes.guides || []);
                 if (restRes.success) setMasterRestaurants(restRes.restaurants || []);
                 if (nRes.success) setNotifications(nRes.data || []);
+                if (finalRes.success && finalRes.activities) {
+                    setFinalizedIds(new Set(finalRes.activities.map((a: any) => a.id)));
+                }
             } catch (err) {
                 console.error("Failed to fetch initial data", err);
             } finally {
@@ -138,7 +144,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
 
     const negotiableItems = useMemo(() => {
         let items: any[] = [];
-        tripData.itinerary.forEach(b => {
+        tripData.itinerary.forEach(rawBlock => {
+            const b = { ...rawBlock, priceFinalized: rawBlock.priceFinalized || finalizedIds.has(rawBlock.id) };
+            
             let vendorName = "Unknown Vendor";
             let unitPrice = b.contractedPrice ?? 0;
             let quantity = 1;
