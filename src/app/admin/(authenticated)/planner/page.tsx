@@ -155,10 +155,11 @@ function PlannerWorkspace() {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isDirty]);
 
-    const updateData = useCallback((d: Partial<TripData>) => {
+    const updateData = useCallback((d: Partial<TripData> | ((prev: TripData) => Partial<TripData>)) => {
         setTripData(prev => {
             setIsDirty(true);
-            return { ...prev, ...d };
+            const updates = typeof d === 'function' ? d(prev) : d;
+            return { ...prev, ...updates };
         });
     }, []);
 

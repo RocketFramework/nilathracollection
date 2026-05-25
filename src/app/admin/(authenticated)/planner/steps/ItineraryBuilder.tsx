@@ -99,7 +99,7 @@ export function ItineraryBuilder({
     onAddComment
 }: { 
     tripData: TripData, 
-    updateData: (d: Partial<TripData>) => void,
+    updateData: (d: Partial<TripData> | ((prev: TripData) => Partial<TripData>)) => void,
     readOnly?: boolean,
     currentUserRole?: 'agent' | 'tourist',
     onAddComment?: (blockId: string, text: string) => Promise<void> | void
@@ -580,7 +580,7 @@ export function ItineraryBuilder({
             if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
                 const vendor = masterData.vendors.find(v => v.id === b.vendorId);
                 const va = vendor?.vendor_activities?.find(va => va.id === b.vendorActivityId);
-                const fallbackVa = vendor?.vendor_activities?.find(va => va.activity_id === b.activityId);
+                const fallbackVa = vendor?.vendor_activities?.find(va => Number(va.activity_id) === Number(b.activityId));
                 
                 const base = b.contractedPrice !== undefined ? b.contractedPrice : (va?.vendor_price || fallbackVa?.vendor_price || 0);
                 const agreedCost = b.agreedPrice !== undefined ? b.agreedPrice : (base * (1 + (activityMarkup / 100)));
@@ -673,17 +673,17 @@ export function ItineraryBuilder({
             currentCosts.transport !== totalCosts.transport;
 
         if (needsSync) {
-            updateData({
+            updateData(prev => ({
                 financials: {
-                    ...tripData.financials,
+                    ...prev.financials,
                     costs: {
-                        ...currentCosts,
+                        ...(prev.financials?.costs || {}),
                         hotels: totalCosts.hotels,
                         activities: totalCosts.activities,
                         transport: totalCosts.transport
                     }
                 }
-            });
+            }));
         }
     }, [totalCosts, tripData.financials, updateData]);
 
@@ -1034,6 +1034,35 @@ export function ItineraryBuilder({
                     contractedPrice: contractedRate,
                     agreedPrice: agreedPrice
                 } : b);
+            }
+        }
+
+        // Sync logic for activities (Vendors)
+        if (field === 'vendorId' && block.type === 'activity') {
+            const vendor = masterData.vendors.find(v => v.id === value);
+            if (vendor) {
+                const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(block.activityId));
+                if (va) {
+                    const markupPercent = markups.vendor_activity_markup ?? 10;
+                    const contractedRate = va.vendor_price || 0;
+                    const agreedPrice = contractedRate * (1 + markupPercent / 100);
+
+                    updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? {
+                        ...b,
+                        [field]: value,
+                        vendorActivityId: va.id,
+                        contractedPrice: contractedRate,
+                        agreedPrice: agreedPrice
+                    } : b);
+                } else {
+                    updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? {
+                        ...b,
+                        [field]: value,
+                        vendorActivityId: undefined,
+                        contractedPrice: undefined,
+                        agreedPrice: undefined
+                    } : b);
+                }
             }
         }
 
@@ -1508,7 +1537,7 @@ export function ItineraryBuilder({
                                                                             className="text-[10px] text-neutral-500 bg-transparent border-none p-0 focus:ring-0 w-full placeholder:text-neutral-300"
                                                                         />
                                                                     </div>
-                                                                    {block.type === 'travel' && (
+                                                                    {(block.type === 'travel' || block.type === 'activity') && (
                                                                         <div className="flex items-center gap-1 w-24 bg-neutral-50/50 rounded-md px-2 py-1 border border-transparent focus-within:border-neutral-200 focus-within:bg-white transition-colors">
                                                                             <Navigation size={10} className="text-neutral-400 shrink-0" />
                                                                             <DebouncedInput
@@ -2441,7 +2470,7 @@ export function ItineraryBuilder({
                                             tripData.activities.find(a => a.activityId === currentBlock?.activityId)?.activityData;
 
                                         const specializedVendorsUnfiltered = masterData.vendors.filter(v =>
-                                            v.vendor_activities?.some(va => va.activity_id === currentBlock?.activityId)
+                                            v.vendor_activities?.some(va => Number(va.activity_id) === Number(currentBlock?.activityId))
                                         );
 
                                         // Apply global search filter to specialized vendors
@@ -2479,7 +2508,7 @@ export function ItineraryBuilder({
                                                 <div className="grid grid-cols-1 gap-3 p-4">
                                                     {specializedVendors.map(v => {
                                                         const isSelected = currentBlock?.vendorId === v.id;
-                                                        const va = v.vendor_activities?.find(a => a.activity_id === currentBlock?.activityId);
+                                                        const va = v.vendor_activities?.find(a => Number(a.activity_id) === Number(currentBlock?.activityId));
                                                         return (
                                                             <button key={v.id} onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
                                                                 className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-brand-green bg-brand-green/5' : 'border-neutral-200 bg-white hover:border-brand-green/30'}`}>

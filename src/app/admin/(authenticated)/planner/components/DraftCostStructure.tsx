@@ -1,36 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import { TripData, DraftCostItem } from '../types';
 import { Plus, Trash2, Edit2, Check, RefreshCw } from 'lucide-react';
+import { getVendorsAction, getAppMarkupsAction } from '@/actions/admin.actions';
 
 interface Props {
     tripData: TripData;
-    updateData: (data: Partial<TripData>) => void;
+    updateData: (data: Partial<TripData> | ((prev: TripData) => Partial<TripData>)) => void;
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export function DraftCostStructure({ tripData, updateData }: Props) {
-    const [costs, setCosts] = useState<DraftCostItem[]>([]);
+    const costs: DraftCostItem[] = tripData.financials?.draftCosts || [];
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<Partial<DraftCostItem>>({});
 
+    const [isSyncing, setIsSyncing] = useState(false);
+
     useEffect(() => {
-        if (tripData.financials?.draftCosts && tripData.financials.draftCosts.length > 0) {
-            setCosts(tripData.financials.draftCosts);
-        } else {
+        if (!tripData.financials?.draftCosts) {
             generateAndSaveDefaults();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tripData.financials?.draftCosts]);
 
-    const generateAndSaveDefaults = () => {
-        const defaults = generateDefaultCosts(tripData);
-        setCosts(defaults);
-        saveToTripData(defaults);
+    const generateAndSaveDefaults = async () => {
+        setIsSyncing(true);
+        try {
+            console.log('generateAndSaveDefaults');
+            const defaults = await generateDefaultCosts(tripData);
+            saveToTripData(defaults);
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
-    const generateDefaultCosts = (data: TripData): DraftCostItem[] => {
+    const generateDefaultCosts = async (data: TripData): Promise<DraftCostItem[]> => {
         const items: DraftCostItem[] = [];
+        const itinerary = data.itinerary || [];
+
+        const [vendorsRes, markupsRes] = await Promise.all([
+            getVendorsAction(),
+            getAppMarkupsAction()
+        ]);
+        const vendors = vendorsRes.success ? vendorsRes.vendors : [];
+        const markups: any = markupsRes.success && markupsRes.markups ? markupsRes.markups : {};
+        const activityMarkup = markups.vendor_activity_markup ?? 10;
 
         const getDayDate = (dayNumber: number) => {
             if (!data.profile?.arrivalDate) return `Day ${dayNumber}`;
@@ -40,7 +55,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         };
 
         // Accommodation - purely from daily_activities (itinerary state)
-        const accommodations = data.itinerary.filter(i => i.type === 'sleep' && i.hotelId);
+        const accommodations = itinerary.filter(i => i.type === 'sleep' && i.hotelId);
         const groupedAcc: Record<string, { quantity: number, total: number, dates: Set<string> }> = {};
         
         accommodations.forEach(acc => {
@@ -62,7 +77,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
                     roomsPerNight = booking.selectedRooms.reduce((sum, r) => sum + (r.quantity || 1), 0);
                     // Extract exact cost directly from Room Details table if available
                     const calculatedTotal = booking.selectedRooms.reduce((sum, r) => {
-                        const price = r.agreedTotal !== undefined ? r.agreedTotal : (r.pricePerNight * r.quantity);
+                        const price = r.agreedTotal !== undefined ? r.agreedTotal : ((r.pricePerNight || 0) * (r.quantity || 1));
                         return sum + (price || 0);
                     }, 0);
                     if (calculatedTotal > 0 || booking.selectedRooms.some(r => r.agreedTotal !== undefined)) {
@@ -94,8 +109,8 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         Object.keys(groupedAcc).forEach(key => {
             const vendorName = key.substring(0, key.indexOf('|'));
             const roomDetails = key.substring(key.indexOf('|') + 1);
-            const total = groupedAcc[key].total;
-            const quantity = groupedAcc[key].quantity;
+            const total = groupedAcc[key].total || 0;
+            const quantity = groupedAcc[key].quantity || 0;
             const datesArr = Array.from(groupedAcc[key].dates);
             const dateStr = datesArr.length > 0 ? ` [${datesArr.join(', ')}]` : '';
             
@@ -112,7 +127,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
         // Transportation - requires block-level binding OR a trip-level default binding
         const hasGlobalTransport = data.defaultTransportId || data.defaultVehicleId || data.defaultDriverId;
-        const transports = data.itinerary.filter(i => i.type === 'travel' && (i.transportId || i.vehicleId || i.driverId || hasGlobalTransport));
+        const transports = itinerary.filter(i => i.type === 'travel' && (i.transportId || i.vehicleId || i.driverId || hasGlobalTransport));
         let transportTotal = 0;
         let totalKm = 0;
         const transportDates = new Set<string>();
@@ -129,7 +144,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
         // Fallback to summary total distance if individual blocks didn't have distance parsed properly
         if (totalKm === 0 && data.summary?.totalDistanceKm) {
-            totalKm = data.summary.totalDistanceKm;
+            totalKm = Number(data.summary.totalDistanceKm) || 0;
         }
 
         if (transports.length > 0) {
@@ -153,7 +168,8 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
             // The original unit price (rate per km) derived from the exact charged totals vs original km
             let originalQuantity = totalKm > 0 ? Math.round(totalKm) : transports.length;
-            let derivedUnitPrice = originalQuantity > 0 ? transportTotal / originalQuantity : 0;
+            let derivedUnitPrice = originalQuantity > 0 ? (transportTotal || 0) / originalQuantity : 0;
+            if (isNaN(derivedUnitPrice)) derivedUnitPrice = 0;
             
             // Apply the rounding rule for transportation
             let roundedQuantity = originalQuantity;
@@ -162,7 +178,8 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             }
             
             // Calculate the new total based on the rounded quantity
-            const calculatedTotal = derivedUnitPrice * roundedQuantity;
+            let calculatedTotal = derivedUnitPrice * roundedQuantity;
+            if (isNaN(calculatedTotal)) calculatedTotal = 0;
             
             const tDatesArr = Array.from(transportDates);
             const tDateStr = tDatesArr.length > 0 ? ` [${tDatesArr.join(', ')}]` : '';
@@ -179,7 +196,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         }
 
         // Activities - requires vendorId, activityId, or vendorActivityId
-        const activities = data.itinerary.filter(i => i.type === 'activity' && (i.vendorId || i.activityId || i.vendorActivityId));
+        const activities = itinerary.filter(i => i.type === 'activity' && (i.vendorId || i.activityId || i.vendorActivityId));
         const groupedAct: Record<string, { quantity: number, total: number, dates: Set<string> }> = {};
         
         // Calculate total tourists for activities
@@ -202,20 +219,24 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             const qtyForThisActivity = totalTourists > 0 ? totalTourists : 1;
             groupedAct[key].quantity += qtyForThisActivity;
             
-            // Determine Unit Price based on Travel Style
+            // Use actual negotiated unit price, fallback to 0
             let activityUnitPrice = act.agreedPrice || 0;
-            const style = data.profile?.travelStyle;
-            if (style === 'Ultra VIP') activityUnitPrice = 150;
-            else if (style === 'Luxury') activityUnitPrice = 100;
-            else if (style === 'Premium') activityUnitPrice = 50;
+            if (activityUnitPrice === 0 && (act.vendorId || act.vendorActivityId)) {
+                const vendor = vendors.find((v: any) => v.id === act.vendorId);
+                const va = vendor?.vendor_activities?.find((va: any) => va.id === act.vendorActivityId);
+                const fallbackVa = vendor?.vendor_activities?.find((va: any) => Number(va.activity_id) === Number(act.activityId));
+                
+                const base = va?.vendor_price || fallbackVa?.vendor_price || 0;
+                activityUnitPrice = base * (1 + (activityMarkup / 100));
+            }
 
             groupedAct[key].total += (activityUnitPrice * qtyForThisActivity);
         });
 
         Object.keys(groupedAct).forEach(key => {
             const [vendor, service] = key.split('|');
-            const total = groupedAct[key].total;
-            const quantity = groupedAct[key].quantity;
+            const total = groupedAct[key].total || 0;
+            const quantity = groupedAct[key].quantity || 0;
             const actDatesArr = Array.from(groupedAct[key].dates);
             const actDateStr = actDatesArr.length > 0 ? ` [${actDatesArr.join(', ')}]` : '';
             
@@ -231,7 +252,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         });
 
         // Service & Support - requires guideId
-        const guides = data.itinerary.filter(i => i.type === 'guide' && i.guideId);
+        const guides = itinerary.filter(i => i.type === 'guide' && i.guideId);
         let guideTotal = 0;
         const guideDates = new Set<string>();
         
@@ -256,13 +277,13 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         }
 
         // Meals - requires restaurantId
-        const meals = data.itinerary.filter(i => i.type === 'meal' && i.restaurantId);
+        const meals = itinerary.filter(i => i.type === 'meal' && i.restaurantId);
         let mealTotal = 0;
         const mealDates = new Set<string>();
         
         meals.forEach(m => {
             mealDates.add(getDayDate(m.dayNumber));
-            const qty = m.restaurantQuantity || data.profile?.adults || 1;
+            const qty = Number(m.restaurantQuantity || data.profile?.adults || 1);
             mealTotal += (m.agreedPrice || 0) * qty;
         });
         
@@ -301,12 +322,12 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
     };
 
     const saveToTripData = (updatedCosts: DraftCostItem[]) => {
-        updateData({
+        updateData(prev => ({
             financials: {
-                ...tripData.financials,
+                ...prev.financials,
                 draftCosts: updatedCosts
             }
-        });
+        }));
     };
 
     const handleAdd = () => {
@@ -320,7 +341,6 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             totalPrice: 0
         };
         const newCosts = [...costs, newItem];
-        setCosts(newCosts);
         saveToTripData(newCosts);
         setEditingId(newItem.id);
         setEditForm(newItem);
@@ -347,7 +367,6 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             c.id === editingId ? { ...c, ...editForm, totalPrice: t } as DraftCostItem : c
         );
         
-        setCosts(updatedCosts);
         saveToTripData(updatedCosts);
         setEditingId(null);
         setEditForm({});
@@ -355,7 +374,6 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
     const handleDelete = (id: string) => {
         const updatedCosts = costs.filter(c => c.id !== id);
-        setCosts(updatedCosts);
         saveToTripData(updatedCosts);
     };
 
@@ -402,9 +420,10 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
                 <div className="flex items-center gap-3">
                     <button 
                         onClick={generateAndSaveDefaults}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl transition-colors font-medium text-sm"
+                        disabled={isSyncing}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-colors font-medium text-sm ${isSyncing ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
                     >
-                        <RefreshCw size={16} /> Sync from Itinerary
+                        <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'Syncing...' : 'Sync from Itinerary'}
                     </button>
                     <button 
                         onClick={handleAdd}

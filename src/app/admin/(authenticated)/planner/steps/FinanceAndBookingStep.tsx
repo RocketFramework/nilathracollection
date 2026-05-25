@@ -4,7 +4,7 @@ import { TripData, Financials } from "../types";
 import { useState } from "react";
 import { Calculator, RefreshCw } from "lucide-react";
 
-import { getFinalizedActivitiesAction, savePurchaseOrderAction, getPurchaseOrdersAction, deleteDraftPurchaseOrdersAction, getTransportProvidersAction, getHotelsListAction, getRestaurantsAction } from "@/actions/admin.actions";
+import { getFinalizedActivitiesAction, savePurchaseOrderAction, getPurchaseOrdersAction, deleteDraftPurchaseOrdersAction, getTransportProvidersAction, getHotelsListAction, getRestaurantsAction, getVendorsAction } from "@/actions/admin.actions";
 import { useEffect } from "react";
 import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -56,6 +56,8 @@ export function FinanceAndBookingStep({
             const allHotels = hotelsRes.success ? hotelsRes.hotels || [] : [];
             const restRes = await getRestaurantsAction();
             const allRestaurants = restRes.success ? restRes.restaurants || [] : [];
+            const vendorsRes = await getVendorsAction();
+            const allVendors = vendorsRes.success ? vendorsRes.vendors || [] : [];
 
             if (!result.success) {
                 alert("Failed to fetch daily activities: " + result.error);
@@ -419,6 +421,103 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         vendor_name: vendorName,
                         vendor_address: providerData?.address || undefined,
                         vendor_phone: providerData?.contact_number || undefined,
+                        vendor_email: providerData?.email || undefined,
+                        currency: 'USD' as const,
+                        status: 'Draft' as const,
+                        subtotal: calculatedSubtotal,
+                        total_amount: actualTotal,
+                        discount: discount,
+                        tax: 0,
+                        service_charge: serviceCharge,
+                        advance_paid: 0,
+                        balance_payable: actualTotal,
+                        vendor_notes: guestDetails
+                    };
+
+                    await savePurchaseOrderAction(poPayload, poItems);
+                }
+            }
+            // Filter for vendor activities (Tour / Activity Vendors)
+            const vendorActivities = activities.filter(a => 
+                a.activity_id &&
+                a.vendor_id && 
+                a.vendor_activity_id &&
+                a.charged_total_price != null && 
+                a.charged_unit_price != null
+            );
+
+            if (vendorActivities.length > 0) {
+                // Group by vendor_id
+                const vendorGroups = vendorActivities.reduce((acc, a) => {
+                    if (!acc[a.vendor_id]) acc[a.vendor_id] = [];
+                    acc[a.vendor_id].push(a);
+                    return acc;
+                }, {} as Record<string, any[]>);
+
+                for (const [vendorId, _vendActs] of Object.entries(vendorGroups)) {
+                    const vendActs = _vendActs as any[];
+                    const poId = crypto.randomUUID();
+                    const poNumber = `PO-ACT-${Date.now().toString().slice(-6)}`;
+                    
+                    const firstAct = vendActs[0];
+                    const providerData = allVendors.find((v: any) => v.id === vendorId);
+                    const vendorName = providerData ? providerData.name : firstAct.title || 'Activity Vendor';
+
+                    let calculatedSubtotal = 0;
+                    let actualTotal = 0;
+                    const poItems: any[] = [];
+
+                    for (const act of vendActs) {
+                        const itemQty = act.quantity || 1;
+                        const itemUnitPrice = act.charged_unit_price || 0;
+                        const itemCalculatedTotal = itemQty * itemUnitPrice;
+
+                        calculatedSubtotal += itemCalculatedTotal;
+                        actualTotal += act.charged_total_price || 0;
+                        
+                        let serviceDate = '';
+                        if (tripData.profile?.arrivalDate) {
+                            const matchingBlock = tripData.itinerary.find(b => b.id === act.id);
+                            if (matchingBlock && matchingBlock.dayNumber) {
+                                const dateObj = new Date(tripData.profile.arrivalDate);
+                                dateObj.setDate(dateObj.getDate() + (matchingBlock.dayNumber - 1));
+                                serviceDate = dateObj.toISOString().split('T')[0];
+                            }
+                        }
+
+                        const description = act.title || 'Activity Segment';
+                        let specialNotes = `Location: ${act.location_name || 'Not Specified'}`;
+
+                        poItems.push({
+                            id: crypto.randomUUID(),
+                            purchase_order_id: poId,
+                            description: description,
+                            service_date: serviceDate,
+                            quantity: itemQty,
+                            unit_price: itemUnitPrice,
+                            total_price: itemCalculatedTotal,
+                            special_notes: specialNotes
+                        });
+                    }
+
+                    let discount = 0;
+                    let serviceCharge = 0;
+                    if (actualTotal < calculatedSubtotal) {
+                        discount = calculatedSubtotal - actualTotal;
+                    } else if (actualTotal > calculatedSubtotal) {
+                        serviceCharge = actualTotal - calculatedSubtotal;
+                    }
+
+                    const poPayload = {
+                        id: poId,
+                        tour_id: tourId,
+                        po_number: poNumber,
+                        po_date: new Date().toISOString().split('T')[0],
+                        vendor_type: 'vendor' as const,
+                        vendor_name: vendorName,
+                        activity_vendor_id: vendorId,
+                        vendor_address: providerData?.address || undefined,
+                        vendor_phone: providerData?.phone || undefined,
                         vendor_email: providerData?.email || undefined,
                         currency: 'USD' as const,
                         status: 'Draft' as const,
