@@ -126,7 +126,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         ].filter(rt => rt.count > 0);
 
                         if (roomTypes.length === 0) {
-                            roomTypes.push({ type: 'Standard Room', count: act.quantity || 1 });
+                            roomTypes.push({ type: 'Standard Room', count: act.quantity || 1, roomId: undefined });
                         }
 
                         const driverAcc = act.driver_acc_included ? 'Yes' : 'No';
@@ -154,8 +154,8 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                             const itemCalculatedTotal = itemQty * itemUnitPrice;
 
                             let actualRoomName = rt.type;
-                            if (rt.roomId && masterHotel && masterHotel.hotel_rooms) {
-                                const matchedRoom = masterHotel.hotel_rooms.find((hr: any) => hr.id === rt.roomId);
+                            if (rt.roomId && masterHotel && (masterHotel as any).hotel_rooms) {
+                                const matchedRoom = (masterHotel as any).hotel_rooms.find((hr: any) => hr.id === rt.roomId);
                                 if (matchedRoom && matchedRoom.room_name) {
                                     actualRoomName = matchedRoom.room_name;
                                 }
@@ -384,7 +384,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         const mealPlanStr = act.meal_plan ? ` (${act.meal_plan})` : '';
                         const description = `${act.title || 'Meal'}${mealPlanStr}`;
 
-                        let specialNotes = `Location: ${act.location_name || providerData?.location_address || 'Unknown'}`;
+                        let specialNotes = `Location: ${act.location_name || providerData?.city || 'Unknown'}`;
                         if (act.driver_meal_included) {
                             specialNotes += `\nDriver Meal Included: Yes`;
                         }
@@ -417,7 +417,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         po_date: new Date().toISOString().split('T')[0],
                         vendor_type: 'restaurant' as const,
                         vendor_name: vendorName,
-                        vendor_address: providerData?.location_address || undefined,
+                        vendor_address: providerData?.address || undefined,
                         vendor_phone: providerData?.contact_number || undefined,
                         vendor_email: providerData?.email || undefined,
                         currency: 'USD' as const,

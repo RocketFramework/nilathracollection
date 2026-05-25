@@ -122,7 +122,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             transportTotal += (t.agreedPrice || 0);
             if (t.distance) {
                 // Extract numeric value from "120 km"
-                const distNum = parseFloat(t.distance.replace(/[^\d.]/g, ''));
+                const distNum = parseFloat(t.distance.toString().replace(/[^\d.]/g, ''));
                 if (!isNaN(distNum)) totalKm += distNum;
             }
         });
