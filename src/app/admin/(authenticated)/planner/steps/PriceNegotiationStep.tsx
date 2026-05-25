@@ -550,9 +550,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                             try {
                                                                 const blockIds = items.map((i: any) => i.block?.id).filter(Boolean);
                                                                 if (blockIds.length > 0) {
-                                                                    const res = await finalizeActivityPricesAction(blockIds);
+                                                                    const res = await finalizeActivityPricesAction(blockIds, !allFinalized);
                                                                     if (!res.success) {
-                                                                        alert("Failed to finalize prices: " + res.error);
+                                                                        alert("Failed to update prices: " + res.error);
                                                                         return;
                                                                     }
                                                                 }
@@ -560,28 +560,28 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                 items.forEach((item: any) => {
                                                                     const idx = updatedItinerary.findIndex(b => b.id === item.block?.id);
                                                                     if (idx !== -1) {
-                                                                        updatedItinerary[idx] = { ...updatedItinerary[idx], priceFinalized: true };
+                                                                        updatedItinerary[idx] = { ...updatedItinerary[idx], priceFinalized: !allFinalized };
                                                                     }
                                                                 });
                                                                 updateData({ itinerary: updatedItinerary });
                                                             } catch (error) {
-                                                                console.error("Error finalizing prices:", error);
-                                                                alert("An error occurred while finalizing prices.");
+                                                                console.error("Error updating prices:", error);
+                                                                alert("An error occurred while updating prices.");
                                                             } finally {
                                                                 setFinalizingGroup(null);
                                                             }
                                                         }}
-                                                        disabled={allFinalized || isFinalizing}
+                                                        disabled={isFinalizing}
                                                         className={`flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-full shadow-sm transition-colors ${
                                                             allFinalized 
-                                                            ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                                                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' 
                                                             : isFinalizing
                                                             ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
                                                             : 'bg-green-50 text-green-600 hover:bg-green-100'
                                                         }`}
                                                     >
                                                         {isFinalizing ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                                                        {allFinalized ? 'Price Finalized' : isFinalizing ? 'Finalizing...' : 'Finalize Price'}
+                                                        {allFinalized ? 'Price Open' : isFinalizing ? 'Updating...' : 'Finalize Price'}
                                                     </button>
                                                 );
                                             })()}

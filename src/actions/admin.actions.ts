@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { MasterDataService, Restaurant, TransportProvider } from "@/services/master-data.service";
+import { MasterDataService, Restaurant, TransportProvider, Vendor } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
@@ -288,11 +288,11 @@ export async function deleteHotelAction(id: string) {
         return { error: error.message || "Failed to delete hotel." };
     }
 }
-export async function getRestaurantsAction() {
+export async function getRestaurantsAction(options?: any) {
     try {
         const supabase = createAdminClient();
-        const { data: restaurants } = await MasterDataService.getRestaurants({ client: supabase });
-        return { success: true, restaurants };
+        const { data: restaurants, count } = await MasterDataService.getRestaurants({ ...options, client: supabase });
+        return { success: true, restaurants, count };
     } catch (error: any) {
         console.error("Error fetching restaurants:", error);
         return { error: error.message || "Failed to load restaurants." };
@@ -312,12 +312,24 @@ export async function searchRestaurantsAction(searchTerm: string) {
 
 export async function saveRestaurantAction(restaurant: Restaurant) {
     try {
-        await MasterDataService.saveRestaurant(restaurant);
+        const supabase = createAdminClient();
+        const savedId = await MasterDataService.saveRestaurant(restaurant, { client: supabase });
         revalidatePath("/admin/master-data/restaurants");
-        return { success: true };
+        return { success: true, savedId };
     } catch (error: any) {
         console.error("Error saving restaurant:", error);
         return { error: error.message || "Failed to save restaurant." };
+    }
+}
+
+export async function getRestaurantAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const restaurant = await MasterDataService.getRestaurant(id, { client: supabase });
+        return { success: true, restaurant };
+    } catch (error: any) {
+        console.error("Error fetching restaurant:", error);
+        return { error: error.message || "Failed to fetch restaurant." };
     }
 }
 
@@ -332,22 +344,45 @@ export async function deleteRestaurantAction(id: string) {
     }
 }
 
-export async function getVendorsAction() {
+export async function getVendorsAction(options?: any) {
     try {
         const supabase = createAdminClient();
-        const { data: vendors } = await MasterDataService.getVendors({ client: supabase });
-        return { success: true, vendors };
+        const { data: vendors, count } = await MasterDataService.getVendors({ ...options, client: supabase });
+        return { success: true, vendors, count };
     } catch (error: any) {
         console.error("Error fetching vendors:", error);
         return { error: error.message || "Failed to load vendors." };
     }
 }
 
-export async function getTransportProvidersAction() {
+export async function saveVendorAction(vendor: Vendor) {
     try {
         const supabase = createAdminClient();
-        const { data: providers } = await MasterDataService.getTransportProviders({ client: supabase });
-        return { success: true, providers };
+        const savedId = await MasterDataService.saveVendor(vendor, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true, savedId };
+    } catch (error: any) {
+        console.error("Error saving vendor:", error);
+        return { error: error.message || "Failed to save vendor." };
+    }
+}
+
+export async function getVendorAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const vendor = await MasterDataService.getVendor(id, { client: supabase });
+        return { success: true, vendor };
+    } catch (error: any) {
+        console.error("Error fetching vendor:", error);
+        return { error: error.message || "Failed to fetch vendor." };
+    }
+}
+
+export async function getTransportProvidersAction(options?: any) {
+    try {
+        const supabase = createAdminClient();
+        const { data: providers, count } = await MasterDataService.getTransportProviders({ ...options, client: supabase });
+        return { success: true, providers, count };
     } catch (error: any) {
         console.error("Error fetching transport providers:", error);
         return { error: error.message || "Failed to load transport providers." };
@@ -399,25 +434,25 @@ export async function saveActivityAction(activityData: any) {
     }
 }
 
-export async function getDriversAction() {
+export async function getDriversAction(options?: any) {
     try {
         const supabase = createAdminClient();
-        const { data: drivers } = await MasterDataService.getDrivers({ client: supabase });
-        return { success: true, drivers };
+        const { data: drivers, count } = await MasterDataService.getDrivers({ ...options, client: supabase });
+        return { success: true, drivers, count };
     } catch (error: any) {
         console.error("Error fetching drivers:", error);
         return { error: error.message || "Failed to load drivers." };
     }
 }
 
-export async function getTourGuidesAction() {
+export async function getTourGuidesAction(options?: any) {
     try {
         const supabase = createAdminClient();
-        const { data: guides } = await MasterDataService.getTourGuides({ client: supabase });
-        return { success: true, guides };
+        const { data: guides, count } = await MasterDataService.getTourGuides({ ...options, client: supabase });
+        return { success: true, guides, count };
     } catch (error: any) {
-        console.error("Error fetching tour guides:", error);
-        return { error: error.message || "Failed to load tour guides." };
+        console.error("Error fetching guides:", error);
+        return { error: error.message || "Failed to load guides." };
     }
 }
 export async function getPurchaseOrdersAction(tourId: string) {
@@ -447,12 +482,12 @@ export async function getFinalizedActivitiesAction(tourId: string) {
     }
 }
 
-export async function finalizeActivityPricesAction(blockIds: string[]) {
+export async function finalizeActivityPricesAction(blockIds: string[], status: boolean = true) {
     try {
         const adminSupabase = createAdminClient();
         const { error } = await adminSupabase
             .from('daily_activities')
-            .update({ price_finalized: true })
+            .update({ price_finalized: status })
             .in('id', blockIds);
 
         if (error) throw error;
@@ -593,13 +628,13 @@ export async function resolveApprovalAction(id: string, status: 'APPROVED' | 'RE
                         }
                         break;
                     case 'vendor':
-                        await MasterDataService.saveVendor(proposed_data);
+                        await MasterDataService.saveVendor(proposed_data, { client: adminSupabase });
                         break;
                     case 'restaurant':
-                        await MasterDataService.saveRestaurant(proposed_data);
+                        await MasterDataService.saveRestaurant(proposed_data, { client: adminSupabase });
                         break;
                     case 'transport':
-                        await MasterDataService.saveTransportProvider(proposed_data);
+                        await MasterDataService.saveTransportProvider(proposed_data, { client: adminSupabase });
                         break;
                     case 'driver':
                         await MasterDataService.saveDriver(proposed_data);

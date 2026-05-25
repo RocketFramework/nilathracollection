@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, Vendor, Activity } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
+import { saveVendorAction, getVendorAction } from "@/actions/admin.actions";
 
 interface VendorFormModalProps {
     isOpen: boolean;
@@ -129,11 +130,15 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const savedId = await MasterDataService.saveVendor(formData as Vendor);
+                const res = await saveVendorAction(formData as Vendor);
+                if (res.error) throw new Error(res.error);
+                const savedId = res.savedId;
                 onSave();
 
                 if (savedId) {
-                    const updated = await MasterDataService.getVendor(savedId);
+                    const getRes = await getVendorAction(savedId);
+                    if (getRes.error) throw new Error(getRes.error);
+                    const updated = getRes.vendor!;
                     setFormData({
                         ...updated,
                         vendor_activities: updated.vendor_activities || [],

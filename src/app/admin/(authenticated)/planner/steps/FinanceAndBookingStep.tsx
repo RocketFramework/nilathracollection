@@ -4,7 +4,7 @@ import { TripData, Financials } from "../types";
 import { useState } from "react";
 import { Calculator, RefreshCw } from "lucide-react";
 
-import { getFinalizedActivitiesAction, savePurchaseOrderAction, getPurchaseOrdersAction, deleteDraftPurchaseOrdersAction, getTransportProvidersAction, getHotelsListAction } from "@/actions/admin.actions";
+import { getFinalizedActivitiesAction, savePurchaseOrderAction, getPurchaseOrdersAction, deleteDraftPurchaseOrdersAction, getTransportProvidersAction, getHotelsListAction, getRestaurantsAction } from "@/actions/admin.actions";
 import { useEffect } from "react";
 import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -54,6 +54,8 @@ export function FinanceAndBookingStep({
             const allTransportProviders = transportRes.success ? transportRes.providers || [] : [];
             const hotelsRes = await getHotelsListAction();
             const allHotels = hotelsRes.success ? hotelsRes.hotels || [] : [];
+            const restRes = await getRestaurantsAction();
+            const allRestaurants = restRes.success ? restRes.restaurants || [] : [];
 
             if (!result.success) {
                 alert("Failed to fetch daily activities: " + result.error);
@@ -104,7 +106,8 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                     const poNumber = `PO-HOT-${Date.now().toString().slice(-6)}`;
                     
                     const firstAct = hotelActs[0];
-                    const hotelName = firstAct.title || 'Unknown Hotel';
+                    const masterHotel = allHotels.find((h: any) => h.id === hotelId);
+                    const hotelName = masterHotel?.name || firstAct.title || 'Unknown Hotel';
                     const locationName = firstAct.location_name || '';
 
                     let calculatedSubtotal = 0;
@@ -115,11 +118,11 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         actualTotal += act.charged_total_price || 0;
                         
                         const roomTypes = [
-                            { type: 'Single', count: act.single_room_count || 0 },
-                            { type: 'Double', count: act.double_room_count || 0 },
-                            { type: 'Twin', count: act.twin_room_count || 0 },
-                            { type: 'Triple', count: act.triple_room_count || 0 },
-                            { type: 'Family', count: act.family_room_count || 0 }
+                            { type: 'Single', count: act.single_room_count || 0, roomId: act.single_room_id },
+                            { type: 'Double', count: act.double_room_count || 0, roomId: act.double_room_id },
+                            { type: 'Twin', count: act.twin_room_count || 0, roomId: act.twin_room_id },
+                            { type: 'Triple', count: act.triple_room_count || 0, roomId: act.triple_room_id },
+                            { type: 'Family', count: act.family_room_count || 0, roomId: act.family_room_id }
                         ].filter(rt => rt.count > 0);
 
                         if (roomTypes.length === 0) {
@@ -150,18 +153,26 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                             const itemUnitPrice = act.charged_unit_price || 0;
                             const itemCalculatedTotal = itemQty * itemUnitPrice;
 
+                            let actualRoomName = rt.type;
+                            if (rt.roomId && masterHotel && masterHotel.hotel_rooms) {
+                                const matchedRoom = masterHotel.hotel_rooms.find((hr: any) => hr.id === rt.roomId);
+                                if (matchedRoom && matchedRoom.room_name) {
+                                    actualRoomName = matchedRoom.room_name;
+                                }
+                            }
+
                             actCalculatedTotal += itemCalculatedTotal;
                             calculatedSubtotal += itemCalculatedTotal;
 
                             actPoItems.push({
                                 id: crypto.randomUUID(),
                                 purchase_order_id: poId,
-                                description: `${hotelName} - ${rt.type}`,
+                                description: `${hotelName} - ${actualRoomName} (${rt.type})`,
                                 service_date: serviceDate,
                                 quantity: itemQty,
                                 unit_price: itemUnitPrice,
                                 total_price: itemCalculatedTotal,
-                                room_type: rt.type,
+                                room_type: actualRoomName,
                                 meal_plan: act.meal_plan || 'BB',
                                 special_notes: specialNotes
                             });
@@ -324,6 +335,107 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                     await savePurchaseOrderAction(poPayload, poItems);
                 }
             }
+            // Filter for restaurant activities
+            const restaurantActivities = activities.filter(a => 
+                a.restaurant_id &&
+                a.charged_total_price != null && 
+                a.charged_unit_price != null
+            );
+
+            if (restaurantActivities.length > 0) {
+                // Group by restaurant_id
+                const restaurantGroups = restaurantActivities.reduce((acc, a) => {
+                    if (!acc[a.restaurant_id]) acc[a.restaurant_id] = [];
+                    acc[a.restaurant_id].push(a);
+                    return acc;
+                }, {} as Record<string, any[]>);
+
+                for (const [restaurantId, _restActs] of Object.entries(restaurantGroups)) {
+                    const restaurantActs = _restActs as any[];
+                    const poId = crypto.randomUUID();
+                    const poNumber = `PO-RES-${Date.now().toString().slice(-6)}`;
+                    
+                    const firstAct = restaurantActs[0];
+                    const providerData = allRestaurants.find((r: any) => r.id === restaurantId);
+                    const vendorName = providerData ? providerData.name : firstAct.title || 'Restaurant';
+
+                    let calculatedSubtotal = 0;
+                    let actualTotal = 0;
+                    const poItems: any[] = [];
+
+                    for (const act of restaurantActs) {
+                        const itemQty = act.quantity || 1;
+                        const itemUnitPrice = act.charged_unit_price || 0;
+                        const itemCalculatedTotal = itemQty * itemUnitPrice;
+
+                        calculatedSubtotal += itemCalculatedTotal;
+                        actualTotal += act.charged_total_price || 0;
+                        
+                        let serviceDate = '';
+                        if (tripData.profile?.arrivalDate) {
+                            const matchingBlock = tripData.itinerary.find(b => b.id === act.id);
+                            if (matchingBlock && matchingBlock.dayNumber) {
+                                const dateObj = new Date(tripData.profile.arrivalDate);
+                                dateObj.setDate(dateObj.getDate() + (matchingBlock.dayNumber - 1));
+                                serviceDate = dateObj.toISOString().split('T')[0];
+                            }
+                        }
+
+                        const mealPlanStr = act.meal_plan ? ` (${act.meal_plan})` : '';
+                        const description = `${act.title || 'Meal'}${mealPlanStr}`;
+
+                        let specialNotes = `Location: ${act.location_name || providerData?.location_address || 'Unknown'}`;
+                        if (act.driver_meal_included) {
+                            specialNotes += `\nDriver Meal Included: Yes`;
+                        }
+
+                        poItems.push({
+                            id: crypto.randomUUID(),
+                            purchase_order_id: poId,
+                            description: description,
+                            service_date: serviceDate,
+                            quantity: itemQty,
+                            unit_price: itemUnitPrice,
+                            total_price: itemCalculatedTotal,
+                            meal_plan: act.meal_plan || undefined,
+                            special_notes: specialNotes
+                        });
+                    }
+
+                    let discount = 0;
+                    let serviceCharge = 0;
+                    if (actualTotal < calculatedSubtotal) {
+                        discount = calculatedSubtotal - actualTotal;
+                    } else if (actualTotal > calculatedSubtotal) {
+                        serviceCharge = actualTotal - calculatedSubtotal;
+                    }
+
+                    const poPayload = {
+                        id: poId,
+                        tour_id: tourId,
+                        po_number: poNumber,
+                        po_date: new Date().toISOString().split('T')[0],
+                        vendor_type: 'restaurant' as const,
+                        vendor_name: vendorName,
+                        vendor_address: providerData?.location_address || undefined,
+                        vendor_phone: providerData?.contact_number || undefined,
+                        vendor_email: providerData?.email || undefined,
+                        currency: 'USD' as const,
+                        status: 'Draft' as const,
+                        subtotal: calculatedSubtotal,
+                        total_amount: actualTotal,
+                        discount: discount,
+                        tax: 0,
+                        service_charge: serviceCharge,
+                        advance_paid: 0,
+                        balance_payable: actualTotal,
+                        vendor_notes: guestDetails
+                    };
+
+                    await savePurchaseOrderAction(poPayload, poItems);
+                }
+            }
+
 
             alert(`Generated POs successfully for finalized items.`);
             await fetchPurchaseOrders();
@@ -421,7 +533,11 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-neutral-50">
-                                                {po.items.map((item: any) => (
+                                                {[...po.items].sort((a: any, b: any) => {
+                                                    if (!a.service_date) return 1;
+                                                    if (!b.service_date) return -1;
+                                                    return new Date(a.service_date).getTime() - new Date(b.service_date).getTime();
+                                                }).map((item: any) => (
                                                     <tr key={item.id} className="text-neutral-700">
                                                         <td className="py-3">
                                                             <div className="font-medium">{item.description}</div>

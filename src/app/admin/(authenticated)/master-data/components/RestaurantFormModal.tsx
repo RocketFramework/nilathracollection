@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, Restaurant } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
+import { saveRestaurantAction, getRestaurantAction } from "@/actions/admin.actions";
 
 interface RestaurantFormModalProps {
     isOpen: boolean;
@@ -108,11 +109,15 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const savedId = await MasterDataService.saveRestaurant(formData as Restaurant);
+                const res = await saveRestaurantAction(formData as Restaurant);
+                if (res.error) throw new Error(res.error);
+                const savedId = res.savedId;
                 onSave();
 
                 if (savedId) {
-                    const updated = await MasterDataService.getRestaurant(savedId);
+                    const getRes = await getRestaurantAction(savedId);
+                    if (getRes.error) throw new Error(getRes.error);
+                    const updated = getRes.restaurant!;
                     setFormData({ ...updated, payment_details: updated.payment_details || {} });
                     setCoordinateInput((updated.lat && updated.lng) ? `${updated.lat}, ${updated.lng}` : "");
                 }

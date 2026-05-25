@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, deleteHotelAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, deleteHotelAction, getVendorsAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -135,25 +135,35 @@ export default function MasterDataPage() {
                     console.error(result.error);
                 }
             } else if (activeTab === 'vendors') {
-                const { data, count } = await MasterDataService.getVendors(options);
-                setVendors(data);
-                setTotalCount(count);
+                const res = await getVendorsAction(options);
+                if (res.success && res.vendors) {
+                    setVendors(res.vendors);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'restaurants') {
-                const { data, count } = await MasterDataService.getRestaurants(options);
-                setRestaurants(data);
-                setTotalCount(count);
+                const res = await getRestaurantsAction(options);
+                if (res.success && res.restaurants) {
+                    setRestaurants(res.restaurants);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'transports') {
-                const { data, count } = await MasterDataService.getTransportProviders(options);
-                setTransports(data);
-                setTotalCount(count);
+                const res = await getTransportProvidersAction(options);
+                if (res.success && res.providers) {
+                    setTransports(res.providers);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'drivers') {
-                const { data, count } = await MasterDataService.getDrivers(options);
-                setDrivers(data);
-                setTotalCount(count);
+                const res = await getDriversAction(options);
+                if (res.success && res.drivers) {
+                    setDrivers(res.drivers);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'guides') {
-                const { data, count } = await MasterDataService.getTourGuides(options);
-                setGuides(data);
-                setTotalCount(count);
+                const res = await getTourGuidesAction(options);
+                if (res.success && res.guides) {
+                    setGuides(res.guides);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'approvals') {
                 const result = await getPendingApprovalsAction();
                 if (result.success && result.data) {

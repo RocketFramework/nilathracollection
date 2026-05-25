@@ -337,12 +337,13 @@ export class MasterDataService {
         }) as Vendor[];
     }
 
-    static async getVendor(id: string) {
-        const { data, error } = await supabase.from('vendors').select('*, payment_details(*)').eq('id', id).single();
+    static async getVendor(id: string, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
+        const { data, error } = await dbClient.from('vendors').select('*, payment_details(*)').eq('id', id).single();
         if (error) throw error;
 
         // Fetch vendor activities
-        const { data: vActivities, error: vActsError } = await supabase
+        const { data: vActivities, error: vActsError } = await dbClient
             .from('vendor_activities')
             .select(`
                 id, vendor_id, activity_id, vendor_price,
@@ -373,12 +374,13 @@ export class MasterDataService {
         return { ...data, vendor_activities: mappedActs } as Vendor;
     }
 
-    static async saveVendor(vendor: Vendor) {
+    static async saveVendor(vendor: Vendor, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
         const { payment_details, vendor_activities, id, payment_detail_id, ...vendorData } = vendor;
 
         let activePaymentId = payment_detail_id;
         if (payment_details) {
-            activePaymentId = await savePaymentDetails(payment_details);
+            activePaymentId = await savePaymentDetails(payment_details, dbClient);
         }
 
         const payload = { ...vendorData, payment_detail_id: activePaymentId };
@@ -387,14 +389,14 @@ export class MasterDataService {
 
         if (id) {
             // Update
-            const { error } = await supabase.from('vendors').update(payload).eq('id', id);
+            const { error } = await dbClient.from('vendors').update(payload).eq('id', id);
             if (error) throw error;
 
             // Wipe existing mapped activities for simple rewrite
-            await supabase.from('vendor_activities').delete().eq('vendor_id', id);
+            await dbClient.from('vendor_activities').delete().eq('vendor_id', id);
         } else {
             // Insert
-            const { data, error } = await supabase.from('vendors').insert([payload]).select().single();
+            const { data, error } = await dbClient.from('vendors').insert([payload]).select().single();
             if (error) throw error;
             savedVendorId = data.id;
         }
@@ -406,7 +408,7 @@ export class MasterDataService {
                 activity_id: va.activity_id,
                 vendor_price: va.vendor_price
             }));
-            const { error: actsError } = await supabase.from('vendor_activities').insert(mappedToInsert);
+            const { error: actsError } = await dbClient.from('vendor_activities').insert(mappedToInsert);
             if (actsError) throw actsError;
         }
 
@@ -727,28 +729,30 @@ export class MasterDataService {
         return { data: data as Restaurant[], count: count || 0 };
     }
 
-    static async getRestaurant(id: string) {
-        const { data, error } = await supabase.from('restaurants').select('*, payment_details(*)').eq('id', id).single();
+    static async getRestaurant(id: string, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
+        const { data, error } = await dbClient.from('restaurants').select('*, payment_details(*)').eq('id', id).single();
         if (error) throw error;
         return data as Restaurant;
     }
 
-    static async saveRestaurant(restaurant: Restaurant) {
+    static async saveRestaurant(restaurant: Restaurant, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
         const { payment_details, id, payment_detail_id, ...restaurantData } = restaurant;
 
         let activePaymentId = payment_detail_id;
         if (payment_details) {
-            activePaymentId = await savePaymentDetails(payment_details);
+            activePaymentId = await savePaymentDetails(payment_details, dbClient);
         }
 
         const payload = { ...restaurantData, payment_detail_id: activePaymentId };
 
         let savedId = id;
         if (id) {
-            const { error } = await supabase.from('restaurants').update(payload).eq('id', id);
+            const { error } = await dbClient.from('restaurants').update(payload).eq('id', id);
             if (error) throw error;
         } else {
-            const { data, error } = await supabase.from('restaurants').insert([payload]).select().single();
+            const { data, error } = await dbClient.from('restaurants').insert([payload]).select().single();
             if (error) throw error;
             savedId = data.id;
         }
