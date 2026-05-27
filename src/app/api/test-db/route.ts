@@ -6,14 +6,22 @@ export async function GET() {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Fetch rooms for hotel A
-  const { data: roomsA } = await supabase.from('hotel_rooms').select('id').eq('hotel_id', '95b5d64f-dd0f-4559-9a2a-2312ec0f1c3f');
-  const idsA = roomsA?.map(r => r.id) || [];
-  const { data: ratesA } = await supabase.from('room_rates').select('*').in('hotel_room_id', idsA);
+  const { data: acts, error } = await supabase
+    .from('daily_activities')
+    .select('*')
+    .eq('tour_id', '60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
 
-  const { count } = await supabase.from('room_rates').select('*', { count: 'exact', head: true });
+  const { data: pos, error: poErr } = await supabase
+    .from('purchase_orders')
+    .select('*, items:purchase_order_items(*)')
+    .eq('tour_id', '60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
 
   return NextResponse.json({
-    total_room_rates: count
+    success: !error && !poErr,
+    error: error?.message || poErr?.message,
+    activitiesCount: acts?.length || 0,
+    posCount: pos?.length || 0,
+    activities: acts,
+    pos: pos
   });
 }

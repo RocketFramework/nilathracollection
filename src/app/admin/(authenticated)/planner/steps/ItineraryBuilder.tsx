@@ -377,7 +377,7 @@ export function ItineraryBuilder({
                         internalNotes: '',
                         comments: [],
                         locationName: event.locationName,
-                        distance: event.distance,
+                        distance: event.distance || (event.type === 'activity' ? '0 km' : undefined),
                         lat: event.location?.lat,
                         lng: event.location?.lng
                     };
@@ -884,7 +884,8 @@ export function ItineraryBuilder({
             confirmationStatus: 'Pending',
             paymentStatus: 'Pending',
             internalNotes: '',
-            comments: []
+            comments: [],
+            distance: type === 'activity' ? '0 km' : undefined
         };
 
         updateData({
@@ -1541,7 +1542,7 @@ export function ItineraryBuilder({
                                                                         <div className="flex items-center gap-1 w-24 bg-neutral-50/50 rounded-md px-2 py-1 border border-transparent focus-within:border-neutral-200 focus-within:bg-white transition-colors">
                                                                             <Navigation size={10} className="text-neutral-400 shrink-0" />
                                                                             <DebouncedInput
-                                                                                value={block.distance || ''}
+                                                                                value={block.distance || (block.type === 'activity' ? '0 km' : '')}
                                                                                 onChange={v => updateBlock(block.id, { distance: v })}
                                                                                 placeholder="Distance"
                                                                                 disabled={readOnly}

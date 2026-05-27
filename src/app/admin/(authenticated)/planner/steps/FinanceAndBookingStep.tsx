@@ -229,7 +229,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
 
             // Filter for transport activities
             const transportActivities = activities.filter(a => 
-                a.distance &&
+                a.distance != null && a.distance !== '' &&
                 a.transport_id &&
                 a.charged_total_price != null && 
                 a.charged_unit_price != null

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, deleteHotelAction, getVendorsAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, deleteHotelAction, getVendorsAction, getVendorAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -220,9 +220,13 @@ export default function MasterDataPage() {
                 setSelectedActivity(fullItem);
                 setIsActivityModalOpen(true);
             } else if (activeTab === 'vendors') {
-                const fullItem = await MasterDataService.getVendor(id as string);
-                setSelectedVendor(fullItem);
-                setIsVendorModalOpen(true);
+                const result = await getVendorAction(id as string);
+                if (result.success && result.vendor) {
+                    setSelectedVendor(result.vendor);
+                    setIsVendorModalOpen(true);
+                } else {
+                    console.error("Failed to load vendor:", result.error);
+                }
             } else if (activeTab === 'restaurants') {
                 const fullItem = await MasterDataService.getRestaurant(id as string);
                 setSelectedRestaurant(fullItem);

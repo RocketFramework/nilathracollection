@@ -477,19 +477,56 @@ export class TourService {
                     }
                 }
 
+                // Auto-resolve vendor_activity_id and other critical activity identifiers
+                let vendorActivityId = b.vendorActivityId || null;
+                let activityId = b.activityId !== undefined && b.activityId !== null ? Number(b.activityId) : null;
+
+                if (vendorActivityId) {
+                    const { data: vaMatches } = await supabaseAdmin
+                        .from('vendor_activities')
+                        .select('vendor_id, activity_id')
+                        .eq('id', vendorActivityId)
+                        .limit(1);
+                    if (vaMatches && vaMatches.length > 0) {
+                        if (!vendorId) {
+                            vendorId = vaMatches[0].vendor_id;
+                            b.vendorId = vendorId ?? undefined;
+                        }
+                        if (!activityId) {
+                            activityId = Number(vaMatches[0].activity_id);
+                            b.activityId = activityId;
+                        }
+                    }
+                } else if (vendorId && activityId) {
+                    const { data: vaMatches } = await supabaseAdmin
+                        .from('vendor_activities')
+                        .select('id')
+                        .eq('vendor_id', vendorId)
+                        .eq('activity_id', activityId)
+                        .limit(1);
+                    if (vaMatches && vaMatches.length > 0) {
+                        vendorActivityId = vaMatches[0].id;
+                        b.vendorActivityId = vendorActivityId ?? undefined;
+                    }
+                }
+
+                // Sync resolved values back to the block reference so it persists to tours.planner_data
+                if (vendorId) b.vendorId = vendorId;
+                if (activityId) b.activityId = activityId;
+
                 let basePayload: any = {
                     id: b.id, // Bind directly to the JSON block ID to ensure 1:1 mapping with the UI
                     tour_id: tourId,
                     itinerary_id: dbItin.id,
                     title: b.name,
                     location_name: b.locationName || null,
-                    distance: b.distance || null,
+                    distance: (b.distance !== undefined && b.distance !== null && b.distance !== '') ? String(b.distance) : null,
                     description: b.comments && b.comments.length > 0 ? JSON.stringify(b.comments) : (b.internalNotes || ''),
                     time_start: b.startTime || null,
                     time_end: b.endTime || null,
                     vendor_id: vendorId, // Map to the resolved UUID
-                    activity_id: b.activityId,
-                    vendor_activity_id: b.vendorActivityId,
+                    activity_id: activityId,
+                    vendor_activity_id: vendorActivityId,
                     contracted_price: b.contractedPrice,
                     charged_unit_price: b.agreedPrice,
                     charged_total_price: b.agreedPrice,

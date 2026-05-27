@@ -5,13 +5,9 @@ const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const supabase = createClient(url, key);
 
 async function checkSchema() {
-    console.log("Checking columns for 'activities' table...");
-    // We can't directly query schema without more permissions usually, 
-    // but we can check if there are other columns by doing a select * on a record that might have them.
-    // Or we can try to guess common names like 'image_url', 'images', 'gallery'.
-
+    console.log("Checking columns for 'daily_activities' table...");
     const { data, error } = await supabase
-        .from('activities')
+        .from('daily_activities')
         .select('*')
         .limit(1);
 
