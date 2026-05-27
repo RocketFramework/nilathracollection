@@ -580,7 +580,30 @@ export function ItineraryBuilder({
             if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
                 const vendor = masterData.vendors.find(v => v.id === b.vendorId);
                 const va = vendor?.vendor_activities?.find(va => va.id === b.vendorActivityId);
-                const fallbackVa = vendor?.vendor_activities?.find(va => Number(va.activity_id) === Number(b.activityId));
+                const resolvedActId = b.activityId || (() => {
+                    if (!b.name) return undefined;
+                    const cleanWords = (str: string) => {
+                        return str.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .split(/\s+/)
+                            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                    };
+                    const blockWords = cleanWords(b.name);
+                    if (blockWords.length === 0) return undefined;
+
+                    let bestMatch: any = null;
+                    let maxOverlap = 0;
+                    masterData.activities.forEach(a => {
+                        const actWords = cleanWords(a.activity_name);
+                        const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                        if (overlap > maxOverlap) {
+                            maxOverlap = overlap;
+                            bestMatch = a;
+                        }
+                    });
+                    return maxOverlap > 0 ? bestMatch?.id : undefined;
+                })();
+                const fallbackVa = vendor?.vendor_activities?.find(va => Number(va.activity_id) === Number(resolvedActId));
                 
                 const base = b.contractedPrice !== undefined ? b.contractedPrice : (va?.vendor_price || fallbackVa?.vendor_price || 0);
                 const agreedCost = b.agreedPrice !== undefined ? b.agreedPrice : (base * (1 + (activityMarkup / 100)));
@@ -641,7 +664,30 @@ export function ItineraryBuilder({
         blocks.forEach(b => {
             if (b.type === 'activity') {
                 activityCount++;
-                const masterAct = masterData.activities.find(ma => ma.id === b.activityId);
+                const resolvedActId = b.activityId || (() => {
+                    if (!b.name) return undefined;
+                    const cleanWords = (str: string) => {
+                        return str.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .split(/\s+/)
+                            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                    };
+                    const blockWords = cleanWords(b.name);
+                    if (blockWords.length === 0) return undefined;
+
+                    let bestMatch: any = null;
+                    let maxOverlap = 0;
+                    masterData.activities.forEach(a => {
+                        const actWords = cleanWords(a.activity_name);
+                        const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                        if (overlap > maxOverlap) {
+                            maxOverlap = overlap;
+                            bestMatch = a;
+                        }
+                    });
+                    return maxOverlap > 0 ? bestMatch?.id : undefined;
+                })();
+                const masterAct = masterData.activities.find(ma => ma.id === resolvedActId);
                 const category = masterAct?.category || 'General';
                 mix[category] = (mix[category] || 0) + 1;
             }
@@ -1042,7 +1088,31 @@ export function ItineraryBuilder({
         if (field === 'vendorId' && block.type === 'activity') {
             const vendor = masterData.vendors.find(v => v.id === value);
             if (vendor) {
-                const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(block.activityId));
+                const blockActivityId = block.activityId || (() => {
+                    if (!block.name) return undefined;
+                    const cleanWords = (str: string) => {
+                        return str.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .split(/\s+/)
+                            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                    };
+                    const blockWords = cleanWords(block.name);
+                    if (blockWords.length === 0) return undefined;
+
+                    let bestMatch: any = null;
+                    let maxOverlap = 0;
+                    masterData.activities.forEach(a => {
+                        const actWords = cleanWords(a.activity_name);
+                        const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                        if (overlap > maxOverlap) {
+                            maxOverlap = overlap;
+                            bestMatch = a;
+                        }
+                    });
+                    return maxOverlap > 0 ? bestMatch?.id : undefined;
+                })();
+
+                const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(blockActivityId));
                 if (va) {
                     const markupPercent = markups.vendor_activity_markup ?? 10;
                     const contractedRate = va.vendor_price || 0;
@@ -1051,6 +1121,7 @@ export function ItineraryBuilder({
                     updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? {
                         ...b,
                         [field]: value,
+                        activityId: blockActivityId, // Persist resolved activityId!
                         vendorActivityId: va.id,
                         contractedPrice: contractedRate,
                         agreedPrice: agreedPrice
@@ -1059,6 +1130,7 @@ export function ItineraryBuilder({
                     updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? {
                         ...b,
                         [field]: value,
+                        activityId: blockActivityId, // Persist resolved activityId!
                         vendorActivityId: undefined,
                         contractedPrice: undefined,
                         agreedPrice: undefined
@@ -1170,9 +1242,33 @@ export function ItineraryBuilder({
                 } : undefined
             };
         }
-        if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId)) {
+        if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId || block.name)) {
             const v = masterData.vendors.find(x => x.id === block.vendorId);
-            const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId);
+            const resolvedActId = block.activityId || (() => {
+                if (!block.name) return undefined;
+                const cleanWords = (str: string) => {
+                    return str.toLowerCase()
+                        .replace(/[^\w\s]/g, '')
+                        .split(/\s+/)
+                        .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                };
+                const blockWords = cleanWords(block.name);
+                if (blockWords.length === 0) return undefined;
+
+                let bestMatch: any = null;
+                let maxOverlap = 0;
+                masterData.activities.forEach(a => {
+                    const actWords = cleanWords(a.activity_name);
+                    const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                    if (overlap > maxOverlap) {
+                        maxOverlap = overlap;
+                        bestMatch = a;
+                    }
+                });
+                return maxOverlap > 0 ? bestMatch?.id : undefined;
+            })();
+            const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                       v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
 
             // If we have a vendor, show Vendor - Activity (Price)
             if (v) {
@@ -2458,7 +2554,7 @@ export function ItineraryBuilder({
                                                 <div className="p-6 sticky bottom-0 bg-white border-t">
                                                     <button onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
                                                         className="w-full py-3 bg-brand-green text-white font-bold rounded-xl shadow-lg hover:bg-brand-green/90 transition-all flex items-center justify-center gap-2">
-                                                        <CheckCircle2 size={18} /> Finish Assignment
+                                                                        <CheckCircle2 size={18} /> Finish Assignment
                                                     </button>
                                                 </div>
                                             </>
@@ -2467,11 +2563,38 @@ export function ItineraryBuilder({
 
                                     {activeAssignment.type === 'activity' && (() => {
                                         const currentBlock = tripData.itinerary.find(b => b.id === activeAssignment.blockId);
-                                        const baseActivity = masterData.activities.find(a => a.id === currentBlock?.activityId) ||
-                                            tripData.activities.find(a => a.activityId === currentBlock?.activityId)?.activityData;
+                                        const resolvedActId = currentBlock?.activityId || (() => {
+                                            if (!currentBlock?.name) return undefined;
+                                            const cleanWords = (str: string) => {
+                                                return str.toLowerCase()
+                                                    .replace(/[^\w\s]/g, '')
+                                                    .split(/\s+/)
+                                                    .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                                            };
+                                            const blockWords = cleanWords(currentBlock.name);
+                                            if (blockWords.length === 0) return undefined;
+
+                                            let bestMatch: any = null;
+                                            let maxOverlap = 0;
+                                            masterData.activities.forEach(a => {
+                                                const actWords = cleanWords(a.activity_name);
+                                                const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                                                if (overlap > maxOverlap) {
+                                                    maxOverlap = overlap;
+                                                    bestMatch = a;
+                                                }
+                                            });
+                                            return maxOverlap > 0 ? bestMatch?.id : undefined;
+                                        })();
+
+                                        const baseActivity = masterData.activities.find(a => a.id === resolvedActId) ||
+                                            tripData.activities.find(a => a.activityId === resolvedActId)?.activityData;
 
                                         const specializedVendorsUnfiltered = masterData.vendors.filter(v =>
-                                            v.vendor_activities?.some(va => Number(va.activity_id) === Number(currentBlock?.activityId))
+                                            v.vendor_activities?.some(va => 
+                                                (currentBlock?.vendorActivityId && va.id === currentBlock.vendorActivityId) ||
+                                                (resolvedActId && Number(va.activity_id) === Number(resolvedActId))
+                                            )
                                         );
 
                                         // Apply global search filter to specialized vendors
@@ -2509,7 +2632,8 @@ export function ItineraryBuilder({
                                                 <div className="grid grid-cols-1 gap-3 p-4">
                                                     {specializedVendors.map(v => {
                                                         const isSelected = currentBlock?.vendorId === v.id;
-                                                        const va = v.vendor_activities?.find(a => Number(a.activity_id) === Number(currentBlock?.activityId));
+                                                        const va = v.vendor_activities?.find((a: any) => a.id === currentBlock?.vendorActivityId) ||
+                                                                   v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
                                                         return (
                                                             <button key={v.id} onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
                                                                 className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-brand-green bg-brand-green/5' : 'border-neutral-200 bg-white hover:border-brand-green/30'}`}>
@@ -2531,11 +2655,14 @@ export function ItineraryBuilder({
                                                         <div className="grid grid-cols-1 gap-3 p-4">
                                                             {otherVendors.map(v => {
                                                                 const isSelected = currentBlock?.vendorId === v.id;
+                                                                const va = v.vendor_activities?.find((a: any) => a.id === currentBlock?.vendorActivityId) ||
+                                                                           v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
                                                                 return (
                                                                     <button key={'other-' + v.id} onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
                                                                         className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between opacity-80 hover:opacity-100 ${isSelected ? 'border-brand-green bg-brand-green/5' : 'border-neutral-200 bg-white hover:border-brand-green/30'}`}>
                                                                         <div className="flex-1">
                                                                             <p className="font-bold text-sm text-neutral-800">{v.name}</p>
+                                                                            {va && <p className="text-xs font-black text-brand-green mt-1">${va.vendor_price?.toLocaleString()}</p>}
                                                                             <p className="text-xs font-black text-neutral-400 mt-1 flex items-center gap-1"><MapPin size={10} /> {v.address || 'Address Unknown'}</p>
                                                                         </div>
                                                                         <div className="text-[10px] uppercase font-bold text-neutral-400 px-2 py-1 bg-neutral-100 rounded-md">General Vendor</div>

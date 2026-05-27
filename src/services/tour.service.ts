@@ -274,6 +274,7 @@ export class TourService {
      */
     static async saveTour(tourId: string, tripData: TripData) {
         const supabaseAdmin = createAdminClient();
+        const { data: dbActivities } = await supabaseAdmin.from('activities').select('id, activity_name');
 
         const { data: rawSettings } = await supabaseAdmin.from('app_settings').select('setting_key, setting_value');
         const settingsMap: Record<string, number> = {};
@@ -480,6 +481,32 @@ export class TourService {
                 // Auto-resolve vendor_activity_id and other critical activity identifiers
                 let vendorActivityId = b.vendorActivityId || null;
                 let activityId = b.activityId !== undefined && b.activityId !== null ? Number(b.activityId) : null;
+
+                if (!activityId && b.name && dbActivities && dbActivities.length > 0) {
+                    const cleanWords = (str: string) => {
+                        return str.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .split(/\s+/)
+                            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                    };
+                    const blockWords = cleanWords(b.name);
+                    if (blockWords.length > 0) {
+                        let bestMatch: any = null;
+                        let maxOverlap = 0;
+                        for (const a of dbActivities) {
+                            const actWords = cleanWords(a.activity_name);
+                            const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                            if (overlap > maxOverlap) {
+                                maxOverlap = overlap;
+                                bestMatch = a;
+                            }
+                        }
+                        if (maxOverlap > 0 && bestMatch) {
+                            activityId = Number(bestMatch.id);
+                            b.activityId = activityId;
+                        }
+                    }
+                }
 
                 if (vendorActivityId) {
                     const { data: vaMatches } = await supabaseAdmin

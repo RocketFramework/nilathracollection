@@ -1,0 +1,54 @@
+{
+  "vendorIdsCount": 80,
+  "vendorActivitiesCount": 4,
+  "vendorActivitiesSample": [
+    {
+      "id": "56968155-0f07-4f83-9948-e00acaf4e5ea",
+      "vendor_id": "04cdaf6d-67de-4569-bc75-309d6a0ad590",
+      "activity_id": 86,
+      "vendor_price": 12,
+      "created_at": "2026-05-25T10:54:51.374286+00:00",
+      "activities": {
+        "district": "Kandy",
+        "activity_name": "Botanical Gardens in Kandy",
+        "location_name": "Peradeniya"
+      }
+    },
+    {
+      "id": "d35ada59-005c-44d9-9709-a63ccf193e3b",
+      "vendor_id": "b0b1de8c-c6bf-41de-a0ab-f67038c4fca8",
+      "activity_id": 81,
+      "vendor_price": 50,
+      "created_at": "2026-05-26T15:49:49.405456+00:00",
+      "activities": {
+        "district": "Hambantota",
+        "activity_name": "Jeep Safari in Yala National Park (Evening)",
+        "location_name": "Yala National Park"
+      }
+    },
+    {
+      "id": "2e11863e-9043-4cef-b109-1308f7e74656",
+      "vendor_id": "c48b980e-f723-497d-b727-b471c7b95175",
+      "activity_id": 126,
+      "vendor_price": 15,
+      "created_at": "2026-05-26T15:16:05.56421+00:00",
+      "activities": {
+        "district": "Matara",
+        "activity_name": "Whale Watching Mirissa",
+        "location_name": "Mirissa"
+      }
+    },
+    {
+      "id": "28f30ca3-29ee-43ba-865f-20071861de17",
+      "vendor_id": "f1b16a54-3a18-4698-9709-0a4e7e18f6f1",
+      "activity_id": 1,
+      "vendor_price": 50,
+      "created_at": "2026-03-01T09:53:55.821992+00:00",
+      "activities": {
+        "district": "Matale",
+        "activity_name": "Hot Air Ballooning",
+        "location_name": "Sigiriya"
+      }
+    }
+  ]
+}
