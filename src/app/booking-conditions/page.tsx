@@ -1,11 +1,22 @@
 import MainLayout from "@/components/layout/MainLayout";
-import { motion } from "framer-motion";
 import { Shield, Gavel, FileText, CreditCard, UserCheck, Stethoscope, AlertCircle, HelpCircle } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Booking Conditions",
+    title: "Booking Conditions | Nilathra Collection",
+    description: "Read the booking terms and conditions for Nilathra Collection travel experiences. Learn about contracts, pricing, payment terms, insurance, and cancellation policies.",
+    alternates: {
+        canonical: "https://www.nilathra.com/booking-conditions",
+    },
+    openGraph: {
+        title: "Booking Conditions | Nilathra Collection",
+        description: "Read the booking terms and conditions for Nilathra Collection travel experiences. Learn about contracts, pricing, payment terms, insurance, and cancellation policies.",
+        url: "https://www.nilathra.com/booking-conditions",
+        siteName: "Nilathra Collection",
+        type: "website",
+    },
 };
+
 export default function BookingConditionsPage() {
     return (
         <MainLayout>

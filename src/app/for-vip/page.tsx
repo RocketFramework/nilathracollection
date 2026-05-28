@@ -4,9 +4,20 @@ import MainLayout from "@/components/layout/MainLayout";
 import { headers } from "next/headers";
 import { getDictionary } from "@/dictionaries";
 import { I18nProvider } from "@/components/I18nProvider";
+
 export const metadata: Metadata = {
-    title: "VIP Experiences | Exclusive Luxury Travel",
-    description: "Experience Thabrobana: The ultimate luxury travel destination. A land like no other.",
+    title: "VIP Experiences & Luxury Travel Sri Lanka | Nilathra Collection",
+    description: "Discover curated VIP travel experiences in Sri Lanka. Tailor-made ultra-luxury itineraries, private aviation, elite wellness, and exclusive villa retreats.",
+    alternates: {
+        canonical: "https://www.nilathra.com/for-vip",
+    },
+    openGraph: {
+        title: "VIP Experiences & Luxury Travel Sri Lanka | Nilathra Collection",
+        description: "Discover curated VIP travel experiences in Sri Lanka. Tailor-made ultra-luxury itineraries, private aviation, elite wellness, and exclusive villa retreats.",
+        url: "https://www.nilathra.com/for-vip",
+        siteName: "Nilathra Collection",
+        type: "website",
+    },
 };
 
 export default async function VIPPage() {

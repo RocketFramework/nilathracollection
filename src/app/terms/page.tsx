@@ -3,8 +3,20 @@ import { Info, MousePointer2, Phone, UserCheck, ShieldAlert, Plane, Building2, C
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Terms of Service",
+    title: "Terms of Service | Nilathra Collection",
+    description: "Read the Terms of Service for using the Nilathra Collection website and booking our ultra-luxury Sri Lankan travel experiences.",
+    alternates: {
+        canonical: "https://www.nilathra.com/terms",
+    },
+    openGraph: {
+        title: "Terms of Service | Nilathra Collection",
+        description: "Read the Terms of Service for using the Nilathra Collection website and booking our ultra-luxury Sri Lankan travel experiences.",
+        url: "https://www.nilathra.com/terms",
+        siteName: "Nilathra Collection",
+        type: "website",
+    },
 };
+
 export default function TermsOfServicePage() {
     return (
         <MainLayout>

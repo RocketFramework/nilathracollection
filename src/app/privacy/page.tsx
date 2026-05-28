@@ -1,10 +1,22 @@
 import MainLayout from "@/components/layout/MainLayout";
-import { Shield, Lock, Eye, Users, Globe, Database, Scale, Mail } from "lucide-react";
+import { Shield, Lock, Eye, Users, Globe, Database, Scale } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Privacy Policy",
+    title: "Privacy Policy | Nilathra Collection",
+    description: "Read the Nilathra Collection Privacy Policy. Learn how we collect, store, protect, and process your personal data in accordance with international privacy laws.",
+    alternates: {
+        canonical: "https://www.nilathra.com/privacy",
+    },
+    openGraph: {
+        title: "Privacy Policy | Nilathra Collection",
+        description: "Read the Nilathra Collection Privacy Policy. Learn how we collect, store, protect, and process your personal data in accordance with international privacy laws.",
+        url: "https://www.nilathra.com/privacy",
+        siteName: "Nilathra Collection",
+        type: "website",
+    },
 };
+
 export default function PrivacyPolicyPage() {
     return (
         <MainLayout>
