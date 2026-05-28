@@ -172,6 +172,23 @@ export async function saveTourAction(tourId: string, tripData: any) {
     }
 }
 
+export async function savePlannerDataAction(tourId: string, tripData: any) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { error } = await adminSupabase
+            .from('tours')
+            .update({ planner_data: tripData })
+            .eq('id', tourId);
+        if (error) throw error;
+        // Force revalidation of any cached planner data views
+        revalidatePath(`/admin/planner`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving planner JSON data:", error);
+        return { success: false, error: error.message || "Failed to save planner data." };
+    }
+}
+
 export async function getHotelsListAction() {
     try {
         const supabase = createAdminClient();
@@ -482,15 +499,51 @@ export async function getFinalizedActivitiesAction(tourId: string) {
     }
 }
 
-export async function finalizeActivityPricesAction(blockIds: string[], status: boolean = true) {
+export async function getDailyActivitiesAction(tourId: string) {
     try {
         const adminSupabase = createAdminClient();
-        const { error } = await adminSupabase
+        const { data, error } = await adminSupabase
             .from('daily_activities')
-            .update({ price_finalized: status })
-            .in('id', blockIds);
+            .select('*')
+            .eq('tour_id', tourId);
 
         if (error) throw error;
+        return { success: true, activities: data || [] };
+    } catch (error: any) {
+        console.error("Error fetching daily activities:", error);
+        return { success: false, error: error.message || "Failed to load daily activities." };
+    }
+}
+
+
+export async function finalizeActivityPricesAction(
+    updates: { 
+        id: string; 
+        price_finalized?: boolean; 
+        contracted_price?: number | null; 
+        contracted_total_price?: number | null;
+    }[]
+) {
+    try {
+        const adminSupabase = createAdminClient();
+        for (const update of updates) {
+            const dbFields: any = {};
+            if (update.price_finalized !== undefined) {
+                dbFields.price_finalized = update.price_finalized;
+            }
+            if (update.contracted_price !== undefined) {
+                dbFields.contracted_price = update.contracted_price;
+            }
+            if (update.contracted_total_price !== undefined) {
+                dbFields.contracted_total_price = update.contracted_total_price;
+            }
+
+            const { error } = await adminSupabase
+                .from('daily_activities')
+                .update(dbFields)
+                .eq('id', update.id);
+            if (error) throw error;
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error finalizing prices:", error);
@@ -881,3 +934,77 @@ export async function saveAppMarkupsAction(markups: Record<string, number>) {
         return { success: false, error: error.message };
     }
 }
+
+export async function sendPurchaseOrderEmailAction(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+    pdfBase64: string;
+    pdfFilename: string;
+    poId?: string;
+}) {
+    try {
+        const { to, from, subject, body, pdfBase64, pdfFilename, poId } = options;
+        
+        if (!to) {
+            return { success: false, error: "Recipient email is required." };
+        }
+        
+        const apiKey = process.env.RESEND_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: "Resend API key is not configured in .env.local" };
+        }
+        
+        // Wrap the body in standard Nilathra email HTML template
+        const contentHtml = `
+              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;white-space:pre-wrap;">${body}</div>
+              
+              <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
+              </p>
+        `;
+        const html = emailService.generateEmailHtml('Purchase Order', 'Purchase Order', contentHtml);
+        
+        const sender = from || process.env.EMAIL_FROM || 'concierge@nilathra.com';
+        
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                from: sender,
+                to: to,
+                subject: subject,
+                html: html,
+                attachments: [
+                    {
+                        filename: pdfFilename,
+                        content: pdfBase64
+                    }
+                ]
+            })
+        });
+        
+        const resJson = await res.json();
+        
+        if (!res.ok) {
+            console.error("Resend email delivery failed:", resJson);
+            return { success: false, error: resJson.message || "Failed to send email via Resend." };
+        }
+        
+        // Update PO status to 'Sent' in Supabase if poId is provided
+        if (poId) {
+            const supabase = createAdminClient();
+            await supabase.from('purchase_orders').update({ status: 'Sent' }).eq('id', poId);
+        }
+        
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in sendPurchaseOrderEmailAction:", error);
+        return { success: false, error: error.message || "An unexpected error occurred." };
+    }
+}
+

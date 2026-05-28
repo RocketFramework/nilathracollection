@@ -10,6 +10,12 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "50mb",
+    },
+    proxyClientMaxBodySize: "50mb",
+  },
 };
 
 module.exports = nextConfig;

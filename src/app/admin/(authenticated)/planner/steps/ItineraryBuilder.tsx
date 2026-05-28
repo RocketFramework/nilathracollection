@@ -607,7 +607,7 @@ export function ItineraryBuilder({
                 
                 const base = b.contractedPrice !== undefined ? b.contractedPrice : (va?.vendor_price || fallbackVa?.vendor_price || 0);
                 const agreedCost = b.agreedPrice !== undefined ? b.agreedPrice : (base * (1 + (activityMarkup / 100)));
-                const qty = pax || 1; // Activities are generally per-person
+                const qty = b.transportQuantity || pax || 1; // Respect editable pax count first
                 
                 actsContracted += base * qty;
                 acts += agreedCost * qty;
@@ -1273,7 +1273,7 @@ export function ItineraryBuilder({
             // If we have a vendor, show Vendor - Activity (Price)
             if (v) {
                 const activityLabel = va?.activity_name || block.name || 'Activity';
-                const price = va?.vendor_price || block.agreedPrice;
+                const price = block.agreedPrice !== undefined ? block.agreedPrice : va?.vendor_price;
 
                 let label = `${v.name} - ${activityLabel}`;
                 if (price) label += ` ($${price.toLocaleString()})`;
@@ -1795,7 +1795,7 @@ export function ItineraryBuilder({
                                                                             ) : null}
                                                                         </div>
                                                                         <div className="p-3">
-                                                                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 pb-2 mb-2 border-b border-emerald-100 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
+                                                                            <div className={`grid ${currentUserRole !== 'tourist' ? 'grid-cols-[2fr_1fr_1fr_1fr]' : 'grid-cols-[3fr_1fr]'} gap-2 pb-2 mb-2 border-b border-emerald-100 text-[10px] font-bold text-emerald-500 uppercase tracking-wider`}>
                                                                                 <div>Meal Type</div>
                                                                                 <div className="text-center">Pax Count</div>
                                                                                 {currentUserRole !== 'tourist' && (
@@ -1806,7 +1806,7 @@ export function ItineraryBuilder({
                                                                                 )}
                                                                             </div>
                                                                             
-                                                                            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 py-1 items-center text-emerald-900">
+                                                                            <div className={`grid ${currentUserRole !== 'tourist' ? 'grid-cols-[2fr_1fr_1fr_1fr]' : 'grid-cols-[3fr_1fr]'} gap-2 py-1 items-center text-emerald-900`}>
                                                                                 <div className="font-bold">
                                                                                     {block.mealType || 'Meal'}
                                                                                 </div>
@@ -1849,6 +1849,114 @@ export function ItineraryBuilder({
                                                                     </div>
                                                                 );
                                                             })()}
+
+                                                            {block.type === 'activity' && block.vendorId && activeAssignment?.blockId !== block.id && (() => {
+                                                                const vendor = masterData.vendors.find(v => v.id === block.vendorId);
+                                                                if (!vendor) return null;
+
+                                                                const resolvedActId = block.activityId || (() => {
+                                                                    if (!block.name) return undefined;
+                                                                    const cleanWords = (str: string) => {
+                                                                        return str.toLowerCase()
+                                                                            .replace(/[^\w\s]/g, '')
+                                                                            .split(/\s+/)
+                                                                            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                                                                    };
+                                                                    const blockWords = cleanWords(block.name);
+                                                                    if (blockWords.length === 0) return undefined;
+
+                                                                    let bestMatch: any = null;
+                                                                    let maxOverlap = 0;
+                                                                    masterData.activities.forEach(a => {
+                                                                        const actWords = cleanWords(a.activity_name);
+                                                                        const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                                                                        if (overlap > maxOverlap) {
+                                                                            maxOverlap = overlap;
+                                                                            bestMatch = a;
+                                                                        }
+                                                                    });
+                                                                    return maxOverlap > 0 ? bestMatch?.id : undefined;
+                                                                })();
+                                                                const va = vendor.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                                                                           vendor.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+
+                                                                const quantity = block.transportQuantity || tripData.profile?.adults || 1;
+                                                                const unitPrice = block.agreedPrice !== undefined 
+                                                                    ? block.agreedPrice 
+                                                                    : (() => {
+                                                                        const base = block.contractedPrice !== undefined ? block.contractedPrice : (va?.vendor_price || 0);
+                                                                        const activityMarkup = markups.vendor_activity_markup ?? 10;
+                                                                        return base * (1 + (activityMarkup / 100));
+                                                                    })();
+                                                                const totalPrice = unitPrice * quantity;
+                                                                const activityLabel = va?.activity_name || block.name || 'Activity';
+
+                                                                return (
+                                                                    <div className="mt-3 w-full bg-orange-50/20 border border-orange-100 rounded-xl overflow-hidden text-xs">
+                                                                        <div className="bg-orange-50/50 px-3 py-2 border-b border-orange-100 flex justify-between items-center">
+                                                                            <span className="font-bold text-orange-950">{vendor.name} <span className="text-orange-600 font-normal">({activityLabel})</span></span>
+                                                                            {vendor.phone && currentUserRole !== 'tourist' ? (
+                                                                                <span className="text-[10px] font-bold text-orange-700 bg-orange-100/50 px-2 py-0.5 rounded-full border border-orange-200">
+                                                                                    📞 {vendor.phone}
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </div>
+                                                                        <div className="p-3">
+                                                                            <div className={`grid ${currentUserRole !== 'tourist' ? 'grid-cols-[2fr_1fr_1fr_1fr]' : 'grid-cols-[3fr_1fr]'} gap-2 pb-2 mb-2 border-b border-orange-100 text-[10px] font-bold text-orange-500 uppercase tracking-wider`}>
+                                                                                <div>Activity</div>
+                                                                                <div className="text-center">Pax Count</div>
+                                                                                {currentUserRole !== 'tourist' && (
+                                                                                    <>
+                                                                                        <div className="text-right">Unit Price</div>
+                                                                                        <div className="text-right">Total Price</div>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                            
+                                                                            <div className={`grid ${currentUserRole !== 'tourist' ? 'grid-cols-[2fr_1fr_1fr_1fr]' : 'grid-cols-[3fr_1fr]'} gap-2 py-1 items-center text-orange-950`}>
+                                                                                <div className="font-bold truncate" title={activityLabel}>
+                                                                                    {activityLabel}
+                                                                                </div>
+                                                                                <div className="text-center">
+                                                                                    <input 
+                                                                                        type="number" 
+                                                                                        min="1"
+                                                                                        value={quantity}
+                                                                                        disabled={readOnly}
+                                                                                        onChange={(e) => {
+                                                                                            const newQty = parseInt(e.target.value) || 1;
+                                                                                            updateBlock(block.id, { transportQuantity: newQty });
+                                                                                        }}
+                                                                                        className="w-16 text-center font-bold bg-white border border-orange-200 rounded py-0.5 shadow-sm outline-none focus:border-orange-500 disabled:bg-neutral-50"
+                                                                                    />
+                                                                                </div>
+                                                                                {currentUserRole !== 'tourist' && (
+                                                                                    <>
+                                                                                        <div className="text-right flex items-center justify-end gap-1">
+                                                                                            <span className="text-orange-400 font-bold">$</span>
+                                                                                            <input 
+                                                                                                type="number" 
+                                                                                                min="0"
+                                                                                                value={unitPrice}
+                                                                                                disabled={readOnly}
+                                                                                                onChange={(e) => {
+                                                                                                    const newPrice = parseFloat(e.target.value) || 0;
+                                                                                                    updateBlock(block.id, { agreedPrice: newPrice });
+                                                                                                }}
+                                                                                                className="w-20 text-right font-bold bg-white border border-orange-200 rounded py-0.5 shadow-sm outline-none focus:border-orange-500 disabled:bg-neutral-50"
+                                                                                            />
+                                                                                        </div>
+                                                                                        <div className="text-right font-black">
+                                                                                            ${totalPrice.toLocaleString()}
+                                                                                        </div>
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
+
 
                                                             <div className="mt-3 w-full border border-neutral-100 rounded-xl overflow-hidden bg-neutral-50/30">
                                                                 <div className="bg-neutral-50 px-3 py-2 border-b border-neutral-100 flex justify-between items-center">

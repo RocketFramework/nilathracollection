@@ -13,7 +13,9 @@ import {
     updateTransportProviderContactInfoAction,
     sendCustomEmailAction,
     finalizeActivityPricesAction,
-    getFinalizedActivitiesAction
+    getFinalizedActivitiesAction,
+    getDailyActivitiesAction,
+    savePlannerDataAction
 } from "@/actions/admin.actions";
 import { getMyNotificationsAction, logQuoteRequestAction } from "@/actions/notification.actions";
 
@@ -99,7 +101,7 @@ const TransportProviderContactForm = ({ providerId, initialPhone, initialEmail }
     );
 };
 
-export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripData, updateData: (d: Partial<TripData>) => void }) {
+export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tripData: TripData, updateData: (d: Partial<TripData>) => void, setIsDirty?: (dirty: boolean) => void }) {
     const [isLoading, setIsLoading] = useState(true);
 
     const [masterHotels, setMasterHotels] = useState<any[]>([]);
@@ -109,19 +111,21 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
     const [masterRestaurants, setMasterRestaurants] = useState<any[]>([]);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [finalizedIds, setFinalizedIds] = useState<Set<string>>(new Set());
+    const [dbActivities, setDbActivities] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchMasterData = async () => {
             setIsLoading(true);
             try {
-                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes, finalRes] = await Promise.all([
+                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes, finalRes, dbActivitiesRes] = await Promise.all([
                     getHotelsListAction(),
                     getVendorsAction(),
                     getTransportProvidersAction(),
                     getTourGuidesAction(),
                     getRestaurantsAction(),
                     getMyNotificationsAction(),
-                    getFinalizedActivitiesAction(tripData.id || '')
+                    getFinalizedActivitiesAction(tripData.id || ''),
+                    getDailyActivitiesAction(tripData.id || '')
                 ]);
 
                 if (hotelsRes.success) setMasterHotels(hotelsRes.hotels || []);
@@ -132,6 +136,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                 if (nRes.success) setNotifications(nRes.data || []);
                 if (finalRes.success && finalRes.activities) {
                     setFinalizedIds(new Set(finalRes.activities.map((a: any) => a.id)));
+                }
+                if (dbActivitiesRes.success) {
+                    setDbActivities(dbActivitiesRes.activities || []);
                 }
             } catch (err) {
                 console.error("Failed to fetch initial data", err);
@@ -148,96 +155,161 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
             const b = { ...rawBlock, priceFinalized: rawBlock.priceFinalized || finalizedIds.has(rawBlock.id) };
             
             let vendorName = "Unknown Vendor";
-            let unitPrice = b.contractedPrice ?? 0;
+            let unitPrice = 0;
             let quantity = 1;
             let referenceTotal = 0;
             let icon: React.ReactNode = <Compass size={18} />;
+            let isHotelWithRooms = false;
+            let accIndex = -1;
+            let rooms: any[] = [];
+            let mealPlan = "";
 
+            const act = dbActivities.find(a => a.id === b.id);
+            
+            let isBound = false;
+            
             if (b.type === 'sleep' && b.hotelId) {
+                isBound = true;
                 const hId = b.hotelId;
                 const hotel = masterHotels.find(h => h.id === hId);
                 if (hotel) vendorName = hotel.name;
-                const accIndex = tripData.accommodations?.findIndex(a => a.nightIndex === b.dayNumber && (a.hotelId === hId || a.hotelName === hotel?.name)) ?? -1;
+                accIndex = tripData.accommodations?.findIndex(a => a.nightIndex === b.dayNumber && (a.hotelId === hId || a.hotelName === hotel?.name)) ?? -1;
                 const acc = accIndex !== -1 ? tripData.accommodations![accIndex] : null;
-
-                if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {
-                    items.push({
-                        id: b.id,
-                        block: b,
-                        title: b.name,
-                        vendorName,
-                        icon: <Building2 size={18} className="text-blue-500" />,
-                        isHotelWithRooms: true,
-                        accIndex,
-                        rooms: acc.selectedRooms
-                    });
-                    return; // Skip normal block push
-                } else if (acc) {
-                    if (unitPrice === 0) unitPrice = acc.pricePerNight || 0;
-                    quantity = acc.numberOfRooms || 1;
-                    referenceTotal = unitPrice * quantity;
-                    items.push({
-                        id: b.id, block: b, title: b.name, vendorName, icon: <Building2 size={18} className="text-blue-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice, mealPlan: acc.mealPlan || 'BB'
-                    });
-                    return;
+                if (acc) {
+                    if (acc.selectedRooms && acc.selectedRooms.length > 0) {
+                        isHotelWithRooms = true;
+                        rooms = acc.selectedRooms;
+                    } else {
+                        quantity = acc.numberOfRooms || 1;
+                        mealPlan = acc.mealPlan || 'BB';
+                    }
                 }
+                icon = <Building2 size={18} className="text-blue-500" />;
             } else if (b.type === 'meal' && b.restaurantId) {
+                isBound = true;
                 const rId = b.restaurantId;
                 const rest = masterRestaurants.find(r => r.id === rId);
-                if (rest) {
-                    vendorName = rest.name;
-                    if (unitPrice === 0) unitPrice = rest.lunch_rate_per_head || 0;
-                }
+                if (rest) vendorName = rest.name;
                 quantity = b.restaurantQuantity || (tripData.profile?.adults || 1) + (tripData.profile?.children || 0);
-                referenceTotal = unitPrice * quantity;
-                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Utensils size={18} className="text-orange-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
-            } else if (b.type === 'travel' && (b.transportId || b.vehicleId || b.driverId || tripData.defaultTransportId || tripData.defaultVehicleId || tripData.defaultDriverId)) {
+                icon = <Utensils size={18} className="text-orange-500" />;
+            } else if (b.type === 'travel' && (b.transportId || tripData.defaultTransportId)) {
+                isBound = true;
                 const tId = b.transportId || tripData.defaultTransportId;
                 const trans = masterTransports.find(t => t.id === tId);
-                if (trans) {
-                    vendorName = trans.name;
-                    const vId = b.vehicleId || tripData.defaultVehicleId;
-                    const veh = trans.transport_vehicles?.find((v: any) => v.id === vId);
-                    if (veh && unitPrice === 0) unitPrice = veh.per_km_rate || veh.day_rate || 0;
-                }
+                if (trans) vendorName = trans.name;
                 if (b.contractedPrice !== undefined) {
                     quantity = b.transportQuantity || 1;
                 } else {
                     const parsedDistance = parseFloat(b.distance?.replace(/[^0-9.]/g, '') || '0');
                     quantity = parsedDistance > 0 ? parsedDistance : 1;
                 }
-                referenceTotal = unitPrice * quantity;
-                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Car size={18} className="text-indigo-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+                icon = <Car size={18} className="text-indigo-500" />;
             } else if (b.type === 'guide' && (b.guideId || tripData.defaultGuideId)) {
+                isBound = true;
                 const gId = b.guideId || tripData.defaultGuideId;
                 const guide = masterGuides.find(g => g.id === gId);
-                if (guide) {
-                    vendorName = `${guide.first_name} ${guide.last_name || ''}`.trim();
-                    if (unitPrice === 0) unitPrice = guide.per_day_rate || 0;
-                }
+                if (guide) vendorName = `${guide.first_name} ${guide.last_name || ''}`.trim();
                 quantity = 1;
-                referenceTotal = unitPrice * quantity;
-                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <UserCheck size={18} className="text-purple-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+                icon = <UserCheck size={18} className="text-purple-500" />;
             } else if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
+                isBound = true;
                 const vId = b.vendorId;
                 const vend = masterVendors.find(v => v.id === vId);
                 if (vend) vendorName = vend.name;
-                const actBooking = tripData.activities.find(a => a.activityId === b.activityId);
-                if (actBooking && (actBooking.activityData as any).price && unitPrice === 0) {
-                    unitPrice = (actBooking.activityData as any).price;
-                }
                 quantity = b.transportQuantity || ((tripData.profile?.adults || 1) + (tripData.profile?.children || 0));
-                referenceTotal = unitPrice * quantity;
-                items.push({ id: b.id, block: b, title: b.name, vendorName, icon: <Compass size={18} className="text-green-500" />, unitPrice, quantity, referenceTotal, agreedPrice: b.agreedPrice });
+                icon = <Compass size={18} className="text-green-500" />;
+            }
+
+            if (!isBound) return;
+
+            if (act && act.quantity != null) {
+                quantity = act.quantity;
+            }
+
+            if (act) {
+                unitPrice = act.charged_unit_price ?? 0;
+                referenceTotal = act.charged_total_price ?? (unitPrice * quantity);
+            } else {
+                if (b.type === 'sleep') {
+                    const acc = accIndex !== -1 ? tripData.accommodations![accIndex] : null;
+                    unitPrice = b.agreedPrice !== undefined ? (quantity > 0 ? b.agreedPrice / quantity : b.agreedPrice) : (acc?.pricePerNight ?? 0);
+                    referenceTotal = b.agreedPrice !== undefined ? b.agreedPrice : unitPrice * quantity;
+                } else if (b.type === 'meal') {
+                    const rest = masterRestaurants.find(r => r.id === b.restaurantId);
+                    unitPrice = b.agreedPrice !== undefined ? b.agreedPrice : (rest?.lunch_rate_per_head || 0);
+                    referenceTotal = unitPrice * quantity;
+                } else if (b.type === 'travel') {
+                    const trans = masterTransports.find(t => t.id === (b.transportId || tripData.defaultTransportId));
+                    const vId = b.vehicleId || tripData.defaultVehicleId;
+                    const veh = trans?.transport_vehicles?.find((v: any) => v.id === vId);
+                    unitPrice = b.agreedPrice !== undefined ? (quantity > 0 ? b.agreedPrice / quantity : b.agreedPrice) : (veh?.per_km_rate || veh?.day_rate || 0);
+                    referenceTotal = b.agreedPrice !== undefined ? b.agreedPrice : unitPrice * quantity;
+                } else if (b.type === 'guide') {
+                    const guide = masterGuides.find(g => g.id === (b.guideId || tripData.defaultGuideId));
+                    unitPrice = b.agreedPrice !== undefined ? (quantity > 0 ? b.agreedPrice / quantity : b.agreedPrice) : (guide?.per_day_rate || 0);
+                    referenceTotal = b.agreedPrice !== undefined ? b.agreedPrice : unitPrice * quantity;
+                } else if (b.type === 'activity') {
+                    const actBooking = tripData.activities.find(a => a.activityId === b.activityId);
+                    const actPrice = (actBooking?.activityData as any)?.price || 0;
+                    unitPrice = b.agreedPrice !== undefined ? b.agreedPrice : actPrice;
+                    referenceTotal = unitPrice * quantity;
+                }
+            }
+
+            let agreedPrice = undefined;
+            if (b.priceFinalized) {
+                agreedPrice = b.agreedPrice;
+            } else {
+                const isAgreedEdited = b.agreedPrice !== undefined && b.agreedPrice !== referenceTotal;
+                if (isAgreedEdited) {
+                    agreedPrice = b.agreedPrice;
+                } else {
+                    const baseContracted = act?.contracted_price ?? b.contractedPrice ?? 0;
+                    agreedPrice = ['meal', 'activity'].includes(b.type) ? baseContracted : baseContracted * quantity;
+                }
+            }
+
+            if (isHotelWithRooms) {
+                items.push({
+                    id: b.id,
+                    block: b,
+                    title: b.name,
+                    vendorName,
+                    icon,
+                    isHotelWithRooms: true,
+                    accIndex,
+                    rooms
+                });
+            } else {
+                items.push({
+                    id: b.id,
+                    block: b,
+                    title: b.name,
+                    vendorName,
+                    icon,
+                    unitPrice,
+                    quantity,
+                    referenceTotal,
+                    agreedPrice,
+                    mealPlan
+                });
             }
         });
         return items;
-    }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotels, masterRestaurants, masterTransports, masterGuides, masterVendors]);
+    }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotels, masterRestaurants, masterTransports, masterGuides, masterVendors, dbActivities, finalizedIds]);
 
-    const handleBlockUpdate = (blockId: string, updates: Partial<InternalItineraryBlock>) => {
-        const updatedItinerary = tripData.itinerary.map(b =>
-            b.id === blockId ? { ...b, ...updates } : b
-        );
+    const handleBlockUpdate = (blockId: string, updates: Partial<InternalItineraryBlock>, quantity = 1) => {
+        const updatedItinerary = tripData.itinerary.map(b => {
+            if (b.id === blockId) {
+                const nextBlock = { ...b, ...updates };
+                if (updates.agreedPrice !== undefined) {
+                    const val = updates.agreedPrice;
+                    nextBlock.contractedPrice = ['meal', 'activity'].includes(b.type) ? val : (quantity > 0 ? val / quantity : val);
+                }
+                return nextBlock;
+            }
+            return b;
+        });
         updateData({ itinerary: updatedItinerary });
     };
 
@@ -247,7 +319,10 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
         const acc = updatedAccs[accIndex];
         if (acc && acc.selectedRooms) {
             const rooms = [...acc.selectedRooms];
-            rooms[roomIndex] = { ...rooms[roomIndex], agreedTotal };
+            const room = rooms[roomIndex];
+            const qty = room.quantity || 1;
+            const contractedPrice = agreedTotal !== undefined ? (qty > 0 ? agreedTotal / qty : agreedTotal) : undefined;
+            rooms[roomIndex] = { ...room, agreedTotal, contractedPrice };
             updatedAccs[accIndex] = { ...acc, selectedRooms: rooms };
             updateData({ accommodations: updatedAccs });
         }
@@ -549,21 +624,119 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                             setFinalizingGroup(vendorGroup);
                                                             try {
                                                                 const blockIds = items.map((i: any) => i.block?.id).filter(Boolean);
-                                                                if (blockIds.length > 0) {
-                                                                    const res = await finalizeActivityPricesAction(blockIds, !allFinalized);
+                                                                const isFinalizing = !allFinalized;
+                                                                const dbUpdates = items.map((item: any) => {
+                                                                    if (!item.block?.id) return null;
+                                                                    
+                                                                    let finalTotal = 0;
+                                                                    let quantity = 1;
+                                                                    
+                                                                    if (item.isHotelWithRooms && item.rooms) {
+                                                                        quantity = item.rooms.reduce((sum: number, r: any) => sum + (r.quantity || 0), 0);
+                                                                        finalTotal = item.rooms.reduce((sum: number, r: any) => {
+                                                                            const rQty = r.quantity || 1;
+                                                                            const rRef = (r.contractedPrice ?? r.pricePerNight ?? 0) * rQty;
+                                                                            const rAgreed = r.agreedTotal !== undefined ? r.agreedTotal : rRef;
+                                                                            return sum + rAgreed;
+                                                                        }, 0);
+                                                                    } else {
+                                                                        quantity = item.quantity || 1;
+                                                                        let enteredVal = item.agreedPrice;
+                                                                        if (enteredVal === undefined) {
+                                                                            const baseContractedPrice = item.block.contractedPrice ?? 0;
+                                                                            enteredVal = ['meal', 'activity'].includes(item.block.type)
+                                                                                ? baseContractedPrice
+                                                                                : baseContractedPrice * quantity;
+                                                                        }
+                                                                        
+                                                                        finalTotal = ['meal', 'activity'].includes(item.block?.type)
+                                                                            ? (enteredVal * quantity)
+                                                                            : enteredVal;
+                                                                    }
+                                                                    
+                                                                    return {
+                                                                        id: item.block.id,
+                                                                        price_finalized: isFinalizing,
+                                                                        contracted_price: quantity > 0 ? finalTotal / quantity : finalTotal,
+                                                                        contracted_total_price: finalTotal
+                                                                    };
+                                                                }).filter(Boolean);
+
+                                                                if (dbUpdates.length > 0) {
+                                                                    const res = await finalizeActivityPricesAction(dbUpdates as any);
                                                                     if (!res.success) {
                                                                         alert("Failed to update prices: " + res.error);
                                                                         return;
                                                                     }
                                                                 }
+                                                                
                                                                 const updatedItinerary = [...tripData.itinerary];
+                                                                let updatedAccommodations = tripData.accommodations ? [...tripData.accommodations] : undefined;
+                                                                const isFinalizingState = !allFinalized;
+
                                                                 items.forEach((item: any) => {
                                                                     const idx = updatedItinerary.findIndex(b => b.id === item.block?.id);
                                                                     if (idx !== -1) {
-                                                                        updatedItinerary[idx] = { ...updatedItinerary[idx], priceFinalized: !allFinalized };
+                                                                        const block = updatedItinerary[idx];
+                                                                        let newAgreed = block.agreedPrice;
+                                                                        if (isFinalizing && !block.priceFinalized) {
+                                                                            if (item.isHotelWithRooms && updatedAccommodations && item.accIndex !== -1) {
+                                                                                const acc = { ...updatedAccommodations[item.accIndex] };
+                                                                                if (acc.selectedRooms) {
+                                                                                    acc.selectedRooms = acc.selectedRooms.map((room: any) => {
+                                                                                        const roomRefPrice = room.pricePerNight ?? room.contractedPrice ?? 0;
+                                                                                        const roomRefTotal = roomRefPrice * (room.quantity || 1);
+                                                                                        const isRoomAgreedEdited = room.agreedTotal !== undefined && room.agreedTotal !== roomRefTotal;
+                                                                                        if (!isRoomAgreedEdited) {
+                                                                                            return { ...room, agreedTotal: (room.contractedPrice ?? room.pricePerNight ?? 0) * (room.quantity || 1) };
+                                                                                        }
+                                                                                        return room;
+                                                                                    });
+                                                                                    updatedAccommodations[item.accIndex] = acc;
+                                                                                }
+                                                                            } else {
+                                                                                const isAgreedEdited = block.agreedPrice !== undefined && block.agreedPrice !== item.referenceTotal;
+                                                                                if (!isAgreedEdited) {
+                                                                                    const baseContractedPrice = block.contractedPrice ?? 0;
+                                                                                    if (['meal', 'activity'].includes(block.type)) {
+                                                                                        newAgreed = baseContractedPrice;
+                                                                                    } else {
+                                                                                        newAgreed = baseContractedPrice * item.quantity;
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        updatedItinerary[idx] = { ...block, priceFinalized: isFinalizing, agreedPrice: newAgreed };
                                                                     }
                                                                 });
-                                                                updateData({ itinerary: updatedItinerary });
+
+                                                                if (isFinalizing) {
+                                                                    setFinalizedIds(prev => {
+                                                                        const next = new Set(prev);
+                                                                        blockIds.forEach(id => next.add(id));
+                                                                        return next;
+                                                                    });
+                                                                } else {
+                                                                    setFinalizedIds(prev => {
+                                                                        const next = new Set(prev);
+                                                                        blockIds.forEach(id => next.delete(id));
+                                                                        return next;
+                                                                    });
+                                                                }
+
+                                                                const updates: any = { itinerary: updatedItinerary };
+                                                                if (updatedAccommodations) {
+                                                                    updates.accommodations = updatedAccommodations;
+                                                                }
+                                                                updateData(updates);
+
+                                                                const nextTripData = { ...tripData, ...updates };
+                                                                const saveRes = await savePlannerDataAction(tripData.id || '', nextTripData);
+                                                                if (saveRes.success) {
+                                                                    if (setIsDirty) setIsDirty(false);
+                                                                } else {
+                                                                    alert("Failed to save planner state: " + saveRes.error);
+                                                                }
                                                             } catch (error) {
                                                                 console.error("Error updating prices:", error);
                                                                 alert("An error occurred while updating prices.");
@@ -646,9 +819,19 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                         {isHotelWithRooms ? (
                                                             <div className="space-y-4">
                                                                 {rooms.map((room: any, rIdx: number) => {
-                                                                    const roomRefPrice = room.contractedPrice ?? room.pricePerNight ?? 0;
+                                                                    const roomRefPrice = room.pricePerNight ?? room.contractedPrice ?? 0;
                                                                     const roomRefTotal = roomRefPrice * (room.quantity || 1);
-                                                                    const roomAgreedPrice = room.agreedTotal !== undefined ? room.agreedTotal : ((room.pricePerNight ?? room.contractedPrice ?? 0) * (room.quantity || 1));
+                                                                    let roomAgreedPrice = undefined;
+                                                                    if (b.priceFinalized) {
+                                                                        roomAgreedPrice = room.agreedTotal;
+                                                                    } else {
+                                                                        const isRoomAgreedEdited = room.agreedTotal !== undefined && room.agreedTotal !== roomRefTotal;
+                                                                        if (isRoomAgreedEdited) {
+                                                                            roomAgreedPrice = room.agreedTotal;
+                                                                        } else {
+                                                                            roomAgreedPrice = (room.contractedPrice ?? room.pricePerNight ?? 0) * (room.quantity || 1);
+                                                                        }
+                                                                    }
                                                                     const parsedReqType = room.reqId?.split('-')[0] || '';
                                                                     return (
                                                                         <div key={rIdx} className="flex flex-col md:flex-row flex-wrap items-stretch md:items-end gap-4 pb-4 border-b border-neutral-100 last:border-0 last:pb-0">
@@ -677,8 +860,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                                     <input
                                                                                         type="number"
                                                                                         value={roomAgreedPrice || ''}
+                                                                                        disabled={item.block?.priceFinalized}
                                                                                         onChange={(e) => handleRoomUpdate(accIndex, rIdx, e.target.value ? Number(e.target.value) : undefined)}
-                                                                                        className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal outline-none transition-all shadow-sm"
+                                                                                        className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal outline-none transition-all shadow-sm disabled:bg-neutral-50 disabled:text-neutral-400 disabled:border-neutral-200"
                                                                                         placeholder="Total agreed..."
                                                                                     />
                                                                                 </div>
@@ -725,29 +909,39 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                         <input
                                                                             type="number"
                                                                             value={agreedPrice || ''}
-                                                                            onChange={(e) => handleBlockUpdate(b.id, { agreedPrice: e.target.value ? Number(e.target.value) : undefined })}
-                                                                            className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold outline-none transition-all shadow-sm"
+                                                                            disabled={b.priceFinalized}
+                                                                            onChange={(e) => handleBlockUpdate(b.id, { agreedPrice: e.target.value ? Number(e.target.value) : undefined }, quantity)}
+                                                                            className="w-full pl-12 pr-4 py-2.5 bg-white border border-brand-gold/50 rounded-xl text-sm font-bold text-brand-charcoal focus:ring-2 focus:ring-brand-gold/50 focus:border-brand-gold outline-none transition-all shadow-sm disabled:bg-neutral-50 disabled:text-neutral-400 disabled:border-neutral-200"
                                                                             placeholder="Enter total agreed..."
                                                                         />
                                                                     </div>
                                                                 </div>
 
                                                                 {/* Discount Delta */}
-                                                                {agreedPrice && agreedPrice < referenceTotal ? (
-                                                                    <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 flex flex-col justify-center">
-                                                                        <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
-                                                                        <span className="block font-mono font-bold text-green-700">
-                                                                            -$ {(referenceTotal - agreedPrice).toLocaleString()}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : agreedPrice && agreedPrice > referenceTotal ? (
-                                                                    <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 flex flex-col justify-center">
-                                                                        <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
-                                                                        <span className="block font-mono font-bold text-red-700">
-                                                                            +$ {(agreedPrice - referenceTotal).toLocaleString()}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : null}
+                                                                {(() => {
+                                                                    if (agreedPrice === undefined) return null;
+                                                                    const agreedTotal = ['meal', 'activity'].includes(b.type) ? (agreedPrice * quantity) : agreedPrice;
+                                                                    if (agreedTotal < referenceTotal) {
+                                                                        return (
+                                                                            <div className="bg-green-50 px-4 py-2.5 rounded-xl border border-green-200 text-center shrink-0 flex flex-col justify-center">
+                                                                                <span className="block text-[10px] text-green-600 uppercase font-bold tracking-wider mb-1">Discount</span>
+                                                                                <span className="block font-mono font-bold text-green-700">
+                                                                                    -$ {(referenceTotal - agreedTotal).toLocaleString()}
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (agreedTotal > referenceTotal) {
+                                                                        return (
+                                                                            <div className="bg-red-50 px-4 py-2.5 rounded-xl border border-red-200 text-center shrink-0 flex flex-col justify-center">
+                                                                                <span className="block text-[10px] text-red-600 uppercase font-bold tracking-wider mb-1">Markup</span>
+                                                                                <span className="block font-mono font-bold text-red-700">
+                                                                                    +$ {(agreedTotal - referenceTotal).toLocaleString()}
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
                                                             </div>
                                                         )}
                                                     </div>
@@ -760,8 +954,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={!!b.driverMealIncluded}
+                                                                    disabled={b.priceFinalized}
                                                                     onChange={(e) => handleBlockUpdate(b.id, { driverMealIncluded: e.target.checked })}
-                                                                    className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                                    className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4 disabled:opacity-50"
                                                                 />
                                                                 <span className="font-medium">Driver Meal Included</span>
                                                             </label>
@@ -774,8 +969,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={!!b.driverAccIncluded}
+                                                                        disabled={b.priceFinalized}
                                                                         onChange={(e) => handleBlockUpdate(b.id, { driverAccIncluded: e.target.checked })}
-                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4 disabled:opacity-50"
                                                                     />
                                                                     <span className="font-medium">Driver Accom. (FOC)</span>
                                                                 </label>
@@ -784,8 +980,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={!!b.parkingIncluded}
+                                                                        disabled={b.priceFinalized}
                                                                         onChange={(e) => handleBlockUpdate(b.id, { parkingIncluded: e.target.checked })}
-                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4"
+                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-4 h-4 disabled:opacity-50"
                                                                     />
                                                                     <span className="font-medium">Parking Included</span>
                                                                 </label>
@@ -796,8 +993,9 @@ export function PriceNegotiationStep({ tripData, updateData }: { tripData: TripD
                                                                         {['Free', 'Half Price', 'None'].map(opt => (
                                                                             <button
                                                                                 key={opt}
+                                                                                disabled={b.priceFinalized}
                                                                                 onClick={() => handleBlockUpdate(b.id, { guideRoomDiscount: opt as any })}
-                                                                                className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${b.guideRoomDiscount === opt ? 'bg-brand-gold text-white border-brand-gold' : 'bg-white text-neutral-500 border-neutral-200 hover:border-brand-gold/50'}`}
+                                                                                className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${b.guideRoomDiscount === opt ? 'bg-brand-gold text-white border-brand-gold' : 'bg-white text-neutral-500 border-neutral-200 hover:border-brand-gold/50'}`}
                                                                             >
                                                                                 {opt}
                                                                             </button>

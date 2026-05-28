@@ -257,8 +257,8 @@ function PlannerWorkspace() {
                         </button>
                         <button
                             onClick={handleSave}
-                            disabled={isSaving || !isDirty}
-                            className={`flex items-center gap-1.5 text-white px-3 py-1.5 rounded-lg transition-all shadow-md font-semibold text-xs disabled:opacity-50 ${isDirty ? 'bg-orange-500 hover:bg-orange-600 animate-pulse' : 'bg-brand-green hover:bg-green-900'}`}
+                            disabled={isSaving || !isDirty || activeTab === 'negotiation' || activeTab === 'finance'}
+                            className={`flex items-center gap-1.5 text-white px-3 py-1.5 rounded-lg transition-all shadow-md font-semibold text-xs disabled:opacity-50 ${isDirty && activeTab !== 'negotiation' && activeTab !== 'finance' ? 'bg-orange-500 hover:bg-orange-600 animate-pulse' : 'bg-brand-green hover:bg-green-900'}`}
                         >
                             <Save size={14} /> {isSaving ? 'Synching...' : isDirty ? 'Save Needed' : 'Saved Workflow'}
                         </button>
@@ -324,7 +324,7 @@ function PlannerWorkspace() {
                     )}
                     {activeTab === 'negotiation' && (
                         <div className="space-y-8">
-                            <PriceNegotiationStep tripData={tripData} updateData={updateData} />
+                            <PriceNegotiationStep tripData={tripData} updateData={updateData} setIsDirty={setIsDirty} />
                         </div>
                     )}
                     {activeTab === 'finance' && (

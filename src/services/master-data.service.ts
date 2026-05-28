@@ -530,7 +530,7 @@ export class MasterDataService {
 
         if (transport_vehicles && transport_vehicles.length > 0 && savedProviderId) {
             const mappedVehicles = transport_vehicles.map(v => ({
-                ...(v.id ? { id: v.id } : {}), // Persist ID for upsert logic
+                id: v.id || crypto.randomUUID(), // Persist ID for upsert logic or generate new UUID to satisfy not-null constraint
                 provider_id: savedProviderId,
                 vehicle_type: v.vehicle_type,
                 make_and_model: v.make_and_model,

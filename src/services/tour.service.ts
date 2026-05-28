@@ -623,6 +623,7 @@ export class TourService {
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
                         basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
                         basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
+                        basePayload.contracted_total_price = totalContractedPrice > 0 ? totalContractedPrice : null;
                         basePayload.meal_plan = mealPlan;
                         
                         b.agreedPrice = basePayload.charged_total_price ?? undefined;
@@ -636,6 +637,7 @@ export class TourService {
                         basePayload.quantity = assumedQty;
                         basePayload.charged_unit_price = acc.pricePerNight || null;
                         basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
+                        basePayload.contracted_total_price = (b.contractedPrice != null && assumedQty != null) ? b.contractedPrice * assumedQty : null;
                         basePayload.meal_plan = acc.mealPlan || null;
                         
                         b.agreedPrice = basePayload.charged_total_price ?? undefined;
@@ -725,6 +727,7 @@ export class TourService {
                         ...basePayload,
                         quantity: quantity,
                         contracted_price: contractedPrice,
+                        contracted_total_price: (contractedPrice != null && quantity != null) ? contractedPrice * quantity : null,
                         charged_unit_price: agreedUnitPrice,
                         charged_total_price: agreedTotalPrice,
                         meal_plan: b.mealType || null

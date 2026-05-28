@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TripData, DraftCostItem } from '../types';
 import { Plus, Trash2, Edit2, Check, RefreshCw } from 'lucide-react';
-import { getVendorsAction, getAppMarkupsAction } from '@/actions/admin.actions';
+import { getVendorsAction, getAppMarkupsAction, getTransportProvidersAction } from '@/actions/admin.actions';
 
 interface Props {
     tripData: TripData;
@@ -39,11 +39,13 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         const items: DraftCostItem[] = [];
         const itinerary = data.itinerary || [];
 
-        const [vendorsRes, markupsRes] = await Promise.all([
+        const [vendorsRes, transportProvidersRes, markupsRes] = await Promise.all([
             getVendorsAction(),
+            getTransportProvidersAction(),
             getAppMarkupsAction()
         ]);
         const vendors = vendorsRes.success ? vendorsRes.vendors : [];
+        const transportProviders = transportProvidersRes.success && transportProvidersRes.providers ? transportProvidersRes.providers : [];
         const markups: any = markupsRes.success && markupsRes.markups ? markupsRes.markups : {};
         const activityMarkup = markups.vendor_activity_markup ?? 10;
 
@@ -127,14 +129,12 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
         // Transportation - requires block-level binding OR a trip-level default binding
         const hasGlobalTransport = data.defaultTransportId || data.defaultVehicleId || data.defaultDriverId;
-        const transports = itinerary.filter(i => i.type === 'travel' && (i.transportId || i.vehicleId || i.driverId || hasGlobalTransport));
-        let transportTotal = 0;
+        const transports = itinerary.filter(i => i.type === 'travel');
         let totalKm = 0;
         const transportDates = new Set<string>();
         
         transports.forEach(t => {
             transportDates.add(getDayDate(t.dayNumber));
-            transportTotal += (t.agreedPrice || 0);
             if (t.distance) {
                 // Extract numeric value from "120 km"
                 const distNum = parseFloat(t.distance.toString().replace(/[^\d.]/g, ''));
@@ -150,36 +150,51 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         if (transports.length > 0) {
             let vehicleDetails = 'Vehicle with Chauffeur';
             let vendorName = 'Transport Provider';
-            
-            // Attempt to get vehicle details from transport bookings
-            if (data.transports && data.transports.length > 0) {
-                const primaryTransport = data.transports[0];
-                vendorName = primaryTransport.supplier || 'Transport Provider';
-                
-                // Format mode text (e.g., SMALL_PREMIUM_SEDAN -> Premium Sedan)
-                if (primaryTransport.mode) {
-                    const modeParts = primaryTransport.mode.split('_');
-                    // Skip size descriptor like 'SMALL', 'MEDIUM', 'LARGE'
-                    const displayParts = modeParts.length > 1 ? modeParts.slice(1) : modeParts;
-                    const modeText = displayParts.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-                    vehicleDetails = `${modeText} with Chauffeur`;
+            let kmRate = 0;
+
+            const firstTravelWithVehicle = transports.find(t => t.vehicleId);
+            const targetVehicleId = firstTravelWithVehicle?.vehicleId || data.defaultVehicleId;
+            const targetTransportId = firstTravelWithVehicle?.transportId || data.defaultTransportId;
+
+            if (targetVehicleId) {
+                for (const provider of transportProviders) {
+                    const vehicle = provider.transport_vehicles?.find((v: any) => v.id === targetVehicleId);
+                    if (vehicle) {
+                        kmRate = vehicle.km_rate || 0;
+                        if (vehicle.make_and_model) {
+                            vehicleDetails = `${vehicle.make_and_model} (${vehicle.vehicle_type})`;
+                        } else if (vehicle.vehicle_type) {
+                            // Format mode text
+                            const modeParts = vehicle.vehicle_type.split('_');
+                            const displayParts = modeParts.length > 1 ? modeParts.slice(1) : modeParts;
+                            const modeText = displayParts.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                            vehicleDetails = `${modeText} with Chauffeur`;
+                        }
+                        vendorName = provider.name || 'Transport Provider';
+                        break;
+                    }
                 }
             }
 
-            // The original unit price (rate per km) derived from the exact charged totals vs original km
-            let originalQuantity = totalKm > 0 ? Math.round(totalKm) : transports.length;
-            let derivedUnitPrice = originalQuantity > 0 ? (transportTotal || 0) / originalQuantity : 0;
-            if (isNaN(derivedUnitPrice)) derivedUnitPrice = 0;
-            
-            // Apply the rounding rule for transportation
-            let roundedQuantity = originalQuantity;
-            if (totalKm > 0) {
-                roundedQuantity = Math.ceil(originalQuantity / 500) * 500;
+            if (kmRate === 0 && targetTransportId) {
+                const provider = transportProviders.find((p: any) => p.id === targetTransportId);
+                if (provider) {
+                    vendorName = provider.name || 'Transport Provider';
+                }
             }
+
+            // Fallback to average/default if kmRate is still 0
+            if (kmRate === 0) {
+                kmRate = markups.regular_vehicle_km_rate || 0.50;
+            }
+
+            const transportMarkup = markups.transport_markup ?? 10;
+            const unitPrice = kmRate * (1 + (transportMarkup / 100));
+
+            const quantity = totalKm > 0 ? Math.round(totalKm) : transports.length;
             
-            // Calculate the new total based on the rounded quantity
-            let calculatedTotal = derivedUnitPrice * roundedQuantity;
-            if (isNaN(calculatedTotal)) calculatedTotal = 0;
+            // Calculate the new total based on raw quantity
+            const calculatedTotal = unitPrice * quantity;
             
             const tDatesArr = Array.from(transportDates);
             const tDateStr = tDatesArr.length > 0 ? ` [${tDatesArr.join(', ')}]` : '';
@@ -189,8 +204,8 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
                 category: 'Transportation',
                 vendorName: vendorName,
                 serviceName: vehicleDetails + tDateStr,
-                quantity: roundedQuantity,
-                unitPrice: Number(derivedUnitPrice.toFixed(2)),
+                quantity: quantity,
+                unitPrice: Number(unitPrice.toFixed(2)),
                 totalPrice: Number(calculatedTotal.toFixed(2))
             });
         }
@@ -278,28 +293,28 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
         // Meals - requires restaurantId
         const meals = itinerary.filter(i => i.type === 'meal' && i.restaurantId);
-        let mealTotal = 0;
+        let sumAgreedPrice = 0;
         const mealDates = new Set<string>();
         
         meals.forEach(m => {
             mealDates.add(getDayDate(m.dayNumber));
-            const qty = Number(m.restaurantQuantity || data.profile?.adults || 1);
-            mealTotal += (m.agreedPrice || 0) * qty;
+            sumAgreedPrice += (m.agreedPrice || 0);
         });
         
         if (meals.length > 0) {
             const mDatesArr = Array.from(mealDates);
             const mDateStr = mDatesArr.length > 0 ? ` [${mDatesArr.join(', ')}]` : '';
-            const roundedMealTotal = Math.ceil(mealTotal / 100) * 100;
+            const pax = (data.profile?.adults || 0) + (data.profile?.children || 0) || 1;
+            const totalPrice = sumAgreedPrice * pax;
             
              items.push({
                 id: generateId(),
                 category: 'Other',
                 vendorName: 'Various Restaurants',
                 serviceName: 'Additional Meals' + mDateStr,
-                quantity: meals.length,
-                unitPrice: meals.length > 0 ? Number((roundedMealTotal / meals.length).toFixed(2)) : 0,
-                totalPrice: Number(roundedMealTotal.toFixed(2))
+                quantity: pax,
+                unitPrice: Number(sumAgreedPrice.toFixed(2)),
+                totalPrice: Number(totalPrice.toFixed(2))
             });
         }
 
