@@ -22,7 +22,7 @@ export class FinanceService {
 
         if (error) throw error;
 
-        // Restore tour_itinerary_id from special_notes hack to bypass obsolete FK constraint
+        // Restore daily_activity_id from special_notes hack to bypass obsolete FK constraint
         const processedData = data?.map(po => ({
             ...po,
             items: po.items?.map((item: any) => {
@@ -30,9 +30,9 @@ export class FinanceService {
                     const parts = item.special_notes.split('|| BLOCK_REF:');
                     if (parts.length > 1) {
                         item.special_notes = parts[0].trim();
-                        item.tour_itinerary_id = parts[1];
+                        item.daily_activity_id = parts[1];
                     } else {
-                        item.tour_itinerary_id = item.special_notes.replace('BLOCK_REF:', '');
+                        item.daily_activity_id = item.special_notes.replace('BLOCK_REF:', '');
                         item.special_notes = undefined;
                     }
                 }
@@ -87,13 +87,14 @@ export class FinanceService {
         // Insert items
         if (items && items.length > 0) {
             const itemsToInsert = items.map(item => {
-                const { total_price: _, tour_itinerary_id, ...itemData } = item as any;
+                const { total_price: _, daily_activity_id, ...itemData } = item as any;
                 
                 // Encode the daily_activity block UUID into special_notes to bypass the obsolete tour_itineraries FK constraint
-                if (tour_itinerary_id) {
+                if (daily_activity_id) {
+                    itemData.daily_activity_id = daily_activity_id;
                     itemData.special_notes = itemData.special_notes 
-                        ? `${itemData.special_notes} || BLOCK_REF:${tour_itinerary_id}` 
-                        : `BLOCK_REF:${tour_itinerary_id}`;
+                        ? `${itemData.special_notes} || BLOCK_REF:${daily_activity_id}` 
+                        : `BLOCK_REF:${daily_activity_id}`;
                 }
 
                 return {
@@ -109,7 +110,7 @@ export class FinanceService {
                 console.error("Failed to insert PO items. Data summary:", {
                     poId: savedPOId,
                     itemCount: itemsToInsert.length,
-                    firstItemItineraryId: itemsToInsert[0]?.tour_itinerary_id
+                    firstItemActivityId: itemsToInsert[0]?.daily_activity_id
                 });
                 console.error("Supabase Error Details:", itemsError);
                 throw itemsError;
@@ -191,5 +192,24 @@ export class FinanceService {
         // It should identify unique vendors and create draft POs if they don't exist.
         // For simplicity in this first pass, we will let the UI handle the "mapping" 
         // and send the PO objects to savePurchaseOrder.
+    }
+
+    /**
+     * Updates the purchase order status and sent tracking fields.
+     */
+    static async updatePOEmailSentStatus(poId: string, email: string, name: string | null, date: string): Promise<boolean> {
+        const supabase = createAdminClient();
+        const { error } = await supabase
+            .from('purchase_orders')
+            .update({
+                status: 'Sent',
+                sent_email: email,
+                sent_to_name: name,
+                sent_date: date
+            })
+            .eq('id', poId);
+
+        if (error) throw error;
+        return true;
     }
 }

@@ -340,6 +340,7 @@ export function FinanceAndBookingStep({
     const [logoBase64, setLogoBase64] = useState<string>('');
     const [templates, setTemplates] = useState<any[]>([]);
     const [selectedPO, setSelectedPO] = useState<any | null>(null);
+    const [emailToName, setEmailToName] = useState<string>('');
     const [emailTo, setEmailTo] = useState<string>('');
     const [emailFrom, setEmailFrom] = useState<string>('');
     const [emailSubject, setEmailSubject] = useState<string>('');
@@ -393,6 +394,7 @@ export function FinanceAndBookingStep({
 
     const handleOpenSendModal = (po: any) => {
         setSelectedPO(po);
+        setEmailToName(po.sent_to_name || po.vendor_name || '');
         setEmailTo(po.vendor_email || '');
         setEmailFrom('concierge@nilathra.com');
         setEmailSubject(`Purchase Order ${po.po_number} - Nilathra Collection`);
@@ -425,7 +427,8 @@ export function FinanceAndBookingStep({
                 body: emailBody,
                 pdfBase64,
                 pdfFilename,
-                poId: selectedPO.id
+                poId: selectedPO.id,
+                sentToName: emailToName
             });
 
             if (result.success) {
@@ -489,10 +492,29 @@ export function FinanceAndBookingStep({
                 return;
             }
 
-            const activities = (result.activities || []).filter(a => a.price_finalized === true);
+            // Find all daily activity IDs that are already linked to active/sent POs (so we don't recreate them)
+            const existingLinkedActivityIds = new Set<string>();
+            purchaseOrders.forEach(po => {
+                if (po.status !== 'Draft' && po.status !== 'Pending Confirmation') {
+                    po.items?.forEach((item: any) => {
+                        if (item.daily_activity_id) {
+                            existingLinkedActivityIds.add(item.daily_activity_id);
+                        }
+                    });
+                }
+            });
+
+            const activities = (result.activities || [])
+                .filter(a => a.price_finalized === true)
+                .filter(a => !existingLinkedActivityIds.has(a.id));
 
             if (activities.length === 0) {
-                alert("There are no finalized items to generate PO, please go back to negotiation step and finalize price");
+                const totalFinalized = (result.activities || []).filter(a => a.price_finalized === true).length;
+                if (totalFinalized > 0) {
+                    alert("All finalized items are already linked to existing sent/confirmed purchase orders.");
+                } else {
+                    alert("There are no finalized items to generate PO, please go back to negotiation step and finalize price");
+                }
                 return;
             }
 
@@ -595,6 +617,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                             actPoItems.push({
                                 id: crypto.randomUUID(),
                                 purchase_order_id: poId,
+                                daily_activity_id: act.id,
                                 description: `${hotelName} - ${actualRoomName} (${rt.type})`,
                                 service_date: serviceDate,
                                 quantity: itemQty,
@@ -723,6 +746,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         poItems.push({
                             id: crypto.randomUUID(),
                             purchase_order_id: poId,
+                            daily_activity_id: act.id,
                             description: description,
                             service_date: serviceDate,
                             quantity: itemQty,
@@ -825,6 +849,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         poItems.push({
                             id: crypto.randomUUID(),
                             purchase_order_id: poId,
+                            daily_activity_id: act.id,
                             description: description,
                             service_date: serviceDate,
                             quantity: itemQty,
@@ -923,6 +948,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         poItems.push({
                             id: crypto.randomUUID(),
                             purchase_order_id: poId,
+                            daily_activity_id: act.id,
                             description: description,
                             service_date: serviceDate,
                             quantity: itemQty,
@@ -1045,11 +1071,19 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                             
                             {expandedPO === po.id && po.items && po.items.length > 0 && (
                                 <div className="px-6 py-4 border-t border-neutral-100">
-                                    {(po.vendor_address || po.vendor_phone || po.vendor_email) && (
+                                    {(po.vendor_address || po.vendor_phone || po.vendor_email || po.sent_email || po.sent_to_name || po.sent_date) && (
                                         <div className="mb-4 p-3 bg-neutral-50 rounded-xl border border-neutral-100 text-xs text-neutral-600 space-y-1">
                                             {po.vendor_address && <div><span className="font-semibold">Address:</span> {po.vendor_address}</div>}
                                             {po.vendor_phone && <div><span className="font-semibold">Phone:</span> {po.vendor_phone}</div>}
-                                            {po.vendor_email && <div><span className="font-semibold">Email:</span> {po.vendor_email}</div>}
+                                            {po.vendor_email && <div><span className="font-semibold">Registered Email:</span> {po.vendor_email}</div>}
+                                            {(po.sent_email || po.sent_to_name || po.sent_date) && (
+                                                <div className="pt-2 mt-2 border-t border-neutral-200/60 text-neutral-500">
+                                                    <div className="font-semibold text-neutral-700 mb-1">Email Delivery Tracking:</div>
+                                                    {po.sent_to_name && <div><span className="font-semibold">Sent To Name:</span> {po.sent_to_name}</div>}
+                                                    {po.sent_email && <div><span className="font-semibold">Sent To Email:</span> {po.sent_email}</div>}
+                                                    {po.sent_date && <div><span className="font-semibold">Sent Date:</span> {new Date(po.sent_date).toLocaleString()}</div>}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                     <div className="overflow-x-auto">
@@ -1174,7 +1208,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
 
                             <div className="grid grid-cols-2 gap-4">
                                 {/* From */}
-                                <div className="space-y-2">
+                                <div className="space-y-2 col-span-2">
                                     <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
                                         <User size={12} className="text-brand-gold" /> From (Sender)
                                     </label>
@@ -1187,10 +1221,25 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                                     />
                                 </div>
 
-                                {/* To */}
-                                <div className="space-y-2">
+                                {/* Recipient Name */}
+                                <div className="space-y-2 col-span-2 md:col-span-1">
                                     <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
-                                        <User size={12} className="text-brand-gold" /> To (Recipient)
+                                        <User size={12} className="text-brand-gold" /> Recipient Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={emailToName}
+                                        onChange={(e) => setEmailToName(e.target.value)}
+                                        placeholder="Recipient Name"
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all"
+                                    />
+                                </div>
+
+                                {/* To */}
+                                <div className="space-y-2 col-span-2 md:col-span-1">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
+                                        <Mail size={12} className="text-brand-gold" /> Recipient Email
                                     </label>
                                     <input
                                         type="email"

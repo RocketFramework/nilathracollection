@@ -943,9 +943,10 @@ export async function sendPurchaseOrderEmailAction(options: {
     pdfBase64: string;
     pdfFilename: string;
     poId?: string;
+    sentToName?: string;
 }) {
     try {
-        const { to, from, subject, body, pdfBase64, pdfFilename, poId } = options;
+        const { to, from, subject, body, pdfBase64, pdfFilename, poId, sentToName } = options;
         
         if (!to) {
             return { success: false, error: "Recipient email is required." };
@@ -995,10 +996,9 @@ export async function sendPurchaseOrderEmailAction(options: {
             return { success: false, error: resJson.message || "Failed to send email via Resend." };
         }
         
-        // Update PO status to 'Sent' in Supabase if poId is provided
+        // Update PO status and tracking fields in Supabase if poId is provided
         if (poId) {
-            const supabase = createAdminClient();
-            await supabase.from('purchase_orders').update({ status: 'Sent' }).eq('id', poId);
+            await FinanceService.updatePOEmailSentStatus(poId, to, sentToName || null, new Date().toISOString());
         }
         
         return { success: true };

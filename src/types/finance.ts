@@ -1,7 +1,7 @@
 export interface DBPurchaseOrderItem {
     id: string;
     purchase_order_id: string;
-    tour_itinerary_id?: string;
+    daily_activity_id?: string;
     day_number?: number | null;
     description: string;
     service_date?: string;
