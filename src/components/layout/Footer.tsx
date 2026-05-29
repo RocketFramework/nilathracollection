@@ -21,8 +21,8 @@ const Tiktok = ({ size = 24 }: { size?: number }) => (
 export default function Footer() {
     return (
         <footer className="bg-brand-green text-white pt-20 pb-10 px-6 md:px-12">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-                <div className="space-y-6">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-12 mb-16">
+                <div className="space-y-6 md:col-span-1">
                     <Link href="/" className="flex items-center gap-3">
                         <div className="relative h-10 w-10 overflow-hidden rounded-full brightness-0 invert">
                             <Image
@@ -120,12 +120,24 @@ export default function Footer() {
                 </div>
 
                 <div>
+                    <h4 className="font-serif text-xl border-b border-brand-gold inline-block mb-6">Collections</h4>
+                    <ul className="space-y-3">
+                        <li><Link href="/for-vip" className="text-white/70 hover:text-white transition-colors">Sovereignty (VIP)</Link></li>
+                        <li><Link href="/elite-journeys" className="text-white/70 hover:text-white transition-colors">Elite Journeys</Link></li>
+                        <li><Link href="/wild-ceylon" className="text-white/70 hover:text-white transition-colors">Wild Ceylon</Link></li>
+                        <li><Link href="/imperial-helicopter" className="text-white/70 hover:text-white transition-colors">Helicopter Charters</Link></li>
+                    </ul>
+                </div>
+
+                <div>
                     <h4 className="font-serif text-xl border-b border-brand-gold inline-block mb-6">Destinations</h4>
                     <ul className="space-y-3">
+                        <li><Link href="/destinations/colombo" className="text-white/70 hover:text-white transition-colors">Colombo Capital</Link></li>
                         <li><Link href="/destinations/galle" className="text-white/70 hover:text-white transition-colors">Galle Fort</Link></li>
                         <li><Link href="/destinations/sigiriya" className="text-white/70 hover:text-white transition-colors">Sigiriya Rock</Link></li>
                         <li><Link href="/destinations/ella" className="text-white/70 hover:text-white transition-colors">Ella Highlands</Link></li>
                         <li><Link href="/destinations/yala" className="text-white/70 hover:text-white transition-colors">Yala Safari</Link></li>
+                        <li><Link href="/destinations/weligama-mirissa" className="text-white/70 hover:text-white transition-colors">Weligama & Mirissa</Link></li>
                     </ul>
                 </div>
 
