@@ -78,18 +78,18 @@ export default function RootLayout({
         <meta name="ahrefs-site-verification" content="22fc30d51e6331979f27c2c228517f2c5970fd11f1da7bcf396ddc32b41d4e56"></meta>
         {/* Ahrefs Analytics */}
         <Script
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           src="https://analytics.ahrefs.com/analytics.js"
           data-key="wlFIqe/l/FqpI6eKpT5gnQ"
         />
         {/* Google tag (gtag.js) */}
         <Script
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           src="https://www.googletagmanager.com/gtag/js?id=G-S210EP6RNT"
         />
         <Script
           id="google-analytics"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -102,7 +102,7 @@ export default function RootLayout({
         />
         <Script
           id="google-tag-manager"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

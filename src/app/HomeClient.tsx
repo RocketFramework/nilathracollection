@@ -2,14 +2,21 @@
 
 import MainLayout from "@/components/layout/MainLayout";
 import Hero from "@/components/home/Hero";
-import PackagesSection from "@/components/home/PackagesSection";
-import DestinationsSection from "@/components/home/DestinationsSection";
 import { ArrowRight, Quote, Shield, Crown, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useTranslation } from "@/components/I18nProvider";
+import dynamic from "next/dynamic";
+
+const PackagesSection = dynamic(() => import("@/components/home/PackagesSection"), {
+  ssr: true,
+});
+
+const DestinationsSection = dynamic(() => import("@/components/home/DestinationsSection"), {
+  ssr: true,
+});
 
 const experienceAssets = [
   { src: "/images/hero_ultra_vip.avif", label: "Private Aviation" },
