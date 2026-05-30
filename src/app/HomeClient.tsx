@@ -49,6 +49,7 @@ function ExperienceGallery() {
             className="object-cover"
             priority={currentIndex === 0}
             sizes="(max-width: 768px) 100vw, 50vw"
+            quality={70}
           />
 
           {/* Elegant typography overlay at the bottom */}
