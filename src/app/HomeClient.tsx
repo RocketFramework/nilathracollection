@@ -197,6 +197,79 @@ export default function HomeClient() {
 
       <DestinationsSection />
 
+      {/* Travel Architecture & SEO Rich Guide - Ultra Luxury Vibe */}
+      <section className="py-24 px-6 md:px-12 bg-[#F5F3EF]/30 border-t border-brand-charcoal/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-brand-sand/30 rounded-full blur-[100px] pointer-events-none opacity-30" />
+        <div className="max-w-5xl mx-auto">
+          <div className="space-y-16">
+            <div className="text-center">
+              <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">
+                {t.home.guide_subtitle}
+              </span>
+              <h2 className="font-serif text-3xl md:text-5xl text-brand-green leading-tight">
+                {t.home.guide_title}
+              </h2>
+            </div>
+            
+            <div className="text-brand-charcoal/70 font-light leading-relaxed text-lg max-w-3xl mx-auto text-center font-serif italic">
+              <p>
+                {t.home.guide_p1}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-12">
+              {[
+                {
+                  title: t.home.guide_card1_title,
+                  desc: t.home.guide_card1_desc,
+                  label: "01"
+                },
+                {
+                  title: t.home.guide_card2_title,
+                  desc: t.home.guide_card2_desc,
+                  label: "02"
+                },
+                {
+                  title: t.home.guide_card3_title,
+                  desc: t.home.guide_card3_desc,
+                  label: "03"
+                },
+                {
+                  title: t.home.guide_card4_title,
+                  desc: t.home.guide_card4_desc,
+                  label: "04"
+                }
+              ].map((card, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: idx * 0.1 }}
+                  viewport={{ once: true }}
+                  className="bg-white border border-brand-charcoal/[0.04] p-10 rounded-sm hover:border-brand-gold/30 hover:shadow-[0_20px_50px_rgba(43,43,43,0.05)] transition-all duration-[0.6s] group hover:-translate-y-1 relative"
+                >
+                  <div className="absolute top-8 right-10 text-brand-gold/20 font-serif italic text-3xl font-black select-none group-hover:text-brand-gold/40 transition-colors duration-[0.6s]">
+                    {card.label}
+                  </div>
+                  <h3 className="font-serif text-xl text-brand-green mb-4 group-hover:text-brand-gold transition-colors duration-[0.6s]">
+                    {card.title}
+                  </h3>
+                  <p className="text-brand-charcoal/60 leading-relaxed text-sm font-light font-sans tracking-wide">
+                    {card.desc}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="text-brand-charcoal/70 font-light leading-relaxed text-sm max-w-3xl mx-auto text-center border-t border-brand-charcoal/5 pt-12">
+              <p>
+                {t.home.guide_p2}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Section - New SEO Section */}
       <section className="py-24 px-6 md:px-12 bg-white">
         <div className="max-w-4xl mx-auto">

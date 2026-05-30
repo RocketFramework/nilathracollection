@@ -6,6 +6,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "Ultra VIP Plan | The Ultimate Luxury Experience",
+    description: "The pinnacle of travel. Private aviation, ultra-luxury villas, exclusive after-hours access, and absolute privacy on our bespoke Ultra VIP tours.",
 };
 export default function UltraVIPPage() {
     return (

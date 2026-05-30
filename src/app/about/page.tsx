@@ -5,6 +5,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "About Us | Sri Lanka's Premier Travel Curator",
+    description: "Learn about Nilathra Collection, our philosophy of unfiltered luxury, and our team of local travel experts curating heritage journeys in Sri Lanka.",
 };
 export default function AboutPage() {
     return (

@@ -6,6 +6,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "Compare Plans | Find Your Perfect Journey",
+    description: "Compare our travel plans—from Standard and Premium to Luxury and Ultra VIP—to choose the perfect level of comfort and curation for your tour.",
 };
 export default function ComparePlansPage() {
     return (

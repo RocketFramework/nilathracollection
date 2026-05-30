@@ -6,6 +6,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "Standard Plan | Authentic Sri Lanka Journeys",
+    description: "Browse our Standard Plan. Experience the authentic beauty of Sri Lanka with comfortable stays, expert local guides, and classic itineraries.",
 };
 export default function RegularPage() {
     return (

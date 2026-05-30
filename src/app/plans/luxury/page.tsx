@@ -6,6 +6,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "Luxury Plan | High-End Sri Lanka Experiences",
+    description: "Explore our high-end Luxury Plan. Hand-selected boutique resorts, private transfers, and curated excursions for an authentic Sri Lankan journey.",
 };
 export default function LuxuryPage() {
     return (
