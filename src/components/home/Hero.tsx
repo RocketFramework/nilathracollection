@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useTranslation } from "@/components/I18nProvider";
@@ -8,15 +9,17 @@ export default function Hero() {
     const t = useTranslation();
     return (
         <section className="relative h-[100svh] min-h-[600px] w-full overflow-hidden">
-            {/* Background Image - Using a placeholder for now, will replace with generated one */}
-            <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105"
-                style={{
-                    backgroundImage: `url('/images/hero_ella_bridge.avif')`,
-                }}
-            >
-                <div className="absolute inset-0 cinematic-overlay" />
-            </div>
+            {/* Background Image optimized with next/image */}
+            <Image
+                src="/images/hero_ella_bridge.avif"
+                alt="Bespoke luxury Sri Lanka travel"
+                fill
+                priority
+                className="object-cover transition-transform duration-1000 scale-105 pointer-events-none"
+                sizes="100vw"
+            />
+            <div className="absolute inset-0 cinematic-overlay" />
+
 
             <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6 pt-28 md:pt-0">
                 <motion.span

@@ -109,9 +109,12 @@ export default function PackagesSection() {
                             >
                                 {pkg.image && (
                                     <>
-                                        <div
-                                            className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110 group-hover:scale-125 transition-transform duration-[2s]"
-                                            style={{ backgroundImage: `url('${pkg.image}')` }}
+                                        <Image
+                                            src={pkg.image}
+                                            alt={tPkg.title}
+                                            fill
+                                            className="object-cover scale-110 group-hover:scale-125 transition-transform duration-[2s] pointer-events-none"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                         />
                                         <div className="absolute inset-0 bg-brand-green/85 group-hover:bg-brand-green/75 transition-colors duration-500" />
                                     </>

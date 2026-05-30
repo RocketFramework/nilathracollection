@@ -69,6 +69,7 @@ export default function DestinationsSection() {
                                 alt={dest.name}
                                 fill
                                 className="object-cover transition-transform duration-1000 group-hover:scale-110"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-brand-green/90 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 

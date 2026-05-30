@@ -48,6 +48,7 @@ function ExperienceGallery() {
             fill
             className="object-cover"
             priority={currentIndex === 0}
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
 
           {/* Elegant typography overlay at the bottom */}
@@ -340,7 +341,7 @@ export default function HomeClient() {
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1">
               <div className="w-full h-full rounded-full overflow-hidden relative">
-                <Image src="/images/tier_vip.avif" alt="Client" fill className="object-cover" />
+                <Image src="/images/tier_vip.avif" alt="Client" fill className="object-cover" sizes="64px" />
               </div>
             </div>
             <div className="text-center">
