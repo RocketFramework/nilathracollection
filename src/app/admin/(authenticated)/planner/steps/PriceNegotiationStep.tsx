@@ -372,6 +372,151 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         return items;
     }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotels, masterRestaurants, masterTransports, masterGuides, masterVendors, dbActivities, finalizedIds]);
 
+    const calculateSupplierReferencePrice = (supplier: any, blockType: string, mainItem: any) => {
+        const b = mainItem?.block;
+        if (!b) return 0;
+        const quantity = mainItem.quantity || 1;
+
+        if (blockType === 'sleep') {
+            if (mainItem.isHotelWithRooms && mainItem.rooms) {
+                return mainItem.rooms.reduce((sum: number, r: any) => {
+                    const rooms = supplier.hotel_rooms || [];
+                    const matchedRoom = rooms.find((hr: any) => 
+                        hr.room_name?.toLowerCase().trim() === r.roomName?.toLowerCase().trim() ||
+                        hr.room_standard?.toLowerCase().trim() === r.roomName?.toLowerCase().trim()
+                    ) || rooms[0];
+                    
+                    if (!matchedRoom) return sum + (r.pricePerNight ?? 0) * (r.quantity || 1);
+                    
+                    let stayDate = "";
+                    if (tripData.profile?.arrivalDate && b.dayNumber) {
+                        const d = new Date(tripData.profile.arrivalDate);
+                        d.setDate(d.getDate() + (b.dayNumber - 1));
+                        stayDate = d.toISOString().split('T')[0];
+                    }
+                    const rates = matchedRoom.room_rates || [];
+                    const applicableRate = rates.find((rr: any) => {
+                        if (!stayDate) return true;
+                        if (rr.start_date) {
+                            if (stayDate < rr.start_date) return false;
+                            if (rr.end_date && stayDate > rr.end_date) return false;
+                            return true;
+                        }
+                        return true;
+                    });
+                    
+                    const mealPlan = r.mealPlan || 'BB';
+                    const prefix = r.roomName?.toLowerCase().includes('single') ? 'sgl' :
+                                   r.roomName?.toLowerCase().includes('triple') ? 'tpl' :
+                                   r.roomName?.toLowerCase().includes('family') ? 'qud' : 'dbl';
+                    const rateKey = `${prefix}_${mealPlan.toLowerCase()}_rate`;
+                    const rateValue = applicableRate?.[rateKey] || applicableRate?.dbl_bb_rate || matchedRoom.base_rate || supplier.base_rate || 0;
+                    return sum + rateValue * (r.quantity || 1);
+                }, 0);
+            } else {
+                const defaultRoom = supplier.hotel_rooms?.[0];
+                const baseRate = defaultRoom?.base_rate || supplier.base_rate || 0;
+                return baseRate * quantity;
+            }
+        }
+        
+        if (blockType === 'meal') {
+            return (supplier.lunch_rate_per_head || supplier.dinner_rate_per_head || supplier.breakfast_rate_per_head || 0) * quantity;
+        }
+        
+        if (blockType === 'travel') {
+            const vId = b.vehicleId || tripData.defaultVehicleId;
+            const veh = supplier.transport_vehicles?.find((v: any) => v.id === vId) || supplier.transport_vehicles?.[0];
+            const unitPrice = veh?.per_km_rate || veh?.day_rate || 0;
+            return unitPrice * quantity;
+        }
+        
+        if (blockType === 'guide') {
+            return (supplier.per_day_rate || 0) * quantity;
+        }
+        
+        if (blockType === 'activity') {
+            const resolvedActId = b.activityId;
+            const va = supplier.vendor_activities?.find((x: any) => x.id === b.vendorActivityId) ||
+                       supplier.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+            const unitPrice = va?.vendor_price || (mainItem.unitPrice !== 'Mixed' ? mainItem.unitPrice : 0);
+            return unitPrice * quantity;
+        }
+        
+        return 0;
+    };
+
+    const persistTempQuotation = async (quote: any, groupItems: any[]) => {
+        if (!quote.id || !quote.id.startsWith('temp-')) return quote.id;
+
+        const firstItemId = groupItems[0]?.block?.id;
+        if (!firstItemId) throw new Error("No activity ID found");
+
+        const activityBlock = tripData.itinerary.find(b => b.id === firstItemId);
+        const allActivityIds = groupItems.map(i => i.block?.id).filter(Boolean);
+
+        const res = await createQuotationRequestAction({
+            vendor_id: quote.vendor_id,
+            vendor_name: quote.vendor_name,
+            to_email: quote.to_email || "info@nilathra.com",
+            from_email: 'concierge@nilathra.com',
+            subject: `Manual Quotation - ${quote.vendor_name}`,
+            email_content: `Manually recorded rate for ${quote.vendor_name}`,
+            daily_activity_id: firstItemId,
+            daily_activity_ids: allActivityIds,
+            tour_id: tripData.id || '',
+            itinerary_id: dbActivities.find(a => a.id === firstItemId)?.itinerary_id || '',
+            activity_type: quote.activity_type || activityBlock?.type || ''
+        });
+
+        if (!res.success || !res.quote) {
+            throw new Error(res.error || "Failed to persist temporary quotation");
+        }
+
+        const dbId = res.quote.id;
+        
+        // Update the quotation request with price, notes, and status
+        const updates: any = {};
+        if (quote.quoted_price !== undefined) {
+            updates.quoted_price = quote.quoted_price;
+        }
+        if (quote.notes) {
+            updates.notes = quote.notes;
+        }
+        if (quote.status && quote.status !== 'Unsent Option') {
+            updates.status = quote.status;
+            if (quote.status === 'Replied') {
+                updates.replied_date = new Date().toISOString();
+            }
+        } else {
+            updates.status = 'Draft';
+        }
+
+        if (Object.keys(updates).length > 0) {
+            await updateQuotationAction(dbId, updates);
+        }
+
+        if (editingQuotePrice[quote.id] !== undefined) {
+            setEditingQuotePrice(prev => {
+                const next: Record<string, string> = { ...prev };
+                next[dbId] = prev[quote.id];
+                delete next[quote.id];
+                return next;
+            });
+        }
+        if (editingQuoteNotes[quote.id] !== undefined) {
+            setEditingQuoteNotes(prev => {
+                const next: Record<string, string> = { ...prev };
+                next[dbId] = prev[quote.id];
+                delete next[quote.id];
+                return next;
+            });
+        }
+
+        await fetchQuotationsForActivity(firstItemId);
+        return dbId;
+    };
+
     const handleBlockUpdate = (blockId: string, updates: Partial<InternalItineraryBlock>, quantity = 1) => {
         const updatedItinerary = tripData.itinerary.map(b => {
             if (b.id === blockId) {
@@ -412,6 +557,37 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
     const handleUpdateQuotation = async (quoteId: string, activityId: string, currentStatus?: string) => {
         setUpdatingQuoteId(quoteId);
         try {
+            if (quoteId.startsWith('temp-')) {
+                if (currentStatus) {
+                    const sId = quoteId.replace('temp-', '');
+                    const firstId = activityId;
+                    const mainType = dbActivities.find(a => a.id === firstId)?.type || 'sleep';
+                    const block = tripData.itinerary.find(b => b.id === firstId);
+                    const vendorGrp = block?.name || "Unknown Vendor";
+                    const grpItems = negotiableItems.filter(item => (item.vendorName || "Unknown Vendor") === vendorGrp);
+                    const altSuppliers = getCategorySuppliers(mainType, block);
+                    const supplier = altSuppliers.find(s => s.id === sId);
+                    if (!supplier) return;
+
+                    const sName = supplier.name || `${supplier.first_name || ''} ${supplier.last_name || ''}`.trim();
+                    const priceVal = editingQuotePrice[quoteId] !== undefined ? parseFloat(editingQuotePrice[quoteId]) : calculateSupplierReferencePrice(supplier, mainType, grpItems[0]);
+                    const notesVal = editingQuoteNotes[quoteId] !== undefined ? editingQuoteNotes[quoteId] : "Standard/contract price from master tables";
+
+                    await persistTempQuotation({
+                        id: quoteId,
+                        isTemp: true,
+                        vendor_id: sId,
+                        vendor_name: sName,
+                        to_email: supplier.email || supplier.reservation_email || "info@nilathra.com",
+                        quoted_price: priceVal,
+                        notes: notesVal,
+                        activity_type: mainType,
+                        status: currentStatus
+                    }, grpItems);
+                }
+                return;
+            }
+
             const updates: any = {};
             const price = editingQuotePrice[quoteId];
             if (price !== undefined && price !== '') {
@@ -447,7 +623,28 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         try {
             const firstItemId = groupItems[0]?.block?.id;
             if (!firstItemId) return;
-            const res = await selectQuotationAction(quote.id, firstItemId);
+
+            let quoteId = quote.id;
+            let activeQuote = { ...quote };
+            if (quote.isTemp) {
+                const priceVal = editingQuotePrice[quote.id] !== undefined ? parseFloat(editingQuotePrice[quote.id]) : quote.quoted_price;
+                const notesVal = editingQuoteNotes[quote.id] !== undefined ? editingQuoteNotes[quote.id] : quote.notes;
+                quoteId = await persistTempQuotation({
+                    ...quote,
+                    quoted_price: priceVal,
+                    notes: notesVal
+                }, groupItems);
+                
+                activeQuote = {
+                    ...quote,
+                    id: quoteId,
+                    isTemp: false,
+                    quoted_price: priceVal,
+                    notes: notesVal
+                };
+            }
+
+            const res = await selectQuotationAction(quoteId, firstItemId);
             if (!res.success) {
                 alert("Failed to select quotation: " + res.error);
                 return;
@@ -462,7 +659,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                 return sum + itemRef;
             }, 0);
             
-            const ratio = totalRefAmount > 0 ? (quote.quoted_price / totalRefAmount) : 1;
+            const ratio = totalRefAmount > 0 ? (activeQuote.quoted_price / totalRefAmount) : 1;
 
             // Update local itinerary blocks
             const blockIds = groupItems.map(i => i.block?.id).filter(Boolean);
@@ -474,20 +671,20 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                     const matchingItem = groupItems.find(i => i.block?.id === b.id);
                     
                     if (b.type === 'sleep') {
-                        nextBlock.hotelId = quote.vendor_id;
-                        nextBlock.name = quote.vendor_name;
+                        nextBlock.hotelId = activeQuote.vendor_id;
+                        nextBlock.name = activeQuote.vendor_name;
                     } else if (b.type === 'meal') {
-                        nextBlock.restaurantId = quote.vendor_id;
-                        nextBlock.name = quote.vendor_name;
+                        nextBlock.restaurantId = activeQuote.vendor_id;
+                        nextBlock.name = activeQuote.vendor_name;
                     } else if (b.type === 'travel') {
-                        nextBlock.transportId = quote.vendor_id;
-                        nextBlock.name = quote.vendor_name;
+                        nextBlock.transportId = activeQuote.vendor_id;
+                        nextBlock.name = activeQuote.vendor_name;
                     } else if (b.type === 'guide') {
-                        nextBlock.guideId = quote.vendor_id;
-                        nextBlock.name = quote.vendor_name;
+                        nextBlock.guideId = activeQuote.vendor_id;
+                        nextBlock.name = activeQuote.vendor_name;
                     } else if (b.type === 'activity') {
-                        nextBlock.vendorId = quote.vendor_id;
-                        nextBlock.name = quote.vendor_name;
+                        nextBlock.vendorId = activeQuote.vendor_id;
+                        nextBlock.name = activeQuote.vendor_name;
                     }
                     
                     const itemRef = matchingItem?.isHotelWithRooms && matchingItem.rooms
@@ -538,7 +735,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             }
             
             await fetchQuotationsForActivity(firstItemId);
-            alert(`Quotation from ${quote.vendor_name} applied successfully!`);
+            alert(`Quotation from ${activeQuote.vendor_name} applied successfully!`);
         } catch (err: any) {
             console.error("Error selecting quotation:", err);
             alert("An error occurred: " + err.message);
@@ -558,27 +755,46 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         if (!selectedQuoteForBooking || !tripData.id) return;
         setIsCreatingBooking(true);
         try {
+            let quote = selectedQuoteForBooking;
+            if (quote.isTemp) {
+                const priceVal = editingQuotePrice[quote.id] !== undefined ? parseFloat(editingQuotePrice[quote.id]) : quote.quoted_price;
+                const notesVal = editingQuoteNotes[quote.id] !== undefined ? editingQuoteNotes[quote.id] : quote.notes;
+                const dbId = await persistTempQuotation({
+                    ...quote,
+                    quoted_price: priceVal,
+                    notes: notesVal
+                }, selectedGroupItemsForBooking);
+                
+                quote = {
+                    ...quote,
+                    id: dbId,
+                    isTemp: false,
+                    quoted_price: priceVal,
+                    notes: notesVal
+                };
+            }
+
             const actIds = selectedGroupItemsForBooking.map(i => i.block?.id).filter(Boolean);
             const res = await createVendorBookingAction({
                 tour_id: tripData.id,
-                quotation_request_id: selectedQuoteForBooking.id,
-                vendor_type: selectedQuoteForBooking.activity_type === 'sleep' ? 'hotel' : 
-                             (selectedQuoteForBooking.activity_type === 'travel' ? 'transport_provider' :
-                              (selectedQuoteForBooking.activity_type === 'guide' ? 'tour_guide' :
-                               (selectedQuoteForBooking.activity_type === 'meal' ? 'restaurant' : 
-                                (selectedQuoteForBooking.activity_type === 'driver' ? 'driver' : 'vendor')))),
-                vendor_id: selectedQuoteForBooking.vendor_id,
-                vendor_name: selectedQuoteForBooking.vendor_name,
-                agreed_price: selectedQuoteForBooking.quoted_price || 0,
-                currency: selectedQuoteForBooking.currency || 'USD',
+                quotation_request_id: quote.id,
+                vendor_type: quote.activity_type === 'sleep' ? 'hotel' : 
+                             (quote.activity_type === 'travel' ? 'transport_provider' :
+                              (quote.activity_type === 'guide' ? 'tour_guide' :
+                               (quote.activity_type === 'meal' ? 'restaurant' : 
+                                (quote.activity_type === 'driver' ? 'driver' : 'vendor')))),
+                vendor_id: quote.vendor_id,
+                vendor_name: quote.vendor_name,
+                agreed_price: quote.quoted_price || 0,
+                currency: quote.currency || 'USD',
                 cancellation_deadline: bookingCancellationDeadline ? new Date(bookingCancellationDeadline).toISOString() : null,
                 cancellation_policy: bookingCancellationPolicy || null,
-                notes: selectedQuoteForBooking.notes || null,
+                notes: quote.notes || null,
                 daily_activity_ids: actIds
             });
 
             if (res.success) {
-                alert(`Booking request created successfully for ${selectedQuoteForBooking.vendor_name}! A Draft Purchase Order has been raised in parallel.`);
+                alert(`Booking request created successfully for ${quote.vendor_name}! A Draft Purchase Order has been raised in parallel.`);
                 setShowBookingModal(false);
                 await fetchBookings();
                 // Refresh quotations since the quote status changed to 'Selected'
@@ -978,6 +1194,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                 return acc;
                             }, {} as Record<string, any[]>)
                         ) as [string, any[]][]).map(([vendorGroup, items]) => {
+                            const firstId = items[0]?.id;
                             const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
                             const hotelId = hotelItem?.block?.hotelId;
                             const masterHotel = hotelId ? masterHotels.find((h: any) => h.id === hotelId) : null;
@@ -1011,7 +1228,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                             }
                             
                             const hasContractedPrice = assignedVendor ? (assignedVendor.has_contracted_price !== false) : true;
-                            const forceNegotiation = !!overrideNegotiation[vendorGroup];
+                            const forceNegotiation = firstId ? !!overrideNegotiation[firstId] : false;
                             const hasAlternativeSection = !hasContractedPrice || forceNegotiation;
 
                             return (
@@ -1067,7 +1284,11 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                     <input 
                                                         type="checkbox" 
                                                         checked={forceNegotiation} 
-                                                        onChange={(e) => setOverrideNegotiation(prev => ({ ...prev, [vendorGroup]: e.target.checked }))} 
+                                                        onChange={(e) => {
+                                                            if (firstId) {
+                                                                setOverrideNegotiation(prev => ({ ...prev, [firstId]: e.target.checked }));
+                                                            }
+                                                        }} 
                                                         className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-3.5 h-3.5"
                                                     />
                                                     <span>Negotiate Rate</span>
@@ -1512,34 +1733,38 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                         {altSuppliers.map(s => {
                                                             const sId = s.id;
                                                             const sName = s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim();
-                                                            const isChecked = (selectedAlternativeVendors[vendorGroup] || []).includes(sId);
+                                                            const isChecked = firstId ? (selectedAlternativeVendors[firstId] || []).includes(sId) : false;
                                                             return (
-                                                                <label key={sId} className="flex items-center gap-2 text-xs font-medium text-neutral-600 cursor-pointer hover:text-neutral-900">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={isChecked}
-                                                                        onChange={(e) => {
-                                                                            const current = selectedAlternativeVendors[vendorGroup] || [];
-                                                                            if (e.target.checked) {
-                                                                                setSelectedAlternativeVendors(prev => ({ ...prev, [vendorGroup]: [...current, sId] }));
-                                                                            } else {
-                                                                                setSelectedAlternativeVendors(prev => ({ ...prev, [vendorGroup]: current.filter(x => x !== sId) }));
-                                                                            }
-                                                                        }}
-                                                                        className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-3.5 h-3.5"
-                                                                    />
-                                                                    <span>{sName}</span>
-                                                                </label>
+                                                                <div key={sId} className="flex items-center justify-between gap-2 p-1.5 hover:bg-neutral-50 rounded-lg">
+                                                                    <label className="flex items-center gap-2 text-xs font-medium text-neutral-600 cursor-pointer hover:text-neutral-900 flex-1 min-w-0">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isChecked}
+                                                                            onChange={(e) => {
+                                                                                if (!firstId) return;
+                                                                                const current = selectedAlternativeVendors[firstId] || [];
+                                                                                if (e.target.checked) {
+                                                                                    setSelectedAlternativeVendors(prev => ({ ...prev, [firstId]: [...current, sId] }));
+                                                                                } else {
+                                                                                    setSelectedAlternativeVendors(prev => ({ ...prev, [firstId]: current.filter(x => x !== sId) }));
+                                                                                }
+                                                                            }}
+                                                                            className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-3.5 h-3.5 shrink-0"
+                                                                        />
+                                                                        <span className="truncate" title={sName}>{sName}</span>
+                                                                    </label>
+                                                                    {isChecked && (
+                                                                        <button
+                                                                            onClick={() => handleGenerateMultiQuoteEmail(items, [s])}
+                                                                            className="px-2 py-0.5 bg-blue-50 text-blue-600 hover:bg-blue-100 text-[10px] font-bold rounded transition-colors shrink-0 flex items-center gap-1"
+                                                                        >
+                                                                            <Mail size={10} /> Request Quote
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             );
                                                         })}
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleGenerateMultiQuoteEmail(items, altSuppliers.filter(s => (selectedAlternativeVendors[vendorGroup] || []).includes(s.id)))}
-                                                        disabled={(selectedAlternativeVendors[vendorGroup] || []).length === 0}
-                                                        className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:bg-neutral-100 disabled:text-neutral-400 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
-                                                    >
-                                                        <Mail size={14} /> Request Quotations ({(selectedAlternativeVendors[vendorGroup] || []).length})
-                                                    </button>
                                                 </div>
                                             );
                                         })()}
@@ -1548,12 +1773,46 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                         {(() => {
                                             const firstId = items[0]?.id;
                                             if (!firstId) return null;
-                                            const groupQuotes = quotations[firstId] || [];
-                                            if (groupQuotes.length === 0) return null;
+                                            
+                                            const dbQuotes = quotations[firstId] || [];
+                                            const checkedIds = firstId ? (selectedAlternativeVendors[firstId] || []) : [];
+                                            
+                                            const mainType = items[0]?.block?.type || 'sleep';
+                                            const altSuppliers = getCategorySuppliers(mainType, items[0]?.block);
+                                            
+                                            const virtualQuotes = checkedIds.map(sId => {
+                                                const exists = dbQuotes.some(dq => dq.vendor_id === sId);
+                                                if (exists) return null;
+                                                
+                                                const supplier = altSuppliers.find(s => s.id === sId);
+                                                if (!supplier) return null;
+                                                
+                                                const sName = supplier.name || `${supplier.first_name || ''} ${supplier.last_name || ''}`.trim();
+                                                const defaultPrice = calculateSupplierReferencePrice(supplier, mainType, items[0]);
+                                                
+                                                return {
+                                                    id: `temp-${sId}`,
+                                                    isTemp: true,
+                                                    vendor_id: sId,
+                                                    vendor_name: sName,
+                                                    to_email: supplier.email || supplier.reservation_email || "info@nilathra.com",
+                                                    sent_date: null,
+                                                    status: "Unsent Option",
+                                                    quoted_price: defaultPrice,
+                                                    notes: "Standard/contract price from master tables",
+                                                    selected_vendor: false,
+                                                    activity_type: mainType,
+                                                    currency: 'USD'
+                                                };
+                                            }).filter(Boolean);
+                                            
+                                            const combinedQuotes = [...dbQuotes, ...virtualQuotes];
+                                            if (combinedQuotes.length === 0) return null;
+
                                             return (
                                                 <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-sm">
                                                     <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200">
-                                                        <span className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Negotiation Dashboard ({groupQuotes.length} Requests for entire block)</span>
+                                                        <span className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Negotiation Dashboard ({combinedQuotes.length} Requests for entire block)</span>
                                                     </div>
                                                     <div className="overflow-x-auto">
                                                         <table className="w-full text-left text-xs border-collapse">
@@ -1568,7 +1827,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-neutral-100">
-                                                                {groupQuotes.map((q: any) => {
+                                                                {combinedQuotes.map((q: any) => {
                                                                     const qId = q.id;
                                                                     const isQuoteSelected = q.selected_vendor;
                                                                     const linkedBooking = bookings.find(b => b.quotation_request_id === qId);
@@ -1583,7 +1842,11 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                                 <span>{q.vendor_name}</span>
                                                                             </td>
                                                                             <td className="p-3 text-neutral-500">
-                                                                                <div>{new Date(q.sent_date).toLocaleDateString()}</div>
+                                                                                {q.isTemp ? (
+                                                                                    <span className="text-amber-600 font-bold bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">Unsent Option</span>
+                                                                                ) : (
+                                                                                    <div>{new Date(q.sent_date).toLocaleDateString()}</div>
+                                                                                )}
                                                                                 <div className="text-[10px] text-neutral-400 font-mono mt-0.5">{q.to_email}</div>
                                                                             </td>
                                                                             <td className="p-3">
@@ -1592,7 +1855,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                                     onChange={(e) => handleUpdateQuotation(qId, firstId, e.target.value)}
                                                                                     className="bg-transparent border border-neutral-200 rounded px-2 py-1 text-xs outline-none focus:border-brand-gold bg-white"
                                                                                 >
-                                                                                    {['Sent', 'Replied', 'Declined', 'Expired', 'Selected'].map(st => (
+                                                                                    {['Unsent Option', 'Sent', 'Replied', 'Declined', 'Expired', 'Selected'].map(st => (
                                                                                         <option key={st} value={st}>{st}</option>
                                                                                     ))}
                                                                                 </select>
@@ -1622,6 +1885,21 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                             </td>
                                                                             <td className="p-3 text-right">
                                                                                 <div className="flex items-center justify-end gap-2">
+                                                                                    {q.isTemp && (
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                const mainType = items[0]?.block?.type || 'sleep';
+                                                                                                const altSuppliers = getCategorySuppliers(mainType, items[0]?.block);
+                                                                                                const supplier = altSuppliers.find(s => s.id === q.vendor_id);
+                                                                                                if (supplier) {
+                                                                                                    handleGenerateMultiQuoteEmail(items, [supplier]);
+                                                                                                }
+                                                                                            }}
+                                                                                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold rounded transition-colors flex items-center gap-1"
+                                                                                        >
+                                                                                            <Mail size={10} /> Request Quote
+                                                                                        </button>
+                                                                                    )}
                                                                                     {linkedBooking ? (
                                                                                         <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
                                                                                             linkedBooking.status === 'Went Ahead' ? 'bg-green-50 text-green-700 border-green-200' :
