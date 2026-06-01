@@ -43,6 +43,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
         admin_approved: false,
         vat_registered: false,
         is_suspended: false,
+        has_contracted_price: true,
         sales_agent_name: "",
         sales_agent_contact: "",
         reservation_agent_name: "",
@@ -69,11 +70,12 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
         if (isOpen) {
             fetchMasterData();
             if (hotel) {
-                setFormData({ ...hotel });
+                setFormData({ ...hotel, has_contracted_price: hotel.has_contracted_price ?? true });
             } else {
                 setFormData({
                     name: "", location_address: "", closest_city: "", location_coordinates: "", description: "", hotel_class: "", number_of_rooms: 0,
                     free_cancellation_weeks: undefined, admin_approved: false, vat_registered: false, is_suspended: false,
+                    has_contracted_price: true,
                     sales_agent_name: "", sales_agent_contact: "", reservation_agent_name: "", reservation_agent_contact: "",
                     gm_name: "", gm_contact: "", disable_support: "none", outdoor_pool: false, wellness: false,
                     business_facility: false, parking: false, internet: false, airport_shuttle: false,
@@ -309,6 +311,10 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Suspended</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
+                                    <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
                             </div>
                         </div>

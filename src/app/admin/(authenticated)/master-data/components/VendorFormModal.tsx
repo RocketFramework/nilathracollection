@@ -21,7 +21,7 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
     const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<Vendor>>({
-        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, description: "", is_suspended: false,
+        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, description: "", is_suspended: false, has_contracted_price: true,
         payment_details: {}, vendor_activities: []
     });
     const [coordinateInput, setCoordinateInput] = useState("");
@@ -30,11 +30,11 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
         if (isOpen) {
             loadMasterData();
             if (vendor) {
-                setFormData({ ...vendor, vendor_activities: vendor.vendor_activities || [], payment_details: vendor.payment_details || {} });
+                setFormData({ ...vendor, has_contracted_price: vendor.has_contracted_price ?? true, vendor_activities: vendor.vendor_activities || [], payment_details: vendor.payment_details || {} });
                 setCoordinateInput((vendor.lat && vendor.lng) ? `${vendor.lat}, ${vendor.lng}` : "");
             } else {
                 setFormData({
-                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, description: "", is_suspended: false,
+                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, description: "", is_suspended: false, has_contracted_price: true,
                     payment_details: {}, vendor_activities: []
                 });
                 setCoordinateInput("");
@@ -210,10 +210,14 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Description</label>
                                 <textarea rows={2} className="w-full outline-none text-brand-charcoal font-medium" value={formData.description || ''} onChange={e => handleChange('description', e.target.value)} />
                             </div>
-                            <div className="col-span-2 mt-2">
+                            <div className="col-span-2 mt-2 flex gap-6">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Vendor Suspended</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
+                                    <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
                             </div>
                         </div>

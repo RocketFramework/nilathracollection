@@ -205,9 +205,32 @@ export function HotelsStep({ tripData, updateHotels }: { tripData: TripData, upd
                                                     className="w-full px-3 py-2 border rounded-lg text-sm bg-neutral-50 focus:bg-white border-brand-gold/50 font-semibold focus:ring-1 focus:ring-brand-gold"
                                                 >
                                                     <option value="" disabled>Select Property / Resort</option>
-                                                    {availableHotels.map(dbH => (
-                                                        <option key={dbH.id} value={dbH.name}>{dbH.name} ({dbH.closest_city || 'No Location'})</option>
-                                                    ))}
+                                                    {(() => {
+                                                        const sleepBlock = tripData.itinerary?.find(b => b.type === 'sleep' && b.dayNumber === hotel.nightIndex);
+                                                        let sleepCity = '';
+                                                        if (sleepBlock) {
+                                                            if (sleepBlock.hotelId) {
+                                                                const currentHotel = availableHotels.find(h => h.id === sleepBlock.hotelId);
+                                                                if (currentHotel && currentHotel.closest_city) {
+                                                                    sleepCity = currentHotel.closest_city.trim();
+                                                                }
+                                                            }
+                                                            if (!sleepCity && sleepBlock.locationName) {
+                                                                sleepCity = sleepBlock.locationName.split(',')[0].trim();
+                                                            }
+                                                        }
+                                                        const filtered = sleepCity 
+                                                            ? availableHotels.filter(h => {
+                                                                const hotelCity = (h.closest_city || '').toLowerCase().trim();
+                                                                const hotelAddress = (h.location_address || '').toLowerCase().trim();
+                                                                const cleanCity = sleepCity.toLowerCase().trim();
+                                                                return hotelCity === cleanCity || hotelCity.includes(cleanCity) || cleanCity.includes(hotelCity) || hotelAddress.includes(cleanCity);
+                                                              })
+                                                            : availableHotels;
+                                                        return filtered.map(dbH => (
+                                                            <option key={dbH.id} value={dbH.name}>{dbH.name} ({dbH.closest_city || 'No Location'})</option>
+                                                        ));
+                                                    })()}
                                                 </select>
                                                 {hotel.hotelId && (
                                                     <span className="absolute right-8 top-1.5 text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 border border-green-200 rounded">Linked</span>

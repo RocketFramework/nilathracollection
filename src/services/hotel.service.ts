@@ -73,6 +73,7 @@ export interface Hotel {
     admin_approved?: boolean;
     vat_registered?: boolean;
     is_suspended?: boolean;
+    has_contracted_price?: boolean;
     child_free_until_age?: number;
     child_half_price_until_age?: number;
     child_half_price_percentage?: number;

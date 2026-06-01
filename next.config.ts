@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "50mb",
     },
     proxyClientMaxBodySize: "50mb",
+    inlineCss: true,
   },
 };
 

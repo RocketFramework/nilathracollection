@@ -19,7 +19,7 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
     const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<TourGuide>>({
-        first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false,
+        first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false, has_contracted_price: true,
         payment_details: {}
     });
 
@@ -28,10 +28,10 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
     useEffect(() => {
         if (isOpen) {
             if (guide) {
-                setFormData({ ...guide, languages: guide.languages || [], payment_details: guide.payment_details || {} });
+                setFormData({ ...guide, has_contracted_price: guide.has_contracted_price ?? true, languages: guide.languages || [], payment_details: guide.payment_details || {} });
             } else {
                 setFormData({
-                    first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false,
+                    first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false, has_contracted_price: true,
                     per_day_rate: 20,
                     payment_details: {}
                 });
@@ -158,12 +158,16 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Per Day Rate ($)</label>
                                 <input type="number" className="w-full outline-none text-brand-charcoal font-medium" value={formData.per_day_rate ?? 20} onChange={e => handleChange('per_day_rate', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                             </div>
-                            <div className="col-span-2 mt-2 flex items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100">
+                            <div className="col-span-2 mt-2 flex flex-wrap items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100 gap-4">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Guide Suspended</span>
                                 </label>
-                                {formData.per_day_rate === undefined && <span className="text-[10px] text-neutral-400 font-bold uppercase">Default: $20.00</span>}
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
+                                    <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
+                                </label>
+                                {formData.per_day_rate === undefined && <span className="text-[10px] text-neutral-400 font-bold uppercase ml-auto">Default: $20.00</span>}
                             </div>
                         </div>
                     )}

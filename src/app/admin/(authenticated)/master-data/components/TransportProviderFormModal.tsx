@@ -20,7 +20,7 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
     const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<TransportProvider>>({
-        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false,
+        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false, has_contracted_price: true,
         payment_details: {},
         transport_vehicles: []
     });
@@ -29,11 +29,11 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
     useEffect(() => {
         if (isOpen) {
             if (provider) {
-                setFormData({ ...provider, payment_details: provider.payment_details || {}, transport_vehicles: provider.transport_vehicles || [] });
+                setFormData({ ...provider, has_contracted_price: provider.has_contracted_price ?? true, payment_details: provider.payment_details || {}, transport_vehicles: provider.transport_vehicles || [] });
                 setCoordinateInput((provider.lat && provider.lng) ? `${provider.lat}, ${provider.lng}` : "");
             } else {
                 setFormData({
-                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false,
+                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false, has_contracted_price: true,
                     payment_details: {},
                     transport_vehicles: []
                 });
@@ -208,10 +208,14 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">NIC Number</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.nic_number || ''} onChange={e => handleChange('nic_number', e.target.value)} />
                             </div>
-                            <div className="col-span-2 mt-2">
+                            <div className="col-span-2 mt-2 flex gap-6">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Provider Suspended</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
+                                    <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
                             </div>
                         </div>

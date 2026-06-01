@@ -18,6 +18,7 @@ export interface AddActivityDTO {
     tour_id?: string; // UUID
     itinerary_id: string; // UUID
     title: string;
+    activity_type?: string; // e.g. 'activity' | 'travel' | 'meal' | 'sleep' etc.
     description?: string;
     time_start?: string; // HH:mm format
     time_end?: string; // HH:mm format

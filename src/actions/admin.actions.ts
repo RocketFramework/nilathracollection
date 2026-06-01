@@ -17,6 +17,8 @@ import { emailService } from "@/services/email.service";
 import { AIService } from "@/services/ai.service";
 import { AIRule } from "@/types/ai";
 import { CreateRequestDTO, UpdateRequestDTO } from '../dtos/request.dto';
+import { QuotationService } from "@/services/quotation.service";
+import { CreateQuotationRequestDTO, UpdateQuotationDTO } from "../dtos/quotation.dto";
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
     try {
@@ -1007,4 +1009,49 @@ export async function sendPurchaseOrderEmailAction(options: {
         return { success: false, error: error.message || "An unexpected error occurred." };
     }
 }
+
+export async function createQuotationRequestAction(dto: CreateQuotationRequestDTO) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const quote = await QuotationService.createQuotationRequest(dto, user.id);
+        return { success: true, quote };
+    } catch (error: any) {
+        console.error("Error in createQuotationRequestAction:", error);
+        return { success: false, error: error.message || "Failed to create quotation request." };
+    }
+}
+
+export async function getQuotationRequestsForActivityAction(dailyActivityId: string) {
+    try {
+        const quotes = await QuotationService.getQuotationRequestsForActivity(dailyActivityId);
+        return { success: true, quotes };
+    } catch (error: any) {
+        console.error("Error in getQuotationRequestsForActivityAction:", error);
+        return { success: false, error: error.message || "Failed to fetch quotation requests." };
+    }
+}
+
+export async function updateQuotationAction(id: string, updates: UpdateQuotationDTO) {
+    try {
+        const quote = await QuotationService.updateQuotation(id, updates);
+        return { success: true, quote };
+    } catch (error: any) {
+        console.error("Error in updateQuotationAction:", error);
+        return { success: false, error: error.message || "Failed to update quotation request." };
+    }
+}
+
+export async function selectQuotationAction(quoteId: string, dailyActivityId: string) {
+    try {
+        const quote = await QuotationService.selectQuotation(quoteId, dailyActivityId);
+        return { success: true, quote };
+    } catch (error: any) {
+        console.error("Error in selectQuotationAction:", error);
+        return { success: false, error: error.message || "Failed to select quotation." };
+    }
+}
+
 

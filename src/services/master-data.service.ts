@@ -45,6 +45,7 @@ export interface Vendor {
     lng?: number;
     description?: string;
     is_suspended?: boolean;
+    has_contracted_price?: boolean;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
     vendor_activities?: VendorActivity[];
@@ -58,6 +59,7 @@ export interface Driver {
     license_number?: string;
     nic_number?: string;
     is_suspended?: boolean;
+    has_contracted_price?: boolean;
     per_day_rate?: number;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
@@ -87,6 +89,7 @@ export interface TransportProvider {
     lng?: number;
     nic_number?: string;
     is_suspended?: boolean;
+    has_contracted_price?: boolean;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
     transport_vehicles?: TransportVehicle[];
@@ -100,6 +103,7 @@ export interface TourGuide {
     languages?: string[];
     license_id?: string;
     is_suspended?: boolean;
+    has_contracted_price?: boolean;
     per_day_rate?: number;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
@@ -131,6 +135,7 @@ export interface Restaurant {
     coffee_cafe_rate_per_head?: number;
     juice_bar_rate_per_head?: number;
     is_suspended?: boolean;
+    has_contracted_price?: boolean;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
 }

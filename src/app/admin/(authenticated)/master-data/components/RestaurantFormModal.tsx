@@ -27,14 +27,14 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
         is_buffet: false,
         breakfast_rate_per_head: undefined, lunch_rate_per_head: undefined, dinner_rate_per_head: undefined,
         tea_cafe_rate_per_head: undefined, coffee_cafe_rate_per_head: undefined, juice_bar_rate_per_head: undefined,
-        is_suspended: false, payment_details: {}
+        is_suspended: false, has_contracted_price: true, payment_details: {}
     });
     const [coordinateInput, setCoordinateInput] = useState("");
 
     useEffect(() => {
         if (isOpen) {
             if (restaurant) {
-                setFormData({ ...restaurant, payment_details: restaurant.payment_details || {} });
+                setFormData({ ...restaurant, has_contracted_price: restaurant.has_contracted_price ?? true, payment_details: restaurant.payment_details || {} });
                 setCoordinateInput((restaurant.lat && restaurant.lng) ? `${restaurant.lat}, ${restaurant.lng}` : "");
             } else {
                 setFormData({
@@ -45,7 +45,7 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                     is_buffet: false,
                     breakfast_rate_per_head: undefined, lunch_rate_per_head: undefined, dinner_rate_per_head: undefined,
                     tea_cafe_rate_per_head: undefined, coffee_cafe_rate_per_head: undefined, juice_bar_rate_per_head: undefined,
-                    is_suspended: false, payment_details: {}
+                    is_suspended: false, has_contracted_price: true, payment_details: {}
                 });
                 setCoordinateInput("");
             }
@@ -189,10 +189,14 @@ export default function RestaurantFormModal({ isOpen, onClose, restaurant, onSav
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Location Coordinates (Lat, Lng)</label>
                                 <input type="text" placeholder="e.g. 6.9271, 79.8612" className="w-full outline-none text-brand-charcoal font-medium" value={coordinateInput} onChange={e => handleCoordinateChange(e.target.value)} />
                             </div>
-                            <div className="col-span-2 mt-2">
+                            <div className="col-span-2 mt-2 flex gap-6">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Restaurant Suspended</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
+                                    <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
                             </div>
                         </div>

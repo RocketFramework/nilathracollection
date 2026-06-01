@@ -104,6 +104,7 @@ CREATE TABLE hotels (
     admin_approved BOOLEAN DEFAULT FALSE,
     vat_registered BOOLEAN DEFAULT FALSE,
     is_suspended BOOLEAN DEFAULT FALSE,
+    has_contracted_price BOOLEAN DEFAULT TRUE,
     payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -157,6 +158,7 @@ CREATE TABLE vendors (
     description TEXT,
     payment_detail_id UUID REFERENCES payment_details(id),
     is_suspended BOOLEAN DEFAULT FALSE,
+    has_contracted_price BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -197,6 +199,7 @@ CREATE TABLE transport_providers (
     lng NUMERIC(11, 8),
     nic_number VARCHAR(100),
     is_suspended BOOLEAN DEFAULT FALSE,
+    has_contracted_price BOOLEAN DEFAULT TRUE,
     payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -226,6 +229,7 @@ CREATE TABLE drivers (
     license_number VARCHAR(100),
     nic_number VARCHAR(100),
     is_suspended BOOLEAN DEFAULT FALSE,
+    has_contracted_price BOOLEAN DEFAULT TRUE,
     payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -239,6 +243,7 @@ CREATE TABLE tour_guides (
     languages TEXT[],
     license_id VARCHAR(100),
     is_suspended BOOLEAN DEFAULT FALSE,
+    has_contracted_price BOOLEAN DEFAULT TRUE,
     payment_detail_id UUID REFERENCES payment_details(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -315,6 +320,7 @@ CREATE TABLE daily_activities (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     itinerary_id UUID REFERENCES tour_itineraries(id) ON DELETE CASCADE NOT NULL,
     title VARCHAR(255) NOT NULL,
+    activity_type VARCHAR(50),
     description TEXT,
     time_start TIME,
     time_end TIME,
@@ -750,3 +756,47 @@ CREATE TRIGGER on_auth_user_created
 
 CREATE POLICY public_read_requests_dev ON requests FOR SELECT USING (true);
 CREATE POLICY public_read_req_details_dev ON request_details FOR SELECT USING (true);
+
+
+-------------------------------------------------------------------------------
+-- 8. Quotation Management
+-------------------------------------------------------------------------------
+CREATE TABLE quotation_request (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID,
+    vendor_name VARCHAR(255) NOT NULL,
+    to_email VARCHAR(255) NOT NULL,
+    from_email VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    email_content TEXT NOT NULL,
+    sent_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    replied_date TIMESTAMP WITH TIME ZONE,
+    quoted_price NUMERIC(10, 2),
+    currency VARCHAR(10) DEFAULT 'USD',
+    status VARCHAR(50) DEFAULT 'Sent',
+    selected_vendor BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE daily_activity_quotation_request (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    daily_activity_id UUID REFERENCES daily_activities(id) ON DELETE CASCADE,
+    tour_id UUID REFERENCES tours(id) ON DELETE CASCADE,
+    itinerary_id UUID REFERENCES tour_itineraries(id) ON DELETE CASCADE,
+    activity_type VARCHAR(50),
+    quotation_request_id UUID REFERENCES quotation_request(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE quotation_request ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_activity_quotation_request ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY admin_agent_all_quotation_request ON quotation_request
+    FOR ALL TO authenticated USING (get_user_role(auth.uid()) IN ('admin', 'agent'));
+
+CREATE POLICY admin_agent_all_daily_activity_quotation_request ON daily_activity_quotation_request
+    FOR ALL TO authenticated USING (get_user_role(auth.uid()) IN ('admin', 'agent'));

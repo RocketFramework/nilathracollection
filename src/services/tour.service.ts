@@ -158,6 +158,7 @@ export class TourService {
                     tour_id: newTour.id,
                     itinerary_id: itin.id,
                     title: 'New Activity',
+                    activity_type: 'activity',
                     time_start: '09:00:00',
                     time_end: '10:00:00'
                 }]);
@@ -546,6 +547,7 @@ export class TourService {
                     tour_id: tourId,
                     itinerary_id: dbItin.id,
                     title: b.name,
+                    activity_type: b.type || null,
                     location_name: b.locationName || null,
                     distance: (b.distance !== undefined && b.distance !== null && b.distance !== '') ? String(b.distance) : null,
                     description: b.comments && b.comments.length > 0 ? JSON.stringify(b.comments) : (b.internalNotes || ''),

@@ -417,9 +417,14 @@ export default function MasterDataPage() {
                                             <td className="p-4 text-neutral-500">{row.hotel_class || 'Not Specified'}</td>
                                             <td className="p-4 text-neutral-500">{row.location_address || 'Not Specified'}{row.closest_city ? `, ${row.closest_city}` : ''}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1 justify-center">
+                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 pr-6 text-right">
                                                 <div className="flex justify-end gap-2">
@@ -471,9 +476,14 @@ export default function MasterDataPage() {
                                             <td className="p-4 text-neutral-500">Vendor</td>
                                             <td className="p-4 text-neutral-500">{row.phone || row.email || 'No Contact'}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1 justify-center">
+                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 pr-6 text-right">
                                                 <div className="flex justify-end gap-2">
@@ -496,9 +506,14 @@ export default function MasterDataPage() {
                                             <td className="p-4 text-neutral-500">Restaurant</td>
                                             <td className="p-4 text-neutral-500">{row.address || 'No Address'}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1 justify-center">
+                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 pr-6 text-right">
                                                 <div className="flex justify-end gap-2">
@@ -521,9 +536,14 @@ export default function MasterDataPage() {
                                             <td className="p-4 text-neutral-500">Driver</td>
                                             <td className="p-4 text-neutral-500">{row.phone || 'No Contact'}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1 justify-center">
+                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 pr-6 text-right">
                                                 <div className="flex justify-end gap-2">
@@ -546,9 +566,14 @@ export default function MasterDataPage() {
                                             <td className="p-4 text-neutral-500">Transport Provider</td>
                                             <td className="p-4 text-neutral-500">{(row.transport_vehicles || []).map(v => v.vehicle_type).join(', ') || 'Various'}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1 justify-center">
+                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 pr-6 text-right">
                                                 <div className="flex justify-end gap-2">
@@ -571,9 +596,14 @@ export default function MasterDataPage() {
                                             <td className="p-4 text-neutral-500">Tour Guide</td>
                                             <td className="p-4 text-neutral-500">{row.phone || 'No Contact'}</td>
                                             <td className="p-4 text-center">
-                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                    {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                </span>
+                                                <div className="flex flex-col items-center gap-1 justify-center">
+                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
+                                                    </span>
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="p-4 pr-6 text-right">
                                                 <div className="flex justify-end gap-2">

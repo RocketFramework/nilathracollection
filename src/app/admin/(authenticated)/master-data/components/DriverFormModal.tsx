@@ -19,17 +19,17 @@ export default function DriverFormModal({ isOpen, onClose, driver, onSave, userR
     const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<Driver>>({
-        first_name: "", last_name: "", phone: "", license_number: "", nic_number: "", is_suspended: false,
+        first_name: "", last_name: "", phone: "", license_number: "", nic_number: "", is_suspended: false, has_contracted_price: true,
         payment_details: {}
     });
 
     useEffect(() => {
         if (isOpen) {
             if (driver) {
-                setFormData({ ...driver, payment_details: driver.payment_details || {} });
+                setFormData({ ...driver, has_contracted_price: driver.has_contracted_price ?? true, payment_details: driver.payment_details || {} });
             } else {
                 setFormData({
-                    first_name: "", last_name: "", phone: "", license_number: "", nic_number: "", is_suspended: false,
+                    first_name: "", last_name: "", phone: "", license_number: "", nic_number: "", is_suspended: false, has_contracted_price: true,
                     per_day_rate: 15,
                     payment_details: {}
                 });
@@ -146,12 +146,16 @@ export default function DriverFormModal({ isOpen, onClose, driver, onSave, userR
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Per Day Rate ($)</label>
                                 <input type="number" className="w-full outline-none text-brand-charcoal font-medium" value={formData.per_day_rate ?? 15} onChange={e => handleChange('per_day_rate', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
                             </div>
-                            <div className="col-span-2 mt-2 flex items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100">
+                            <div className="col-span-2 mt-2 flex flex-wrap items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100 gap-4">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
                                     <span className="text-sm font-bold text-red-600 group-hover:text-red-700 transition-colors">Driver Suspended</span>
                                 </label>
-                                {formData.per_day_rate === undefined && <span className="text-[10px] text-neutral-400 font-bold uppercase">Default: $15.00</span>}
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
+                                    <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
+                                </label>
+                                {formData.per_day_rate === undefined && <span className="text-[10px] text-neutral-400 font-bold uppercase ml-auto">Default: $15.00</span>}
                             </div>
                         </div>
                     )}
