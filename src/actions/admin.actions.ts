@@ -19,6 +19,8 @@ import { AIRule } from "@/types/ai";
 import { CreateRequestDTO, UpdateRequestDTO } from '../dtos/request.dto';
 import { QuotationService } from "@/services/quotation.service";
 import { CreateQuotationRequestDTO, UpdateQuotationDTO } from "../dtos/quotation.dto";
+import { VendorBookingService } from "@/services/vendor-booking.service";
+import { CreateVendorBookingDTO, UpdateBookingStatusDTO } from "../dtos/vendor-booking.dto";
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
     try {
@@ -1051,6 +1053,60 @@ export async function selectQuotationAction(quoteId: string, dailyActivityId: st
     } catch (error: any) {
         console.error("Error in selectQuotationAction:", error);
         return { success: false, error: error.message || "Failed to select quotation." };
+    }
+}
+
+export async function createVendorBookingAction(dto: CreateVendorBookingDTO) {
+    try {
+        const booking = await VendorBookingService.createBookingRequest(dto);
+        revalidatePath("/admin/planner");
+        return { success: true, booking };
+    } catch (error: any) {
+        console.error("Error in createVendorBookingAction:", error);
+        return { success: false, error: error.message || "Failed to create booking." };
+    }
+}
+
+export async function getVendorBookingsAction(tourId: string) {
+    try {
+        const bookings = await VendorBookingService.getBookingsForTour(tourId);
+        return { success: true, bookings };
+    } catch (error: any) {
+        console.error("Error in getVendorBookingsAction:", error);
+        return { success: false, error: error.message || "Failed to fetch bookings." };
+    }
+}
+
+export async function updateVendorBookingStatusAction(dto: UpdateBookingStatusDTO) {
+    try {
+        const booking = await VendorBookingService.updateBookingStatus(dto);
+        revalidatePath("/admin/planner");
+        return { success: true, booking };
+    } catch (error: any) {
+        console.error("Error in updateVendorBookingStatusAction:", error);
+        return { success: false, error: error.message || "Failed to update booking status." };
+    }
+}
+
+export async function confirmFinalVendorBookingAction(bookingId: string) {
+    try {
+        await VendorBookingService.confirmFinalVendor(bookingId);
+        revalidatePath("/admin/planner");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in confirmFinalVendorBookingAction:", error);
+        return { success: false, error: error.message || "Failed to finalize booking." };
+    }
+}
+
+export async function cancelVendorBookingAction(bookingId: string, reason?: string) {
+    try {
+        await VendorBookingService.cancelBooking(bookingId, reason);
+        revalidatePath("/admin/planner");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in cancelVendorBookingAction:", error);
+        return { success: false, error: error.message || "Failed to cancel booking." };
     }
 }
 

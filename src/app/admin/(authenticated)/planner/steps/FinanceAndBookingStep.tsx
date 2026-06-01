@@ -2,7 +2,7 @@
 
 import { TripData, Financials } from "../types";
 import { useState, useEffect, useRef } from "react";
-import { Calculator, RefreshCw, FileText, ChevronDown, ChevronUp, Mail, Send, X, CheckCircle, AlertCircle, LayoutTemplate, Type, User, MessageSquare } from "lucide-react";
+import { Calculator, RefreshCw, FileText, ChevronDown, ChevronUp, Mail, Send, X, CheckCircle, AlertCircle, LayoutTemplate, Type, User, MessageSquare, Trash2, Plus, Calendar, ShieldAlert, Award, FileSpreadsheet, Download, FileUp } from "lucide-react";
 
 import { 
     getFinalizedActivitiesAction, 
@@ -14,8 +14,33 @@ import {
     getRestaurantsAction, 
     getVendorsAction,
     sendPurchaseOrderEmailAction,
-    getEmailTemplatesAction
+    getEmailTemplatesAction,
+    getVendorBookingsAction,
+    confirmFinalVendorBookingAction,
+    cancelVendorBookingAction,
+    updateVendorBookingStatusAction,
+    saveVendorInvoiceAction,
+    saveVendorPaymentAction,
+    getDriversAction,
+    getTourGuidesAction,
+    getDailyActivitiesAction,
+    sendCustomEmailAction
 } from "@/actions/admin.actions";
+
+const getDeadlineStatus = (deadline: string | null | undefined) => {
+    if (!deadline) {
+        return { color: 'bg-neutral-50 text-neutral-600 border-neutral-200', label: 'No Deadline' };
+    }
+    const diff = new Date(deadline).getTime() - new Date().getTime();
+    if (diff < 0) {
+        return { color: 'bg-red-50 text-red-700 border-red-200', label: 'Deadline Passed' };
+    }
+    const hours = diff / (1000 * 60 * 60);
+    if (hours < 48) {
+        return { color: 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse', label: `Urgent: ${Math.round(hours)}h left` };
+    }
+    return { color: 'bg-green-50 text-green-700 border-green-200', label: 'Free Cancellation' };
+};
 
 const loadJsPDF = () => {
     return new Promise<any>((resolve, reject) => {
@@ -333,8 +358,58 @@ export function FinanceAndBookingStep({
     const [finalizedActivities, setFinalizedActivities] = useState<any[]>([]);
     const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
     const [isLoadingPOs, setIsLoadingPOs] = useState(false);
-    const [expandedPO, setExpandedPO] = useState<string | null>(null);
     const tourId = tripData.id;
+    const [expandedPO, setExpandedPO] = useState<string | null>(null);
+
+    // Tabs
+    const [subTab, setSubTab] = useState<'bookings' | 'finance'>('bookings');
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [dailyActivities, setDailyActivities] = useState<any[]>([]);
+    const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+    
+    // Master data
+    const [masterHotels, setMasterHotels] = useState<any[]>([]);
+    const [masterTransports, setMasterTransports] = useState<any[]>([]);
+    const [masterVendors, setMasterVendors] = useState<any[]>([]);
+    const [masterGuides, setMasterGuides] = useState<any[]>([]);
+    const [masterDrivers, setMasterDrivers] = useState<any[]>([]);
+    const [masterRestaurants, setMasterRestaurants] = useState<any[]>([]);
+
+    // Service request email states
+    const [showServiceEmailModal, setShowServiceEmailModal] = useState(false);
+    const [selectedBookingForEmail, setSelectedBookingForEmail] = useState<any | null>(null);
+    const [serviceEmailSubject, setServiceEmailSubject] = useState('');
+    const [serviceEmailBody, setServiceEmailBody] = useState('');
+    const [serviceEmailTo, setServiceEmailTo] = useState('');
+    const [serviceEmailToName, setServiceEmailToName] = useState('');
+    const [isSendingServiceEmail, setIsSendingServiceEmail] = useState(false);
+
+    // Invoice modal states
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [selectedPOForInvoice, setSelectedPOForInvoice] = useState<any | null>(null);
+    const [invoiceNumber, setInvoiceNumber] = useState('');
+    const [invoiceDate, setInvoiceDate] = useState('');
+    const [invoiceDueDate, setInvoiceDueDate] = useState('');
+    const [invoiceAmount, setInvoiceAmount] = useState('');
+    const [invoiceAttachmentUrl, setInvoiceAttachmentUrl] = useState('');
+    const [isSavingInvoice, setIsSavingInvoice] = useState(false);
+
+    // Payment modal states
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any | null>(null);
+    const [selectedPOForPayment, setSelectedPOForPayment] = useState<any | null>(null);
+    const [paymentDate, setPaymentDate] = useState('');
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
+    const [paymentReference, setPaymentReference] = useState('');
+    const [paymentNotes, setPaymentNotes] = useState('');
+    const [isSavingPayment, setIsSavingPayment] = useState(false);
+
+    // Cancellation Policy Alert Modal states
+    const [showDeadlineWarningModal, setShowDeadlineWarningModal] = useState(false);
+    const [bookingToConfirm, setBookingToConfirm] = useState<any | null>(null);
+    const [expiredDeadlinesList, setExpiredDeadlinesList] = useState<any[]>([]);
+    const [isConfirmingBookingId, setIsConfirmingBookingId] = useState<string | null>(null);
 
     // PDF Email states
     const [logoBase64, setLogoBase64] = useState<string>('');
@@ -465,9 +540,282 @@ export function FinanceAndBookingStep({
         }
     };
 
+    const fetchBookings = async () => {
+        if (!tourId) return;
+        setIsLoadingBookings(true);
+        try {
+            const res = await getVendorBookingsAction(tourId);
+            if (res.success) {
+                setBookings(res.bookings || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch bookings:", error);
+        } finally {
+            setIsLoadingBookings(false);
+        }
+    };
+
+    const fetchDailyActivities = async () => {
+        if (!tourId) return;
+        try {
+            const res = await getDailyActivitiesAction(tourId);
+            if (res.success) {
+                setDailyActivities(res.activities || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch daily activities:", error);
+        }
+    };
+
     useEffect(() => {
-        fetchPurchaseOrders();
+        const loadAllData = async () => {
+            if (!tourId) return;
+            await Promise.all([
+                fetchPurchaseOrders(),
+                fetchBookings(),
+                fetchDailyActivities(),
+                (async () => {
+                    const r = await getHotelsListAction();
+                    if (r.success) setMasterHotels(r.hotels || []);
+                })(),
+                (async () => {
+                    const r = await getTransportProvidersAction();
+                    if (r.success) setMasterTransports(r.providers || []);
+                })(),
+                (async () => {
+                    const r = await getVendorsAction();
+                    if (r.success) setMasterVendors(r.vendors || []);
+                })(),
+                (async () => {
+                    const r = await getTourGuidesAction();
+                    if (r.success) setMasterGuides(r.guides || []);
+                })(),
+                (async () => {
+                    const r = await getDriversAction();
+                    if (r.success) setMasterDrivers(r.drivers || []);
+                })(),
+                (async () => {
+                    const r = await getRestaurantsAction();
+                    if (r.success) setMasterRestaurants(r.restaurants || []);
+                })()
+            ]);
+        };
     }, [tourId]);
+
+    const handleInitiateConfirmBooking = async (booking: any) => {
+        if (!tourId) return;
+        const myActivityIds = booking.daily_activity_ids || [];
+        
+        // Find other active bookings mapping to the same activities
+        const conflicts = bookings.filter(b => 
+            b.id !== booking.id && 
+            b.status !== 'Cancelled' &&
+            (b.daily_activity_ids || []).some((actId: string) => myActivityIds.includes(actId))
+        );
+
+        // Find conflicts past cancellation deadline
+        const expiredDeadlines = conflicts.filter(c => {
+            if (c.cancellation_deadline) {
+                return new Date(c.cancellation_deadline) < new Date();
+            }
+            return false;
+        });
+
+        if (expiredDeadlines.length > 0) {
+            setBookingToConfirm(booking);
+            setExpiredDeadlinesList(expiredDeadlines);
+            setShowDeadlineWarningModal(true);
+        } else {
+            await executeConfirmBooking(booking.id);
+        }
+    };
+
+    const executeConfirmBooking = async (bookingId: string) => {
+        setIsConfirmingBookingId(bookingId);
+        try {
+            const res = await confirmFinalVendorBookingAction(bookingId);
+            if (res.success) {
+                alert("Booking confirmed and itinerary updated successfully. Backup bookings/POs have been cancelled.");
+                await Promise.all([
+                    fetchBookings(),
+                    fetchDailyActivities(),
+                    fetchPurchaseOrders()
+                ]);
+                setShowDeadlineWarningModal(false);
+            } else {
+                alert(`Failed to confirm booking: ${res.error}`);
+            }
+        } catch (error: any) {
+            console.error("Error confirming booking:", error);
+            alert(`An error occurred: ${error.message || error}`);
+        } finally {
+            setIsConfirmingBookingId(null);
+        }
+    };
+
+    const handleCancelBooking = async (bookingId: string) => {
+        const reason = prompt("Enter reason for cancellation:");
+        if (reason === null) return;
+        
+        try {
+            const res = await cancelVendorBookingAction(bookingId, reason);
+            if (res.success) {
+                alert("Booking and Purchase Order cancelled successfully.");
+                await Promise.all([
+                    fetchBookings(),
+                    fetchPurchaseOrders()
+                ]);
+            } else {
+                alert(`Failed to cancel booking: ${res.error}`);
+            }
+        } catch (error: any) {
+            console.error("Error cancelling booking:", error);
+            alert(`An error occurred: ${error.message || error}`);
+        }
+    };
+
+    const handleOpenServiceEmailModal = (booking: any) => {
+        setSelectedBookingForEmail(booking);
+        let email = "";
+        let name = booking.vendor_name;
+        
+        if (booking.vendor_type === 'hotel') {
+            const master = masterHotels.find(h => h.id === booking.vendor_id);
+            if (master) email = master.reservation_email || '';
+        } else if (booking.vendor_type === 'vendor') {
+            const master = masterVendors.find(v => v.id === booking.vendor_id);
+            if (master) email = master.email || '';
+        } else if (booking.vendor_type === 'transport_provider') {
+            const master = masterTransports.find(t => t.id === booking.vendor_id);
+            if (master) email = master.email || '';
+        } else if (booking.vendor_type === 'restaurant') {
+            const master = masterRestaurants.find(r => r.id === booking.vendor_id);
+            if (master) email = master.email || '';
+        }
+
+        setServiceEmailTo(email);
+        setServiceEmailToName(name);
+        setServiceEmailSubject(`Service Request: ${tripData.clientName} - Nilathra Collection`);
+        
+        const defaultBody = `<p>Dear ${name},</p><p>We would like to request the booking confirmation for the following services:</p><p><strong>Service Type:</strong> ${booking.vendor_type.toUpperCase()}<br/><strong>Supplier Name:</strong> ${booking.vendor_name}<br/><strong>Agreed Rate:</strong> ${booking.agreed_price} ${booking.currency}</p><p>Please confirm availability and booking by replying to this email. Thank you!</p><p>Best Regards,<br/>Operations Team<br/>Nilathra Collection</p>`;
+        setServiceEmailBody(defaultBody);
+        setShowServiceEmailModal(true);
+    };
+
+    const handleSendServiceEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedBookingForEmail) return;
+        setIsSendingServiceEmail(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('from', 'concierge@nilathra.com');
+            formData.append('to', serviceEmailTo);
+            formData.append('subject', serviceEmailSubject);
+            formData.append('body', serviceEmailBody);
+
+            const result = await sendCustomEmailAction(formData);
+
+            if (result.success) {
+                await updateVendorBookingStatusAction({
+                    booking_id: selectedBookingForEmail.id,
+                    status: 'Confirmed'
+                });
+                alert("Service request email sent successfully!");
+                setShowServiceEmailModal(false);
+                await fetchBookings();
+            } else {
+                alert(`Failed to send email: ${result.error}`);
+            }
+        } catch (error: any) {
+            console.error("Error sending service request email:", error);
+            alert(`An error occurred: ${error.message || error}`);
+        } finally {
+            setIsSendingServiceEmail(false);
+        }
+    };
+
+    const handleOpenInvoiceModal = (po: any) => {
+        setSelectedPOForInvoice(po);
+        setInvoiceNumber('');
+        setInvoiceDate(new Date().toISOString().split('T')[0]);
+        setInvoiceDueDate(new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0]);
+        setInvoiceAmount(String(po.total_amount || ''));
+        setInvoiceAttachmentUrl('');
+        setShowInvoiceModal(true);
+    };
+
+    const handleSaveInvoice = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedPOForInvoice) return;
+        setIsSavingInvoice(true);
+
+        try {
+            const res = await saveVendorInvoiceAction({
+                purchase_order_id: selectedPOForInvoice.id,
+                invoice_number: invoiceNumber,
+                invoice_date: invoiceDate,
+                due_date: invoiceDueDate,
+                amount: parseFloat(invoiceAmount),
+                status: 'Pending',
+                attachment_url: invoiceAttachmentUrl || undefined
+            });
+
+            if (res.success) {
+                alert("Supplier invoice recorded successfully.");
+                setShowInvoiceModal(false);
+                await fetchPurchaseOrders();
+            } else {
+                alert(`Failed to save invoice: ${res.error}`);
+            }
+        } catch (error: any) {
+            console.error("Error saving invoice:", error);
+            alert(`An error occurred: ${error.message || error}`);
+        } finally {
+            setIsSavingInvoice(false);
+        }
+    };
+
+    const handleOpenPaymentModal = (invoice: any, po: any) => {
+        setSelectedInvoiceForPayment(invoice);
+        setSelectedPOForPayment(po);
+        setPaymentDate(new Date().toISOString().split('T')[0]);
+        setPaymentAmount(String(invoice.amount || ''));
+        setPaymentMethod('Bank Transfer');
+        setPaymentReference('');
+        setPaymentNotes('');
+        setShowPaymentModal(true);
+    };
+
+    const handleSavePayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedInvoiceForPayment) return;
+        setIsSavingPayment(true);
+
+        try {
+            const res = await saveVendorPaymentAction({
+                vendor_invoice_id: selectedInvoiceForPayment.id,
+                payment_date: paymentDate,
+                amount: parseFloat(paymentAmount),
+                payment_method: paymentMethod,
+                payment_reference: paymentReference,
+                notes: paymentNotes || undefined
+            });
+
+            if (res.success) {
+                alert("Payment recorded successfully.");
+                setShowPaymentModal(false);
+                await fetchPurchaseOrders();
+            } else {
+                alert(`Failed to save payment: ${res.error}`);
+            }
+        } catch (error: any) {
+            console.error("Error recording payment:", error);
+            alert(`An error occurred: ${error.message || error}`);
+        } finally {
+            setIsSavingPayment(false);
+        }
+    };
 
     const syncWithItinerary = async () => {
         if (!tourId) {
@@ -1006,161 +1354,473 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
+            {/* Redesigned Header with Tab Switchers */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
                 <div>
                     <h3 className="text-2xl font-serif text-brand-green flex items-center gap-2">
-                        <Calculator className="text-brand-gold" /> Finance & Supplier Control
+                        <Calculator className="text-brand-gold" size={24} /> Finance & Supplier Control
                     </h3>
-                    <p className="text-sm text-neutral-500 mt-1">Manage vendor payments, reconcile POs, and verify supplier invoices.</p>
+                    <p className="text-sm text-neutral-500 mt-1">Manage service bookings, send vendor requests, reconcile POs, and verify payments.</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center bg-white p-1 rounded-2xl border border-neutral-200 shadow-sm self-start md:self-auto">
                     <button
-                        onClick={syncWithItinerary}
-                        disabled={isSyncing}
-                        className="flex items-center gap-2 bg-brand-gold text-white px-5 py-2.5 rounded-2xl hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-200/50 font-bold text-sm disabled:opacity-50"
+                        onClick={() => setSubTab('bookings')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${subTab === 'bookings' ? 'bg-brand-green text-white shadow-md' : 'text-neutral-500 hover:text-neutral-800'}`}
                     >
-                        <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'Syncing...' : 'Sync with Itinerary'}
+                        Service Bookings
+                    </button>
+                    <button
+                        onClick={() => setSubTab('finance')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${subTab === 'finance' ? 'bg-brand-green text-white shadow-md' : 'text-neutral-500 hover:text-neutral-800'}`}
+                    >
+                        POs & Payments
                     </button>
                 </div>
             </div>
 
-            {isLoadingPOs ? (
-                <div className="bg-white p-12 rounded-[40px] border border-neutral-200 shadow-sm text-center">
-                    <RefreshCw className="animate-spin mx-auto text-neutral-300 mb-2" />
-                    <p className="text-neutral-400 italic">Loading Purchase Orders...</p>
-                </div>
-            ) : purchaseOrders.length === 0 ? (
-                <div className="bg-white p-12 rounded-[40px] border border-neutral-200 shadow-sm text-center">
-                    <p className="text-neutral-400 italic">No Purchase Orders generated yet. Click "Sync with Itinerary" to generate them.</p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {purchaseOrders.map((po) => (
-                        <div key={po.id} className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
-                            <div 
-                                className="px-6 py-4 flex items-center justify-between cursor-pointer bg-neutral-50 hover:bg-neutral-100 transition-colors"
-                                onClick={() => setExpandedPO(expandedPO === po.id ? null : po.id)}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-xl ${po.vendor_type === 'hotel' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
-                                        <FileText size={20} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-neutral-800">{po.vendor_name}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-neutral-500 mt-1">
-                                            <span className="font-mono bg-neutral-200 px-2 py-0.5 rounded-md">{po.po_number}</span>
-                                            <span>•</span>
-                                            <span className="capitalize">{po.vendor_type}</span>
-                                            <span>•</span>
-                                            <span>{new Date(po.po_date).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                    <div className="text-right">
-                                        <div className="text-sm font-bold text-neutral-800">${(po.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                        <div className={`text-xs font-bold mt-1 ${po.status === 'Draft' ? 'text-amber-500' : 'text-green-500'}`}>
-                                            {po.status}
-                                        </div>
-                                    </div>
-                                    <div className="text-neutral-400">
-                                        {expandedPO === po.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {expandedPO === po.id && po.items && po.items.length > 0 && (
-                                <div className="px-6 py-4 border-t border-neutral-100">
-                                    {(po.vendor_address || po.vendor_phone || po.vendor_email || po.sent_email || po.sent_to_name || po.sent_date) && (
-                                        <div className="mb-4 p-3 bg-neutral-50 rounded-xl border border-neutral-100 text-xs text-neutral-600 space-y-1">
-                                            {po.vendor_address && <div><span className="font-semibold">Address:</span> {po.vendor_address}</div>}
-                                            {po.vendor_phone && <div><span className="font-semibold">Phone:</span> {po.vendor_phone}</div>}
-                                            {po.vendor_email && <div><span className="font-semibold">Registered Email:</span> {po.vendor_email}</div>}
-                                            {(po.sent_email || po.sent_to_name || po.sent_date) && (
-                                                <div className="pt-2 mt-2 border-t border-neutral-200/60 text-neutral-500">
-                                                    <div className="font-semibold text-neutral-700 mb-1">Email Delivery Tracking:</div>
-                                                    {po.sent_to_name && <div><span className="font-semibold">Sent To Name:</span> {po.sent_to_name}</div>}
-                                                    {po.sent_email && <div><span className="font-semibold">Sent To Email:</span> {po.sent_email}</div>}
-                                                    {po.sent_date && <div><span className="font-semibold">Sent Date:</span> {new Date(po.sent_date).toLocaleString()}</div>}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="text-left text-neutral-400 border-b border-neutral-100">
-                                                    <th className="pb-2 font-medium">Description</th>
-                                                    <th className="pb-2 font-medium">Service Date</th>
-                                                    <th className="pb-2 font-medium text-center">Qty</th>
-                                                    <th className="pb-2 font-medium text-right">Unit Price</th>
-                                                    <th className="pb-2 font-medium text-right">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-neutral-50">
-                                                {[...po.items].sort((a: any, b: any) => {
-                                                    if (!a.service_date) return 1;
-                                                    if (!b.service_date) return -1;
-                                                    return new Date(a.service_date).getTime() - new Date(b.service_date).getTime();
-                                                }).map((item: any) => (
-                                                    <tr key={item.id} className="text-neutral-700">
-                                                        <td className="py-3">
-                                                            <div className="font-medium">{item.description}</div>
-                                                            {item.special_notes && (
-                                                                <div className="text-xs text-orange-500 mt-1 whitespace-pre-line">{item.special_notes}</div>
-                                                            )}
-                                                        </td>
-                                                        <td className="py-3">{item.service_date ? new Date(item.service_date).toLocaleDateString() : '-'}</td>
-                                                        <td className="py-3 text-center">{item.quantity}</td>
-                                                        <td className="py-3 text-right">${(item.unit_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                        <td className="py-3 text-right font-bold">${(item.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                            <tfoot className="border-t border-neutral-200 text-neutral-700">
-                                                {po.discount > 0 && (
-                                                    <tr>
-                                                        <td colSpan={4} className="py-2 text-right text-green-600 font-medium">Discount</td>
-                                                        <td className="py-2 text-right text-green-600 font-bold">-${(po.discount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                    </tr>
-                                                )}
-                                                {po.service_charge > 0 && (
-                                                    <tr>
-                                                        <td colSpan={4} className="py-2 text-right text-orange-600 font-medium">Markup / Service Charge</td>
-                                                        <td className="py-2 text-right text-orange-600 font-bold">+${(po.service_charge || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                    </tr>
-                                                )}
-                                                <tr>
-                                                    <td colSpan={4} className="py-3 text-right text-neutral-800 font-bold text-base">Total Amount</td>
-                                                    <td className="py-3 text-right text-neutral-800 font-black text-base">${(po.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                    
-                                    {po.vendor_notes && (
-                                        <div className="mt-4 p-3 bg-neutral-50 rounded-xl border border-neutral-100 text-xs text-neutral-600 whitespace-pre-line">
-                                            <span className="font-bold text-neutral-800 block mb-1">Vendor Notes / Guest Details:</span>
-                                            {po.vendor_notes}
-                                        </div>
-                                    )}
-
-                                    <div className="mt-6 pt-6 border-t border-neutral-100 flex justify-end">
-                                        <button
-                                            onClick={() => handleOpenSendModal(po)}
-                                            className="flex items-center gap-2 bg-brand-charcoal text-white hover:bg-black px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md"
-                                        >
-                                            <Mail size={14} className="text-brand-gold" />
-                                            Send PO via Email
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+            {subTab === 'bookings' && (
+                <div className="space-y-6">
+                    {/* Header toolbar for bookings */}
+                    <div className="flex items-center justify-between bg-white px-6 py-4 rounded-3xl border border-neutral-200 shadow-sm">
+                        <div>
+                            <h4 className="font-serif font-bold text-brand-charcoal text-base">Supplier Bookings Ledger</h4>
+                            <p className="text-xs text-neutral-400 mt-0.5">Review and manage multiple booking requests (backup & primary) sent to suppliers.</p>
                         </div>
-                    ))}
+                        <button
+                            onClick={async () => {
+                                setIsSyncing(true);
+                                await Promise.all([fetchBookings(), fetchDailyActivities()]);
+                                setIsSyncing(false);
+                            }}
+                            disabled={isSyncing}
+                            className="flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                        >
+                            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                            Reload Ledger
+                        </button>
+                    </div>
+
+                    {isLoadingBookings ? (
+                        <div className="bg-white p-12 rounded-[40px] border border-neutral-200 shadow-sm text-center">
+                            <RefreshCw className="animate-spin mx-auto text-neutral-300 mb-2" />
+                            <p className="text-neutral-400 italic">Loading Supplier Bookings...</p>
+                        </div>
+                    ) : dailyActivities.length === 0 ? (
+                        <div className="bg-white p-12 rounded-[40px] border border-neutral-200 shadow-sm text-center">
+                            <p className="text-neutral-400 italic">No daily itinerary activities found. Assign items in Builder first.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {/* Group activities by type/category */}
+                            {[
+                                { id: 'sleep', label: 'Accommodations (Hotels)' },
+                                { id: 'travel', label: 'Transport Providers' },
+                                { id: 'guide', label: 'Tour Guides' },
+                                { id: 'driver', label: 'Drivers' },
+                                { id: 'meal', label: 'Restaurants' },
+                                { id: 'activity', label: 'Activity Vendors' }
+                            ].map(cat => {
+                                const acts = dailyActivities.filter(a => a.activity_type === cat.id);
+                                if (acts.length === 0) return null;
+
+                                return (
+                                    <div key={cat.id} className="bg-white rounded-3xl border border-neutral-200 shadow-sm overflow-hidden">
+                                        <div className="bg-neutral-50 px-6 py-4 border-b border-neutral-200 flex justify-between items-center">
+                                            <h5 className="font-bold text-neutral-800 text-sm uppercase tracking-wider">{cat.label}</h5>
+                                            <span className="text-xs font-bold bg-neutral-200 text-neutral-600 px-2.5 py-1 rounded-full">{acts.length} Activities</span>
+                                        </div>
+                                        <div className="divide-y divide-neutral-100">
+                                            {acts.map((act) => {
+                                                const linkedBookings = bookings.filter(b => (b.daily_activity_ids || []).includes(act.id));
+                                                
+                                                // Find finalized vendor name for display
+                                                let finalizedVendorName = 'None';
+                                                if (act.hotel_id) finalizedVendorName = masterHotels.find(h => h.id === act.hotel_id)?.name || 'Hotel';
+                                                else if (act.transport_id) finalizedVendorName = masterTransports.find(t => t.id === act.transport_id)?.name || 'Transport';
+                                                else if (act.guide_id) finalizedVendorName = masterGuides.find(g => g.id === act.guide_id)?.first_name || 'Guide';
+                                                else if (act.driver_id) finalizedVendorName = masterDrivers.find(d => d.id === act.driver_id)?.first_name || 'Driver';
+                                                else if (act.restaurant_id) finalizedVendorName = masterRestaurants.find(r => r.id === act.restaurant_id)?.name || 'Restaurant';
+                                                else if (act.vendor_id) finalizedVendorName = masterVendors.find(v => v.id === act.vendor_id)?.name || 'Vendor';
+
+                                                return (
+                                                    <div key={act.id} className="p-6 space-y-4">
+                                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-neutral-50 pb-3">
+                                                            <div>
+                                                                <h6 className="font-serif font-bold text-brand-charcoal text-base">{act.title || 'Itinerary Event'}</h6>
+                                                                <p className="text-xs text-neutral-400 mt-0.5">Day {act.itinerary_id ? 'Scheduled' : 'TBD'} | Finalized Supplier: <span className="font-bold text-brand-green">{finalizedVendorName}</span></p>
+                                                            </div>
+                                                            {act.agreed_unit_price && (
+                                                                <div className="text-sm font-black text-brand-charcoal bg-neutral-50 border border-neutral-100 px-3 py-1.5 rounded-xl self-start md:self-auto">
+                                                                    Agreed Cost: ${Number(act.agreed_total_price || act.agreed_unit_price).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {linkedBookings.length === 0 ? (
+                                                            <div className="bg-neutral-50 p-4 rounded-2xl text-center text-xs text-neutral-400 italic">
+                                                                No service bookings initiated for this event. Send a quotation request in Negotiation step first.
+                                                            </div>
+                                                        ) : (
+                                                            <div className="overflow-x-auto border border-neutral-100 rounded-2xl bg-neutral-50/20">
+                                                                <table className="w-full text-xs text-left border-collapse">
+                                                                    <thead>
+                                                                        <tr className="bg-neutral-50 text-neutral-400 font-bold uppercase text-[9px] tracking-wider border-b border-neutral-100">
+                                                                            <th className="p-3">Vendor / Supplier</th>
+                                                                            <th className="p-3">Agreed Price</th>
+                                                                            <th className="p-3">Booking Status</th>
+                                                                            <th className="p-3">Cancellation Policy</th>
+                                                                            <th className="p-3">PO Linked</th>
+                                                                            <th className="p-3 text-right">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-neutral-100 bg-white">
+                                                                        {linkedBookings.map((b) => {
+                                                                            const deadlineObj = getDeadlineStatus(b.cancellation_deadline);
+                                                                            const matchedPO = purchaseOrders.find(po => po.id === b.purchase_order_id);
+
+                                                                            return (
+                                                                                <tr key={b.id} className="hover:bg-neutral-50/20">
+                                                                                    <td className="p-3 font-bold text-brand-charcoal">{b.vendor_name}</td>
+                                                                                    <td className="p-3 font-bold">${(b.agreed_price || 0).toLocaleString(undefined, {minimumFractionDigits:2})} {b.currency}</td>
+                                                                                    <td className="p-3">
+                                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                                                                            b.status === 'Went Ahead' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                                                            b.status === 'Confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                                                            b.status === 'Cancelled' ? 'bg-red-50 text-red-700 border-red-200 line-through' :
+                                                                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                                                                        }`}>
+                                                                                            {b.status}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                    <td className="p-3">
+                                                                                        <div className="flex flex-col gap-1">
+                                                                                            {b.cancellation_deadline && (
+                                                                                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold self-start border ${deadlineObj.color}`}>
+                                                                                                    {deadlineObj.label}
+                                                                                                </span>
+                                                                                            )}
+                                                                                            <span className="text-[10px] text-neutral-400 line-clamp-1" title={b.cancellation_policy || 'No policy specified'}>
+                                                                                                {b.cancellation_policy || 'No policy specified'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td className="p-3">
+                                                                                        {matchedPO ? (
+                                                                                            <div className="flex flex-col gap-0.5">
+                                                                                                <span className="font-mono bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded text-[10px]">{matchedPO.po_number}</span>
+                                                                                                <span className="text-[9px] text-neutral-400">PO Status: {matchedPO.status}</span>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <span className="text-neutral-400">None</span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="p-3 text-right">
+                                                                                        <div className="flex items-center justify-end gap-2">
+                                                                                            {b.status === 'Pending' && (
+                                                                                                <button
+                                                                                                    onClick={() => handleOpenServiceEmailModal(b)}
+                                                                                                    className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold rounded"
+                                                                                                >
+                                                                                                    Send Request
+                                                                                                </button>
+                                                                                            )}
+                                                                                            {b.status !== 'Went Ahead' && b.status !== 'Cancelled' && (
+                                                                                                <>
+                                                                                                    <button
+                                                                                                        onClick={() => handleInitiateConfirmBooking(b)}
+                                                                                                        disabled={isConfirmingBookingId === b.id}
+                                                                                                        className="px-2.5 py-1 bg-brand-green hover:bg-green-900 text-white font-bold rounded transition-colors disabled:opacity-50"
+                                                                                                    >
+                                                                                                        {isConfirmingBookingId === b.id ? 'Confirming...' : 'Go Ahead'}
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                        onClick={() => handleCancelBooking(b.id)}
+                                                                                                        className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                                                                        title="Cancel Booking & PO"
+                                                                                                    >
+                                                                                                        <Trash2 size={14} />
+                                                                                                    </button>
+                                                                                                </>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
+            {subTab === 'finance' && (
+                <div className="space-y-6">
+                    {/* Header toolbar for finance */}
+                    <div className="flex items-center justify-between bg-white px-6 py-4 rounded-3xl border border-neutral-200 shadow-sm">
+                        <div>
+                            <h4 className="font-serif font-bold text-brand-charcoal text-base">Purchase Orders & Payments ledger</h4>
+                            <p className="text-xs text-neutral-400 mt-0.5">Verify vendor invoices, process payments, upload slips, and view remaining balances.</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={syncWithItinerary}
+                                disabled={isSyncing}
+                                className="flex items-center gap-2 bg-brand-gold text-white px-4 py-2 rounded-xl hover:bg-yellow-600 transition-all font-bold text-xs disabled:opacity-50"
+                            >
+                                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} /> {isSyncing ? 'Syncing...' : 'Sync with Itinerary'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {isLoadingPOs ? (
+                        <div className="bg-white p-12 rounded-[40px] border border-neutral-200 shadow-sm text-center">
+                            <RefreshCw className="animate-spin mx-auto text-neutral-300 mb-2" />
+                            <p className="text-neutral-400 italic">Loading Purchase Orders...</p>
+                        </div>
+                    ) : purchaseOrders.length === 0 ? (
+                        <div className="bg-white p-12 rounded-[40px] border border-neutral-200 shadow-sm text-center">
+                            <p className="text-neutral-400 italic">No Purchase Orders generated yet. Click "Sync with Itinerary" or confirm service bookings.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {purchaseOrders.map((po) => {
+                                // Calculate invoice & payment metrics for this PO
+                                const invoicesList = po.invoices || [];
+                                const totalInvoiced = invoicesList.reduce((sum: number, inv: any) => sum + Number(inv.amount), 0);
+                                
+                                const allPayments = invoicesList.flatMap((inv: any) => inv.payments || []);
+                                const totalPaid = allPayments.reduce((sum: number, pay: any) => sum + Number(pay.amount), 0);
+                                const balancePayable = po.total_amount - totalPaid;
+
+                                return (
+                                    <div key={po.id} className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                                        <div 
+                                            className="px-6 py-4 flex items-center justify-between cursor-pointer bg-neutral-50 hover:bg-neutral-100 transition-colors"
+                                            onClick={() => setExpandedPO(expandedPO === po.id ? null : po.id)}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-2 rounded-xl ${po.status === 'Cancelled' ? 'bg-red-100 text-red-600' : (po.vendor_type === 'hotel' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600')}`}>
+                                                    <FileText size={20} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-neutral-800">{po.vendor_name}</h4>
+                                                    <div className="flex items-center gap-2 text-xs text-neutral-500 mt-1">
+                                                        <span className="font-mono bg-neutral-200 px-2 py-0.5 rounded-md">{po.po_number}</span>
+                                                        <span>•</span>
+                                                        <span className="capitalize">{po.vendor_type}</span>
+                                                        <span>•</span>
+                                                        <span>{new Date(po.po_date).toLocaleDateString()}</span>
+                                                        {po.status === 'Cancelled' && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span className="text-red-500 font-bold">CANCELLED</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-6">
+                                                <div className="text-right">
+                                                    <div className="text-sm font-bold text-neutral-800">${(po.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                    <div className={`text-xs font-bold mt-1 ${po.status === 'Cancelled' ? 'text-red-500' : (po.status === 'Draft' ? 'text-amber-500' : 'text-green-500')}`}>
+                                                        {po.status}
+                                                    </div>
+                                                </div>
+                                                <div className="text-neutral-400">
+                                                    {expandedPO === po.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {expandedPO === po.id && (
+                                            <div className="px-6 py-4 border-t border-neutral-100 space-y-6">
+                                                {/* Header Details */}
+                                                {(po.vendor_address || po.vendor_phone || po.vendor_email || po.sent_email || po.sent_to_name || po.sent_date) && (
+                                                    <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-100 text-xs text-neutral-600 space-y-1">
+                                                        {po.vendor_address && <div><span className="font-semibold">Address:</span> {po.vendor_address}</div>}
+                                                        {po.vendor_phone && <div><span className="font-semibold">Phone:</span> {po.vendor_phone}</div>}
+                                                        {po.vendor_email && <div><span className="font-semibold">Registered Email:</span> {po.vendor_email}</div>}
+                                                        {(po.sent_email || po.sent_to_name || po.sent_date) && (
+                                                            <div className="pt-2 mt-2 border-t border-neutral-200/60 text-neutral-500">
+                                                                <div className="font-semibold text-neutral-700 mb-1">Email Delivery Tracking:</div>
+                                                                {po.sent_to_name && <div><span className="font-semibold">Sent To Name:</span> {po.sent_to_name}</div>}
+                                                                {po.sent_email && <div><span className="font-semibold">Sent To Email:</span> {po.sent_email}</div>}
+                                                                {po.sent_date && <div><span className="font-semibold">Sent Date:</span> {new Date(po.sent_date).toLocaleString()}</div>}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* PO items */}
+                                                {po.items && po.items.length > 0 && (
+                                                    <div className="space-y-2">
+                                                        <div className="font-bold text-xs text-neutral-500 uppercase tracking-wider">Purchase Order Items</div>
+                                                        <div className="overflow-x-auto border border-neutral-100 rounded-xl">
+                                                            <table className="w-full text-xs text-left">
+                                                                <thead>
+                                                                    <tr className="bg-neutral-50/50 text-neutral-400 border-b border-neutral-100">
+                                                                        <th className="p-3 font-medium">Description</th>
+                                                                        <th className="p-3 font-medium">Service Date</th>
+                                                                        <th className="p-3 font-medium text-center">Qty</th>
+                                                                        <th className="p-3 font-medium text-right">Unit Price</th>
+                                                                        <th className="p-3 font-medium text-right">Total</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-neutral-50">
+                                                                    {[...po.items].map((item: any) => (
+                                                                        <tr key={item.id} className="text-neutral-700 bg-white">
+                                                                            <td className="p-3">
+                                                                                <div className="font-medium">{item.description}</div>
+                                                                                {item.special_notes && (
+                                                                                    <div className="text-[10px] text-orange-500 mt-1 whitespace-pre-line">{item.special_notes}</div>
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="p-3">{item.service_date ? new Date(item.service_date).toLocaleDateString() : '-'}</td>
+                                                                            <td className="p-3 text-center">{item.quantity}</td>
+                                                                            <td className="p-3 text-right">${(item.unit_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                            <td className="p-3 text-right font-bold">${(item.total_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Invoices and Payments Section */}
+                                                {po.status !== 'Draft' && po.status !== 'Cancelled' && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-neutral-100">
+                                                        {/* Invoices column */}
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="font-bold text-xs text-neutral-500 uppercase tracking-wider">Supplier Invoices ({invoicesList.length})</span>
+                                                                <button
+                                                                    onClick={() => handleOpenInvoiceModal(po)}
+                                                                    className="flex items-center gap-1 bg-brand-gold/10 text-brand-gold hover:bg-brand-gold/20 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all"
+                                                                >
+                                                                    <Plus size={10} /> Record Invoice
+                                                                </button>
+                                                            </div>
+                                                            {invoicesList.length === 0 ? (
+                                                                <div className="bg-neutral-50 p-6 rounded-xl border border-neutral-100 text-center text-xs text-neutral-400 italic">
+                                                                    No invoices logged yet. Click "Record Invoice" once received from the vendor.
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-3">
+                                                                    {invoicesList.map((inv: any) => (
+                                                                        <div key={inv.id} className="p-3 bg-neutral-50 border border-neutral-100 rounded-xl space-y-2">
+                                                                            <div className="flex items-center justify-between text-xs font-semibold">
+                                                                                <span className="font-mono">Invoice #: {inv.invoice_number}</span>
+                                                                                <span className="text-brand-charcoal">${(inv.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center justify-between text-[10px] text-neutral-400">
+                                                                                <span>Due: {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : 'TBD'}</span>
+                                                                                <span>Status: {inv.status}</span>
+                                                                            </div>
+                                                                            {inv.attachment_url && (
+                                                                                <div className="text-[10px] text-blue-600 hover:underline">
+                                                                                    <a href={inv.attachment_url} target="_blank" rel="noreferrer">View Invoice Attachment</a>
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="pt-2 border-t border-neutral-200/50 flex justify-end">
+                                                                                <button
+                                                                                    onClick={() => handleOpenPaymentModal(inv, po)}
+                                                                                    className="flex items-center gap-1 text-xs font-bold text-brand-green hover:underline"
+                                                                                >
+                                                                                    <FileUp size={12} /> Log Payment Slip
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Payments column */}
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="font-bold text-xs text-neutral-500 uppercase tracking-wider">Payment Slips Ledger ({allPayments.length})</span>
+                                                            </div>
+                                                            {allPayments.length === 0 ? (
+                                                                <div className="bg-neutral-50 p-6 rounded-xl border border-neutral-100 text-center text-xs text-neutral-400 italic">
+                                                                    No payment slips uploaded yet. Log a payment under a supplier invoice.
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-3">
+                                                                    {allPayments.map((pay: any) => (
+                                                                        <div key={pay.id} className="p-3 bg-white border border-neutral-200 rounded-xl space-y-1.5 text-xs text-neutral-600">
+                                                                            <div className="flex items-center justify-between font-semibold">
+                                                                                <span>{pay.payment_method}</span>
+                                                                                <span className="text-brand-green font-bold">${(pay.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                                                            </div>
+                                                                            {pay.payment_reference && <div><span className="font-semibold text-neutral-400">Ref:</span> {pay.payment_reference}</div>}
+                                                                            <div><span className="font-semibold text-neutral-400">Date:</span> {new Date(pay.payment_date).toLocaleDateString()}</div>
+                                                                            {pay.notes && <div className="text-[10px] text-neutral-400 italic">{pay.notes}</div>}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Reconcile card */}
+                                                {po.status !== 'Cancelled' && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-[#F5F3EF] rounded-2xl border border-neutral-200 text-xs font-semibold text-neutral-600">
+                                                        <div className="text-center md:text-left">
+                                                            <div className="text-[10px] text-neutral-400 uppercase tracking-wider font-bold">PO Total</div>
+                                                            <div className="text-sm font-black text-brand-charcoal mt-1">${po.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                                        </div>
+                                                        <div className="text-center md:text-left">
+                                                            <div className="text-[10px] text-neutral-400 uppercase tracking-wider font-bold">Total Invoiced</div>
+                                                            <div className="text-sm font-black text-neutral-700 mt-1">${totalInvoiced.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                                        </div>
+                                                        <div className="text-center md:text-left">
+                                                            <div className="text-[10px] text-neutral-400 uppercase tracking-wider font-bold">Total Paid</div>
+                                                            <div className="text-sm font-black text-brand-green mt-1">${totalPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                                        </div>
+                                                        <div className="text-center md:text-left border-t md:border-t-0 md:border-l border-neutral-300 pt-2 md:pt-0 md:pl-4">
+                                                            <div className="text-[10px] text-neutral-400 uppercase tracking-wider font-bold">Balance Payable</div>
+                                                            <div className={`text-sm font-black mt-1 ${balancePayable <= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                                                                ${balancePayable.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Footer buttons */}
+                                                {po.status !== 'Cancelled' && (
+                                                    <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100">
+                                                        <button
+                                                            onClick={() => handleOpenSendModal(po)}
+                                                            className="flex items-center gap-2 bg-brand-charcoal text-white hover:bg-black px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md"
+                                                        >
+                                                            <Mail size={14} className="text-brand-gold" />
+                                                            Send PO via Email
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Email Purchase Order Modal */}
             {showSendModal && selectedPO && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] border border-neutral-200 shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
@@ -1332,6 +1992,347 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Email Service Request Modal */}
+            {showServiceEmailModal && selectedBookingForEmail && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[32px] border border-neutral-200 shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        {/* Header */}
+                        <div className="bg-brand-charcoal p-6 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Mail className="text-brand-gold" size={24} />
+                                <div>
+                                    <h3 className="text-lg font-bold font-serif">Email Service Request</h3>
+                                    <p className="text-xs text-neutral-400">Send Booking Request to {serviceEmailToName}</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setShowServiceEmailModal(false)} className="text-neutral-400 hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <form onSubmit={handleSendServiceEmail} className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">To (Recipient Email)</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={serviceEmailTo}
+                                        onChange={(e) => setServiceEmailTo(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Recipient Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={serviceEmailToName}
+                                        onChange={(e) => setServiceEmailToName(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Subject</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={serviceEmailSubject}
+                                    onChange={(e) => setServiceEmailSubject(e.target.value)}
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Message</label>
+                                <textarea
+                                    required
+                                    rows={8}
+                                    value={serviceEmailBody}
+                                    onChange={(e) => setServiceEmailBody(e.target.value)}
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none font-mono"
+                                />
+                            </div>
+
+                            <div className="pt-4 border-t border-neutral-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowServiceEmailModal(false)}
+                                    className="px-6 py-2 border border-neutral-200 text-neutral-500 rounded-xl text-xs font-bold hover:bg-neutral-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSendingServiceEmail}
+                                    className="flex items-center gap-2 px-6 py-2 bg-brand-gold hover:bg-yellow-600 text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
+                                >
+                                    {isSendingServiceEmail ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                                    Send Service Request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Record Supplier Invoice Modal */}
+            {showInvoiceModal && selectedPOForInvoice && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[32px] border border-neutral-200 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+                        {/* Header */}
+                        <div className="bg-brand-charcoal p-6 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileSpreadsheet className="text-brand-gold" size={24} />
+                                <div>
+                                    <h3 className="text-lg font-bold font-serif">Record Supplier Invoice</h3>
+                                    <p className="text-xs text-neutral-400">Log invoice received for PO {selectedPOForInvoice.po_number}</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setShowInvoiceModal(false)} className="text-neutral-400 hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <form onSubmit={handleSaveInvoice} className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Invoice Number</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g. INV-2024-998"
+                                        value={invoiceNumber}
+                                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Invoice Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={invoiceDate}
+                                        onChange={(e) => setInvoiceDate(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Due Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={invoiceDueDate}
+                                        onChange={(e) => setInvoiceDueDate(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Invoice Amount ($)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={invoiceAmount}
+                                        onChange={(e) => setInvoiceAmount(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Attachment URL (Mock File Link)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. https://storage.nilathra.com/invoices/inv_998.pdf"
+                                        value={invoiceAttachmentUrl}
+                                        onChange={(e) => setInvoiceAttachmentUrl(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-neutral-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInvoiceModal(false)}
+                                    className="px-6 py-2 border border-neutral-200 text-neutral-500 rounded-xl text-xs font-bold hover:bg-neutral-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingInvoice}
+                                    className="flex items-center gap-2 px-6 py-2 bg-brand-gold hover:bg-yellow-600 text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
+                                >
+                                    {isSavingInvoice ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                    Log Invoice
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Record Payment Slip Modal */}
+            {showPaymentModal && selectedInvoiceForPayment && selectedPOForPayment && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[32px] border border-neutral-200 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+                        {/* Header */}
+                        <div className="bg-brand-charcoal p-6 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <FileUp className="text-brand-gold" size={24} />
+                                <div>
+                                    <h3 className="text-lg font-bold font-serif">Log Payment Slip</h3>
+                                    <p className="text-xs text-neutral-400">Record transaction for Invoice #{selectedInvoiceForPayment.invoice_number}</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setShowPaymentModal(false)} className="text-neutral-400 hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <form onSubmit={handleSavePayment} className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Payment Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={paymentDate}
+                                        onChange={(e) => setPaymentDate(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Amount Paid ($)</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={paymentAmount}
+                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Payment Method</label>
+                                    <select
+                                        value={paymentMethod}
+                                        onChange={(e) => setPaymentMethod(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    >
+                                        {['Bank Transfer', 'Cash', 'Card', 'Cheque'].map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Transaction Reference</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g. TXN-99887766-M"
+                                        value={paymentReference}
+                                        onChange={(e) => setPaymentReference(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Notes / Slip details</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Add notes like bank branch, card issuer..."
+                                        value={paymentNotes}
+                                        onChange={(e) => setPaymentNotes(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-neutral-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPaymentModal(false)}
+                                    className="px-6 py-2 border border-neutral-200 text-neutral-500 rounded-xl text-xs font-bold hover:bg-neutral-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingPayment}
+                                    className="flex items-center gap-2 px-6 py-2 bg-brand-gold hover:bg-yellow-600 text-white rounded-xl text-xs font-bold transition-all shadow-md disabled:opacity-50"
+                                >
+                                    {isSavingPayment ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                    Record Slip Payment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancellation Deadline Warning Dialog */}
+            {showDeadlineWarningModal && bookingToConfirm && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[32px] border border-neutral-200 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300 border-t-4 border-t-red-500">
+                        {/* Header */}
+                        <div className="p-6 pb-2 flex items-start gap-4">
+                            <div className="p-3 bg-red-50 text-red-500 rounded-2xl">
+                                <ShieldAlert size={28} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold font-serif text-brand-charcoal">Cancellation Policy Warning</h3>
+                                <p className="text-xs text-neutral-400 mt-1">Confirming this supplier triggers cancellations of backup bookings with contract penalties.</p>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-4">
+                            <div className="bg-red-50/50 border border-red-100 rounded-2xl p-4 text-xs text-red-700 space-y-2">
+                                <p className="font-semibold">The following parallel bookings are past their free cancellation deadline. Cancelling them now will violate agreement terms and might incur penalty charges:</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                    {expiredDeadlinesList.map((c, idx) => (
+                                        <li key={idx}>
+                                            <span className="font-bold">{c.vendor_name}</span>: Expired on {new Date(c.cancellation_deadline).toLocaleString()}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <p className="text-xs text-neutral-500">Do you want to proceed and verify these cancellation penalties manually, or go back to review?</p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-100 flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowDeadlineWarningModal(false)}
+                                className="px-5 py-2 rounded-xl text-sm font-bold text-neutral-600 hover:bg-neutral-200 transition-colors"
+                            >
+                                Keep Bookings
+                            </button>
+                            <button
+                                onClick={() => executeConfirmBooking(bookingToConfirm.id)}
+                                disabled={isConfirmingBookingId === bookingToConfirm.id}
+                                className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-all shadow-md disabled:opacity-50"
+                            >
+                                {isConfirmingBookingId === bookingToConfirm.id ? 'Confirming...' : 'Yes, Proceed'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

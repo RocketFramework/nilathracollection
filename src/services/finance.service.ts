@@ -84,6 +84,15 @@ export class FinanceService {
             savedPOId = newPO.id;
         }
 
+        // If vendor_booking_id is provided, link this PO to the booking record
+        if (poData.vendor_booking_id) {
+            const { error: linkErr } = await supabase
+                .from('vendor_bookings')
+                .update({ purchase_order_id: savedPOId })
+                .eq('id', poData.vendor_booking_id);
+            if (linkErr) throw linkErr;
+        }
+
         // Insert items
         if (items && items.length > 0) {
             const itemsToInsert = items.map(item => {

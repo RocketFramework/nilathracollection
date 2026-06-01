@@ -1,7 +1,7 @@
 "use client";
 
 import { TripData, InternalItineraryBlock } from "../types";
-import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail, Code, CheckCircle2 } from "lucide-react";
+import { Handshake, Building2, Utensils, Car, Compass, UserCheck, RefreshCw, AlertTriangle, Info, FileText, Mail, Code, CheckCircle2, X } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
     getHotelsListAction,
@@ -20,7 +20,9 @@ import {
     createQuotationRequestAction,
     getQuotationRequestsForActivityAction,
     updateQuotationAction,
-    selectQuotationAction
+    selectQuotationAction,
+    createVendorBookingAction,
+    getVendorBookingsAction
 } from "@/actions/admin.actions";
 import { getMyNotificationsAction, logQuoteRequestAction } from "@/actions/notification.actions";
 
@@ -125,11 +127,28 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
     const [editingQuoteNotes, setEditingQuoteNotes] = useState<Record<string, string>>({});
     const [updatingQuoteId, setUpdatingQuoteId] = useState<string | null>(null);
 
+    // Booking flow states
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [showBookingModal, setShowBookingModal] = useState(false);
+    const [selectedQuoteForBooking, setSelectedQuoteForBooking] = useState<any | null>(null);
+    const [selectedGroupItemsForBooking, setSelectedGroupItemsForBooking] = useState<any[]>([]);
+    const [bookingCancellationDeadline, setBookingCancellationDeadline] = useState('');
+    const [bookingCancellationPolicy, setBookingCancellationPolicy] = useState('');
+    const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+
+    const fetchBookings = async () => {
+        if (!tripData.id) return;
+        const res = await getVendorBookingsAction(tripData.id);
+        if (res.success) {
+            setBookings(res.bookings || []);
+        }
+    };
+
     useEffect(() => {
         const fetchMasterData = async () => {
             setIsLoading(true);
             try {
-                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes, finalRes, dbActivitiesRes] = await Promise.all([
+                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes, finalRes, dbActivitiesRes, bookingsRes] = await Promise.all([
                     getHotelsListAction(),
                     getVendorsAction(),
                     getTransportProvidersAction(),
@@ -137,7 +156,8 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                     getRestaurantsAction(),
                     getMyNotificationsAction(),
                     getFinalizedActivitiesAction(tripData.id || ''),
-                    getDailyActivitiesAction(tripData.id || '')
+                    getDailyActivitiesAction(tripData.id || ''),
+                    getVendorBookingsAction(tripData.id || '')
                 ]);
 
                 if (hotelsRes.success) setMasterHotels(hotelsRes.hotels || []);
@@ -146,6 +166,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                 if (guidesRes.success) setMasterGuides(guidesRes.guides || []);
                 if (restRes.success) setMasterRestaurants(restRes.restaurants || []);
                 if (nRes.success) setNotifications(nRes.data || []);
+                if (bookingsRes.success) setBookings(bookingsRes.bookings || []);
                 if (finalRes.success && finalRes.activities) {
                     setFinalizedIds(new Set(finalRes.activities.map((a: any) => a.id)));
                 }
@@ -521,6 +542,58 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         } catch (err: any) {
             console.error("Error selecting quotation:", err);
             alert("An error occurred: " + err.message);
+        }
+    };
+
+    const handleProceedToBooking = (quote: any, groupItems: any[]) => {
+        setSelectedQuoteForBooking(quote);
+        setSelectedGroupItemsForBooking(groupItems);
+        setBookingCancellationDeadline('');
+        setBookingCancellationPolicy('');
+        setShowBookingModal(true);
+    };
+
+    const handleCreateBooking = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedQuoteForBooking || !tripData.id) return;
+        setIsCreatingBooking(true);
+        try {
+            const actIds = selectedGroupItemsForBooking.map(i => i.block?.id).filter(Boolean);
+            const res = await createVendorBookingAction({
+                tour_id: tripData.id,
+                quotation_request_id: selectedQuoteForBooking.id,
+                vendor_type: selectedQuoteForBooking.activity_type === 'sleep' ? 'hotel' : 
+                             (selectedQuoteForBooking.activity_type === 'travel' ? 'transport_provider' :
+                              (selectedQuoteForBooking.activity_type === 'guide' ? 'tour_guide' :
+                               (selectedQuoteForBooking.activity_type === 'meal' ? 'restaurant' : 
+                                (selectedQuoteForBooking.activity_type === 'driver' ? 'driver' : 'vendor')))),
+                vendor_id: selectedQuoteForBooking.vendor_id,
+                vendor_name: selectedQuoteForBooking.vendor_name,
+                agreed_price: selectedQuoteForBooking.quoted_price || 0,
+                currency: selectedQuoteForBooking.currency || 'USD',
+                cancellation_deadline: bookingCancellationDeadline ? new Date(bookingCancellationDeadline).toISOString() : null,
+                cancellation_policy: bookingCancellationPolicy || null,
+                notes: selectedQuoteForBooking.notes || null,
+                daily_activity_ids: actIds
+            });
+
+            if (res.success) {
+                alert(`Booking request created successfully for ${selectedQuoteForBooking.vendor_name}! A Draft Purchase Order has been raised in parallel.`);
+                setShowBookingModal(false);
+                await fetchBookings();
+                // Refresh quotations since the quote status changed to 'Selected'
+                const firstItemId = selectedGroupItemsForBooking[0]?.block?.id;
+                if (firstItemId) {
+                    await fetchQuotationsForActivity(firstItemId);
+                }
+            } else {
+                alert(`Failed to create booking: ${res.error}`);
+            }
+        } catch (error: any) {
+            console.error("Error creating booking:", error);
+            alert(`An error occurred: ${error.message || error}`);
+        } finally {
+            setIsCreatingBooking(false);
         }
     };
 
@@ -1498,6 +1571,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                 {groupQuotes.map((q: any) => {
                                                                     const qId = q.id;
                                                                     const isQuoteSelected = q.selected_vendor;
+                                                                    const linkedBooking = bookings.find(b => b.quotation_request_id === qId);
                                                                     
                                                                     const currentPrice = editingQuotePrice[qId] !== undefined ? editingQuotePrice[qId] : (q.quoted_price || '');
                                                                     const currentNotes = editingQuoteNotes[qId] !== undefined ? editingQuoteNotes[qId] : (q.notes || '');
@@ -1508,7 +1582,10 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                                 {isQuoteSelected && <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />}
                                                                                 <span>{q.vendor_name}</span>
                                                                             </td>
-                                                                            <td className="p-3 text-neutral-500">{new Date(q.sent_date).toLocaleDateString()}</td>
+                                                                            <td className="p-3 text-neutral-500">
+                                                                                <div>{new Date(q.sent_date).toLocaleDateString()}</div>
+                                                                                <div className="text-[10px] text-neutral-400 font-mono mt-0.5">{q.to_email}</div>
+                                                                            </td>
                                                                             <td className="p-3">
                                                                                 <select
                                                                                     value={q.status}
@@ -1544,13 +1621,33 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                                                 />
                                                                             </td>
                                                                             <td className="p-3 text-right">
-                                                                                <button
-                                                                                    onClick={() => handleSelectQuotation(q, items)}
-                                                                                    disabled={isQuoteSelected || !q.quoted_price || updatingQuoteId === qId}
-                                                                                    className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${isQuoteSelected ? 'bg-green-100 text-green-700 cursor-default' : 'bg-brand-charcoal text-white hover:bg-black disabled:bg-neutral-100 disabled:text-neutral-400'}`}
-                                                                                >
-                                                                                    {isQuoteSelected ? 'Selected' : 'Apply Quote'}
-                                                                                </button>
+                                                                                <div className="flex items-center justify-end gap-2">
+                                                                                    {linkedBooking ? (
+                                                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
+                                                                                            linkedBooking.status === 'Went Ahead' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                                                            linkedBooking.status === 'Confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                                                            linkedBooking.status === 'Cancelled' ? 'bg-red-50 text-red-700 border-red-200 line-through' :
+                                                                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                                                                        }`}>
+                                                                                            Booking: {linkedBooking.status}
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <button
+                                                                                            onClick={() => handleProceedToBooking(q, items)}
+                                                                                            disabled={!q.quoted_price || updatingQuoteId === qId}
+                                                                                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold rounded transition-colors disabled:opacity-50"
+                                                                                        >
+                                                                                            Book Service
+                                                                                        </button>
+                                                                                    )}
+                                                                                    <button
+                                                                                        onClick={() => handleSelectQuotation(q, items)}
+                                                                                        disabled={isQuoteSelected || !q.quoted_price || updatingQuoteId === qId}
+                                                                                        className={`px-2.5 py-1 text-[10px] font-bold rounded transition-colors ${isQuoteSelected ? 'bg-green-100 text-green-700 cursor-default border border-green-200' : 'bg-brand-charcoal text-white hover:bg-black disabled:bg-neutral-100 disabled:text-neutral-400'}`}
+                                                                                    >
+                                                                                        {isQuoteSelected ? 'Selected' : 'Apply Quote'}
+                                                                                    </button>
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     );
@@ -1660,6 +1757,99 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {showBookingModal && selectedQuoteForBooking && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[32px] border border-neutral-200 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                        {/* Header */}
+                        <div className="bg-brand-charcoal p-6 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Building2 className="text-brand-gold" size={24} />
+                                <div>
+                                    <h3 className="text-lg font-bold font-serif">Create Service Booking</h3>
+                                    <p className="text-xs text-neutral-400">Lock in rates and terms with {selectedQuoteForBooking.vendor_name}</p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setShowBookingModal(false)} className="text-neutral-400 hover:text-white transition-colors">
+                                <X size={20} className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Form Body */}
+                        <form onSubmit={handleCreateBooking} className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 font-semibold">Vendor Name</label>
+                                    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-sm font-semibold text-brand-charcoal">{selectedQuoteForBooking.vendor_name}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 font-semibold">Agreed Price</label>
+                                    <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-sm font-bold text-brand-charcoal">${(selectedQuoteForBooking.quoted_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {selectedQuoteForBooking.currency || 'USD'}</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 font-semibold">Cancellation Free Deadline</label>
+                                <input
+                                    type="datetime-local"
+                                    value={bookingCancellationDeadline}
+                                    onChange={(e) => setBookingCancellationDeadline(e.target.value)}
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all"
+                                />
+                                <span className="text-[10px] text-neutral-400 block mt-1">Critical: Enter date before which cancellation can be made without contract penalty.</span>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="block text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1 font-semibold">Cancellation Policy Summary</label>
+                                <textarea
+                                    rows={3}
+                                    value={bookingCancellationPolicy}
+                                    onChange={(e) => setBookingCancellationPolicy(e.target.value)}
+                                    placeholder="e.g. Free cancellation up to 72 hours before check-in. 100% charge applies thereafter."
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 text-xs text-neutral-600 space-y-2">
+                                <div className="font-semibold text-neutral-800">Linked Itinerary Activities:</div>
+                                <ul className="list-disc list-inside space-y-1">
+                                    {selectedGroupItemsForBooking.map((item, idx) => (
+                                        <li key={idx}>Day {item.block?.dayNumber || 1}: {item.title || 'Service'}</li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <div className="pt-4 border-t border-neutral-100 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBookingModal(false)}
+                                    className="px-5 py-2 rounded-xl text-sm font-bold text-neutral-600 hover:bg-neutral-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isCreatingBooking}
+                                    className="flex items-center gap-2 px-6 py-2 bg-brand-gold hover:bg-yellow-600 disabled:bg-neutral-200 text-white rounded-xl text-sm font-bold transition-all shadow-md"
+                                >
+                                    {isCreatingBooking ? (
+                                        <>
+                                            <RefreshCw size={16} className="animate-spin" />
+                                            Booking...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FileText size={16} />
+                                            Book & Raise PO
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
