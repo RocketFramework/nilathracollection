@@ -32,10 +32,18 @@ import {
   ShieldCheck,
   CalendarDays,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Trash2,
+  Plus,
+  UserPlus,
+  DollarSign,
+  Calendar,
+  Heart,
+  Globe
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus } from '../../types/types';
 import { ItineraryElements } from '../../other/interfaces';
+import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 
 interface StepItem {
   id: string;
@@ -44,6 +52,72 @@ interface StepItem {
   icon: React.ComponentType<any>;
   isSubStep?: boolean;
 }
+
+const MOCK_TOURIST_DATA: TouristDataDTO = {
+  profile: {
+    first_name: "John",
+    last_name: "Doe",
+    email: "john.doe@example.com",
+    phone: "+1 (555) 123-4567",
+    country: "United States",
+    passport_number: "US12345678",
+    address: "123 Adventure Lane, Seattle, WA, 98101"
+  },
+  preferences: {
+    travel_style: "Luxury",
+    budget_total: 12000,
+    budget_per_person: 4000,
+    arrival_date: "2026-07-10",
+    departure_date: "2026-07-20",
+    duration_days: 10,
+    adults: 3,
+    children: 0,
+    infants: 0,
+    departure_country: "United States",
+    language_preference: "English",
+    dietary_requirements: "No shellfish, standard vegetarian meals for companion.",
+    medical_conditions: "One companion carries asthma inhaler.",
+    accessibility_requirements: "Ground floor hotel rooms preferred due to light knee injury.",
+    special_notes: "Celebrating John and Jane's 10th wedding anniversary. Prefers rooms with ocean views and late check-outs if available."
+  },
+  request: {
+    id: "req-9823-a1",
+    request_type: "custom-plan",
+    status: "Pending",
+    package_name: "Sri Lanka Golden Route & Coastline Custom Plan",
+    nights: 10,
+    estimated_price: 11500,
+    destinations: ["Colombo", "Kandy", "Nuwara Eliya", "Ella", "Galle"],
+    special_requirements: "Wants a highly knowledgeable English-speaking private chauffeur guide, premium boutique hotels, and cooking masterclass in Galle.",
+    budget_tier: "Premium"
+  },
+  team: [
+    {
+      id: "member-1",
+      full_name: "Jane Doe",
+      passport_number: "US87654321",
+      nationality: "United States",
+      date_of_birth: "1988-04-12",
+      gender: "Female",
+      dietary_preferences: "Strictly vegetarian",
+      meal_preference: "Vegetarian",
+      room_preference: "Double",
+      medical_notes: "Asthmatic, carries inhaler."
+    },
+    {
+      id: "member-2",
+      full_name: "Tommy Doe",
+      passport_number: "US98765432",
+      nationality: "United States",
+      date_of_birth: "2018-09-25",
+      gender: "Male",
+      dietary_preferences: "None",
+      meal_preference: "Standard",
+      room_preference: "Shared",
+      medical_notes: "None"
+    }
+  ]
+};
 
 function PlannerWizardWorkspace() {
   const [tourId, setTourId] = useState<string>('draft-tour');
@@ -70,6 +144,23 @@ function PlannerWizardWorkspace() {
   // Track completion state to guide flow
   const [basicCompleted, setBasicCompleted] = useState<boolean>(false);
   const [isStateRestored, setIsStateRestored] = useState<boolean>(false);
+
+  // 4. Interactive Tourist Data Form States
+  const [touristData, setTouristData] = useState<TouristDataDTO>(MOCK_TOURIST_DATA);
+  const [activeFormTab, setActiveFormTab] = useState<'profile' | 'preferences' | 'request' | 'team'>('request');
+  const [isAddingMember, setIsAddingMember] = useState<boolean>(false);
+  const [newMember, setNewMember] = useState<TouristTeamMemberDTO>({
+    id: '',
+    full_name: '',
+    passport_number: '',
+    nationality: '',
+    date_of_birth: '',
+    gender: 'Male',
+    dietary_preferences: '',
+    meal_preference: 'Standard',
+    room_preference: 'Double',
+    medical_notes: ''
+  });
 
   // Define the ordered steps for Basic Track
   const basicSteps: StepItem[] = useMemo(() => [
@@ -475,6 +566,97 @@ function PlannerWizardWorkspace() {
     setActiveFinalStepIndex(prev => Math.min(prev, dynamicStepsCount - 1));
   };
 
+  // Tourist Data Form Handlers
+  const handleProfileChange = (key: keyof TouristProfileDTO, value: string) => {
+    setTouristData(prev => ({
+      ...prev,
+      profile: { ...prev.profile, [key]: value }
+    }));
+  };
+
+  const handlePreferenceChange = (key: keyof TravelPreferencesDTO, value: string | number) => {
+    setTouristData(prev => {
+      const nextPrefs = { ...prev.preferences, [key]: value };
+      
+      // Auto duration recalculation if dates are edited
+      if (key === 'arrival_date' || key === 'departure_date') {
+        const arr = nextPrefs.arrival_date ? new Date(nextPrefs.arrival_date) : null;
+        const dep = nextPrefs.departure_date ? new Date(nextPrefs.departure_date) : null;
+        if (arr && dep && dep >= arr) {
+          const diffTime = Math.abs(dep.getTime() - arr.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          nextPrefs.duration_days = diffDays;
+        }
+      }
+
+      // Auto per-person budget recalculation
+      if (key === 'budget_total' || key === 'adults') {
+        const total = Number(nextPrefs.budget_total) || 0;
+        const people = Number(nextPrefs.adults) || 1;
+        nextPrefs.budget_per_person = Math.round(total / people);
+      }
+
+      return { ...prev, preferences: nextPrefs };
+    });
+  };
+
+  const handleRequestChange = (key: keyof TripRequestDTO, value: string | number | string[]) => {
+    setTouristData(prev => ({
+      ...prev,
+      request: { ...prev.request, [key]: value }
+    }));
+  };
+
+  const addTeamMember = () => {
+    if (!newMember.full_name) {
+      alert("Companions must have a full name.");
+      return;
+    }
+    const memberToAdd: TouristTeamMemberDTO = {
+      ...newMember,
+      id: `member-${Date.now()}`
+    };
+    setTouristData(prev => ({
+      ...prev,
+      team: [...prev.team, memberToAdd],
+      preferences: {
+        ...prev.preferences,
+        adults: prev.preferences.adults + 1,
+        budget_per_person: Math.round(prev.preferences.budget_total / (prev.preferences.adults + 1))
+      }
+    }));
+    // Reset add companion form
+    setNewMember({
+      id: '',
+      full_name: '',
+      passport_number: '',
+      nationality: '',
+      date_of_birth: '',
+      gender: 'Male',
+      dietary_preferences: '',
+      meal_preference: 'Standard',
+      room_preference: 'Double',
+      medical_notes: ''
+    });
+    setIsAddingMember(false);
+  };
+
+  const removeTeamMember = (id: string) => {
+    setTouristData(prev => {
+      const filtered = prev.team.filter(m => m.id !== id);
+      const nextAdults = Math.max(1, prev.preferences.adults - 1);
+      return {
+        ...prev,
+        team: filtered,
+        preferences: {
+          ...prev.preferences,
+          adults: nextAdults,
+          budget_per_person: Math.round(prev.preferences.budget_total / nextAdults)
+        }
+      };
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen bg-[#F8F6F2] font-sans overflow-hidden">
       {/* 1. Header Toolbar */}
@@ -603,10 +785,10 @@ function PlannerWizardWorkspace() {
                   </div>
                   <div className="overflow-hidden">
                     <span className={`text-xs font-bold block transition-colors leading-tight
-                      ${isActive 
-                        ? 'text-emerald-800' 
-                        : 'text-neutral-600 group-hover:text-neutral-800'
-                      }`}
+                       ${isActive 
+                         ? 'text-emerald-800' 
+                         : 'text-neutral-600 group-hover:text-neutral-800'
+                       }`}
                     >
                       {step.label}
                     </span>
@@ -625,7 +807,7 @@ function PlannerWizardWorkspace() {
           
           {/* Main Panel Content (Step Panel) */}
           <main className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col pb-24">
-            <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-between">
+            <div className="w-full flex-1 flex flex-col justify-between">
               
               {/* Step Panel Details */}
               <div className="space-y-6">
@@ -641,8 +823,643 @@ function PlannerWizardWorkspace() {
                   </div>
                 </div>
 
-                {/* Dynamic / Interactive Switch Panel for Element Selection (Step 2 of Final Track) */}
-                {track === 'final' && currentStep.id === 'element-selection' ? (
+                {/* 1. Tourist Data Workspace Form (Basic Track Step 1) */}
+                {track === 'basic' && currentStep.id === 'tourist-data' ? (
+                  <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-300">
+                    
+                    {/* Tab Navigation */}
+                    <div className="flex flex-wrap border-b border-neutral-100 bg-neutral-50/50 p-3 gap-2">
+                      <button
+                        onClick={() => setActiveFormTab('request')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                          ${activeFormTab === 'request'
+                            ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
+                            : 'text-neutral-500 hover:text-neutral-800'
+                          }`}
+                      >
+                        <MailQuestion className="w-3.5 h-3.5" />
+                        1. Original Inquiry Lead
+                      </button>
+                      <button
+                        onClick={() => setActiveFormTab('profile')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                          ${activeFormTab === 'profile'
+                            ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
+                            : 'text-neutral-500 hover:text-neutral-800'
+                          }`}
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        2. Profile & Contact
+                      </button>
+                      <button
+                        onClick={() => setActiveFormTab('preferences')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                          ${activeFormTab === 'preferences'
+                            ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
+                            : 'text-neutral-500 hover:text-neutral-800'
+                          }`}
+                      >
+                        <Compass className="w-3.5 h-3.5" />
+                        3. Travel Preferences
+                      </button>
+                      <button
+                        onClick={() => setActiveFormTab('team')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                          ${activeFormTab === 'team'
+                            ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
+                            : 'text-neutral-500 hover:text-neutral-800'
+                          }`}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        4. Companions ({touristData.team.length})
+                      </button>
+                    </div>
+
+                    {/* Tab Content Panels */}
+                    <div className="p-8">
+                      
+                      {/* TAB 1: Profile & Contact */}
+                      {activeFormTab === 'profile' && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                          <div className="border-b border-neutral-100 pb-3">
+                            <h3 className="text-md font-serif font-bold text-neutral-800">Primary Tourist Contact Info</h3>
+                            <p className="text-xs text-neutral-400">Manage basic profile details mapping directly to the users & tourist_profiles tables.</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">First Name</label>
+                              <input 
+                                type="text"
+                                value={touristData.profile.first_name}
+                                onChange={(e) => handleProfileChange('first_name', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Enter first name"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Last Name</label>
+                              <input 
+                                type="text"
+                                value={touristData.profile.last_name}
+                                onChange={(e) => handleProfileChange('last_name', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Enter last name"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Email Address</label>
+                              <input 
+                                type="email"
+                                value={touristData.profile.email}
+                                onChange={(e) => handleProfileChange('email', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="name@example.com"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Phone Number</label>
+                              <input 
+                                type="text"
+                                value={touristData.profile.phone}
+                                onChange={(e) => handleProfileChange('phone', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="+1 (555) 000-0000"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Country of Residence</label>
+                              <input 
+                                type="text"
+                                value={touristData.profile.country}
+                                onChange={(e) => handleProfileChange('country', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="United States"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Passport Number</label>
+                              <input 
+                                type="text"
+                                value={touristData.profile.passport_number}
+                                onChange={(e) => handleProfileChange('passport_number', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium text-neutral-700"
+                                placeholder="Passport identifier"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Street Address</label>
+                              <textarea 
+                                rows={3}
+                                value={touristData.profile.address}
+                                onChange={(e) => handleProfileChange('address', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Full residential physical address"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TAB 2: Travel Preferences */}
+                      {activeFormTab === 'preferences' && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                          <div className="border-b border-neutral-100 pb-3">
+                            <h3 className="text-md font-serif font-bold text-neutral-800">Trip Preferences & Parameters</h3>
+                            <p className="text-xs text-neutral-400">Detailed constraints, date ranges, and styles mapping to client fields inside tourist_profiles.</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Travel Style</label>
+                              <select 
+                                value={touristData.preferences.travel_style}
+                                onChange={(e) => handlePreferenceChange('travel_style', e.target.value as TravelStyle)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-white font-medium"
+                              >
+                                <option value="Luxury">Luxury</option>
+                                <option value="Standard">Standard</option>
+                                <option value="Budget">Budget</option>
+                                <option value="Adventure">Adventure</option>
+                                <option value="Family">Family</option>
+                                <option value="Wellness">Wellness</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Total Budget ($)</label>
+                              <div className="relative">
+                                <span className="absolute left-4 top-3.5 text-neutral-400 text-sm font-semibold">$</span>
+                                <input 
+                                  type="number"
+                                  value={touristData.preferences.budget_total}
+                                  onChange={(e) => handlePreferenceChange('budget_total', Number(e.target.value))}
+                                  className="w-full pl-8 pr-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Budget Per Person ($)</label>
+                              <div className="relative">
+                                <span className="absolute left-4 top-3.5 text-neutral-400 text-sm font-semibold">$</span>
+                                <input 
+                                  type="number"
+                                  disabled
+                                  value={touristData.preferences.budget_per_person}
+                                  className="w-full pl-8 pr-4 py-3 rounded-xl border border-neutral-200 text-sm bg-neutral-100/60 text-neutral-500 font-bold"
+                                  placeholder="Calculated automatically"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Arrival Date</label>
+                              <input 
+                                type="date"
+                                value={touristData.preferences.arrival_date}
+                                onChange={(e) => handlePreferenceChange('arrival_date', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Departure Date</label>
+                              <input 
+                                type="date"
+                                value={touristData.preferences.departure_date}
+                                onChange={(e) => handlePreferenceChange('departure_date', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Duration (Days)</label>
+                              <input 
+                                type="number"
+                                value={touristData.preferences.duration_days}
+                                onChange={(e) => handlePreferenceChange('duration_days', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Days index"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Adults Count</label>
+                              <input 
+                                type="number"
+                                value={touristData.preferences.adults}
+                                onChange={(e) => handlePreferenceChange('adults', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Count"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Children Count</label>
+                              <input 
+                                type="number"
+                                value={touristData.preferences.children}
+                                onChange={(e) => handlePreferenceChange('children', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Count"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Infants Count</label>
+                              <input 
+                                type="number"
+                                value={touristData.preferences.infants}
+                                onChange={(e) => handlePreferenceChange('infants', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Count"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Departure Country</label>
+                              <input 
+                                type="text"
+                                value={touristData.preferences.departure_country}
+                                onChange={(e) => handlePreferenceChange('departure_country', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="USA / UK / etc."
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Language Preference</label>
+                              <input 
+                                type="text"
+                                value={touristData.preferences.language_preference}
+                                onChange={(e) => handlePreferenceChange('language_preference', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="English / French / etc."
+                              />
+                            </div>
+
+                            <div className="md:col-span-3">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Dietary Requirements</label>
+                              <textarea 
+                                rows={2}
+                                value={touristData.preferences.dietary_requirements}
+                                onChange={(e) => handlePreferenceChange('dietary_requirements', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="e.g. Vegetarian, Nut allergies"
+                              />
+                            </div>
+
+                            <div className="md:col-span-3">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Medical Conditions</label>
+                              <textarea 
+                                rows={2}
+                                value={touristData.preferences.medical_conditions}
+                                onChange={(e) => handlePreferenceChange('medical_conditions', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Any important medical details operators should know"
+                              />
+                            </div>
+
+                            <div className="md:col-span-3">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Accessibility Requirements</label>
+                              <textarea 
+                                rows={2}
+                                value={touristData.preferences.accessibility_requirements}
+                                onChange={(e) => handlePreferenceChange('accessibility_requirements', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Wheelchair access, ground floors, etc."
+                              />
+                            </div>
+
+                            <div className="md:col-span-3">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Special Notes</label>
+                              <textarea 
+                                rows={3}
+                                value={touristData.preferences.special_notes}
+                                onChange={(e) => handlePreferenceChange('special_notes', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Any other general requirements or celebration notes"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TAB 3: Linked Inquiry Lead Request */}
+                      {activeFormTab === 'request' && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                          <div className="border-b border-neutral-100 pb-3">
+                            <h3 className="text-md font-serif font-bold text-neutral-800">Original Inquiry Metadata</h3>
+                            <p className="text-xs text-neutral-400">Metadata linked to requests and request_details database layers. This carries initial planning requirements.</p>
+                          </div>
+
+                          <div className="bg-neutral-50 border border-neutral-100 rounded-2xl p-5 mb-4 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Lead Identifier</span>
+                              <span className="text-sm font-semibold text-neutral-700 block font-mono mt-0.5">{touristData.request.id}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-2.5 py-1 rounded-full border border-amber-500/20 uppercase tracking-wider">
+                                Status: {touristData.request.status}
+                              </span>
+                              <span className="text-[10px] font-bold bg-emerald-700/10 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-700/20 uppercase tracking-wider">
+                                {touristData.request.request_type}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Target Package Name</label>
+                              <input 
+                                type="text"
+                                value={touristData.request.package_name}
+                                onChange={(e) => handleRequestChange('package_name', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Package name"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Budget Tier</label>
+                              <input 
+                                type="text"
+                                value={touristData.request.budget_tier}
+                                onChange={(e) => handleRequestChange('budget_tier', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Budget classification (e.g. Mid-range, Premium)"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Inquiry Nights</label>
+                              <input 
+                                type="number"
+                                value={touristData.request.nights}
+                                onChange={(e) => handleRequestChange('nights', Number(e.target.value))}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Estimated Client Price ($)</label>
+                              <div className="relative">
+                                <span className="absolute left-4 top-3.5 text-neutral-400 text-sm font-semibold">$</span>
+                                <input 
+                                  type="number"
+                                  value={touristData.request.estimated_price}
+                                  onChange={(e) => handleRequestChange('estimated_price', Number(e.target.value))}
+                                  className="w-full pl-8 pr-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Destinations Inquired (Comma Separated)</label>
+                              <input 
+                                type="text"
+                                value={touristData.request.destinations.join(', ')}
+                                onChange={(e) => handleRequestChange('destinations', e.target.value.split(',').map(s => s.trim()))}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium font-mono"
+                                placeholder="Colombo, Galle, Kandy"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Lead Special Requirements</label>
+                              <textarea 
+                                rows={3}
+                                value={touristData.request.special_requirements}
+                                onChange={(e) => handleRequestChange('special_requirements', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
+                                placeholder="Requirements described in the customer lead form"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TAB 4: Travel Companions (Team List & Add Form) */}
+                      {activeFormTab === 'team' && (
+                        <div className="space-y-6 animate-in fade-in duration-200">
+                          <div className="border-b border-neutral-100 pb-3 flex items-center justify-between">
+                            <div>
+                              <h3 className="text-md font-serif font-bold text-neutral-800">Travel Companion Team (tourist_team)</h3>
+                              <p className="text-xs text-neutral-400">List of travelers accompanying the primary tourist. Linked to database rows.</p>
+                            </div>
+                            {!isAddingMember && (
+                              <button
+                                onClick={() => setIsAddingMember(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-800 border border-emerald-800/30 hover:border-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 rounded-xl transition-all shadow-sm"
+                              >
+                                <UserPlus className="w-3.5 h-3.5" /> Add Companion
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Companion Add Form */}
+                          {isAddingMember && (
+                            <div className="bg-neutral-50/80 border border-neutral-200 rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-3 duration-200">
+                              <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-2">
+                                <UserPlus className="w-4 h-4 text-emerald-800" /> Enter Companion Details
+                              </h4>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="md:col-span-2">
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Full Name *</label>
+                                  <input 
+                                    type="text"
+                                    value={newMember.full_name}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, full_name: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="Enter full name"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Gender</label>
+                                  <select 
+                                    value={newMember.gender}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, gender: e.target.value as Gender }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                  >
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Nationality</label>
+                                  <input 
+                                    type="text"
+                                    value={newMember.nationality}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, nationality: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="e.g. USA"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Passport Number</label>
+                                  <input 
+                                    type="text"
+                                    value={newMember.passport_number}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, passport_number: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="ID identifier"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Date of Birth</label>
+                                  <input 
+                                    type="date"
+                                    value={newMember.date_of_birth}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, date_of_birth: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Room Preference</label>
+                                  <input 
+                                    type="text"
+                                    value={newMember.room_preference}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, room_preference: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="e.g. Double / Single"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Meal Preference</label>
+                                  <input 
+                                    type="text"
+                                    value={newMember.meal_preference}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, meal_preference: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="e.g. Halal / Standard"
+                                  />
+                                </div>
+
+                                <div className="md:col-span-3">
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Dietary Preferences</label>
+                                  <input 
+                                    type="text"
+                                    value={newMember.dietary_preferences}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, dietary_preferences: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="e.g. Vegetarian, Gluten-free"
+                                  />
+                                </div>
+
+                                <div className="md:col-span-3">
+                                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Medical / Special Notes</label>
+                                  <textarea 
+                                    rows={2}
+                                    value={newMember.medical_notes}
+                                    onChange={(e) => setNewMember(prev => ({ ...prev, medical_notes: e.target.value }))}
+                                    className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
+                                    placeholder="Allergies, asthma, accessibility requirements"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200/50">
+                                <button
+                                  type="button"
+                                  onClick={() => setIsAddingMember(false)}
+                                  className="px-4 py-2 text-xs font-bold text-neutral-500 hover:text-neutral-700 bg-white border border-neutral-200 rounded-lg transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={addTeamMember}
+                                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                                >
+                                  <Plus className="w-3.5 h-3.5" /> Save Companion
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Companion List Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {touristData.team.map((member) => (
+                              <div 
+                                key={member.id} 
+                                className="border border-neutral-200/70 hover:border-neutral-300 rounded-2xl p-5 bg-white relative group transition-all hover:shadow-sm"
+                              >
+                                <button
+                                  onClick={() => removeTeamMember(member.id)}
+                                  className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                  title="Remove companion"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-10 h-10 bg-neutral-50 border border-neutral-100 rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs uppercase">
+                                    {member.full_name.substring(0, 2)}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold text-neutral-800 leading-tight">{member.full_name}</h4>
+                                    <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-mono">
+                                      {member.gender} &bull; DOB: {member.date_of_birth || "N/A"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1.5 border-t border-neutral-100 pt-3 text-xs text-neutral-600 font-medium">
+                                  <div className="flex justify-between">
+                                    <span className="text-neutral-400">Nationality / Passport:</span>
+                                    <span className="text-neutral-700 font-semibold">{member.nationality || "N/A"} &bull; {member.passport_number || "N/A"}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-neutral-400">Meal / Room:</span>
+                                    <span className="text-neutral-700 font-semibold">{member.meal_preference} / {member.room_preference} Prefer</span>
+                                  </div>
+                                  {member.dietary_preferences && (
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-400">Dietary:</span>
+                                      <span className="text-red-700 font-semibold">{member.dietary_preferences}</span>
+                                    </div>
+                                  )}
+                                  {member.medical_notes && member.medical_notes !== 'None' && (
+                                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-2 mt-2 text-[10px] text-amber-700">
+                                      <strong className="uppercase font-bold block mb-0.5">Medical Conditions Note</strong>
+                                      {member.medical_notes}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+
+                            {touristData.team.length === 0 && (
+                              <div className="md:col-span-2 bg-neutral-50 border border-dashed border-neutral-200 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[160px]">
+                                <Users className="w-8 h-8 text-neutral-300 mb-2" />
+                                <span className="text-xs font-bold text-neutral-500">No Companions Registered</span>
+                                <span className="text-[10px] text-neutral-400 mt-1">This traveler is planning a solo journey. Click Add Companion to include family members or group travelers.</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+
+                  </div>
+                ) : track === 'final' && currentStep.id === 'element-selection' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-lg font-serif font-bold text-neutral-800">Operational Inclusions Manifest</h3>

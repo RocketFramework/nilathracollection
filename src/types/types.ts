@@ -27,3 +27,8 @@ export type FinalStep =
   | 'invoice-receive'
   | 'payment-supplier'
   | 'profit-loss';
+
+export type TravelStyle = 'Luxury' | 'Standard' | 'Budget' | 'Adventure' | 'Family' | 'Wellness';
+export type Gender = 'Male' | 'Female' | 'Other';
+export type RequestType = 'package' | 'custom-plan' | 'inquiry' | 'ultra-vip';
+export type RequestStatus = 'Pending' | 'Assigned' | 'Active' | 'Completed' | 'Cancelled';
