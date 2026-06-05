@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { 
   Users, 
   Compass, 
@@ -30,7 +31,8 @@ import {
   Map,
   ShieldCheck,
   CalendarDays,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep } from '../../types/types';
 import { ItineraryElements } from '../../other/interfaces';
@@ -409,7 +411,7 @@ function PlannerWizardWorkspace() {
 
   if (!isStateRestored) {
     return (
-      <div className="flex flex-col h-[calc(100vh-64px)] bg-[#F8F6F2] items-center justify-center">
+      <div className="flex flex-col h-screen bg-[#F8F6F2] items-center justify-center">
         <Loader2 className="animate-spin text-emerald-800 w-10 h-10 mb-4" />
         <p className="text-neutral-500 font-medium text-sm">Restoring Planner Session State...</p>
       </div>
@@ -473,13 +475,18 @@ function PlannerWizardWorkspace() {
     setActiveFinalStepIndex(prev => Math.min(prev, dynamicStepsCount - 1));
   };
 
-
-
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-[#F8F6F2] font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F8F6F2] font-sans overflow-hidden">
       {/* 1. Header Toolbar */}
       <header className="bg-white border-b border-neutral-200 px-6 py-4 flex flex-wrap items-center justify-between shadow-sm shrink-0 z-10">
         <div className="flex items-center gap-4">
+          <Link 
+            href="/admin" 
+            className="flex items-center gap-2 text-xs font-bold text-neutral-500 hover:text-emerald-800 hover:bg-neutral-50 px-3 py-2 rounded-xl transition-all border border-neutral-200 shadow-sm mr-2 group"
+          >
+            <ArrowLeft className="w-4 h-4 text-neutral-400 group-hover:text-emerald-800 transition-colors" />
+            Back to Dashboard
+          </Link>
           <div className="bg-brand-green/10 text-brand-green p-2 rounded-xl">
             <Settings className="w-5 h-5 text-emerald-800" />
           </div>
@@ -613,218 +620,224 @@ function PlannerWizardWorkspace() {
           </nav>
         </aside>
 
-        {/* Main Panel Content (Step Panel) */}
-        <main className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col">
-          <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-between pb-24">
-            
-            {/* Step Panel Details */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-white rounded-2xl border border-neutral-200 shadow-sm text-emerald-800">
-                  <currentStep.icon className="w-6 h-6" />
+        {/* Main Workspace Area Wrapper */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          
+          {/* Main Panel Content (Step Panel) */}
+          <main className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col pb-24">
+            <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-between">
+              
+              {/* Step Panel Details */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white rounded-2xl border border-neutral-200 shadow-sm text-emerald-800">
+                    <currentStep.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest font-mono">
+                      {track === 'basic' ? 'Basic Draft Workflow' : 'Final Procurement Workflow'}
+                    </span>
+                    <h2 className="text-2xl font-serif font-bold text-neutral-800 mt-0.5">{currentStep.label}</h2>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest font-mono">
-                    {track === 'basic' ? 'Basic Draft Workflow' : 'Final Procurement Workflow'}
-                  </span>
-                  <h2 className="text-2xl font-serif font-bold text-neutral-800 mt-0.5">{currentStep.label}</h2>
-                </div>
+
+                {/* Dynamic / Interactive Switch Panel for Element Selection (Step 2 of Final Track) */}
+                {track === 'final' && currentStep.id === 'element-selection' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-lg font-serif font-bold text-neutral-800">Operational Inclusions Manifest</h3>
+                      <p className="text-xs text-neutral-400">Select which operational layers are active for this tour package. The navigation bar will automatically adapt.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Hotels Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <BedDouble className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">Hotel Accommodations</span>
+                            <span className="text-[10px] text-neutral-400 block">Manage bookings & night indices</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.hotel} 
+                          onChange={() => toggleElement('hotel')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Activities Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <Award className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">Experience & Activity Providers</span>
+                            <span className="text-[10px] text-neutral-400 block">Ticket booking & operator setup</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.activity} 
+                          onChange={() => toggleElement('activity')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Restaurants Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <Utensils className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">Dining Reservations</span>
+                            <span className="text-[10px] text-neutral-400 block">Configure restaurant options</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.restaurant} 
+                          onChange={() => toggleElement('restaurant')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Transport Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <Car className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">Transport Logistics</span>
+                            <span className="text-[10px] text-neutral-400 block">Select fleet & transfer settings</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.transport} 
+                          onChange={() => toggleElement('transport')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Security Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <Shield className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">VIP Security Escorts</span>
+                            <span className="text-[10px] text-neutral-400 block">Route protection & armored units</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.security} 
+                          onChange={() => toggleElement('security')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Guides Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">Professional Tour Guides</span>
+                            <span className="text-[10px] text-neutral-400 block">Assign expert local guides</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.guide} 
+                          onChange={() => toggleElement('guide')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Drivers Switch */}
+                      <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">Chauffeurs & Drivers</span>
+                            <span className="text-[10px] text-neutral-400 block">Coordinate allowances</span>
+                          </div>
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          checked={elements.driver} 
+                          onChange={() => toggleElement('driver')}
+                          className="w-4 h-4 accent-emerald-800 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Premium Placeholder Panel for Empty Steps */
+                  <div className="bg-white rounded-3xl p-10 border border-neutral-200 shadow-md relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-neutral-50 rounded-full translate-x-12 -translate-y-12 opacity-50" />
+                    
+                    <div className="w-16 h-16 bg-neutral-50 text-neutral-300 rounded-2xl flex items-center justify-center mb-6 border border-neutral-100">
+                      <currentStep.icon className="w-8 h-8 text-neutral-400" />
+                    </div>
+                    
+                    <h3 className="text-lg font-serif font-bold text-neutral-800 mb-2">
+                      {currentStep.label} Panel
+                    </h3>
+                    <p className="text-xs text-neutral-500 max-w-md mb-6 leading-relaxed">
+                      {currentStep.description}
+                    </p>
+                    
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[10px] font-mono text-neutral-400 font-bold uppercase tracking-wider">
+                      <Play className="w-2.5 h-2.5 text-neutral-400" /> Page Content Placeholder
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Dynamic / Interactive Switch Panel for Element Selection (Step 2 of Final Track) */}
-              {track === 'final' && currentStep.id === 'element-selection' ? (
-                <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
-                  <div className="border-b border-neutral-100 pb-4 mb-6">
-                    <h3 className="text-lg font-serif font-bold text-neutral-800">Operational Inclusions Manifest</h3>
-                    <p className="text-xs text-neutral-400">Select which operational layers are active for this tour package. The navigation bar will automatically adapt.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Hotels Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <BedDouble className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">Hotel Accommodations</span>
-                          <span className="text-[10px] text-neutral-400 block">Manage bookings & night indices</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.hotel} 
-                        onChange={() => toggleElement('hotel')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Activities Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <Award className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">Experience & Activity Providers</span>
-                          <span className="text-[10px] text-neutral-400 block">Ticket booking & operator setup</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.activity} 
-                        onChange={() => toggleElement('activity')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Restaurants Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <Utensils className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">Dining Reservations</span>
-                          <span className="text-[10px] text-neutral-400 block">Configure restaurant options</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.restaurant} 
-                        onChange={() => toggleElement('restaurant')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Transport Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <Car className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">Transport Logistics</span>
-                          <span className="text-[10px] text-neutral-400 block">Select fleet & transfer settings</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.transport} 
-                        onChange={() => toggleElement('transport')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Security Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <Shield className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">VIP Security Escorts</span>
-                          <span className="text-[10px] text-neutral-400 block">Route protection & armored units</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.security} 
-                        onChange={() => toggleElement('security')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Guides Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <UserCheck className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">Professional Tour Guides</span>
-                          <span className="text-[10px] text-neutral-400 block">Assign expert local guides</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.guide} 
-                        onChange={() => toggleElement('guide')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Drivers Switch */}
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50 border border-neutral-200 hover:bg-neutral-50/80 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                          <User className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-neutral-700 block">Chauffeurs & Drivers</span>
-                          <span className="text-[10px] text-neutral-400 block">Coordinate allowances</span>
-                        </div>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={elements.driver} 
-                        onChange={() => toggleElement('driver')}
-                        className="w-4 h-4 accent-emerald-800 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Premium Placeholder Panel for Empty Steps */
-                <div className="bg-white rounded-3xl p-10 border border-neutral-200 shadow-md relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-neutral-50 rounded-full translate-x-12 -translate-y-12 opacity-50" />
-                  
-                  <div className="w-16 h-16 bg-neutral-50 text-neutral-300 rounded-2xl flex items-center justify-center mb-6 border border-neutral-100">
-                    <currentStep.icon className="w-8 h-8 text-neutral-400" />
-                  </div>
-                  
-                  <h3 className="text-lg font-serif font-bold text-neutral-800 mb-2">
-                    {currentStep.label} Panel
-                  </h3>
-                  <p className="text-xs text-neutral-500 max-w-md mb-6 leading-relaxed">
-                    {currentStep.description}
-                  </p>
-                  
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[10px] font-mono text-neutral-400 font-bold uppercase tracking-wider">
-                    <Play className="w-2.5 h-2.5 text-neutral-400" /> Page Content Placeholder
-                  </div>
-                </div>
-              )}
             </div>
+          </main>
 
-            {/* Bottom Actions Navigation */}
-            <div className="fixed bottom-0 left-80 right-0 bg-white border-t border-neutral-200 px-8 py-4 flex items-center justify-between shadow-lg z-20 shrink-0">
+          {/* Sticky/Absolute Bottom Actions Navigation */}
+          <div className="bg-white border-t border-neutral-200 px-8 py-4 flex items-center justify-between shadow-lg z-20 shrink-0">
+            <button
+              onClick={handleBack}
+              disabled={track === 'basic' && activeBasicStepIndex === 0}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 disabled:opacity-30 disabled:pointer-events-none transition-all text-xs font-bold uppercase tracking-wider"
+            >
+              <ChevronLeft className="w-4 h-4" /> Back
+            </button>
+
+            <div className="flex items-center gap-3">
               <button
-                onClick={handleBack}
-                disabled={track === 'basic' && activeBasicStepIndex === 0}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 disabled:opacity-30 disabled:pointer-events-none transition-all text-xs font-bold uppercase tracking-wider"
+                onClick={() => alert('Tour Workspace draft updated locally and database reference prepped.')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 transition-all text-xs font-bold uppercase tracking-wider"
               >
-                <ChevronLeft className="w-4 h-4" /> Back
+                <Save className="w-4 h-4" /> Save Progress
               </button>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => alert('Tour Workspace draft updated locally and database reference prepped.')}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 transition-all text-xs font-bold uppercase tracking-wider"
-                >
-                  <Save className="w-4 h-4" /> Save Progress
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white shadow-md hover:shadow-lg transition-all text-xs font-bold uppercase tracking-wider"
-                >
-                  {activeIndex === activeSteps.length - 1 && track === 'final' ? 'Complete Tour' : 'Next'} <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={handleNext}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white shadow-md hover:shadow-lg transition-all text-xs font-bold uppercase tracking-wider"
+              >
+                {activeIndex === activeSteps.length - 1 && track === 'final' ? 'Complete Tour' : 'Next'} <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-
           </div>
-        </main>
+
+        </div>
+
       </div>
     </div>
   );
