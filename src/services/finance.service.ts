@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/utils/supabase/admin";
-import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
+import { DBPurchaseOrder, DBPurchaseOrderItem, DBSupplierInvoice, DBSupplierPayment } from "@/app/admin/(authenticated)/planner/types";
 
 export class FinanceService {
     /**
@@ -12,9 +12,9 @@ export class FinanceService {
             .select(`
                 *,
                 items:purchase_order_items(*),
-                invoices:vendor_invoices(
+                invoices:supplier_invoices(
                     *,
-                    payments:vendor_payments(*)
+                    payments:supplier_payments(*)
                 )
             `)
             .eq('tour_id', tourId)
@@ -158,36 +158,36 @@ export class FinanceService {
     }
 
     /**
-     * Saves a vendor invoice.
+     * Saves a supplier invoice.
      */
-    static async saveVendorInvoice(invoice: Partial<DBVendorInvoice>) {
+    static async saveSupplierInvoice(invoice: Partial<DBSupplierInvoice>) {
         const supabase = createAdminClient();
         const { id, payments: _, ...invData } = invoice as any;
 
         if (id) {
-            const { error } = await supabase.from('vendor_invoices').update(invData).eq('id', id);
+            const { error } = await supabase.from('supplier_invoices').update(invData).eq('id', id);
             if (error) throw error;
             return id;
         } else {
-            const { data, error } = await supabase.from('vendor_invoices').insert([invData]).select().single();
+            const { data, error } = await supabase.from('supplier_invoices').insert([invData]).select().single();
             if (error) throw error;
             return data.id;
         }
     }
 
     /**
-     * Saves a vendor payment.
+     * Saves a supplier payment.
      */
-    static async saveVendorPayment(payment: Partial<DBVendorPayment>) {
+    static async saveSupplierPayment(payment: Partial<DBSupplierPayment>) {
         const supabase = createAdminClient();
         const { id, ...payData } = payment as any;
 
         if (id) {
-            const { error } = await supabase.from('vendor_payments').update(payData).eq('id', id);
+            const { error } = await supabase.from('supplier_payments').update(payData).eq('id', id);
             if (error) throw error;
             return id;
         } else {
-            const { data, error } = await supabase.from('vendor_payments').insert([payData]).select().single();
+            const { data, error } = await supabase.from('supplier_payments').insert([payData]).select().single();
             if (error) throw error;
             return data.id;
         }

@@ -1,18 +1,18 @@
-export interface CreateInvoiceDTO {
+export interface CreateCustomerInvoiceDTO {
     tour_id: string; // UUID
     tourist_id: string; // UUID
     amount: number;
     currency?: string;
     due_date?: string; // ISO format
-    items: InvoiceItemDTO[];
+    items: CustomerInvoiceItemDTO[];
 }
 
-export interface InvoiceItemDTO {
+export interface CustomerInvoiceItemDTO {
     description: string;
     amount: number;
 }
 
-export interface PaymentDTO {
+export interface CustomerPaymentDTO {
     invoice_id: string; // UUID
     amount: number;
     payment_method?: string;

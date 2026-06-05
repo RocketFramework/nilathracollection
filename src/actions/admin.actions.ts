@@ -10,7 +10,7 @@ import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
 import { EmailTemplateService, EmailTemplate } from "@/services/email-template.service";
 import { CurrencyService } from "@/services/currency.service";
-import { DBPurchaseOrder, DBPurchaseOrderItem, DBVendorInvoice, DBVendorPayment } from "@/app/admin/(authenticated)/planner/types";
+import { DBPurchaseOrder, DBPurchaseOrderItem, DBSupplierInvoice, DBSupplierPayment } from "@/app/admin/(authenticated)/planner/types";
 import { createClient } from "@/utils/supabase/server";
 import { RequestService } from "@/services/request.service";
 import { emailService } from "@/services/email.service";
@@ -213,6 +213,54 @@ export async function getAssignedHotelsAction(ids: string[]) {
     } catch (error: any) {
         console.error("Error fetching assigned hotels:", error);
         return { error: error.message || "Failed to load assigned hotels." };
+    }
+}
+
+export async function getAssignedVendorsAction(ids: string[]) {
+    try {
+        const supabase = createAdminClient();
+        if (!ids || ids.length === 0) return { success: true, vendors: [] };
+        const { data: vendors } = await MasterDataService.getVendors({ client: supabase, ids });
+        return { success: true, vendors };
+    } catch (error: any) {
+        console.error("Error fetching assigned vendors:", error);
+        return { error: error.message || "Failed to load assigned vendors." };
+    }
+}
+
+export async function getAssignedTransportProvidersAction(ids: string[]) {
+    try {
+        const supabase = createAdminClient();
+        if (!ids || ids.length === 0) return { success: true, providers: [] };
+        const { data: providers } = await MasterDataService.getTransportProviders({ client: supabase, ids });
+        return { success: true, providers };
+    } catch (error: any) {
+        console.error("Error fetching assigned transport providers:", error);
+        return { error: error.message || "Failed to load assigned transport providers." };
+    }
+}
+
+export async function getAssignedTourGuidesAction(ids: string[]) {
+    try {
+        const supabase = createAdminClient();
+        if (!ids || ids.length === 0) return { success: true, guides: [] };
+        const { data: guides } = await MasterDataService.getTourGuides({ client: supabase, ids });
+        return { success: true, guides };
+    } catch (error: any) {
+        console.error("Error fetching assigned tour guides:", error);
+        return { error: error.message || "Failed to load assigned tour guides." };
+    }
+}
+
+export async function getAssignedRestaurantsAction(ids: string[]) {
+    try {
+        const supabase = createAdminClient();
+        if (!ids || ids.length === 0) return { success: true, restaurants: [] };
+        const { data: restaurants } = await MasterDataService.getRestaurants({ client: supabase, ids });
+        return { success: true, restaurants };
+    } catch (error: any) {
+        console.error("Error fetching assigned restaurants:", error);
+        return { error: error.message || "Failed to load assigned restaurants." };
     }
 }
 
@@ -585,23 +633,23 @@ export async function deleteDraftPurchaseOrdersAction(tourId: string) {
     }
 }
 
-export async function saveVendorInvoiceAction(invoice: Partial<DBVendorInvoice>) {
+export async function saveSupplierInvoiceAction(invoice: Partial<DBSupplierInvoice>) {
     try {
-        const id = await FinanceService.saveVendorInvoice(invoice);
+        const id = await FinanceService.saveSupplierInvoice(invoice);
         return { success: true, id };
     } catch (error: any) {
-        console.error("Error saving vendor invoice:", error);
-        return { error: error.message || "Failed to save vendor invoice." };
+        console.error("Error saving supplier invoice:", error);
+        return { error: error.message || "Failed to save supplier invoice." };
     }
 }
 
-export async function saveVendorPaymentAction(payment: Partial<DBVendorPayment>) {
+export async function saveSupplierPaymentAction(payment: Partial<DBSupplierPayment>) {
     try {
-        const id = await FinanceService.saveVendorPayment(payment);
+        const id = await FinanceService.saveSupplierPayment(payment);
         return { success: true, id };
     } catch (error: any) {
-        console.error("Error saving vendor payment:", error);
-        return { error: error.message || "Failed to save vendor payment." };
+        console.error("Error saving supplier payment:", error);
+        return { error: error.message || "Failed to save supplier payment." };
     }
 }
 export async function getExchangeRateAction() {
@@ -1033,6 +1081,16 @@ export async function getQuotationRequestsForActivityAction(dailyActivityId: str
     } catch (error: any) {
         console.error("Error in getQuotationRequestsForActivityAction:", error);
         return { success: false, error: error.message || "Failed to fetch quotation requests." };
+    }
+}
+
+export async function getQuotationRequestsForTourAction(tourId: string) {
+    try {
+        const quotes = await QuotationService.getQuotationRequestsForTour(tourId);
+        return { success: true, quotes };
+    } catch (error: any) {
+        console.error("Error in getQuotationRequestsForTourAction:", error);
+        return { success: false, error: error.message || "Failed to fetch tour quotation requests." };
     }
 }
 

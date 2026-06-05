@@ -22,7 +22,13 @@ import {
     updateQuotationAction,
     selectQuotationAction,
     createVendorBookingAction,
-    getVendorBookingsAction
+    getVendorBookingsAction,
+    getAssignedHotelsAction,
+    getAssignedVendorsAction,
+    getAssignedTransportProvidersAction,
+    getAssignedTourGuidesAction,
+    getAssignedRestaurantsAction,
+    getQuotationRequestsForTourAction
 } from "@/actions/admin.actions";
 import { getMyNotificationsAction, logQuoteRequestAction } from "@/actions/notification.actions";
 
@@ -108,6 +114,154 @@ const TransportProviderContactForm = ({ providerId, initialPhone, initialEmail }
     );
 };
 
+interface QuotationRowProps {
+    q: any;
+    firstId: string;
+    items: any[];
+    bookings: any[];
+    updatingQuoteId: string | null;
+    handleUpdateQuotation: (quoteId: string, activityId: string, currentStatus?: string, customPrice?: string, customNotes?: string) => Promise<string | undefined>;
+    handleSelectQuotation: (quote: any, groupItems: any[]) => Promise<void>;
+    handleProceedToBooking: (quote: any, groupItems: any[]) => void;
+    handleGenerateMultiQuoteEmail: (groupItems: any[], alternativeSuppliers: any[]) => void;
+    getCategorySuppliers: (blockType: string, block?: any) => any[];
+}
+
+const QuotationRow = ({
+    q,
+    firstId,
+    items,
+    bookings,
+    updatingQuoteId,
+    handleUpdateQuotation,
+    handleSelectQuotation,
+    handleProceedToBooking,
+    handleGenerateMultiQuoteEmail,
+    getCategorySuppliers
+}: QuotationRowProps) => {
+    const qId = q.id;
+    const isQuoteSelected = q.selected_vendor;
+    const linkedBooking = bookings.find(b => b.quotation_request_id === qId);
+
+    const [price, setPrice] = useState(q.quoted_price !== null && q.quoted_price !== undefined ? String(q.quoted_price) : '');
+    const [notes, setNotes] = useState(q.notes || '');
+
+    useEffect(() => {
+        setPrice(q.quoted_price !== null && q.quoted_price !== undefined ? String(q.quoted_price) : '');
+    }, [q.quoted_price]);
+
+    useEffect(() => {
+        setNotes(q.notes || '');
+    }, [q.notes]);
+
+    const handlePriceBlur = () => {
+        if (price !== String(q.quoted_price || '')) {
+            handleUpdateQuotation(qId, firstId, undefined, price, notes);
+        }
+    };
+
+    const handleNotesBlur = () => {
+        if (notes !== (q.notes || '')) {
+            handleUpdateQuotation(qId, firstId, undefined, price, notes);
+        }
+    };
+
+    return (
+        <tr className={`hover:bg-neutral-50/30 transition-colors ${isQuoteSelected ? 'bg-green-50/30 font-semibold' : ''}`}>
+            <td className="p-3 flex items-center gap-1.5 font-bold text-brand-charcoal">
+                {isQuoteSelected && <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />}
+                <span>{q.vendor_name}</span>
+            </td>
+            <td className="p-3 text-neutral-500">
+                {q.isTemp ? (
+                    <span className="text-amber-600 font-bold bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">Unsent Option</span>
+                ) : (
+                    <div>{q.sent_date ? new Date(q.sent_date).toLocaleDateString() : ''}</div>
+                )}
+                <div className="text-[10px] text-neutral-400 font-mono mt-0.5">{q.to_email}</div>
+            </td>
+            <td className="p-3">
+                <select
+                    value={q.status}
+                    onChange={(e) => handleUpdateQuotation(qId, firstId, e.target.value, price, notes)}
+                    className="bg-transparent border border-neutral-200 rounded px-2 py-1 text-xs outline-none focus:border-brand-gold bg-white"
+                >
+                    {['Unsent Option', 'Sent', 'Replied', 'Declined', 'Expired', 'Selected'].map(st => (
+                        <option key={st} value={st}>{st}</option>
+                    ))}
+                </select>
+            </td>
+            <td className="p-3">
+                <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-400">$</span>
+                    <input
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        onBlur={handlePriceBlur}
+                        placeholder="Price"
+                        className="w-full pl-5 pr-2 py-1 border border-neutral-200 rounded text-xs outline-none focus:border-brand-gold bg-white font-bold"
+                    />
+                </div>
+            </td>
+            <td className="p-3">
+                <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    onBlur={handleNotesBlur}
+                    placeholder="Add remarks..."
+                    className="w-full px-2 py-1 border border-neutral-200 rounded text-xs outline-none focus:border-brand-gold bg-white"
+                />
+            </td>
+            <td className="p-3 text-right">
+                <div className="flex items-center justify-end gap-2">
+                    {q.isTemp && (
+                        <button
+                            onClick={() => {
+                                const mainType = items[0]?.block?.type || 'sleep';
+                                const altSuppliers = getCategorySuppliers(mainType, items[0]?.block);
+                                const supplier = altSuppliers.find(s => s.id === q.vendor_id);
+                                if (supplier) {
+                                    handleGenerateMultiQuoteEmail(items, [supplier]);
+                                }
+                            }}
+                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold rounded transition-colors flex items-center gap-1"
+                        >
+                            <Mail size={10} /> Request Quote
+                        </button>
+                    )}
+                    {linkedBooking ? (
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
+                            linkedBooking.status === 'Went Ahead' ? 'bg-green-50 text-green-700 border-green-200' :
+                            linkedBooking.status === 'Confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            linkedBooking.status === 'Cancelled' ? 'bg-red-50 text-red-700 border-red-200 line-through' :
+                            'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                            Booking: {linkedBooking.status}
+                        </span>
+                    ) : (
+                        <button
+                            onClick={() => handleProceedToBooking(q, items)}
+                            disabled={!q.quoted_price || updatingQuoteId === qId}
+                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold rounded transition-colors disabled:opacity-50"
+                        >
+                            Book Service
+                        </button>
+                    )}
+                    <button
+                        onClick={() => handleSelectQuotation(q, items)}
+                        disabled={isQuoteSelected || !q.quoted_price || updatingQuoteId === qId}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded transition-colors ${isQuoteSelected ? 'bg-green-100 text-green-700 cursor-default border border-green-200' : 'bg-brand-charcoal text-white hover:bg-black disabled:bg-neutral-100 disabled:text-neutral-400'}`}
+                    >
+                        {isQuoteSelected ? 'Selected' : 'Apply Quote'}
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+};
+
 export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tripData: TripData, updateData: (d: Partial<TripData>) => void, setIsDirty?: (dirty: boolean) => void }) {
     const [isLoading, setIsLoading] = useState(true);
 
@@ -127,6 +281,17 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
     const [editingQuoteNotes, setEditingQuoteNotes] = useState<Record<string, string>>({});
     const [updatingQuoteId, setUpdatingQuoteId] = useState<string | null>(null);
 
+    const masterHotelsMap = useMemo(() => new Map(masterHotels.map(h => [h.id, h])), [masterHotels]);
+    const masterTransportsMap = useMemo(() => new Map(masterTransports.map(t => [t.id, t])), [masterTransports]);
+    const masterGuidesMap = useMemo(() => new Map(masterGuides.map(g => [g.id, g])), [masterGuides]);
+    const masterRestaurantsMap = useMemo(() => new Map(masterRestaurants.map(r => [r.id, r])), [masterRestaurants]);
+    const masterVendorsMap = useMemo(() => new Map(masterVendors.map(v => [v.id, v])), [masterVendors]);
+
+    const masterTransportsByNameMap = useMemo(() => new Map(masterTransports.map(t => [t.name, t])), [masterTransports]);
+    const masterRestaurantsByNameMap = useMemo(() => new Map(masterRestaurants.map(r => [r.name, r])), [masterRestaurants]);
+    const masterVendorsByNameMap = useMemo(() => new Map(masterVendors.map(v => [v.name, v])), [masterVendors]);
+    const masterGuidesByNameMap = useMemo(() => new Map(masterGuides.map(g => [`${g.first_name} ${g.last_name || ''}`.trim(), g])), [masterGuides]);
+
     // Booking flow states
     const [bookings, setBookings] = useState<any[]>([]);
     const [showBookingModal, setShowBookingModal] = useState(false);
@@ -144,20 +309,145 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         }
     };
 
+    const [isLoadingAlternatives, setIsLoadingAlternatives] = useState<Record<string, boolean>>({});
+    const [loadedAlternativeTypes, setLoadedAlternativeTypes] = useState<Set<string>>(new Set());
+
+    const ensureAlternativesLoaded = async (type: string) => {
+        if (loadedAlternativeTypes.has(type) || isLoadingAlternatives[type]) return;
+        setIsLoadingAlternatives(prev => ({ ...prev, [type]: true }));
+        try {
+            if (type === 'sleep') {
+                const res = await getHotelsListAction();
+                if (res.success) {
+                    setMasterHotels(prev => {
+                        const existingIds = new Set(prev.map(h => h.id));
+                        const newHotels = (res.hotels || []).filter((h: any) => !existingIds.has(h.id));
+                        return [...prev, ...newHotels];
+                    });
+                }
+            } else if (type === 'travel') {
+                const res = await getTransportProvidersAction();
+                if (res.success) {
+                    setMasterTransports(prev => {
+                        const existingIds = new Set(prev.map(t => t.id));
+                        const newTransports = (res.providers || []).filter((t: any) => !existingIds.has(t.id));
+                        return [...prev, ...newTransports];
+                    });
+                }
+            } else if (type === 'guide') {
+                const res = await getTourGuidesAction();
+                if (res.success) {
+                    setMasterGuides(prev => {
+                        const existingIds = new Set(prev.map(g => g.id));
+                        const newGuides = (res.guides || []).filter((g: any) => !existingIds.has(g.id));
+                        return [...prev, ...newGuides];
+                    });
+                }
+            } else if (type === 'meal') {
+                const res = await getRestaurantsAction();
+                if (res.success) {
+                    setMasterRestaurants(prev => {
+                        const existingIds = new Set(prev.map(r => r.id));
+                        const newRestaurants = (res.restaurants || []).filter((r: any) => !existingIds.has(r.id));
+                        return [...prev, ...newRestaurants];
+                    });
+                }
+            } else if (type === 'activity') {
+                const res = await getVendorsAction();
+                if (res.success) {
+                    setMasterVendors(prev => {
+                        const existingIds = new Set(prev.map(v => v.id));
+                        const newVendors = (res.vendors || []).filter((v: any) => !existingIds.has(v.id));
+                        return [...prev, ...newVendors];
+                    });
+                }
+            }
+            setLoadedAlternativeTypes(prev => {
+                const next = new Set(prev);
+                next.add(type);
+                return next;
+            });
+        } catch (err) {
+            console.error(`Failed to load alternative suppliers for ${type}`, err);
+        } finally {
+            setIsLoadingAlternatives(prev => ({ ...prev, [type]: false }));
+        }
+    };
+
     useEffect(() => {
         const fetchMasterData = async () => {
             setIsLoading(true);
             try {
-                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes, nRes, finalRes, dbActivitiesRes, bookingsRes] = await Promise.all([
-                    getHotelsListAction(),
-                    getVendorsAction(),
-                    getTransportProvidersAction(),
-                    getTourGuidesAction(),
-                    getRestaurantsAction(),
+                const [nRes, dbActivitiesRes, bookingsRes, tourQuotesRes] = await Promise.all([
                     getMyNotificationsAction(),
-                    getFinalizedActivitiesAction(tripData.id || ''),
                     getDailyActivitiesAction(tripData.id || ''),
-                    getVendorBookingsAction(tripData.id || '')
+                    getVendorBookingsAction(tripData.id || ''),
+                    getQuotationRequestsForTourAction(tripData.id || '')
+                ]);
+
+                if (nRes.success) setNotifications(nRes.data || []);
+                if (bookingsRes.success) setBookings(bookingsRes.bookings || []);
+
+                let acts: any[] = [];
+                if (dbActivitiesRes.success) {
+                    acts = dbActivitiesRes.activities || [];
+                    setDbActivities(acts);
+                    setFinalizedIds(new Set(acts.filter((a: any) => a.price_finalized).map((a: any) => a.id)));
+                }
+
+                // Batch assign quotations map
+                const quotesMap: Record<string, any[]> = {};
+                acts.forEach((act: any) => {
+                    quotesMap[act.id] = [];
+                });
+                if (tourQuotesRes.success && tourQuotesRes.quotes) {
+                    tourQuotesRes.quotes.forEach((item: any) => {
+                        const actId = item.daily_activity_id;
+                        if (quotesMap[actId]) {
+                            if (!quotesMap[actId].some((q: any) => q.id === item.quotation.id)) {
+                                quotesMap[actId].push(item.quotation);
+                            }
+                        }
+                    });
+                }
+                setQuotations(quotesMap);
+
+                // Gather all assigned IDs from itinerary, accommodations, default IDs, and daily activities
+                const assignedHotelIds = Array.from(new Set([
+                    ...tripData.itinerary.filter(b => b.type === 'sleep' && b.hotelId).map(b => b.hotelId),
+                    ...(tripData.accommodations || []).map(a => a.hotelId),
+                    ...acts.filter(a => a.activity_type === 'sleep' && a.hotel_id).map(a => a.hotel_id)
+                ].filter(Boolean) as string[]));
+
+                const assignedTransportIds = Array.from(new Set([
+                    ...tripData.itinerary.filter(b => b.type === 'travel' && b.transportId).map(b => b.transportId),
+                    tripData.defaultTransportId,
+                    ...acts.filter(a => a.activity_type === 'travel' && a.transport_id).map(a => a.transport_id)
+                ].filter(Boolean) as string[]));
+
+                const assignedGuideIds = Array.from(new Set([
+                    ...tripData.itinerary.filter(b => b.type === 'guide' && b.guideId).map(b => b.guideId),
+                    tripData.defaultGuideId,
+                    ...acts.filter(a => a.activity_type === 'guide' && a.guide_id).map(a => a.guide_id)
+                ].filter(Boolean) as string[]));
+
+                const assignedRestaurantIds = Array.from(new Set([
+                    ...tripData.itinerary.filter(b => b.type === 'meal' && b.restaurantId).map(b => b.restaurantId),
+                    ...acts.filter(a => a.activity_type === 'meal' && a.restaurant_id).map(a => a.restaurant_id)
+                ].filter(Boolean) as string[]));
+
+                const assignedVendorIds = Array.from(new Set([
+                    ...tripData.itinerary.filter(b => b.type === 'activity' && b.vendorId).map(b => b.vendorId),
+                    ...acts.filter(a => a.activity_type === 'activity' && a.vendor_id).map(a => a.vendor_id)
+                ].filter(Boolean) as string[]));
+
+                // Fetch only assigned master records
+                const [hotelsRes, vendorsRes, transportsRes, guidesRes, restRes] = await Promise.all([
+                    getAssignedHotelsAction(assignedHotelIds),
+                    getAssignedVendorsAction(assignedVendorIds),
+                    getAssignedTransportProvidersAction(assignedTransportIds),
+                    getAssignedTourGuidesAction(assignedGuideIds),
+                    getAssignedRestaurantsAction(assignedRestaurantIds)
                 ]);
 
                 if (hotelsRes.success) setMasterHotels(hotelsRes.hotels || []);
@@ -165,27 +455,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                 if (transportsRes.success) setMasterTransports(transportsRes.providers || []);
                 if (guidesRes.success) setMasterGuides(guidesRes.guides || []);
                 if (restRes.success) setMasterRestaurants(restRes.restaurants || []);
-                if (nRes.success) setNotifications(nRes.data || []);
-                if (bookingsRes.success) setBookings(bookingsRes.bookings || []);
-                if (finalRes.success && finalRes.activities) {
-                    setFinalizedIds(new Set(finalRes.activities.map((a: any) => a.id)));
-                }
-                if (dbActivitiesRes.success) {
-                    const acts = dbActivitiesRes.activities || [];
-                    setDbActivities(acts);
-                    
-                    // Fetch quotations for each daily activity
-                    const quotesMap: Record<string, any[]> = {};
-                    await Promise.all(
-                        acts.map(async (act: any) => {
-                            const res = await getQuotationRequestsForActivityAction(act.id);
-                            if (res.success && res.quotes) {
-                                quotesMap[act.id] = res.quotes;
-                            }
-                        })
-                    );
-                    setQuotations(quotesMap);
-                }
+
             } catch (err) {
                 console.error("Failed to fetch initial data", err);
             } finally {
@@ -195,12 +465,14 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         fetchMasterData();
     }, []);
 
+
+
     const getCategorySuppliers = (blockType: string, block?: any) => {
         if (blockType === 'sleep') {
             if (!block) return masterHotels;
             let sleepCity = '';
             if (block.hotelId) {
-                const currentHotel = masterHotels.find(h => h.id === block.hotelId);
+                const currentHotel = masterHotelsMap.get(block.hotelId);
                 if (currentHotel && currentHotel.closest_city) {
                     sleepCity = currentHotel.closest_city.trim();
                 }
@@ -245,7 +517,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             if (b.type === 'sleep' && b.hotelId) {
                 isBound = true;
                 const hId = b.hotelId;
-                const hotel = masterHotels.find(h => h.id === hId);
+                const hotel = masterHotelsMap.get(hId);
                 if (hotel) vendorName = hotel.name;
                 accIndex = tripData.accommodations?.findIndex(a => a.nightIndex === b.dayNumber && (a.hotelId === hId || a.hotelName === hotel?.name)) ?? -1;
                 const acc = accIndex !== -1 ? tripData.accommodations![accIndex] : null;
@@ -262,14 +534,14 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             } else if (b.type === 'meal' && b.restaurantId) {
                 isBound = true;
                 const rId = b.restaurantId;
-                const rest = masterRestaurants.find(r => r.id === rId);
+                const rest = masterRestaurantsMap.get(rId);
                 if (rest) vendorName = rest.name;
                 quantity = b.restaurantQuantity || (tripData.profile?.adults || 1) + (tripData.profile?.children || 0);
                 icon = <Utensils size={18} className="text-orange-500" />;
             } else if (b.type === 'travel' && (b.transportId || tripData.defaultTransportId)) {
                 isBound = true;
                 const tId = b.transportId || tripData.defaultTransportId;
-                const trans = masterTransports.find(t => t.id === tId);
+                const trans = masterTransportsMap.get(tId);
                 if (trans) vendorName = trans.name;
                 if (b.contractedPrice !== undefined) {
                     quantity = b.transportQuantity || 1;
@@ -281,14 +553,14 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             } else if (b.type === 'guide' && (b.guideId || tripData.defaultGuideId)) {
                 isBound = true;
                 const gId = b.guideId || tripData.defaultGuideId;
-                const guide = masterGuides.find(g => g.id === gId);
+                const guide = masterGuidesMap.get(gId);
                 if (guide) vendorName = `${guide.first_name} ${guide.last_name || ''}`.trim();
                 quantity = 1;
                 icon = <UserCheck size={18} className="text-purple-500" />;
             } else if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
                 isBound = true;
                 const vId = b.vendorId;
-                const vend = masterVendors.find(v => v.id === vId);
+                const vend = masterVendorsMap.get(vId);
                 if (vend) vendorName = vend.name;
                 quantity = b.transportQuantity || ((tripData.profile?.adults || 1) + (tripData.profile?.children || 0));
                 icon = <Compass size={18} className="text-green-500" />;
@@ -309,17 +581,17 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                     unitPrice = b.agreedPrice !== undefined ? (quantity > 0 ? b.agreedPrice / quantity : b.agreedPrice) : (acc?.pricePerNight ?? 0);
                     referenceTotal = b.agreedPrice !== undefined ? b.agreedPrice : unitPrice * quantity;
                 } else if (b.type === 'meal') {
-                    const rest = masterRestaurants.find(r => r.id === b.restaurantId);
+                    const rest = masterRestaurantsMap.get(b.restaurantId);
                     unitPrice = b.agreedPrice !== undefined ? b.agreedPrice : (rest?.lunch_rate_per_head || 0);
                     referenceTotal = unitPrice * quantity;
                 } else if (b.type === 'travel') {
-                    const trans = masterTransports.find(t => t.id === (b.transportId || tripData.defaultTransportId));
+                    const trans = masterTransportsMap.get(b.transportId || tripData.defaultTransportId);
                     const vId = b.vehicleId || tripData.defaultVehicleId;
                     const veh = trans?.transport_vehicles?.find((v: any) => v.id === vId);
                     unitPrice = b.agreedPrice !== undefined ? (quantity > 0 ? b.agreedPrice / quantity : b.agreedPrice) : (veh?.per_km_rate || veh?.day_rate || 0);
                     referenceTotal = b.agreedPrice !== undefined ? b.agreedPrice : unitPrice * quantity;
                 } else if (b.type === 'guide') {
-                    const guide = masterGuides.find(g => g.id === (b.guideId || tripData.defaultGuideId));
+                    const guide = masterGuidesMap.get(b.guideId || tripData.defaultGuideId);
                     unitPrice = b.agreedPrice !== undefined ? (quantity > 0 ? b.agreedPrice / quantity : b.agreedPrice) : (guide?.per_day_rate || 0);
                     referenceTotal = b.agreedPrice !== undefined ? b.agreedPrice : unitPrice * quantity;
                 } else if (b.type === 'activity') {
@@ -370,7 +642,100 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             }
         });
         return items;
-    }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotels, masterRestaurants, masterTransports, masterGuides, masterVendors, dbActivities, finalizedIds]);
+    }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotelsMap, masterTransportsMap, masterGuidesMap, masterRestaurantsMap, masterVendorsMap, dbActivities, finalizedIds]);
+
+    const groupedNegotiableItems = useMemo(() => {
+        return Object.entries(
+            negotiableItems.reduce((acc, item) => {
+                const vendor = item.vendorName || "Unknown Vendor";
+                if (!acc[vendor]) acc[vendor] = [];
+                acc[vendor].push(item);
+                return acc;
+            }, {} as Record<string, any[]>)
+        ) as [string, any[]][];
+    }, [negotiableItems]);
+
+    useEffect(() => {
+        if (isLoading) return;
+        
+        groupedNegotiableItems.forEach(([vendorGroup, items]) => {
+            const firstId = items[0]?.id;
+            const mainType = items[0]?.block?.type;
+            if (!mainType) return;
+
+            const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
+            const hotelId = hotelItem?.block?.hotelId;
+            const masterHotel = hotelId ? masterHotelsMap.get(hotelId) : null;
+            const masterTransport = masterTransportsByNameMap.get(vendorGroup);
+
+            let assignedVendor: any = null;
+            if (hotelItem && masterHotel) {
+                assignedVendor = masterHotel;
+            } else if (masterTransport) {
+                assignedVendor = masterTransport;
+            } else {
+                const guideItem = items.find((i: any) => i.block?.type === 'guide');
+                const guideId = guideItem?.block?.guideId || tripData.defaultGuideId;
+                const masterGuide = guideId ? masterGuidesMap.get(guideId) : null;
+                
+                const restaurantItem = items.find((i: any) => i.block?.type === 'meal');
+                const restaurantId = restaurantItem?.block?.restaurantId;
+                const masterRestaurant = restaurantId ? masterRestaurantsMap.get(restaurantId) : null;
+
+                const activityItem = items.find((i: any) => i.block?.type === 'activity');
+                const vendorId = activityItem?.block?.vendorId;
+                const masterVendor = vendorId ? masterVendorsMap.get(vendorId) : null;
+
+                if (masterGuide && `${masterGuide.first_name} ${masterGuide.last_name || ''}`.trim() === vendorGroup) {
+                    assignedVendor = masterGuide;
+                } else if (masterRestaurant && masterRestaurant.name === vendorGroup) {
+                    assignedVendor = masterRestaurant;
+                } else if (masterVendor && masterVendor.name === vendorGroup) {
+                    assignedVendor = masterVendor;
+                }
+            }
+
+            const hasContractedPrice = assignedVendor ? (assignedVendor.has_contracted_price !== false) : true;
+            const hasDbQuotes = firstId ? (quotations[firstId] || []).length > 0 : false;
+            const forceNegotiation = (firstId ? !!overrideNegotiation[firstId] : false) || items.some((i: any) => i.block?.forceNegotiation) || hasDbQuotes;
+            const hasAlternativeSection = !hasContractedPrice || forceNegotiation;
+
+            if (hasAlternativeSection) {
+                ensureAlternativesLoaded(mainType);
+            }
+        });
+    }, [
+        isLoading,
+        groupedNegotiableItems,
+        overrideNegotiation,
+        quotations,
+        masterHotelsMap,
+        masterTransportsMap,
+        masterTransportsByNameMap,
+        masterGuidesMap,
+        masterRestaurantsMap,
+        masterVendorsMap,
+        tripData.defaultGuideId
+    ]);
+
+    useEffect(() => {
+        if (!isLoading) {
+            const initialOverride: Record<string, boolean> = {};
+            const initialAlternative: Record<string, string[]> = {};
+            
+            tripData.itinerary.forEach(block => {
+                if (block.forceNegotiation) {
+                    initialOverride[block.id] = true;
+                }
+                if (block.alternativeSuppliers && block.alternativeSuppliers.length > 0) {
+                    initialAlternative[block.id] = block.alternativeSuppliers;
+                }
+            });
+            
+            setOverrideNegotiation(initialOverride);
+            setSelectedAlternativeVendors(initialAlternative);
+        }
+    }, [isLoading]);
 
     const calculateSupplierReferencePrice = (supplier: any, blockType: string, mainItem: any) => {
         const b = mainItem?.block;
@@ -554,46 +919,44 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         }
     };
 
-    const handleUpdateQuotation = async (quoteId: string, activityId: string, currentStatus?: string) => {
+    const handleUpdateQuotation = async (quoteId: string, activityId: string, currentStatus?: string, customPrice?: string, customNotes?: string) => {
         setUpdatingQuoteId(quoteId);
         try {
             if (quoteId.startsWith('temp-')) {
-                if (currentStatus) {
-                    const sId = quoteId.replace('temp-', '');
-                    const firstId = activityId;
-                    const mainType = dbActivities.find(a => a.id === firstId)?.type || 'sleep';
-                    const block = tripData.itinerary.find(b => b.id === firstId);
-                    const vendorGrp = block?.name || "Unknown Vendor";
-                    const grpItems = negotiableItems.filter(item => (item.vendorName || "Unknown Vendor") === vendorGrp);
-                    const altSuppliers = getCategorySuppliers(mainType, block);
-                    const supplier = altSuppliers.find(s => s.id === sId);
-                    if (!supplier) return;
+                const sId = quoteId.replace('temp-', '');
+                const firstId = activityId;
+                const block = tripData.itinerary.find(b => b.id === firstId);
+                const mainType = dbActivities.find(a => a.id === firstId)?.activity_type || dbActivities.find(a => a.id === firstId)?.type || block?.type || 'sleep';
+                const vendorGrp = block?.name || "Unknown Vendor";
+                const grpItems = negotiableItems.filter(item => (item.vendorName || "Unknown Vendor") === vendorGrp);
+                const altSuppliers = getCategorySuppliers(mainType, block);
+                const supplier = altSuppliers.find(s => s.id === sId);
+                if (!supplier) return;
 
-                    const sName = supplier.name || `${supplier.first_name || ''} ${supplier.last_name || ''}`.trim();
-                    const priceVal = editingQuotePrice[quoteId] !== undefined ? parseFloat(editingQuotePrice[quoteId]) : calculateSupplierReferencePrice(supplier, mainType, grpItems[0]);
-                    const notesVal = editingQuoteNotes[quoteId] !== undefined ? editingQuoteNotes[quoteId] : "Standard/contract price from master tables";
+                const sName = supplier.name || `${supplier.first_name || ''} ${supplier.last_name || ''}`.trim();
+                const priceVal = customPrice !== undefined ? (customPrice === '' ? 0 : parseFloat(customPrice)) : (editingQuotePrice[quoteId] !== undefined ? parseFloat(editingQuotePrice[quoteId]) : calculateSupplierReferencePrice(supplier, mainType, grpItems[0]));
+                const notesVal = customNotes !== undefined ? customNotes : (editingQuoteNotes[quoteId] !== undefined ? editingQuoteNotes[quoteId] : "Standard/contract price from master tables");
 
-                    await persistTempQuotation({
-                        id: quoteId,
-                        isTemp: true,
-                        vendor_id: sId,
-                        vendor_name: sName,
-                        to_email: supplier.email || supplier.reservation_email || "info@nilathra.com",
-                        quoted_price: priceVal,
-                        notes: notesVal,
-                        activity_type: mainType,
-                        status: currentStatus
-                    }, grpItems);
-                }
-                return;
+                const dbId = await persistTempQuotation({
+                    id: quoteId,
+                    isTemp: true,
+                    vendor_id: sId,
+                    vendor_name: sName,
+                    to_email: supplier.email || supplier.reservation_email || "info@nilathra.com",
+                    quoted_price: priceVal,
+                    notes: notesVal,
+                    activity_type: mainType,
+                    status: currentStatus || 'Replied'
+                }, grpItems);
+                return dbId;
             }
 
             const updates: any = {};
-            const price = editingQuotePrice[quoteId];
+            const price = customPrice !== undefined ? customPrice : editingQuotePrice[quoteId];
             if (price !== undefined && price !== '') {
                 updates.quoted_price = parseFloat(price);
             }
-            const notes = editingQuoteNotes[quoteId];
+            const notes = customNotes !== undefined ? customNotes : editingQuoteNotes[quoteId];
             if (notes !== undefined) {
                 updates.notes = notes;
             }
@@ -961,7 +1324,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
     const generateQuotationRequestEmail = async (vendorGroup: string, items: any[]) => {
         const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
         const hotelId = hotelItem?.block?.hotelId;
-        const masterHotel = hotelId ? masterHotels.find((h: any) => h.id === hotelId) : null;
+        const masterHotel = hotelId ? masterHotelsMap.get(hotelId) : null;
         
         let toEmail = "";
         let agentName = "Reservation / Sales Team";
@@ -970,7 +1333,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             if (masterHotel.reservation_email) toEmail = masterHotel.reservation_email;
             if (masterHotel.reservation_agent_name) agentName = masterHotel.reservation_agent_name;
         } else {
-            const masterTransport = masterTransports.find((t: any) => t.name === vendorGroup);
+            const masterTransport = masterTransportsByNameMap.get(vendorGroup);
             if (masterTransport) {
                 if (masterTransport.email) toEmail = masterTransport.email;
                 agentName = "Transport Operations Team";
@@ -1186,19 +1549,12 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                             <p className="text-sm text-neutral-400 mt-1">Assign vendors in the Itinerary Builder first.</p>
                         </div>
                     ) : (
-                        (Object.entries(
-                            negotiableItems.reduce((acc, item) => {
-                                const vendor = item.vendorName || "Unknown Vendor";
-                                if (!acc[vendor]) acc[vendor] = [];
-                                acc[vendor].push(item);
-                                return acc;
-                            }, {} as Record<string, any[]>)
-                        ) as [string, any[]][]).map(([vendorGroup, items]) => {
+                        groupedNegotiableItems.map(([vendorGroup, items]) => {
                             const firstId = items[0]?.id;
                             const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
                             const hotelId = hotelItem?.block?.hotelId;
-                            const masterHotel = hotelId ? masterHotels.find((h: any) => h.id === hotelId) : null;
-                            const masterTransport = masterTransports.find((t: any) => t.name === vendorGroup);
+                            const masterHotel = hotelId ? masterHotelsMap.get(hotelId) : null;
+                            const masterTransport = masterTransportsByNameMap.get(vendorGroup);
 
                             let assignedVendor: any = null;
                             if (hotelItem && masterHotel) {
@@ -1208,15 +1564,15 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                             } else {
                                 const guideItem = items.find((i: any) => i.block?.type === 'guide');
                                 const guideId = guideItem?.block?.guideId || tripData.defaultGuideId;
-                                const masterGuide = guideId ? masterGuides.find((g: any) => g.id === guideId) : null;
+                                const masterGuide = guideId ? masterGuidesMap.get(guideId) : null;
                                 
                                 const restaurantItem = items.find((i: any) => i.block?.type === 'meal');
                                 const restaurantId = restaurantItem?.block?.restaurantId;
-                                const masterRestaurant = restaurantId ? masterRestaurants.find((r: any) => r.id === restaurantId) : null;
+                                const masterRestaurant = restaurantId ? masterRestaurantsMap.get(restaurantId) : null;
 
                                 const activityItem = items.find((i: any) => i.block?.type === 'activity');
                                 const vendorId = activityItem?.block?.vendorId;
-                                const masterVendor = vendorId ? masterVendors.find((v: any) => v.id === vendorId) : null;
+                                const masterVendor = vendorId ? masterVendorsMap.get(vendorId) : null;
 
                                 if (masterGuide && `${masterGuide.first_name} ${masterGuide.last_name || ''}`.trim() === vendorGroup) {
                                     assignedVendor = masterGuide;
@@ -1228,7 +1584,8 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                             }
                             
                             const hasContractedPrice = assignedVendor ? (assignedVendor.has_contracted_price !== false) : true;
-                            const forceNegotiation = firstId ? !!overrideNegotiation[firstId] : false;
+                            const hasDbQuotes = firstId ? (quotations[firstId] || []).length > 0 : false;
+                            const forceNegotiation = (firstId ? !!overrideNegotiation[firstId] : false) || items.some((i: any) => i.block?.forceNegotiation) || hasDbQuotes;
                             const hasAlternativeSection = !hasContractedPrice || forceNegotiation;
 
                             return (
@@ -1284,9 +1641,22 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
                                                     <input 
                                                         type="checkbox" 
                                                         checked={forceNegotiation} 
-                                                        onChange={(e) => {
+                                                        onChange={async (e) => {
+                                                            const isChecked = e.target.checked;
                                                             if (firstId) {
-                                                                setOverrideNegotiation(prev => ({ ...prev, [firstId]: e.target.checked }));
+                                                                setOverrideNegotiation(prev => ({ ...prev, [firstId]: isChecked }));
+                                                            }
+                                                            const updatedItinerary = tripData.itinerary.map(b => {
+                                                                const matches = items.some((i: any) => i.block?.id === b.id);
+                                                                if (matches) {
+                                                                    return { ...b, forceNegotiation: isChecked };
+                                                                }
+                                                                return b;
+                                                            });
+                                                            updateData({ itinerary: updatedItinerary });
+                                                            if (tripData.id) {
+                                                                const nextTripData = { ...tripData, itinerary: updatedItinerary };
+                                                                await saveTourAction(tripData.id, nextTripData);
                                                             }
                                                         }} 
                                                         className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-3.5 h-3.5"
@@ -1719,223 +2089,170 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
 
                                 {hasAlternativeSection && (
                                     <div className="p-6 bg-neutral-50 border-t border-neutral-200 space-y-6">
-                                        {/* Alternative Supplier Selector */}
-                                        {(() => {
-                                            const mainItem = items[0];
-                                            const firstId = mainItem?.id;
-                                            const mainType = mainItem?.block?.type || 'sleep';
-                                            const altSuppliers = getCategorySuppliers(mainType, mainItem?.block);
-                                            if (altSuppliers.length === 0) return null;
-                                            return (
-                                                <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm">
-                                                    <span className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Request quotations from other suppliers for the entire block:</span>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-40 overflow-y-auto mb-4">
-                                                        {altSuppliers.map(s => {
-                                                            const sId = s.id;
-                                                            const sName = s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim();
-                                                            const isChecked = firstId ? (selectedAlternativeVendors[firstId] || []).includes(sId) : false;
-                                                            return (
-                                                                <div key={sId} className="flex items-center justify-between gap-2 p-1.5 hover:bg-neutral-50 rounded-lg">
-                                                                    <label className="flex items-center gap-2 text-xs font-medium text-neutral-600 cursor-pointer hover:text-neutral-900 flex-1 min-w-0">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={isChecked}
-                                                                            onChange={(e) => {
-                                                                                if (!firstId) return;
-                                                                                const current = selectedAlternativeVendors[firstId] || [];
-                                                                                if (e.target.checked) {
-                                                                                    setSelectedAlternativeVendors(prev => ({ ...prev, [firstId]: [...current, sId] }));
-                                                                                } else {
-                                                                                    setSelectedAlternativeVendors(prev => ({ ...prev, [firstId]: current.filter(x => x !== sId) }));
-                                                                                }
-                                                                            }}
-                                                                            className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-3.5 h-3.5 shrink-0"
-                                                                        />
-                                                                        <span className="truncate" title={sName}>{sName}</span>
-                                                                    </label>
-                                                                    {isChecked && (
-                                                                        <button
-                                                                            onClick={() => handleGenerateMultiQuoteEmail(items, [s])}
-                                                                            className="px-2 py-0.5 bg-blue-50 text-blue-600 hover:bg-blue-100 text-[10px] font-bold rounded transition-colors shrink-0 flex items-center gap-1"
-                                                                        >
-                                                                            <Mail size={10} /> Request Quote
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-                                        
-                                        {/* Negotiation Dashboard comparison table */}
-                                        {(() => {
-                                            const firstId = items[0]?.id;
-                                            if (!firstId) return null;
-                                            
-                                            const dbQuotes = quotations[firstId] || [];
-                                            const checkedIds = firstId ? (selectedAlternativeVendors[firstId] || []) : [];
-                                            
-                                            const mainType = items[0]?.block?.type || 'sleep';
-                                            const altSuppliers = getCategorySuppliers(mainType, items[0]?.block);
-                                            
-                                            const virtualQuotes = checkedIds.map(sId => {
-                                                const exists = dbQuotes.some(dq => dq.vendor_id === sId);
-                                                if (exists) return null;
-                                                
-                                                const supplier = altSuppliers.find(s => s.id === sId);
-                                                if (!supplier) return null;
-                                                
-                                                const sName = supplier.name || `${supplier.first_name || ''} ${supplier.last_name || ''}`.trim();
-                                                const defaultPrice = calculateSupplierReferencePrice(supplier, mainType, items[0]);
-                                                
-                                                return {
-                                                    id: `temp-${sId}`,
-                                                    isTemp: true,
-                                                    vendor_id: sId,
-                                                    vendor_name: sName,
-                                                    to_email: supplier.email || supplier.reservation_email || "info@nilathra.com",
-                                                    sent_date: null,
-                                                    status: "Unsent Option",
-                                                    quoted_price: defaultPrice,
-                                                    notes: "Standard/contract price from master tables",
-                                                    selected_vendor: false,
-                                                    activity_type: mainType,
-                                                    currency: 'USD'
-                                                };
-                                            }).filter(Boolean);
-                                            
-                                            const combinedQuotes = [...dbQuotes, ...virtualQuotes];
-                                            if (combinedQuotes.length === 0) return null;
-
-                                            return (
-                                                <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                                                    <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200">
-                                                        <span className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Negotiation Dashboard ({combinedQuotes.length} Requests for entire block)</span>
-                                                    </div>
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-left text-xs border-collapse">
-                                                            <thead>
-                                                                <tr className="bg-neutral-50/50 border-b border-neutral-200 text-neutral-400 font-bold uppercase text-[9px] tracking-wider">
-                                                                    <th className="p-3">Vendor</th>
-                                                                    <th className="p-3">Sent Date</th>
-                                                                    <th className="p-3 w-32">Status</th>
-                                                                    <th className="p-3 w-28">Quote ($)</th>
-                                                                    <th className="p-3">Notes</th>
-                                                                    <th className="p-3 text-right">Actions</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y divide-neutral-100">
-                                                                {combinedQuotes.map((q: any) => {
-                                                                    const qId = q.id;
-                                                                    const isQuoteSelected = q.selected_vendor;
-                                                                    const linkedBooking = bookings.find(b => b.quotation_request_id === qId);
-                                                                    
-                                                                    const currentPrice = editingQuotePrice[qId] !== undefined ? editingQuotePrice[qId] : (q.quoted_price || '');
-                                                                    const currentNotes = editingQuoteNotes[qId] !== undefined ? editingQuoteNotes[qId] : (q.notes || '');
-
+                                        {!loadedAlternativeTypes.has(items[0]?.block?.type || 'sleep') ? (
+                                            <div className="flex items-center justify-center p-8 bg-white rounded-2xl border border-neutral-200 shadow-sm">
+                                                <RefreshCw className="animate-spin text-brand-gold w-5 h-5 mr-3 animate-duration-1000" />
+                                                <span className="text-sm font-semibold text-neutral-500">Loading Alternative Suppliers...</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {/* Alternative Supplier Selector */}
+                                                {(() => {
+                                                    const mainItem = items[0];
+                                                    const firstId = mainItem?.id;
+                                                    const mainType = mainItem?.block?.type || 'sleep';
+                                                    const altSuppliers = getCategorySuppliers(mainType, mainItem?.block);
+                                                    if (altSuppliers.length === 0) return null;
+                                                    const dbQuotes = firstId ? (quotations[firstId] || []) : [];
+                                                    return (
+                                                        <div className="bg-white p-5 rounded-2xl border border-neutral-200 shadow-sm">
+                                                            <span className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">Request quotations from other suppliers for the entire block:</span>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-40 overflow-y-auto mb-4">
+                                                                {altSuppliers.map(s => {
+                                                                    const sId = s.id;
+                                                                    const sName = s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim();
+                                                                    const isMainSupplier = sName.toLowerCase().trim() === vendorGroup.toLowerCase().trim();
+                                                                    const hasDbQuote = dbQuotes.some(dq => 
+                                                                        dq.vendor_id === sId || 
+                                                                        (dq.vendor_name && dq.vendor_name.toLowerCase().trim() === sName.toLowerCase().trim())
+                                                                    );
+                                                                    const isTempSelected = firstId ? (selectedAlternativeVendors[firstId] || []).includes(sId) : false;
+                                                                    const isChecked = isMainSupplier || hasDbQuote || isTempSelected;
+                                                                    const showRequestButton = isChecked && !isMainSupplier && !hasDbQuote;
                                                                     return (
-                                                                        <tr key={qId} className={`hover:bg-neutral-50/30 transition-colors ${isQuoteSelected ? 'bg-green-50/30 font-semibold' : ''}`}>
-                                                                            <td className="p-3 flex items-center gap-1.5 font-bold text-brand-charcoal">
-                                                                                {isQuoteSelected && <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />}
-                                                                                <span>{q.vendor_name}</span>
-                                                                            </td>
-                                                                            <td className="p-3 text-neutral-500">
-                                                                                {q.isTemp ? (
-                                                                                    <span className="text-amber-600 font-bold bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">Unsent Option</span>
-                                                                                ) : (
-                                                                                    <div>{new Date(q.sent_date).toLocaleDateString()}</div>
-                                                                                )}
-                                                                                <div className="text-[10px] text-neutral-400 font-mono mt-0.5">{q.to_email}</div>
-                                                                            </td>
-                                                                            <td className="p-3">
-                                                                                <select
-                                                                                    value={q.status}
-                                                                                    onChange={(e) => handleUpdateQuotation(qId, firstId, e.target.value)}
-                                                                                    className="bg-transparent border border-neutral-200 rounded px-2 py-1 text-xs outline-none focus:border-brand-gold bg-white"
-                                                                                >
-                                                                                    {['Unsent Option', 'Sent', 'Replied', 'Declined', 'Expired', 'Selected'].map(st => (
-                                                                                        <option key={st} value={st}>{st}</option>
-                                                                                    ))}
-                                                                                </select>
-                                                                            </td>
-                                                                            <td className="p-3">
-                                                                                <div className="relative">
-                                                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-neutral-400">$</span>
-                                                                                    <input
-                                                                                        type="number"
-                                                                                        value={currentPrice}
-                                                                                        onChange={(e) => setEditingQuotePrice(prev => ({ ...prev, [qId]: e.target.value }))}
-                                                                                        onBlur={() => handleUpdateQuotation(qId, firstId)}
-                                                                                        placeholder="Price"
-                                                                                        className="w-full pl-5 pr-2 py-1 border border-neutral-200 rounded text-xs outline-none focus:border-brand-gold bg-white font-bold"
-                                                                                    />
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="p-3">
+                                                                        <div key={sId} className="flex items-center justify-between gap-2 p-1.5 hover:bg-neutral-50 rounded-lg">
+                                                                            <label className="flex items-center gap-2 text-xs font-medium text-neutral-600 cursor-pointer hover:text-neutral-900 flex-1 min-w-0">
                                                                                 <input
-                                                                                    type="text"
-                                                                                    value={currentNotes}
-                                                                                    onChange={(e) => setEditingQuoteNotes(prev => ({ ...prev, [qId]: e.target.value }))}
-                                                                                    onBlur={() => handleUpdateQuotation(qId, firstId)}
-                                                                                    placeholder="Add remarks..."
-                                                                                    className="w-full px-2 py-1 border border-neutral-200 rounded text-xs outline-none focus:border-brand-gold bg-white"
+                                                                                    type="checkbox"
+                                                                                    checked={isChecked}
+                                                                                    disabled={isMainSupplier || hasDbQuote}
+                                                                                    onChange={async (e) => {
+                                                                                        if (!firstId) return;
+                                                                                        const isChecked = e.target.checked;
+                                                                                        const current = selectedAlternativeVendors[firstId] || [];
+                                                                                        let nextSelected: string[];
+                                                                                        if (isChecked) {
+                                                                                            nextSelected = [...current, sId];
+                                                                                        } else {
+                                                                                            nextSelected = current.filter(x => x !== sId);
+                                                                                        }
+                                                                                        
+                                                                                        setSelectedAlternativeVendors(prev => ({ ...prev, [firstId]: nextSelected }));
+                                                                                        
+                                                                                        const updatedItinerary = tripData.itinerary.map(b => {
+                                                                                            const matches = items.some((i: any) => i.block?.id === b.id);
+                                                                                            if (matches) {
+                                                                                                return { ...b, alternativeSuppliers: nextSelected };
+                                                                                            }
+                                                                                            return b;
+                                                                                        });
+                                                                                        updateData({ itinerary: updatedItinerary });
+                                                                                        if (tripData.id) {
+                                                                                            const nextTripData = { ...tripData, itinerary: updatedItinerary };
+                                                                                            await saveTourAction(tripData.id, nextTripData);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="rounded border-neutral-300 text-brand-green focus:ring-brand-green w-3.5 h-3.5 shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                                                                                 />
-                                                                            </td>
-                                                                            <td className="p-3 text-right">
-                                                                                <div className="flex items-center justify-end gap-2">
-                                                                                    {q.isTemp && (
-                                                                                        <button
-                                                                                            onClick={() => {
-                                                                                                const mainType = items[0]?.block?.type || 'sleep';
-                                                                                                const altSuppliers = getCategorySuppliers(mainType, items[0]?.block);
-                                                                                                const supplier = altSuppliers.find(s => s.id === q.vendor_id);
-                                                                                                if (supplier) {
-                                                                                                    handleGenerateMultiQuoteEmail(items, [supplier]);
-                                                                                                }
-                                                                                            }}
-                                                                                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold rounded transition-colors flex items-center gap-1"
-                                                                                        >
-                                                                                            <Mail size={10} /> Request Quote
-                                                                                        </button>
-                                                                                    )}
-                                                                                    {linkedBooking ? (
-                                                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
-                                                                                            linkedBooking.status === 'Went Ahead' ? 'bg-green-50 text-green-700 border-green-200' :
-                                                                                            linkedBooking.status === 'Confirmed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                                                            linkedBooking.status === 'Cancelled' ? 'bg-red-50 text-red-700 border-red-200 line-through' :
-                                                                                            'bg-amber-50 text-amber-700 border-amber-200'
-                                                                                        }`}>
-                                                                                            Booking: {linkedBooking.status}
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <button
-                                                                                            onClick={() => handleProceedToBooking(q, items)}
-                                                                                            disabled={!q.quoted_price || updatingQuoteId === qId}
-                                                                                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold rounded transition-colors disabled:opacity-50"
-                                                                                        >
-                                                                                            Book Service
-                                                                                        </button>
-                                                                                    )}
-                                                                                    <button
-                                                                                        onClick={() => handleSelectQuotation(q, items)}
-                                                                                        disabled={isQuoteSelected || !q.quoted_price || updatingQuoteId === qId}
-                                                                                        className={`px-2.5 py-1 text-[10px] font-bold rounded transition-colors ${isQuoteSelected ? 'bg-green-100 text-green-700 cursor-default border border-green-200' : 'bg-brand-charcoal text-white hover:bg-black disabled:bg-neutral-100 disabled:text-neutral-400'}`}
-                                                                                    >
-                                                                                        {isQuoteSelected ? 'Selected' : 'Apply Quote'}
-                                                                                    </button>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
+                                                                                <span className="truncate" title={sName}>{sName}</span>
+                                                                            </label>
+                                                                            {showRequestButton && (
+                                                                                <button
+                                                                                    onClick={() => handleGenerateMultiQuoteEmail(items, [s])}
+                                                                                    className="px-2 py-0.5 bg-blue-50 text-blue-600 hover:bg-blue-100 text-[10px] font-bold rounded transition-colors shrink-0 flex items-center gap-1"
+                                                                                >
+                                                                                    <Mail size={10} /> Request Quote
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     );
                                                                 })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                
+                                                {/* Negotiation Dashboard comparison table */}
+                                                {(() => {
+                                                    const firstId = items[0]?.id;
+                                                    if (!firstId) return null;
+                                                    
+                                                    const dbQuotes = quotations[firstId] || [];
+                                                    const checkedIds = firstId ? (selectedAlternativeVendors[firstId] || []) : [];
+                                                    
+                                                    const mainType = items[0]?.block?.type || 'sleep';
+                                                    const altSuppliers = getCategorySuppliers(mainType, items[0]?.block);
+                                                    
+                                                    const virtualQuotes = checkedIds.map(sId => {
+                                                        const exists = dbQuotes.some(dq => dq.vendor_id === sId);
+                                                        if (exists) return null;
+                                                        
+                                                        const supplier = altSuppliers.find(s => s.id === sId);
+                                                        if (!supplier) return null;
+                                                        
+                                                        const sName = supplier.name || `${supplier.first_name || ''} ${supplier.last_name || ''}`.trim();
+                                                        const defaultPrice = calculateSupplierReferencePrice(supplier, mainType, items[0]);
+                                                        
+                                                        return {
+                                                            id: `temp-${sId}`,
+                                                            isTemp: true,
+                                                            vendor_id: sId,
+                                                            vendor_name: sName,
+                                                            to_email: supplier.email || supplier.reservation_email || "info@nilathra.com",
+                                                            sent_date: null,
+                                                            status: "Unsent Option",
+                                                            quoted_price: defaultPrice,
+                                                            notes: "Standard/contract price from master tables",
+                                                            selected_vendor: false,
+                                                            activity_type: mainType,
+                                                            currency: 'USD'
+                                                        };
+                                                    }).filter(Boolean);
+                                                    
+                                                    const combinedQuotes = [...dbQuotes, ...virtualQuotes];
+                                                    if (combinedQuotes.length === 0) return null;
+
+                                                    return (
+                                                        <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                                                            <div className="bg-neutral-50 px-4 py-2.5 border-b border-neutral-200">
+                                                                <span className="text-xs font-bold text-neutral-700 uppercase tracking-wider">Negotiation Dashboard ({combinedQuotes.length} Requests for entire block)</span>
+                                                            </div>
+                                                            <div className="overflow-x-auto">
+                                                                <table className="w-full text-left text-xs border-collapse">
+                                                                    <thead>
+                                                                        <tr className="bg-neutral-50/50 border-b border-neutral-200 text-neutral-400 font-bold uppercase text-[9px] tracking-wider">
+                                                                            <th className="p-3">Vendor</th>
+                                                                            <th className="p-3">Sent Date</th>
+                                                                            <th className="p-3 w-32">Status</th>
+                                                                            <th className="p-3 w-28">Quote ($)</th>
+                                                                            <th className="p-3">Notes</th>
+                                                                            <th className="p-3 text-right">Actions</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-neutral-100">
+                                                                        {combinedQuotes.map((q: any) => (
+                                                                            <QuotationRow
+                                                                                key={q.id}
+                                                                                q={q}
+                                                                                firstId={firstId}
+                                                                                items={items}
+                                                                                bookings={bookings}
+                                                                                updatingQuoteId={updatingQuoteId}
+                                                                                handleUpdateQuotation={handleUpdateQuotation}
+                                                                                handleSelectQuotation={handleSelectQuotation}
+                                                                                handleProceedToBooking={handleProceedToBooking}
+                                                                                handleGenerateMultiQuoteEmail={handleGenerateMultiQuoteEmail}
+                                                                                getCategorySuppliers={getCategorySuppliers}
+                                                                            />
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>

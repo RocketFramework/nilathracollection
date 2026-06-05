@@ -75,13 +75,45 @@ export interface DBPurchaseOrder {
     accepted_date?: string;
 
     items?: DBPurchaseOrderItem[];
-    invoices?: DBVendorInvoice[];
+    invoices?: DBSupplierInvoice[];
 
     created_at: string;
     updated_at: string;
 }
 
-export interface DBVendorInvoice {
+export interface DBCustomerInvoice {
+    id: string;
+    tour_id: string;
+    tourist_id: string;
+    amount: number;
+    currency?: string;
+    status: 'Pending' | 'Paid' | 'Cancelled';
+    due_date?: string;
+    created_at: string;
+    updated_at: string;
+    items?: DBCustomerInvoiceItem[];
+    payments?: DBCustomerPayment[];
+}
+
+export interface DBCustomerInvoiceItem {
+    id: string;
+    invoice_id: string;
+    description: string;
+    amount: number;
+    created_at: string;
+}
+
+export interface DBCustomerPayment {
+    id: string;
+    invoice_id: string;
+    amount: number;
+    payment_method?: string;
+    payment_status?: string;
+    transaction_id?: string;
+    created_at: string;
+}
+
+export interface DBSupplierInvoice {
     id: string;
     purchase_order_id: string;
     invoice_number: string;
@@ -90,14 +122,14 @@ export interface DBVendorInvoice {
     amount: number;
     status: 'Pending' | 'Received' | 'Partial Paid' | 'Paid' | 'Confirmed';
     attachment_url?: string;
-    payments?: DBVendorPayment[];
+    payments?: DBSupplierPayment[];
     created_at: string;
     updated_at: string;
 }
 
-export interface DBVendorPayment {
+export interface DBSupplierPayment {
     id: string;
-    vendor_invoice_id: string;
+    supplier_invoice_id: string;
     payment_date: string;
     amount: number;
     payment_method: string;
@@ -129,7 +161,7 @@ export interface Financials {
     };
     /** @deprecated Use relational purchase_orders table */
     purchaseOrders: any[];
-    /** @deprecated Use relational vendor_invoices table */
+    /** @deprecated Use relational supplier_invoices table */
     supplierInvoices: any[];
     sellingPrice: number;
     draftCosts?: DraftCostItem[];

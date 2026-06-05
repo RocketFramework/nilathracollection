@@ -233,12 +233,17 @@ export class MasterDataService {
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
         client?: SupabaseClient;
+        ids?: string[];
     }) {
         const supabaseClient = options?.client || supabase;
 
         try {
             // 1. Initial Query for Vendors with count
             let query = supabaseClient.from('vendors').select('*, payment_details(*)', { count: 'exact' });
+
+            if (options?.ids && options.ids.length > 0) {
+                query = query.in('id', options.ids);
+            }
 
             if (options?.searchTerm) {
                 query = query.or(`name.ilike.%${options.searchTerm}%,email.ilike.%${options.searchTerm}%,phone.ilike.%${options.searchTerm}%`);
@@ -436,11 +441,16 @@ export class MasterDataService {
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
         client?: SupabaseClient;
+        ids?: string[];
     }) {
         const supabaseClient = options?.client || supabase;
         try {
             // 1. Initial Query for Transport Providers
             let query = supabaseClient.from('transport_providers').select('*, payment_details(*)', { count: 'exact' });
+
+            if (options?.ids && options.ids.length > 0) {
+                query = query.in('id', options.ids);
+            }
 
             if (options?.searchTerm) {
                 query = query.or(`name.ilike.%${options.searchTerm}%,email.ilike.%${options.searchTerm}%,phone.ilike.%${options.searchTerm}%`);
@@ -640,9 +650,14 @@ export class MasterDataService {
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
         client?: SupabaseClient;
+        ids?: string[];
     }) {
         const supabaseClient = options?.client || supabase;
         let query = supabaseClient.from('tour_guides').select('*, payment_details(*)', { count: 'exact' });
+
+        if (options?.ids && options.ids.length > 0) {
+            query = query.in('id', options.ids);
+        }
 
         if (options?.searchTerm) {
             query = query.or(`first_name.ilike.%${options.searchTerm}%,last_name.ilike.%${options.searchTerm}%,phone.ilike.%${options.searchTerm}%`);
@@ -709,9 +724,14 @@ export class MasterDataService {
         sortBy?: string;
         sortOrder?: 'asc' | 'desc';
         client?: SupabaseClient;
+        ids?: string[];
     }) {
         const supabaseClient = options?.client || supabase;
         let query = supabaseClient.from('restaurants').select('*, payment_details(*)', { count: 'exact' });
+
+        if (options?.ids && options.ids.length > 0) {
+            query = query.in('id', options.ids);
+        }
 
         if (options?.searchTerm) {
             query = query.or(`name.ilike.%${options.searchTerm}%,address.ilike.%${options.searchTerm}%,email.ilike.%${options.searchTerm}%`);

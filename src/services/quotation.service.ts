@@ -140,4 +140,27 @@ export class QuotationService {
         if (selectErr) throw selectErr;
         return quote;
     }
+
+    /**
+     * Fetches all quotation requests sent for a specific tour.
+     */
+    static async getQuotationRequestsForTour(tourId: string) {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('daily_activity_quotation_request')
+            .select(`
+                daily_activity_id,
+                quotation:quotation_request_id (
+                    *
+                )
+            `)
+            .eq('tour_id', tourId);
+
+        if (error) throw error;
+        if (!data) return [];
+        return data.filter((m: any) => m.quotation).map((m: any) => ({
+            daily_activity_id: m.daily_activity_id,
+            quotation: m.quotation
+        }));
+    }
 }

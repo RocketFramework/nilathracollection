@@ -88,7 +88,7 @@ CREATE TABLE purchase_order_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE vendor_invoices (
+CREATE TABLE supplier_invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE,
     invoice_number VARCHAR(255) NOT NULL,
@@ -101,9 +101,9 @@ CREATE TABLE vendor_invoices (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE vendor_payments (
+CREATE TABLE supplier_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    vendor_invoice_id UUID REFERENCES vendor_invoices(id) ON DELETE CASCADE,
+    supplier_invoice_id UUID REFERENCES supplier_invoices(id) ON DELETE CASCADE,
     payment_date DATE NOT NULL,
     amount NUMERIC(12, 2) NOT NULL,
     payment_method VARCHAR(100), -- Bank Transfer, Cash, Card, Cheque
@@ -116,7 +116,7 @@ CREATE TABLE vendor_payments (
 CREATE INDEX idx_po_tour_id ON purchase_orders(tour_id);
 CREATE INDEX idx_po_status ON purchase_orders(status);
 CREATE INDEX idx_po_items_po_id ON purchase_order_items(purchase_order_id);
-CREATE INDEX idx_invoices_po_id ON vendor_invoices(purchase_order_id);
+CREATE INDEX idx_invoices_po_id ON supplier_invoices(purchase_order_id);
 
 -- Sequence and function for auto PO Numbering
 CREATE SEQUENCE IF NOT EXISTS po_number_seq;

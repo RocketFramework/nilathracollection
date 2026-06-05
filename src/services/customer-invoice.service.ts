@@ -1,16 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import { CreateInvoiceDTO, PaymentDTO } from '../dtos/finance.dto';
+import { CreateCustomerInvoiceDTO, CustomerPaymentDTO } from '../dtos/finance.dto';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export class InvoiceService {
-    static async createInvoice(dto: CreateInvoiceDTO) {
+export class CustomerInvoiceService {
+    static async createCustomerInvoice(dto: CreateCustomerInvoiceDTO) {
         const { items, ...invoiceData } = dto;
 
         const { data: invoice, error: invError } = await supabase
-            .from('invoices')
+            .from('customer_invoices')
             .insert(invoiceData)
             .select()
             .single();
@@ -24,7 +24,7 @@ export class InvoiceService {
             }));
 
             const { error: itemsError } = await supabase
-                .from('invoice_items')
+                .from('customer_invoice_items')
                 .insert(itemsToInsert);
 
             if (itemsError) throw itemsError;
@@ -33,9 +33,9 @@ export class InvoiceService {
         return invoice;
     }
 
-    static async registerPayment(dto: PaymentDTO) {
+    static async registerCustomerPayment(dto: CustomerPaymentDTO) {
         const { data: payment, error: payError } = await supabase
-            .from('payments')
+            .from('customer_payments')
             .insert(dto)
             .select()
             .single();
@@ -43,9 +43,9 @@ export class InvoiceService {
         if (payError) throw payError;
 
         // Check if fully paid
-        const { data: invoice } = await supabase.from('invoices').select('amount').eq('id', dto.invoice_id).single();
+        const { data: invoice } = await supabase.from('customer_invoices').select('amount').eq('id', dto.invoice_id).single();
         if (invoice && invoice.amount <= dto.amount) {
-            await supabase.from('invoices').update({ status: 'Paid' }).eq('id', dto.invoice_id);
+            await supabase.from('customer_invoices').update({ status: 'Paid' }).eq('id', dto.invoice_id);
         }
 
         return payment;

@@ -37,6 +37,42 @@ CREATE TABLE tourist_profiles (
     last_name VARCHAR(100),
     phone VARCHAR(50),
     country VARCHAR(100),
+    passport_number VARCHAR(100),
+    address TEXT,
+    adults INTEGER DEFAULT 2,
+    children INTEGER DEFAULT 0,
+    infants INTEGER DEFAULT 0,
+    arrival_date DATE,
+    departure_date DATE,
+    duration_days INTEGER DEFAULT 0,
+    budget_total NUMERIC DEFAULT 0,
+    budget_per_person NUMERIC DEFAULT 0,
+    travel_style VARCHAR(50) DEFAULT 'Luxury',
+    departure_country VARCHAR(100),
+    dietary_requirements TEXT,
+    medical_conditions TEXT,
+    accessibility_requirements TEXT,
+    language_preference VARCHAR(50) DEFAULT 'English',
+    special_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tourist Team (for individual travelers in the tourist's party)
+CREATE TABLE tourist_team (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tour_id UUID REFERENCES tours(id) ON DELETE CASCADE NOT NULL,
+    tourist_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    passport_number VARCHAR(100),
+    nationality VARCHAR(100),
+    date_of_birth DATE,
+    gender VARCHAR(20),
+    dietary_preferences TEXT,
+    meal_preference VARCHAR(50) DEFAULT 'Standard',
+    room_preference VARCHAR(50) DEFAULT 'Double',
+    shared_with_ids UUID[] DEFAULT '{}'::UUID[],
+    medical_notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -344,7 +380,7 @@ CREATE TABLE daily_activities (
 -------------------------------------------------------------------------------
 -- 4. Financials
 -------------------------------------------------------------------------------
-CREATE TABLE invoices (
+CREATE TABLE customer_invoices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tour_id UUID REFERENCES tours(id) ON DELETE CASCADE NOT NULL,
     tourist_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
@@ -356,17 +392,17 @@ CREATE TABLE invoices (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE invoice_items (
+CREATE TABLE customer_invoice_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_id UUID REFERENCES invoices(id) ON DELETE CASCADE NOT NULL,
+    invoice_id UUID REFERENCES customer_invoices(id) ON DELETE CASCADE NOT NULL,
     description VARCHAR(255) NOT NULL,
     amount NUMERIC(10, 2) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE payments (
+CREATE TABLE customer_payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    invoice_id UUID REFERENCES invoices(id) ON DELETE CASCADE NOT NULL,
+    invoice_id UUID REFERENCES customer_invoices(id) ON DELETE CASCADE NOT NULL,
     amount NUMERIC(10, 2) NOT NULL,
     payment_method VARCHAR(100),
     payment_status VARCHAR(50) DEFAULT 'Success',
@@ -462,9 +498,9 @@ ALTER TABLE tour_status_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tour_itineraries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_activities ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_invoice_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_payments ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE vendor_ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suspension_recommendations ENABLE ROW LEVEL SECURITY;
@@ -503,6 +539,12 @@ CREATE POLICY tourist_read_update_self ON tourist_profiles FOR SELECT TO authent
 CREATE POLICY tourist_update_self ON tourist_profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
 CREATE POLICY agent_read_update_self ON agent_profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY agent_update_self ON agent_profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+
+-- Tourist Team Policies
+ALTER TABLE tourist_team ENABLE ROW LEVEL SECURITY;
+CREATE POLICY admin_all_team ON tourist_team FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY tourist_read_self_team ON tourist_team FOR SELECT TO authenticated USING (auth.uid() = tourist_id);
+CREATE POLICY tourist_write_self_team ON tourist_team FOR ALL TO authenticated USING (auth.uid() = tourist_id);
 
 -- Agents and tourists need to read users for assignments etc.
 CREATE POLICY users_read_auth ON users FOR SELECT TO authenticated USING (true);
@@ -551,17 +593,17 @@ CREATE POLICY tourist_read_activities ON daily_activities FOR SELECT TO authenti
 
 
 -- 3. Financials Policies
-CREATE POLICY admin_financials ON invoices FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
-CREATE POLICY admin_invoice_items ON invoice_items FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
-CREATE POLICY admin_payments ON payments FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY admin_financials ON customer_invoices FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY admin_invoice_items ON customer_invoice_items FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
+CREATE POLICY admin_payments ON customer_payments FOR ALL TO authenticated USING (get_user_role(auth.uid()) = 'admin');
 
 -- Tourist read own invoices
-CREATE POLICY tourist_read_invoices ON invoices FOR SELECT TO authenticated USING (tourist_id = auth.uid());
-CREATE POLICY tourist_read_invoice_items ON invoice_items FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM invoices WHERE id = invoice_items.invoice_id AND tourist_id = auth.uid())
+CREATE POLICY tourist_read_invoices ON customer_invoices FOR SELECT TO authenticated USING (tourist_id = auth.uid());
+CREATE POLICY tourist_read_invoice_items ON customer_invoice_items FOR SELECT TO authenticated USING (
+    EXISTS (SELECT 1 FROM customer_invoices WHERE id = customer_invoice_items.invoice_id AND tourist_id = auth.uid())
 );
-CREATE POLICY tourist_read_payments ON payments FOR SELECT TO authenticated USING (
-    EXISTS (SELECT 1 FROM invoices WHERE id = payments.invoice_id AND tourist_id = auth.uid())
+CREATE POLICY tourist_read_payments ON customer_payments FOR SELECT TO authenticated USING (
+    EXISTS (SELECT 1 FROM customer_invoices WHERE id = customer_payments.invoice_id AND tourist_id = auth.uid())
 );
 
 

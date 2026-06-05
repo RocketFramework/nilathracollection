@@ -139,7 +139,7 @@ invoice_local = '''
         setIsSavingPO(true);
         try {
             await savePurchaseOrderAction(po, po.items || []);
-            const newInvoice: Partial<DBVendorInvoice> = {
+            const newInvoice: Partial<DBSupplierInvoice> = {
                 purchase_order_id: po.id,
                 invoice_number: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
                 amount: po.total_amount,
@@ -147,7 +147,7 @@ invoice_local = '''
                 invoice_date: new Date().toISOString().split('T')[0],
                 due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             };
-            await saveVendorInvoiceAction(newInvoice);
+            await saveSupplierInvoiceAction(newInvoice);
             setEditingPO(prev => prev ? { ...prev, invoices: [...(prev.invoices || []), newInvoice as any] } : null);
             await loadPOs();
         } catch (error) {
@@ -157,9 +157,9 @@ invoice_local = '''
         }
     };
 
-    const updateInvoiceStatusLocal = async (invoice: DBVendorInvoice, newStatus: DBVendorInvoice['status']) => {
+    const updateInvoiceStatusLocal = async (invoice: DBSupplierInvoice, newStatus: DBSupplierInvoice['status']) => {
         try {
-            await saveVendorInvoiceAction({ ...invoice, status: newStatus });
+            await saveSupplierInvoiceAction({ ...invoice, status: newStatus });
             setEditingPO(prev => {
                 if (!prev) return null;
                 const updatedInvoices = (prev.invoices || []).map(i => i.id === invoice.id ? { ...i, status: newStatus } : i);
@@ -172,7 +172,7 @@ invoice_local = '''
     };
 '''
 
-content = content.replace('    const updateInvoiceStatus = async (invoice: DBVendorInvoice, newStatus: DBVendorInvoice[\'status\']) => {', invoice_local + '\n    const updateInvoiceStatus = async (invoice: DBVendorInvoice, newStatus: DBVendorInvoice[\'status\']) => {')
+content = content.replace('    const updateInvoiceStatus = async (invoice: DBSupplierInvoice, newStatus: DBSupplierInvoice[\'status\']) => {', invoice_local + '\n    const updateInvoiceStatus = async (invoice: DBSupplierInvoice, newStatus: DBSupplierInvoice[\'status\']) => {')
 
 content = content.replace('onClick={(e) => { e.stopPropagation(); setActivePOId(activePOId === po.id ? null : po.id); }}', 'onClick={(e) => { e.stopPropagation(); if (activePOId === po.id) closePODrawer(); else openPODrawer(po.id); }}')
 

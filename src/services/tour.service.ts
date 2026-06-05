@@ -1,6 +1,6 @@
 
 import { CreateTourDTO, AddActivityDTO } from '../dtos/tour.dto';
-import { TripData } from '@/app/admin/(authenticated)/planner/types';
+import { TripData, Traveler, TravelStyle } from '@/app/admin/(authenticated)/planner/types';
 import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { RequestService } from './request.service';
@@ -199,7 +199,13 @@ export class TourService {
                 ),
                 tourist:users!tours_tourist_id_fkey(
                     email,
-                    tourist_profile:tourist_profiles(first_name, last_name, phone)
+                    tourist_profile:tourist_profiles(
+                        first_name, last_name, phone, country, passport_number, address,
+                        adults, children, infants, arrival_date, departure_date, duration_days,
+                        budget_total, budget_per_person, travel_style, departure_country,
+                        dietary_requirements, medical_conditions, accessibility_requirements,
+                        language_preference, special_notes
+                    )
                 )
             `)
             .eq('id', tourId)
@@ -207,65 +213,124 @@ export class TourService {
 
         if (error) throw error;
 
+        // Query the travelers from tourist_team table
+        const { data: teamRows } = await supabaseAdmin
+            .from('tourist_team')
+            .select('*')
+            .eq('tour_id', tourId);
+
+        const travelers: Traveler[] = (teamRows || []).map(row => ({
+            id: row.id,
+            fullName: row.full_name,
+            passportNumber: row.passport_number || '',
+            nationality: row.nationality || '',
+            dateOfBirth: row.date_of_birth || '',
+            gender: row.gender || undefined,
+            dietaryPreferences: row.dietary_preferences || '',
+            mealPreference: row.meal_preference || 'Standard',
+            roomPreference: row.room_preference || 'Double',
+            sharedWithIds: row.shared_with_ids || [],
+            medicalNotes: row.medical_notes || ''
+        }));
+
         const plannerData = tourMsg.planner_data;
-
-        // If the planner data has already been saved before, return it perfectly mapped
-        if (plannerData && Object.keys(plannerData).length > 0) {
-            return { tripData: { ...plannerData, id: tourId } as TripData, tourMsg };
-        }
-
-        // Otherwise seed it from the request_details
-        const reqInfo = tourMsg.request;
-        const details = reqInfo?.details?.[0] || {};
         const tourist = tourMsg.tourist;
         const touristProfile = tourist?.tourist_profile?.[0] || {};
 
-        const seedData: Partial<TripData> = {
-            id: tourId,
-            clientName: reqInfo?.name || (touristProfile.first_name ? `${touristProfile.first_name} ${touristProfile.last_name}` : (reqInfo?.email || 'New Client Inquiry')),
-            clientEmail: reqInfo?.email || tourist?.email || '',
-            clientPhone: reqInfo?.phone_number?.toString() || touristProfile.phone || '',
-            status: tourMsg.status as TripData['status'],
-            profile: {
-                adults: reqInfo?.adults || details.adults || 2,
-                children: reqInfo?.children || details.children || 0,
-                infants: reqInfo?.infants || 0,
-                arrivalDate: reqInfo?.start_date || details.start_date || '',
-                departureDate: details.end_date || (() => {
-                    const start = reqInfo?.start_date || details.start_date;
-                    const nights = reqInfo?.duration_nights || details.nights;
-                    if (start && nights) {
-                        const d = new Date(start);
-                        d.setDate(d.getDate() + nights);
-                        return d.toISOString().split('T')[0];
-                    }
-                    return '';
-                })(),
-                durationDays: (reqInfo?.duration_nights || details.nights || 0) + ((reqInfo?.start_date || details.start_date) ? 1 : 0),
-                budgetTotal: reqInfo?.budget || details.estimated_price || 0,
-                budgetPerPerson: (reqInfo?.budget || details.estimated_price) && (reqInfo?.adults || details.adults)
-                    ? (reqInfo?.budget || details.estimated_price) / (reqInfo?.adults || details.adults)
-                    : 0,
-                travelStyle: details.budget_tier ? 'Premium' : 'Luxury',
-                specialConditions: {
-                    dietary: details.special_requirements ? 'See internal notes' : '',
-                    medical: '',
-                    accessibility: '',
-                    language: 'English',
-                    occasion: reqInfo?.note || details?.special_requirements || ''
-                }
-            },
-            serviceScopes: [],
-            flights: [], accommodations: [], transports: [], activities: [], itinerary: [],
-            financials: {
-                costs: { flights: 0, hotels: 0, transport: 0, activities: 0, guide: 0, misc: 0, commission: 0, tax: 0 },
-                purchaseOrders: [],
-                supplierInvoices: [],
-                sellingPrice: reqInfo?.budget || details.estimated_price || 0
+        const clientName = touristProfile.first_name 
+            ? `${touristProfile.first_name}${touristProfile.last_name ? ' ' + touristProfile.last_name : ''}`
+            : (tourMsg.request?.name || tourist?.email || 'New Client Inquiry');
+
+        const mergedProfile = {
+            adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2,
+            children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0,
+            infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
+            arrivalDate: touristProfile.arrival_date || '',
+            departureDate: touristProfile.departure_date || '',
+            durationDays: touristProfile.duration_days || 0,
+            budgetTotal: touristProfile.budget_total || 0,
+            budgetPerPerson: touristProfile.budget_per_person || 0,
+            travelStyle: (touristProfile.travel_style || 'Luxury') as TravelStyle,
+            departureCountry: touristProfile.departure_country || '',
+            specialConditions: {
+                dietary: touristProfile.dietary_requirements || '',
+                medical: touristProfile.medical_conditions || '',
+                accessibility: touristProfile.accessibility_requirements || '',
+                language: touristProfile.language_preference || 'English',
+                occasion: touristProfile.special_notes || ''
             }
         };
 
-        return { tripData: seedData, tourMsg };
+        let tripData: TripData;
+
+        // If the planner data has already been saved before, return it perfectly mapped
+        if (plannerData && Object.keys(plannerData).length > 0) {
+            tripData = { ...plannerData, id: tourId } as TripData;
+            // Overwrite Step 2 and Step 3 details with relational table data
+            tripData.clientName = clientName;
+            tripData.clientPassport = touristProfile.passport_number || '';
+            tripData.clientPhone = touristProfile.phone || '';
+            tripData.clientAddress = touristProfile.address || '';
+            tripData.profile = { ...tripData.profile, ...mergedProfile };
+            tripData.travelers = travelers;
+        } else {
+            // Otherwise seed it from the request_details
+            const reqInfo = tourMsg.request;
+            const details = reqInfo?.details?.[0] || {};
+
+            tripData = {
+                id: tourId,
+                clientName: clientName,
+                clientEmail: reqInfo?.email || tourist?.email || '',
+                clientPhone: touristProfile.phone || reqInfo?.phone_number?.toString() || '',
+                clientPassport: touristProfile.passport_number || '',
+                clientAddress: touristProfile.address || '',
+                status: tourMsg.status as TripData['status'],
+                profile: {
+                    adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : (reqInfo?.adults || details.adults || 2),
+                    children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : (reqInfo?.children || details.children || 0),
+                    infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
+                    arrivalDate: touristProfile.arrival_date || reqInfo?.start_date || details.start_date || '',
+                    departureDate: touristProfile.departure_date || details.end_date || (() => {
+                        const start = reqInfo?.start_date || details.start_date;
+                        const nights = reqInfo?.duration_nights || details.nights;
+                        if (start && nights) {
+                            const d = new Date(start);
+                            d.setDate(d.getDate() + nights);
+                            return d.toISOString().split('T')[0];
+                        }
+                        return '';
+                    })(),
+                    durationDays: touristProfile.duration_days || (reqInfo?.duration_nights || details.nights || 0) + ((reqInfo?.start_date || details.start_date) ? 1 : 0),
+                    budgetTotal: touristProfile.budget_total || reqInfo?.budget || details.estimated_price || 0,
+                    budgetPerPerson: touristProfile.budget_per_person || (
+                        (reqInfo?.budget || details.estimated_price) && (reqInfo?.adults || details.adults)
+                            ? (reqInfo?.budget || details.estimated_price) / (reqInfo?.adults || details.adults)
+                            : 0
+                    ),
+                    travelStyle: (touristProfile.travel_style || (details.budget_tier ? 'Premium' : 'Luxury')) as TravelStyle,
+                    departureCountry: touristProfile.departure_country || '',
+                    specialConditions: {
+                        dietary: touristProfile.dietary_requirements || (details.special_requirements ? 'See internal notes' : ''),
+                        medical: touristProfile.medical_conditions || '',
+                        accessibility: touristProfile.accessibility_requirements || '',
+                        language: touristProfile.language_preference || 'English',
+                        occasion: touristProfile.special_notes || reqInfo?.note || details?.special_requirements || ''
+                    }
+                },
+                serviceScopes: [],
+                flights: [], accommodations: [], transports: [], activities: [], itinerary: [],
+                travelers: travelers,
+                financials: {
+                    costs: { flights: 0, hotels: 0, transport: 0, activities: 0, guide: 0, misc: 0, commission: 0, tax: 0 },
+                    purchaseOrders: [],
+                    supplierInvoices: [],
+                    sellingPrice: reqInfo?.budget || details.estimated_price || 0
+                }
+            };
+        }
+
+        return { tripData, tourMsg };
     }
 
     /**
@@ -339,10 +404,88 @@ export class TourService {
                 activity_mix: activityMix
             })
             .eq('id', tourId)
-            .select('request_id, status')
+            .select('request_id, status, tourist_id')
             .single();
 
         if (tourErr) throw tourErr;
+
+        const touristId = tourData.tourist_id;
+        if (touristId) {
+            // Split name into first and last name
+            const nameParts = (tripData.clientName || '').trim().split(/\s+/);
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            // Update tourist_profile
+            const { error: profileErr } = await supabaseAdmin
+                .from('tourist_profiles')
+                .update({
+                    first_name: firstName,
+                    last_name: lastName,
+                    phone: tripData.clientPhone || null,
+                    passport_number: tripData.clientPassport || null,
+                    address: tripData.clientAddress || null,
+                    adults: tripData.profile?.adults ?? 2,
+                    children: tripData.profile?.children ?? 0,
+                    infants: tripData.profile?.infants ?? 0,
+                    arrival_date: tripData.profile?.arrivalDate || null,
+                    departure_date: tripData.profile?.departureDate || null,
+                    duration_days: tripData.profile?.durationDays ?? 0,
+                    budget_total: tripData.profile?.budgetTotal ?? 0,
+                    budget_per_person: tripData.profile?.budgetPerPerson ?? 0,
+                    travel_style: tripData.profile?.travelStyle || 'Luxury',
+                    departure_country: tripData.profile?.departureCountry || null,
+                    dietary_requirements: tripData.profile?.specialConditions?.dietary || null,
+                    medical_conditions: tripData.profile?.specialConditions?.medical || null,
+                    accessibility_requirements: tripData.profile?.specialConditions?.accessibility || null,
+                    language_preference: tripData.profile?.specialConditions?.language || 'English',
+                    special_notes: tripData.profile?.specialConditions?.occasion || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', touristId);
+
+            if (profileErr) {
+                console.error("Failed to save tourist profile relational data:", profileErr);
+            }
+
+            // Sync tourist_team
+            // 1. Delete old team members for this tour
+            const { error: deleteTeamErr } = await supabaseAdmin
+                .from('tourist_team')
+                .delete()
+                .eq('tour_id', tourId);
+
+            if (deleteTeamErr) {
+                console.error("Failed to clear tourist team rows:", deleteTeamErr);
+            }
+
+            // 2. Insert new team members
+            if (tripData.travelers && tripData.travelers.length > 0) {
+                const teamRows = tripData.travelers.map(t => ({
+                    id: t.id && t.id.includes('-') ? t.id : undefined, // Keep existing UUID if valid
+                    tour_id: tourId,
+                    tourist_id: touristId,
+                    full_name: t.fullName,
+                    passport_number: t.passportNumber || null,
+                    nationality: t.nationality || null,
+                    date_of_birth: t.dateOfBirth || null,
+                    gender: t.gender || null,
+                    dietary_preferences: t.dietaryPreferences || null,
+                    meal_preference: t.mealPreference || 'Standard',
+                    room_preference: t.roomPreference || 'Double',
+                    shared_with_ids: t.sharedWithIds || [],
+                    medical_notes: t.medicalNotes || null
+                }));
+
+                const { error: insertTeamErr } = await supabaseAdmin
+                    .from('tourist_team')
+                    .insert(teamRows);
+
+                if (insertTeamErr) {
+                    console.error("Failed to insert tourist team rows:", insertTeamErr);
+                }
+            }
+        }
 
         // Sync request status with tour progress
         if (tourData.request_id && tourData.status) {

@@ -19,8 +19,8 @@ import {
     confirmFinalVendorBookingAction,
     cancelVendorBookingAction,
     updateVendorBookingStatusAction,
-    saveVendorInvoiceAction,
-    saveVendorPaymentAction,
+    saveSupplierInvoiceAction,
+    saveSupplierPaymentAction,
     getDriversAction,
     getTourGuidesAction,
     getDailyActivitiesAction,
@@ -751,7 +751,7 @@ export function FinanceAndBookingStep({
         setIsSavingInvoice(true);
 
         try {
-            const res = await saveVendorInvoiceAction({
+            const res = await saveSupplierInvoiceAction({
                 purchase_order_id: selectedPOForInvoice.id,
                 invoice_number: invoiceNumber,
                 invoice_date: invoiceDate,
@@ -793,8 +793,8 @@ export function FinanceAndBookingStep({
         setIsSavingPayment(true);
 
         try {
-            const res = await saveVendorPaymentAction({
-                vendor_invoice_id: selectedInvoiceForPayment.id,
+            const res = await saveSupplierPaymentAction({
+                supplier_invoice_id: selectedInvoiceForPayment.id,
                 payment_date: paymentDate,
                 amount: parseFloat(paymentAmount),
                 payment_method: paymentMethod,
@@ -1449,9 +1449,9 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                                                                 <h6 className="font-serif font-bold text-brand-charcoal text-base">{act.title || 'Itinerary Event'}</h6>
                                                                 <p className="text-xs text-neutral-400 mt-0.5">Day {act.itinerary_id ? 'Scheduled' : 'TBD'} | Finalized Supplier: <span className="font-bold text-brand-green">{finalizedVendorName}</span></p>
                                                             </div>
-                                                            {act.agreed_unit_price && (
+                                                            {act.contracted_price && (
                                                                 <div className="text-sm font-black text-brand-charcoal bg-neutral-50 border border-neutral-100 px-3 py-1.5 rounded-xl self-start md:self-auto">
-                                                                    Agreed Cost: ${Number(act.agreed_total_price || act.agreed_unit_price).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                                                    Agreed Cost: ${Number(act.contracted_total_price || act.contracted_price).toLocaleString(undefined, {minimumFractionDigits: 2})}
                                                                 </div>
                                                             )}
                                                         </div>

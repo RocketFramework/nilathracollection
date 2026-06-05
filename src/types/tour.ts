@@ -202,6 +202,8 @@ export interface InternalItineraryBlock {
     driverAccIncluded?: boolean;
     guideRoomDiscount?: 'Free' | 'Half Price' | 'None' | '';
     parkingIncluded?: boolean;
+    forceNegotiation?: boolean;
+    alternativeSuppliers?: string[];
 
     linkedSupplierId?: string; // Legacy field - to be phased out or used as label
     confirmationStatus: 'Pending' | 'Confirmed';

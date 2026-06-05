@@ -366,8 +366,8 @@ export class VendorBookingService {
 
         // 6. Update daily_activities records with the selected vendor details for itinerary display
         const dailyActivityUpdates: any = {
-            agreed_unit_price: agreed_price,
-            agreed_total_price: agreed_price
+            contracted_price: agreed_price,
+            contracted_total_price: agreed_price
         };
 
         if (vendor_type === 'hotel') dailyActivityUpdates.hotel_id = vendor_id;
