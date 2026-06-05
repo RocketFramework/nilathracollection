@@ -38,3 +38,5 @@ export interface AddItineraryDayDTO {
     description?: string;
     hotel_id?: string; // UUID
 }
+
+
