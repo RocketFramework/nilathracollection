@@ -25,7 +25,8 @@ import {
     getAIRulesAction,
     saveAIRuleAction,
     getRoomMarkupAction,
-    getAppMarkupsAction
+    getAppMarkupsAction,
+    getItineraryDatesAction
 } from "@/actions/admin.actions";
 import { AIRule } from "@/types/ai";
 import { ItineraryPdfTemplate } from "../components/ItineraryPdfTemplate";
@@ -111,6 +112,18 @@ export function ItineraryBuilder({
     const [aiRules, setAiRules] = useState<{ generic: string, specific: string }>({ generic: '', specific: '' });
     const [isSavingRules, setIsSavingRules] = useState(false);
     const [activeRuleTab, setActiveRuleTab] = useState<'generic' | 'specific'>('generic');
+
+    const [dbDates, setDbDates] = useState<Record<number, string> | null>(null);
+
+    useEffect(() => {
+        if (tripData.id) {
+            getItineraryDatesAction(tripData.id).then(res => {
+                if (res.success && res.dateMapByDayNumber) {
+                    setDbDates(res.dateMapByDayNumber);
+                }
+            });
+        }
+    }, [tripData.id, tripData.itinerary]);
 
 
     // Master Data State
@@ -1562,11 +1575,18 @@ export function ItineraryBuilder({
                             const isUnscheduled = dayNum === 0;
 
                             let actualDate = "";
-                            if (!isUnscheduled && tripData.profile.arrivalDate) {
+                            const dbDateStr = dbDates?.[dayNum];
+
+                            if (dbDateStr) {
                                 try {
-                                    const date = new Date(tripData.profile.arrivalDate);
-                                    date.setDate(date.getDate() + (dayNum - 1));
-                                    actualDate = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                                    const parts = dbDateStr.split('-');
+                                    let dateObj;
+                                    if (parts.length === 3) {
+                                        dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                                    } else {
+                                        dateObj = new Date(dbDateStr);
+                                    }
+                                    actualDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
                                 } catch (e) {
                                     console.error("Error calculating date:", e);
                                 }

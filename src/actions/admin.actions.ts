@@ -567,6 +567,35 @@ export async function getDailyActivitiesAction(tourId: string) {
     }
 }
 
+export async function getItineraryDatesAction(tourId: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        
+        // Query tour_itineraries directly for day_number and date
+        const { data, error } = await adminSupabase
+            .from('tour_itineraries')
+            .select('day_number, date')
+            .eq('tour_id', tourId);
+            
+        if (error) throw error;
+
+        const dateMapByDayNumber: Record<number, string> = {};
+        data?.forEach(ti => {
+            if (ti.day_number && ti.date) {
+                dateMapByDayNumber[ti.day_number] = ti.date;
+            }
+        });
+
+        return { 
+            success: true, 
+            dateMapByDayNumber 
+        };
+    } catch (error: any) {
+        console.error("Error fetching itinerary dates:", error);
+        return { success: false, error: error.message || "Failed to load itinerary dates." };
+    }
+}
+
 
 export async function finalizeActivityPricesAction(
     updates: { 

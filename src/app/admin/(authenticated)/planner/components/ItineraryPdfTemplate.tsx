@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { TripData } from "../types";
 import { MapPin, Clock, Bed, Compass, Utensils, Car, Info, Calendar } from "lucide-react";
 import { getBookingTermsAction } from "@/actions/terms.actions";
+import { getItineraryDatesAction } from "@/actions/admin.actions";
 
 export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData: TripData, masterData?: any }>(
     ({ tripData, masterData }, ref) => {
         const { profile, itinerary, accommodations, transports, financials } = tripData;
         const [luxuryTerms, setLuxuryTerms] = useState<any>(null);
+        const [dbDates, setDbDates] = useState<Record<number, string> | null>(null);
 
         useEffect(() => {
             getBookingTermsAction().then(res => {
@@ -15,30 +17,51 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                     if (term) setLuxuryTerms(term);
                 }
             });
-        }, []);
+
+            if (tripData.id) {
+                getItineraryDatesAction(tripData.id).then(res => {
+                    if (res.success && res.dateMapByDayNumber) {
+                        setDbDates(res.dateMapByDayNumber);
+                    }
+                });
+            }
+        }, [tripData.id]);
+
+        const parseDateString = (dateStr: string) => {
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                return new Date(year, month, day);
+            }
+            return new Date(dateStr);
+        };
 
         const getFormattedDate = (dayNum: number) => {
-            if (!profile.arrivalDate) return '';
-            try {
-                const d = new Date(profile.arrivalDate);
-                d.setDate(d.getDate() + (dayNum - 1));
-                if (isNaN(d.getTime())) return '';
-                return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-            } catch (e) {
-                return '';
+            const dbDateStr = dbDates?.[dayNum];
+            if (dbDateStr) {
+                try {
+                    const d = parseDateString(dbDateStr);
+                    if (!isNaN(d.getTime())) {
+                        return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                    }
+                } catch (e) {}
             }
+            return '';
         };
 
         const getShortFormattedDate = (dayNum: number) => {
-            if (!profile.arrivalDate) return '';
-            try {
-                const d = new Date(profile.arrivalDate);
-                d.setDate(d.getDate() + (dayNum - 1));
-                if (isNaN(d.getTime())) return '';
-                return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-            } catch (e) {
-                return '';
+            const dbDateStr = dbDates?.[dayNum];
+            if (dbDateStr) {
+                try {
+                    const d = parseDateString(dbDateStr);
+                    if (!isNaN(d.getTime())) {
+                        return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+                    }
+                } catch (e) {}
             }
+            return '';
         };
 
         const getBlockTypeConfig = (type: string) => {
@@ -342,7 +365,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                             <div className="flex flex-col items-center bg-white z-10 w-[64px] py-2 border border-[#D4AF37]/20 rounded-xl shadow-sm">
                                                                 <span className="text-[8px] uppercase tracking-[0.2em] text-[#6B7280] mb-0.5">Day</span>
                                                                 <span className="text-2xl font-serif text-[#D4AF37] leading-none font-bold">{String(dayNum).padStart(2, '0')}</span>
-                                                                {profile.arrivalDate && (() => {
+                                                                {(() => {
                                                                     const shortDate = getShortFormattedDate(dayNum);
                                                                     return shortDate ? (
                                                                         <span className="text-[8.5px] uppercase tracking-wider text-[#6B7280] font-sans font-semibold border-t border-[#D4AF37]/20 pt-1 w-full text-center mt-1.5 px-1">
@@ -355,7 +378,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                             {/* Day Content */}
                                                             <div className="flex-1 pt-2">
                                                                 {/* Day Date Header */}
-                                                                {profile.arrivalDate && (() => {
+                                                                {(() => {
                                                                     const dateStr = getFormattedDate(dayNum);
                                                                     return dateStr ? (
                                                                         <div className="mb-4 pb-1.5 border-b border-[#D4AF37]/20 flex items-center justify-between">
