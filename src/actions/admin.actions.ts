@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
+import { TouristService } from "@/services/tourist.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
 import { MasterDataService, Restaurant, TransportProvider, Vendor } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
@@ -190,6 +191,27 @@ export async function savePlannerDataAction(tourId: string, tripData: any) {
     } catch (error: any) {
         console.error("Error saving planner JSON data:", error);
         return { success: false, error: error.message || "Failed to save planner data." };
+    }
+}
+
+export async function getTouristDataAction(tourId: string) {
+    try {
+        const data = await TouristService.getTouristData(tourId);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Error fetching tourist DTO data:", error);
+        return { error: error.message || "Failed to load tourist data." };
+    }
+}
+
+export async function saveTouristDataAction(tourId: string, data: any) {
+    try {
+        await TouristService.saveTouristData(tourId, data);
+        revalidatePath(`/admin-new`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving tourist DTO data:", error);
+        return { error: error.message || "Failed to save tourist data." };
     }
 }
 

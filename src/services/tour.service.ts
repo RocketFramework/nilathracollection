@@ -7,6 +7,8 @@ import { RequestService } from './request.service';
 
 const supabase = createSupabaseClient();
 
+const isUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
 export class TourService {
     static async createTour(dto: CreateTourDTO) {
         const { data, error } = await supabase
@@ -416,10 +418,11 @@ export class TourService {
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
-            // Update tourist_profile
+            // Upsert tourist_profile to ensure it exists and is updated
             const { error: profileErr } = await supabaseAdmin
                 .from('tourist_profiles')
-                .update({
+                .upsert({
+                    id: touristId,
                     first_name: firstName,
                     last_name: lastName,
                     phone: tripData.clientPhone || null,
@@ -462,7 +465,7 @@ export class TourService {
             // 2. Insert new team members
             if (tripData.travelers && tripData.travelers.length > 0) {
                 const teamRows = tripData.travelers.map(t => ({
-                    id: t.id && t.id.includes('-') ? t.id : undefined, // Keep existing UUID if valid
+                    id: isUuid(t.id) ? t.id : undefined, // Keep existing UUID if valid
                     tour_id: tourId,
                     tourist_id: touristId,
                     full_name: t.fullName,

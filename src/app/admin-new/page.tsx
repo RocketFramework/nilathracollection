@@ -44,6 +44,7 @@ import {
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus } from '../../types/types';
 import { ItineraryElements } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
+import { getTouristDataAction, saveTouristDataAction } from '@/actions/admin.actions';
 
 interface StepItem {
   id: string;
@@ -161,6 +162,29 @@ function PlannerWizardWorkspace() {
     room_preference: 'Double',
     medical_notes: ''
   });
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveProgress = async () => {
+    if (!tourId || tourId === 'draft-tour') {
+      alert('This planner is in preview mode and not attached to a definitive Tour yet.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await saveTouristDataAction(tourId, touristData);
+      if (res.success) {
+        alert('Workflow state and client profile saved to database successfully.');
+      } else {
+        throw new Error(res.error || 'Failed to save');
+      }
+    } catch (error: any) {
+      console.error("Failed to save tourist data:", error);
+      alert("Error saving: " + (error.message || error));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Define the ordered steps for Basic Track
   const basicSteps: StepItem[] = useMemo(() => [
@@ -337,6 +361,15 @@ function PlannerWizardWorkspace() {
         const params = new URLSearchParams(window.location.search);
         const activeTourId = params.get('tourId') || 'draft-tour';
         setTourId(activeTourId);
+
+        if (activeTourId && activeTourId !== 'draft-tour') {
+          const touristRes = await getTouristDataAction(activeTourId);
+          if (touristRes.success && touristRes.data) {
+            setTouristData(touristRes.data);
+          } else {
+            console.error("Failed to load tourist relational data:", touristRes.error);
+          }
+        }
 
         const urlTrack = params.get('track') as TrackType | null;
         const urlStep = params.get('step');
@@ -614,7 +647,7 @@ function PlannerWizardWorkspace() {
     }
     const memberToAdd: TouristTeamMemberDTO = {
       ...newMember,
-      id: `member-${Date.now()}`
+      id: crypto.randomUUID()
     };
     setTouristData(prev => ({
       ...prev,
@@ -1639,10 +1672,11 @@ function PlannerWizardWorkspace() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => alert('Tour Workspace draft updated locally and database reference prepped.')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 transition-all text-xs font-bold uppercase tracking-wider"
+                onClick={handleSaveProgress}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50"
               >
-                <Save className="w-4 h-4" /> Save Progress
+                <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Progress'}
               </button>
               <button
                 onClick={handleNext}
