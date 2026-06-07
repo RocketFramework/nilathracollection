@@ -32,19 +32,23 @@ export default function AdminToursPage() {
                 if (filters.search) {
                     const lcSearch = filters.search.toLowerCase();
                     data = data.filter((t: any) => {
-                        const name = t.request?.name || (t.tourist?.tourist_profile?.[0]?.first_name ? `${t.tourist.tourist_profile[0].first_name} ${t.tourist.tourist_profile[0].last_name || ''}` : t.title || '');
+                        const tpRaw = t.tourist?.tourist_profile;
+                        const tp = Array.isArray(tpRaw) ? tpRaw[0] : tpRaw;
+                        const name = t.request?.name || (tp?.first_name ? `${tp.first_name} ${tp.last_name || ''}`.trim() : t.title || '');
                         const touristName = name.toLowerCase();
                         return touristName.includes(lcSearch) || (t.title && t.title.toLowerCase().includes(lcSearch));
                     });
                 }
-
+ 
                 const mapped = data.map((tour: any) => {
                     const plannerData = tour.planner_data || {};
                     const touristEmail = tour.tourist?.email || tour.request?.email || plannerData.clientEmail || 'No Email';
-
+ 
+                    const tpRaw = tour.tourist?.tourist_profile;
+                    const tp = Array.isArray(tpRaw) ? tpRaw[0] : tpRaw;
                     let touristName = tour.request?.name
-                        || (tour.tourist?.tourist_profile?.[0]?.first_name
-                            ? `${tour.tourist.tourist_profile[0].first_name} ${tour.tourist.tourist_profile[0].last_name || ''}`.trim()
+                        || (tp?.first_name
+                            ? `${tp.first_name} ${tp.last_name || ''}`.trim()
                             : plannerData.clientName && plannerData.clientName !== touristEmail
                                 ? plannerData.clientName
                                 : 'Client');

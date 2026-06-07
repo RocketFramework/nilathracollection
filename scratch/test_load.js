@@ -69,20 +69,25 @@ async function run() {
     return;
   }
 
-  console.log("Raw tourist object returned from query:", JSON.stringify(tourMsg.tourist, null, 2));
-
   const tourist = tourMsg.tourist;
-  const touristProfile = tourist?.tourist_profile?.[0] || {};
-  console.log("Extracted touristProfile:", JSON.stringify(touristProfile, null, 2));
+  
+  // Simulated new logic
+  const touristProfileRaw = tourist?.tourist_profile;
+  const touristProfile = (Array.isArray(touristProfileRaw) ? touristProfileRaw[0] : touristProfileRaw) || {};
 
+  console.log("SUCCESS: Extracted tourist profile details!");
+  console.log("First Name:    ", touristProfile.first_name);
+  console.log("Last Name:     ", touristProfile.last_name);
+  console.log("Passport:      ", touristProfile.passport_number);
+  
   const mergedProfile = {
       adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2,
       children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0,
       infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
-      arrivalDate: touristProfile.arrival_date || '',
-      departureDate: touristProfile.departure_date || '',
+      arrivalDate: touristProfile.arrival_date || tourMsg.start_date || tourMsg.request?.start_date || tourMsg.request?.details?.[0]?.start_date || '',
+      departureDate: touristProfile.departure_date || tourMsg.end_date || tourMsg.request?.details?.[0]?.end_date || '',
   };
-  console.log("mergedProfile result:", mergedProfile);
+  console.log("parsed mergedProfile:", mergedProfile);
 }
 
 run();

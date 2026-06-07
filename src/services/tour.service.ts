@@ -237,7 +237,8 @@ export class TourService {
 
         const plannerData = tourMsg.planner_data;
         const tourist = tourMsg.tourist;
-        const touristProfile = tourist?.tourist_profile?.[0] || {};
+        const touristProfileRaw = tourist?.tourist_profile;
+        const touristProfile = (Array.isArray(touristProfileRaw) ? touristProfileRaw[0] : touristProfileRaw) || {};
 
         const clientName = touristProfile.first_name 
             ? `${touristProfile.first_name}${touristProfile.last_name ? ' ' + touristProfile.last_name : ''}`
@@ -247,8 +248,8 @@ export class TourService {
             adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2,
             children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0,
             infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
-            arrivalDate: touristProfile.arrival_date || '',
-            departureDate: touristProfile.departure_date || '',
+            arrivalDate: touristProfile.arrival_date || tourMsg.start_date || tourMsg.request?.start_date || tourMsg.request?.details?.[0]?.start_date || '',
+            departureDate: touristProfile.departure_date || tourMsg.end_date || tourMsg.request?.details?.[0]?.end_date || '',
             durationDays: touristProfile.duration_days || 0,
             budgetTotal: touristProfile.budget_total || 0,
             budgetPerPerson: touristProfile.budget_per_person || 0,

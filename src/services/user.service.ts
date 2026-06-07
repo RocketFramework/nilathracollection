@@ -112,7 +112,8 @@ export class AdminService {
 
         // Send email notification
         try {
-            const touristProfile = request.tourist?.tourist_profile?.[0];
+            const tpRaw = request.tourist?.tourist_profile;
+            const touristProfile = Array.isArray(tpRaw) ? tpRaw[0] : tpRaw;
             const customerName = touristProfile?.first_name
                 ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
                 : request.name || 'Client';

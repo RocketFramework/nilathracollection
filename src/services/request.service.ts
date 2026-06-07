@@ -98,7 +98,8 @@ export class RequestService {
             try {
                 // Inline import to avoid circular dependencies if any, though email.service is safe now
                 const { emailService } = await import('./email.service');
-                const touristProfile = request.tourist?.tourist_profile?.[0];
+                const tpRaw = request.tourist?.tourist_profile;
+                const touristProfile = Array.isArray(tpRaw) ? tpRaw[0] : tpRaw;
                 const customerName = touristProfile?.first_name
                     ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
                     : request.name || 'Client';
