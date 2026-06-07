@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TripData } from "../types";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Clock, Bed, Compass, Utensils, Car, Info, Calendar } from "lucide-react";
 import { getBookingTermsAction } from "@/actions/terms.actions";
 
 export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData: TripData, masterData?: any }>(
@@ -16,6 +16,97 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                 }
             });
         }, []);
+
+        const getFormattedDate = (dayNum: number) => {
+            if (!profile.arrivalDate) return '';
+            try {
+                const d = new Date(profile.arrivalDate);
+                d.setDate(d.getDate() + (dayNum - 1));
+                if (isNaN(d.getTime())) return '';
+                return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            } catch (e) {
+                return '';
+            }
+        };
+
+        const getShortFormattedDate = (dayNum: number) => {
+            if (!profile.arrivalDate) return '';
+            try {
+                const d = new Date(profile.arrivalDate);
+                d.setDate(d.getDate() + (dayNum - 1));
+                if (isNaN(d.getTime())) return '';
+                return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+            } catch (e) {
+                return '';
+            }
+        };
+
+        const getBlockTypeConfig = (type: string) => {
+            switch (type) {
+                case 'sleep':
+                    return {
+                        bg: 'bg-[#FAF8F5]',
+                        border: 'border-[#E8DFD1]',
+                        accent: '#D4AF37',
+                        badgeBg: 'bg-[#FAF8F5] text-[#8C6D3F] border-[#E8DFD1]',
+                        label: 'Accommodation',
+                        icon: <Bed className="w-3.5 h-3.5 text-[#8C6D3F]" />
+                    };
+                case 'activity':
+                    return {
+                        bg: 'bg-[#F4F8F6]',
+                        border: 'border-[#E2ECE7]',
+                        accent: '#2E5A44',
+                        badgeBg: 'bg-[#F4F8F6] text-[#2E5A44] border-[#E2ECE7]',
+                        label: 'Curated Experience',
+                        icon: <Compass className="w-3.5 h-3.5 text-[#2E5A44]" />
+                    };
+                case 'meal':
+                    return {
+                        bg: 'bg-[#FDF8F6]',
+                        border: 'border-[#F5E6E1]',
+                        accent: '#A6654E',
+                        badgeBg: 'bg-[#FDF8F6] text-[#A6654E] border-[#F5E6E1]',
+                        label: 'Culinary Journey',
+                        icon: <Utensils className="w-3.5 h-3.5 text-[#A6654E]" />
+                    };
+                case 'travel':
+                    return {
+                        bg: 'bg-[#F5F8FA]',
+                        border: 'border-[#E5EDF2]',
+                        accent: '#3B5973',
+                        badgeBg: 'bg-[#F5F8FA] text-[#3B5973] border-[#E5EDF2]',
+                        label: 'Private Transfer',
+                        icon: <Car className="w-3.5 h-3.5 text-[#3B5973]" />
+                    };
+                default:
+                    return {
+                        bg: 'bg-[#F8F9FA]',
+                        border: 'border-[#EAECEF]',
+                        accent: '#707A8A',
+                        badgeBg: 'bg-[#F8F9FA] text-[#5A6370] border-[#EAECEF]',
+                        label: 'Journey Detail',
+                        icon: <Info className="w-3.5 h-3.5 text-[#5A6370]" />
+                    };
+            }
+        };
+
+        const getImagesArray = (imagesField: any): string[] => {
+            if (!imagesField) return [];
+            if (Array.isArray(imagesField)) return imagesField;
+            if (typeof imagesField === 'string') {
+                try {
+                    const parsed = JSON.parse(imagesField);
+                    if (Array.isArray(parsed)) return parsed;
+                } catch (e) {
+                    if (imagesField.includes(',')) {
+                        return imagesField.split(',').map((s: string) => s.trim()).filter(Boolean);
+                    }
+                    return [imagesField.trim()];
+                }
+            }
+            return [];
+        };
 
         const pax = (profile.adults || 0) + (profile.children || 0);
 
@@ -222,9 +313,9 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
 
                                     <div className="relative">
                                         {/* Central Timeline Spine */}
-                                        <div className="absolute left-[31px] top-6 bottom-0 w-[1px] bg-[#E5E7EB]"></div>
+                                        <div className="absolute left-[31px] top-6 bottom-0 w-[1px] bg-gradient-to-b from-[#D4AF37]/30 via-[#D4AF37]/15 to-[#D4AF37]/30"></div>
 
-                                        <div className="space-y-20">
+                                        <div className="space-y-12">
                                             {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
                                                 const timeToMins = (timeStr?: string, blockType?: string) => {
                                                     if (!timeStr || !timeStr.includes(':')) return blockType === 'sleep' ? 1440 : -1;
@@ -248,77 +339,298 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                         <div className="flex items-start gap-12">
                                                             
                                                             {/* Minimal Day Marker */}
-                                                            <div className="flex flex-col items-center bg-white z-10 w-[64px] py-2">
-                                                                <span className="text-[9px] uppercase tracking-[0.2em] text-[#6B7280] mb-1">Day</span>
-                                                                <span className="text-3xl font-serif text-[#D4AF37] leading-none">{String(dayNum).padStart(2, '0')}</span>
+                                                            <div className="flex flex-col items-center bg-white z-10 w-[64px] py-2 border border-[#D4AF37]/20 rounded-xl shadow-sm">
+                                                                <span className="text-[8px] uppercase tracking-[0.2em] text-[#6B7280] mb-0.5">Day</span>
+                                                                <span className="text-2xl font-serif text-[#D4AF37] leading-none font-bold">{String(dayNum).padStart(2, '0')}</span>
+                                                                {profile.arrivalDate && (() => {
+                                                                    const shortDate = getShortFormattedDate(dayNum);
+                                                                    return shortDate ? (
+                                                                        <span className="text-[8.5px] uppercase tracking-wider text-[#6B7280] font-sans font-semibold border-t border-[#D4AF37]/20 pt-1 w-full text-center mt-1.5 px-1">
+                                                                            {shortDate}
+                                                                        </span>
+                                                                    ) : null;
+                                                                })()}
                                                             </div>
 
                                                             {/* Day Content */}
                                                             <div className="flex-1 pt-2">
-                                                                <div className="space-y-12">
-                                                                    {dayBlocks.map((block) => (
-                                                                        <div key={block.id} className="relative">
-                                                                            <div className="flex justify-between items-baseline mb-2">
-                                                                                <h5 className="font-serif text-2xl text-[#111827] font-light">{block.name}</h5>
-                                                                                {block.startTime && (
-                                                                                    <div className="text-[10px] font-sans tracking-[0.2em] text-[#6B7280] uppercase ml-4 whitespace-nowrap">
-                                                                                        {block.startTime} {block.endTime ? `— ${block.endTime}` : ''}
+                                                                {/* Day Date Header */}
+                                                                {profile.arrivalDate && (() => {
+                                                                    const dateStr = getFormattedDate(dayNum);
+                                                                    return dateStr ? (
+                                                                        <div className="mb-4 pb-1.5 border-b border-[#D4AF37]/20 flex items-center justify-between">
+                                                                            <span className="text-[10px] font-sans uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+                                                                                {dateStr}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : null;
+                                                                })()}
+                                                                <div className="space-y-4">
+                                                                    {dayBlocks.map((block) => {
+                                                                        const config = getBlockTypeConfig(block.type);
+                                                                        return (
+                                                                            <div key={block.id} className={`p-4 rounded-xl border ${config.border} ${config.bg} shadow-sm transition-all hover:shadow-md relative overflow-hidden break-inside-avoid`}>
+                                                                                {/* Top bar with time, type badge, etc. */}
+                                                                                <div className="flex flex-wrap justify-between items-center gap-2 mb-2.5">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className={`flex items-center justify-center p-1 rounded-lg bg-white border ${config.border} shadow-sm`}>
+                                                                                            {config.icon}
+                                                                                        </span>
+                                                                                        <span className={`text-[8px] font-sans uppercase tracking-[0.15em] font-bold px-1.5 py-0.5 rounded border ${config.badgeBg}`}>
+                                                                                            {config.label}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    {block.startTime && (
+                                                                                        <div className="flex items-center gap-1 text-[8.5px] font-sans tracking-wider text-[#6B7280] font-semibold bg-white px-1.5 py-0.5 rounded border border-neutral-200/60 shadow-sm">
+                                                                                            <Clock size={9} className="text-[#9CA3AF]" />
+                                                                                            <span>{block.startTime} {block.endTime ? `— ${block.endTime}` : ''}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {/* Title */}
+                                                                                <h5 className="font-serif text-[14px] text-[#111827] font-semibold mb-1 tracking-tight leading-snug">
+                                                                                    {block.name}
+                                                                                </h5>
+
+                                                                                {/* Location */}
+                                                                                {block.locationName && (
+                                                                                    <p className="text-[8.5px] font-sans text-[#D4AF37] uppercase tracking-[0.15em] mb-2.5 flex items-center gap-1">
+                                                                                        <MapPin size={9} className="text-[#D4AF37]" />
+                                                                                        <span className="font-semibold">{block.locationName}</span>
+                                                                                    </p>
+                                                                                )}
+
+                                                                                {/* Agent Comments */}
+                                                                                {block.comments && block.comments.filter(c => c.role === 'agent').length > 0 && (
+                                                                                    <div className="text-[10px] font-sans text-[#4B5563] leading-relaxed mb-2.5 font-light space-y-1 bg-white/70 p-2.5 rounded border border-neutral-100/60 italic">
+                                                                                        {block.comments.filter(c => c.role === 'agent').map(c => (
+                                                                                            <p key={c.id} className="relative pl-3">
+                                                                                                <span className="absolute left-0 top-[-2px] text-[#D4AF37] font-serif font-black text-xs">“</span>
+                                                                                                {c.text}
+                                                                                            </p>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Block Details */}
+                                                                                {block.type === 'sleep' && (() => {
+                                                                                    const acc = accommodations.find(a => a.nightIndex === block.dayNumber);
+                                                                                    if (!acc) return null;
+                                                                                    const hasRooms = acc.selectedRooms && acc.selectedRooms.length > 0;
+                                                                                    return (
+                                                                                        <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[9.5px] border-t border-[#E8DFD1] pt-2.5">
+                                                                                            <div className="flex flex-col col-span-2 sm:col-span-1">
+                                                                                                <span className="text-[8px] text-[#8C6D3F] uppercase tracking-[0.15em] font-bold mb-0.5">Hotel Sanctuary</span>
+                                                                                                <span className="font-serif text-[#111827] font-semibold text-[10.5px]">{acc.hotelName} {acc.stayClass ? `(${acc.stayClass})` : ''}</span>
+                                                                                            </div>
+                                                                                            {hasRooms ? (
+                                                                                                <div className="flex flex-col col-span-2 sm:col-span-1">
+                                                                                                    <span className="text-[8px] text-[#8C6D3F] uppercase tracking-[0.15em] font-bold mb-0.5">Room & Dining</span>
+                                                                                                    <div className="space-y-0.5">
+                                                                                                        {acc.selectedRooms?.map((sr: any, idx: number) => (
+                                                                                                            <div key={idx} className="font-sans text-[#4B5563] text-[9px] font-medium">
+                                                                                                                {sr.quantity}x {sr.roomName || sr.roomStandard} ({sr.mealPlan || acc.mealPlan || 'BB'})
+                                                                                                            </div>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <>
+                                                                                                    {acc.roomName || acc.roomStandard ? (
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-[8px] text-[#8C6D3F] uppercase tracking-[0.15em] font-bold mb-0.5">Room Category</span>
+                                                                                                            <span className="font-sans text-[#4B5563] font-medium">{acc.roomName || acc.roomStandard}</span>
+                                                                                                        </div>
+                                                                                                    ) : null}
+                                                                                                    {acc.mealPlan ? (
+                                                                                                        <div className="flex flex-col">
+                                                                                                            <span className="text-[8px] text-[#8C6D3F] uppercase tracking-[0.15em] font-bold mb-0.5">Meal Arrangement</span>
+                                                                                                            <span className="font-sans text-[#4B5563] font-medium">{acc.mealPlan}</span>
+                                                                                                        </div>
+                                                                                                    ) : null}
+                                                                                                </>
+                                                                                            )}
+                                                                                            {acc.address && (
+                                                                                                <div className="flex flex-col col-span-2">
+                                                                                                    <span className="text-[8px] text-[#8C6D3F] uppercase tracking-[0.15em] font-bold mb-0.5">Location Address</span>
+                                                                                                    <span className="font-sans text-[#6B7280]">{acc.address}</span>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
+
+                                                                                {block.type === 'meal' && (() => {
+                                                                                    const rest = masterData?.restaurants?.find((r: any) => r.id === block.restaurantId);
+                                                                                    return (
+                                                                                        <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[9.5px] border-t border-[#F5E6E1] pt-2.5">
+                                                                                            <div className="flex flex-col col-span-2 sm:col-span-1">
+                                                                                                <span className="text-[8px] text-[#A6654E] uppercase tracking-[0.15em] font-bold mb-0.5">Dining Venue</span>
+                                                                                                <span className="font-serif text-[#111827] font-semibold text-[10.5px]">{rest?.name || 'Curated Restaurant'}</span>
+                                                                                            </div>
+                                                                                            {block.mealType && (
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-[8px] text-[#A6654E] uppercase tracking-[0.15em] font-bold mb-0.5">Service Type</span>
+                                                                                                    <span className="font-sans text-[#4B5563] font-medium">{block.mealType}</span>
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {rest?.cuisine_type && (
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-[8px] text-[#A6654E] uppercase tracking-[0.15em] font-bold mb-0.5">Cuisine Type</span>
+                                                                                                    <span className="font-sans text-[#4B5563] font-medium">{rest.cuisine_type}</span>
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {rest?.city && (
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-[8px] text-[#A6654E] uppercase tracking-[0.15em] font-bold mb-0.5">Location City</span>
+                                                                                                    <span className="font-sans text-[#4B5563] font-medium">{rest.city}</span>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })()}
+
+                                                                                {block.type === 'activity' && (() => {
+                                                                                    const relatedBooking = tripData.activities?.find((a: any) => 
+                                                                                        (block.activityId && String(a.activityId) === String(block.activityId)) ||
+                                                                                        (a.activityData?.activity_name && block.name && a.activityData.activity_name.trim().toLowerCase() === block.name.trim().toLowerCase())
+                                                                                    );
+                                                                                    
+                                                                                    if (!relatedBooking) return null;
+                                                                                    if (!block.activityId) return null;
+                                                                                    if (String(block.activityId) !== String(relatedBooking.activityId)) return null;
+
+                                                                                    const act = masterData?.activities?.find((a: any) => String(a.id) === String(block.activityId)) || 
+                                                                                                relatedBooking.activityData;
+                                                                                    if (!act) return null;
+                                                                                    return (
+                                                                                        <>
+                                                                                            <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[9.5px] border-t border-[#E2ECE7] pt-2.5">
+                                                                                                {act.category && (
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <span className="text-[8px] text-[#2E5A44] uppercase tracking-[0.15em] font-bold mb-0.5">Experience Category</span>
+                                                                                                        <span className="font-sans text-[#4B5563] font-medium">{act.category}</span>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {block.durationHours && (
+                                                                                                    <div className="flex flex-col">
+                                                                                                        <span className="text-[8px] text-[#2E5A44] uppercase tracking-[0.15em] font-bold mb-0.5">Experience Duration</span>
+                                                                                                        <span className="font-sans text-[#4B5563] font-medium">{block.durationHours} Hours</span>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {act.location_name && (
+                                                                                                    <div className="flex flex-col col-span-2">
+                                                                                                        <span className="text-[8px] text-[#2E5A44] uppercase tracking-[0.15em] font-bold mb-0.5">Venue Location</span>
+                                                                                                        <span className="font-sans text-[#4B5563] font-medium">{act.location_name} {act.district ? `(${act.district})` : ''}</span>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            {act.images && (() => {
+                                                                                                const imgs = getImagesArray(act.images);
+                                                                                                if (imgs.length === 0) return null;
+                                                                                                const displayImgs = imgs.slice(0, 3);
+                                                                                                return (
+                                                                                                    <div className="mt-3 grid grid-cols-3 gap-2">
+                                                                                                        {displayImgs.map((imgUrl, idx) => (
+                                                                                                            <div key={idx} className="relative h-20 rounded-lg overflow-hidden border border-[#E2ECE7] shadow-sm">
+                                                                                                                <img 
+                                                                                                                    src={imgUrl} 
+                                                                                                                    alt={`${block.name} - ${idx + 1}`} 
+                                                                                                                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                                                                                                                    onError={(e) => {
+                                                                                                                        e.currentTarget.parentElement!.style.display = 'none';
+                                                                                                                    }}
+                                                                                                                />
+                                                                                                            </div>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                );
+                                                                                            })()}
+                                                                                        </>
+                                                                                    );
+                                                                                })()}
+
+                                                                                {block.type === 'travel' && (
+                                                                                    <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-[9.5px] border-t border-[#E5EDF2] pt-2.5">
+                                                                                        {block.distance && (
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="text-[8px] text-[#3B5973] uppercase tracking-[0.15em] font-bold mb-0.5">Transfer Distance</span>
+                                                                                                <span className="font-sans text-[#4B5563] font-medium">{block.distance}</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {block.durationHours && (
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="text-[8px] text-[#3B5973] uppercase tracking-[0.15em] font-bold mb-0.5">Est. Travel Duration</span>
+                                                                                                <span className="font-sans text-[#4B5563] font-medium">{block.durationHours} Hours</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Bound Logistics Data integrated inside card */}
+                                                                                {masterData && (block.transportId || block.driverId || block.guideId || block.vendorId) && (
+                                                                                    <div className={`mt-2.5 pt-2.5 border-t grid grid-cols-2 gap-x-4 gap-y-2 text-[9.5px] ${
+                                                                                        block.type === 'sleep' ? 'border-[#E8DFD1]' :
+                                                                                        block.type === 'activity' ? 'border-[#E2ECE7]' :
+                                                                                        block.type === 'meal' ? 'border-[#F5E6E1]' :
+                                                                                        block.type === 'travel' ? 'border-[#E5EDF2]' : 'border-[#EAECEF]'
+                                                                                    }`}>
+                                                                                        {block.transportId && masterData.transportProviders && (
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className={`text-[8px] uppercase tracking-[0.15em] font-bold mb-0.5 ${
+                                                                                                    block.type === 'sleep' ? 'text-[#8C6D3F]' :
+                                                                                                    block.type === 'activity' ? 'text-[#2E5A44]' :
+                                                                                                    block.type === 'meal' ? 'text-[#A6654E]' :
+                                                                                                    block.type === 'travel' ? 'text-[#3B5973]' : 'text-[#5A6370]'
+                                                                                                }`}>Transport Provider</span>
+                                                                                                <span className="font-serif text-[#111827] font-semibold">{masterData.transportProviders.find((p:any) => p.id === block.transportId)?.name || 'Assigned'}</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        {block.driverId && masterData.drivers && (() => {
+                                                                                            const d = masterData.drivers.find((x:any) => x.id === block.driverId);
+                                                                                            return d && (
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className={`text-[8px] uppercase tracking-[0.15em] font-bold mb-0.5 ${
+                                                                                                        block.type === 'sleep' ? 'text-[#8C6D3F]' :
+                                                                                                        block.type === 'activity' ? 'text-[#2E5A44]' :
+                                                                                                        block.type === 'meal' ? 'text-[#A6654E]' :
+                                                                                                        block.type === 'travel' ? 'text-[#3B5973]' : 'text-[#5A6370]'
+                                                                                                    }`}>Private Chauffeur</span>
+                                                                                                    <span className="font-serif text-[#111827] font-semibold">{`${d.first_name} ${d.last_name}`.trim()}</span>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })()}
+                                                                                        {block.guideId && masterData.guides && (() => {
+                                                                                            const g = masterData.guides.find((x:any) => x.id === block.guideId);
+                                                                                            return g && (
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className={`text-[8px] uppercase tracking-[0.15em] font-bold mb-0.5 ${
+                                                                                                        block.type === 'sleep' ? 'text-[#8C6D3F]' :
+                                                                                                        block.type === 'activity' ? 'text-[#2E5A44]' :
+                                                                                                        block.type === 'meal' ? 'text-[#A6654E]' :
+                                                                                                        block.type === 'travel' ? 'text-[#3B5973]' : 'text-[#5A6370]'
+                                                                                                    }`}>Expert Guide</span>
+                                                                                                    <span className="font-serif text-[#111827] font-semibold">{`${g.first_name} ${g.last_name}`.trim()}</span>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })()}
+                                                                                        {block.vendorId && masterData.vendors && (
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className={`text-[8px] uppercase tracking-[0.15em] font-bold mb-0.5 ${
+                                                                                                    block.type === 'sleep' ? 'text-[#8C6D3F]' :
+                                                                                                    block.type === 'activity' ? 'text-[#2E5A44]' :
+                                                                                                    block.type === 'meal' ? 'text-[#A6654E]' :
+                                                                                                    block.type === 'travel' ? 'text-[#3B5973]' : 'text-[#5A6370]'
+                                                                                                }`}>Local Partner</span>
+                                                                                                <span className="font-serif text-[#111827] font-semibold">{masterData.vendors.find((v:any) => v.id === block.vendorId)?.name || 'Assigned'}</span>
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
                                                                                 )}
                                                                             </div>
-                                                                            
-                                                                            {block.locationName && (
-                                                                                <p className="text-[10px] font-sans text-[#D4AF37] uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                                                                    <span className="w-1 h-1 bg-[#D4AF37] rounded-full"></span>
-                                                                                    {block.locationName}
-                                                                                </p>
-                                                                            )}
-                                                                            
-                                                                            {block.comments && block.comments.filter(c => c.role === 'agent').length > 0 && (
-                                                                                <div className="text-base font-serif text-[#4B5563] leading-relaxed mb-6 font-light space-y-2">
-                                                                                    {block.comments.filter(c => c.role === 'agent').map(c => (
-                                                                                        <p key={c.id}>{c.text}</p>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* Bound Logistics Data */}
-                                                                            {masterData && (block.transportId || block.driverId || block.guideId || block.vendorId) && (
-                                                                                <div className="bg-[#FAFAF9] px-6 py-4 border-l border-[#E5E7EB] flex flex-wrap gap-x-8 gap-y-3 mt-4">
-                                                                                    {block.transportId && masterData.transportProviders && (
-                                                                                        <div className="flex flex-col">
-                                                                                            <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Transport</span>
-                                                                                            <span className="text-xs font-serif text-[#111827]">{masterData.transportProviders.find((p:any) => p.id === block.transportId)?.name || 'Assigned'}</span>
-                                                                                        </div>
-                                                                                    )}
-                                                                                    {block.driverId && masterData.drivers && (() => {
-                                                                                        const d = masterData.drivers.find((x:any) => x.id === block.driverId);
-                                                                                        return d && (
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Chauffeur</span>
-                                                                                                <span className="text-xs font-serif text-[#111827]">{`${d.first_name} ${d.last_name}`.trim()}</span>
-                                                                                            </div>
-                                                                                        );
-                                                                                    })()}
-                                                                                    {block.guideId && masterData.guides && (() => {
-                                                                                        const g = masterData.guides.find((x:any) => x.id === block.guideId);
-                                                                                        return g && (
-                                                                                            <div className="flex flex-col">
-                                                                                                <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Guide</span>
-                                                                                                <span className="text-xs font-serif text-[#111827]">{`${g.first_name} ${g.last_name}`.trim()}</span>
-                                                                                            </div>
-                                                                                        );
-                                                                                    })()}
-                                                                                    {block.vendorId && masterData.vendors && (
-                                                                                        <div className="flex flex-col">
-                                                                                            <span className="text-[8px] text-[#6B7280] uppercase tracking-[0.2em] mb-1">Partner</span>
-                                                                                            <span className="text-xs font-serif text-[#111827]">{masterData.vendors.find((v:any) => v.id === block.vendorId)?.name || 'Assigned'}</span>
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ))}
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </div>
                                                         </div>
