@@ -33,6 +33,7 @@ export interface Activity {
     optimal_start_time?: string;
     optimal_end_time?: string;
     time_flexible: boolean;
+    images?: string[];
 }
 
 export interface Vendor {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, CheckCircle, AlertCircle } from "lucide-react";
+import { X, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react";
 import { Activity } from "@/services/master-data.service";
 import { saveActivityAction } from "@/actions/admin.actions";
 
@@ -9,6 +9,15 @@ interface ActivityFormModalProps {
     onSave: () => void;
     activity: Activity | null;
 }
+
+const padImages = (imagesArray?: string[]) => {
+    const arr = imagesArray || [];
+    return [
+        arr[0] || "/images/activities/",
+        arr[1] || "/images/activities/",
+        arr[2] || "/images/activities/",
+    ];
+};
 
 export default function ActivityFormModal({ isOpen, onClose, onSave, activity }: ActivityFormModalProps) {
     const [formData, setFormData] = useState<Partial<Activity>>({
@@ -23,6 +32,7 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
         optimal_end_time: "",
         lat: 0,
         lng: 0,
+        images: ["/images/activities/", "/images/activities/", "/images/activities/"]
     });
 
     const [isSaving, setIsSaving] = useState(false);
@@ -30,7 +40,10 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
 
     useEffect(() => {
         if (activity) {
-            setFormData(activity);
+            setFormData({
+                ...activity,
+                images: padImages(activity.images)
+            });
         } else {
             setFormData({
                 activity_name: "",
@@ -44,6 +57,7 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
                 optimal_end_time: "",
                 lat: 0,
                 lng: 0,
+                images: ["/images/activities/", "/images/activities/", "/images/activities/"]
             });
         }
         setError(null);
@@ -62,6 +76,14 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
         setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
+    const handleImageChange = (index: number, val: string) => {
+        setFormData(prev => {
+            const currentImages = [...(prev.images || ["/images/activities/", "/images/activities/", "/images/activities/"])];
+            currentImages[index] = val;
+            return { ...prev, images: currentImages };
+        });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
@@ -74,6 +96,11 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
         if (payload.lat === "") payload.lat = null;
         if (payload.lng === "") payload.lng = null;
         if (payload.duration_hours === "") payload.duration_hours = null;
+
+        const cleanImages = (payload.images || [])
+            .map((img: string) => img.trim())
+            .filter((img: string) => img !== "" && img !== "/images/activities/");
+        payload.images = cleanImages;
 
         try {
             const res = await saveActivityAction(payload);
@@ -228,6 +255,30 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
                             <label htmlFor="time_flexible" className="text-sm font-medium text-brand-charcoal cursor-pointer">
                                 Time Flexible? (Can this activity be done at any time of the day?)
                             </label>
+                        </div>
+
+                        <div className="space-y-4 border-t border-neutral-100 pt-6">
+                            <h3 className="text-sm font-bold text-brand-charcoal uppercase tracking-wider flex items-center gap-2">
+                                <ImageIcon size={18} className="text-brand-gold" />
+                                Activity Images (Up to 3)
+                            </h3>
+                            <p className="text-xs text-neutral-400">
+                                Enter the image paths. Use the default path prefix <code className="bg-neutral-100 px-1 py-0.5 rounded">/images/activities/</code>.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {[0, 1, 2].map((index) => (
+                                    <div key={index} className="space-y-2">
+                                        <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Image Path {index + 1}</label>
+                                        <input
+                                            type="text"
+                                            value={formData.images?.[index] ?? "/images/activities/"}
+                                            onChange={(e) => handleImageChange(index, e.target.value)}
+                                            className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold text-sm"
+                                            placeholder="/images/activities/image.avif"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

@@ -644,79 +644,35 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
         return items;
     }, [tripData.itinerary, tripData.accommodations, tripData.activities, tripData.defaultDriverId, tripData.defaultGuideId, tripData.defaultTransportId, tripData.defaultVehicleId, masterHotelsMap, masterTransportsMap, masterGuidesMap, masterRestaurantsMap, masterVendorsMap, dbActivities, finalizedIds]);
 
-    const groupedNegotiableItems = useMemo(() => {
-        return Object.entries(
-            negotiableItems.reduce((acc, item) => {
-                const vendor = item.vendorName || "Unknown Vendor";
-                if (!acc[vendor]) acc[vendor] = [];
-                acc[vendor].push(item);
-                return acc;
-            }, {} as Record<string, any[]>)
-        ) as [string, any[]][];
-    }, [negotiableItems]);
-
     useEffect(() => {
         if (isLoading) return;
         
-        groupedNegotiableItems.forEach(([vendorGroup, items]) => {
-            const firstId = items[0]?.id;
-            const mainType = items[0]?.block?.type;
+        negotiableItems.forEach(item => {
+            const firstId = item.id;
+            const mainType = item.block?.type;
             if (!mainType) return;
-
-            const hotelItem = items.find((i: any) => i.block?.type === 'sleep' && i.block?.hotelId);
-            const hotelId = hotelItem?.block?.hotelId;
-            const masterHotel = hotelId ? masterHotelsMap.get(hotelId) : null;
-            const masterTransport = masterTransportsByNameMap.get(vendorGroup);
-
+            
             let assignedVendor: any = null;
-            if (hotelItem && masterHotel) {
-                assignedVendor = masterHotel;
-            } else if (masterTransport) {
-                assignedVendor = masterTransport;
-            } else {
-                const guideItem = items.find((i: any) => i.block?.type === 'guide');
-                const guideId = guideItem?.block?.guideId || tripData.defaultGuideId;
-                const masterGuide = guideId ? masterGuidesMap.get(guideId) : null;
-                
-                const restaurantItem = items.find((i: any) => i.block?.type === 'meal');
-                const restaurantId = restaurantItem?.block?.restaurantId;
-                const masterRestaurant = restaurantId ? masterRestaurantsMap.get(restaurantId) : null;
-
-                const activityItem = items.find((i: any) => i.block?.type === 'activity');
-                const vendorId = activityItem?.block?.vendorId;
-                const masterVendor = vendorId ? masterVendorsMap.get(vendorId) : null;
-
-                if (masterGuide && `${masterGuide.first_name} ${masterGuide.last_name || ''}`.trim() === vendorGroup) {
-                    assignedVendor = masterGuide;
-                } else if (masterRestaurant && masterRestaurant.name === vendorGroup) {
-                    assignedVendor = masterRestaurant;
-                } else if (masterVendor && masterVendor.name === vendorGroup) {
-                    assignedVendor = masterVendor;
-                }
+            if (mainType === 'sleep') {
+                assignedVendor = masterHotelsMap.get(item.block?.hotelId);
+            } else if (mainType === 'travel') {
+                assignedVendor = masterTransportsMap.get(item.block?.transportId || tripData.defaultTransportId);
+            } else if (mainType === 'guide') {
+                assignedVendor = masterGuidesMap.get(item.block?.guideId || tripData.defaultGuideId);
+            } else if (mainType === 'meal') {
+                assignedVendor = masterRestaurantsMap.get(item.block?.restaurantId);
+            } else if (mainType === 'activity') {
+                assignedVendor = masterVendorsMap.get(item.block?.vendorId);
             }
 
             const hasContractedPrice = assignedVendor ? (assignedVendor.has_contracted_price !== false) : true;
-            const hasDbQuotes = firstId ? (quotations[firstId] || []).length > 0 : false;
-            const forceNegotiation = (firstId ? !!overrideNegotiation[firstId] : false) || items.some((i: any) => i.block?.forceNegotiation) || hasDbQuotes;
-            const hasAlternativeSection = !hasContractedPrice || forceNegotiation;
-
-            if (hasAlternativeSection) {
+            const forceNegotiation = firstId ? !!overrideNegotiation[firstId] : false;
+            
+            if (!hasContractedPrice || forceNegotiation) {
                 ensureAlternativesLoaded(mainType);
             }
         });
-    }, [
-        isLoading,
-        groupedNegotiableItems,
-        overrideNegotiation,
-        quotations,
-        masterHotelsMap,
-        masterTransportsMap,
-        masterTransportsByNameMap,
-        masterGuidesMap,
-        masterRestaurantsMap,
-        masterVendorsMap,
-        tripData.defaultGuideId
-    ]);
+    }, [isLoading, negotiableItems, overrideNegotiation, masterHotelsMap, masterTransportsMap, masterGuidesMap, masterRestaurantsMap, masterVendorsMap]);
 
     useEffect(() => {
         if (!isLoading) {
@@ -736,6 +692,17 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
             setSelectedAlternativeVendors(initialAlternative);
         }
     }, [isLoading]);
+
+    const groupedNegotiableItems = useMemo(() => {
+        return Object.entries(
+            negotiableItems.reduce((acc, item) => {
+                const vendor = item.vendorName || "Unknown Vendor";
+                if (!acc[vendor]) acc[vendor] = [];
+                acc[vendor].push(item);
+                return acc;
+            }, {} as Record<string, any[]>)
+        ) as [string, any[]][];
+    }, [negotiableItems]);
 
     const calculateSupplierReferencePrice = (supplier: any, blockType: string, mainItem: any) => {
         const b = mainItem?.block;
