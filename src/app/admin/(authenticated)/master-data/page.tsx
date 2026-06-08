@@ -111,8 +111,23 @@ export default function MasterDataPage() {
         try {
             // Prevent race condition on tab switch where sortBy hasn't updated yet
             let currentSortBy = sortBy;
-            if (activeTab === 'activities' && currentSortBy === 'name') currentSortBy = 'activity_name';
-            if ((activeTab === 'drivers' || activeTab === 'guides') && currentSortBy === 'name') currentSortBy = 'first_name';
+            if (activeTab === 'activities') {
+                if (currentSortBy !== 'activity_name' && currentSortBy !== 'category' && currentSortBy !== 'location_name') {
+                    currentSortBy = 'activity_name';
+                }
+            } else if (activeTab === 'drivers' || activeTab === 'guides') {
+                if (currentSortBy !== 'first_name' && currentSortBy !== 'is_suspended') {
+                    currentSortBy = 'first_name';
+                }
+            } else if (activeTab === 'hotels') {
+                if (currentSortBy !== 'name' && currentSortBy !== 'is_suspended' && currentSortBy !== 'hotel_class') {
+                    currentSortBy = 'name';
+                }
+            } else if (activeTab === 'vendors' || activeTab === 'restaurants' || activeTab === 'transports') {
+                if (currentSortBy !== 'name' && currentSortBy !== 'is_suspended') {
+                    currentSortBy = 'name';
+                }
+            }
 
             const options = {
                 searchTerm: debouncedSearch,
