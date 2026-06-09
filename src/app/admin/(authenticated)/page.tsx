@@ -51,11 +51,8 @@ export default function AdminDashboard() {
                     // Map database format to UI format
                     if (data) {
                         const mapped = data.map((req: any) => {
-                            const profile = req.tourist_profile?.[0];
                             const touristName = req.name;
-
-                            const dests = req.details?.[0]?.destinations || [];
-                            const packageName = req.details?.[0]?.package_name || req.request_type;
+                            const packageName = req.request_type;
 
                             return {
                                 id: req.id,
@@ -64,14 +61,14 @@ export default function AdminDashboard() {
                                 email: req.email,
                                 phone_number: req.phone_number,
                                 country: req.departure_country,
-                                budget: req.budget || req.details?.[0]?.estimated_price,
-                                startDate: req.start_date || req.details?.[0]?.start_date,
-                                durationNights: req.duration_nights || req.details?.[0]?.nights,
+                                budget: req.budget,
+                                startDate: req.start_date,
+                                durationNights: req.duration_nights || 0,
                                 adults: req.adults || 0,
                                 children: req.children || 0,
                                 infants: req.infants || 0,
                                 status: req.status,
-                                destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
+                                destinations: [],
                                 assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
                                 date: new Date(req.created_at).toLocaleDateString(),
                                 time: new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

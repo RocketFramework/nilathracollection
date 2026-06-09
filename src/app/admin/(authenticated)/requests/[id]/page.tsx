@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { ArrowLeft, User, Calendar, MapPin, DollarSign, Briefcase, Mail, Phone, Clock, FileText } from "lucide-react";
 import Link from "next/link";
 import { getAgentsAction, assignAgentAction, createTourAction, updateRequestStatusAction } from "@/actions/admin.actions";
+import { REQUEST_STATUSES } from "@/types/types";
 
 const supabase = createClient();
 
@@ -36,7 +37,6 @@ export default function RequestDetailsPage() {
                     .from('requests')
                     .select(`
                         *,
-                        details:request_details(*),
                         tourist:users!requests_tourist_id_fkey(
                             email,
                             tourist_profile:tourist_profiles(first_name, last_name, phone)
@@ -150,7 +150,6 @@ export default function RequestDetailsPage() {
         );
     }
 
-    const details = request.details?.[0] || {};
     const tpRaw = request.tourist?.tourist_profile;
     const touristProfile = Array.isArray(tpRaw) ? tpRaw[0] : tpRaw;
     const touristName = touristProfile?.first_name
@@ -193,11 +192,9 @@ export default function RequestDetailsPage() {
                             'bg-neutral-200 text-neutral-700'
                         }`}
                     >
-                        <option value="Pending">Pending</option>
-                        <option value="Assigned">Assigned</option>
-                        <option value="Active">Active</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
+                        {REQUEST_STATUSES.map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                        ))}
                     </select>
                 </div>
             </div>
@@ -206,15 +203,15 @@ export default function RequestDetailsPage() {
                 <div className="bg-brand-charcoal text-white p-8">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div>
-                            <h1 className="text-3xl font-bold font-playfair mb-2">{details.package_name || 'Custom Trip Request'}</h1>
+                            <h1 className="text-3xl font-bold font-playfair mb-2">Trip Request</h1>
                             <p className="text-neutral-300 flex items-center gap-2">
-                                <MapPin size={16} />
-                                {details.destinations?.length > 0 ? details.destinations.join(" • ") : 'Destinations TBD'}
+                                <Briefcase size={16} />
+                                {request.request_type ? request.request_type.toUpperCase() : 'Custom Plan'}
                             </p>
                         </div>
                         <div className="bg-white/10 backdrop-blur border border-white/20 rounded-xl p-4 text-center min-w-[140px]">
                             <p className="text-xs text-brand-gold uppercase tracking-widest font-bold mb-1">Duration</p>
-                            <p className="text-2xl font-bold">{details.nights || request.duration_nights || '?'} Nights</p>
+                            <p className="text-2xl font-bold">{request.duration_nights || '?'} Nights</p>
                         </div>
                     </div>
                 </div>
@@ -287,26 +284,26 @@ export default function RequestDetailsPage() {
                                     <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Target Dates</p>
                                     <div className="flex items-center gap-2 font-medium text-brand-charcoal text-sm">
                                         <Calendar size={14} className="text-neutral-400" />
-                                        {details.start_date || request.start_date ? new Date(details.start_date || request.start_date).toLocaleDateString() : 'Flexible'}
+                                        {request.start_date ? new Date(request.start_date).toLocaleDateString() : 'Flexible'}
                                     </div>
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">Passengers</p>
                                     <div className="font-medium text-brand-charcoal text-sm">
-                                        {details.adults || request.adults || 0} Adults
-                                        {(details.children > 0 || request.children > 0) && `, ${details.children || request.children} Kids`}
+                                        {request.adults || 0} Adults
+                                        {(request.children > 0) && `, ${request.children} Kids`}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {(details.special_requirements || request.note) && (
+                        {request.note && (
                             <div className="md:col-span-2">
                                 <h3 className="text-lg font-bold text-brand-charcoal mb-4 flex items-center gap-2 border-b border-neutral-100 pb-2">
                                     <Clock size={18} className="text-brand-gold" /> Notes & Requirements
                                 </h3>
                                 <div className="bg-neutral-50 p-4 rounded-lg text-sm text-neutral-700 whitespace-pre-wrap border border-neutral-100">
-                                    {details.special_requirements || request.note}
+                                    {request.note}
                                 </div>
                             </div>
                         )}

@@ -20,9 +20,9 @@ export class RequestService {
             note: dto.note,
             request_type: dto.request_type,
             departure_country: dto.departure_country,
-            budget: dto.budget || dto.estimated_price,
+            budget: dto.budget || (dto as any).estimated_price,
             start_date: dto.start_date,
-            duration_nights: dto.duration_nights || dto.nights,
+            duration_nights: dto.duration_nights || (dto as any).nights,
             adults: dto.adults,
             children: dto.children,
             infants: dto.infants,
@@ -33,33 +33,6 @@ export class RequestService {
             .insert(requestData);
 
         if (reqError) throw reqError;
-
-        if (dto.request_type === 'custom-plan' || dto.request_type === 'package' || dto.request_type === 'ultra-vip') {
-            const detailsData = {
-                request_id: requestId,
-                package_name: dto.package_name,
-                nights: dto.nights,
-                estimated_price: dto.estimated_price,
-                destinations: dto.destinations,
-                start_date: dto.start_date,
-                end_date: dto.end_date,
-                adults: dto.adults,
-                children: dto.children,
-                budget_tier: dto.budget_tier,
-                special_requirements: dto.special_requirements,
-            };
-
-            const { error: detailsError } = await supabase
-                .from('request_details')
-                .insert(detailsData);
-
-            if (detailsError) {
-                // Rollback request on failure
-                await supabase.from('requests').delete().eq('id', requestId);
-                throw detailsError;
-            }
-            return { id: requestId, details: detailsData };
-        }
 
         return { id: requestId };
     }
@@ -75,7 +48,6 @@ export class RequestService {
             .from('requests')
             .select(`
                 *,
-                details:request_details(*),
                 tourist:users!requests_tourist_id_fkey(
                     email,
                     tourist_profile:tourist_profiles(first_name, last_name)
@@ -104,7 +76,7 @@ export class RequestService {
                     ? `${touristProfile.first_name} ${touristProfile.last_name || ''}`.trim()
                     : request.name || 'Client';
                 const customerEmail = request.email || request.tourist?.email;
-                const packageName = request.details?.[0]?.package_name || request.request_type;
+                const packageName = request.request_type;
 
                 if (customerEmail) {
                     await emailService.sendRequestStatusUpdateEmail({
@@ -128,7 +100,7 @@ export class RequestService {
         const to = from + pageSize - 1;
         const client = customClient || supabase;
 
-        const { data, count, error } = await client
+                const { data, count, error } = await client
             .from('requests')
             .select(`
                 id,
@@ -149,8 +121,7 @@ export class RequestService {
                 tourist:users!requests_tourist_id_fkey(
                     email,
                     tourist_profile:tourist_profiles(first_name, last_name)
-                ),
-                details:request_details(package_name, destinations, start_date, nights)
+                )
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(from, to);
@@ -171,8 +142,6 @@ export class RequestService {
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
         const client = customClient || supabase;
-
-        const detailsJoin = filters.nightsValue !== undefined ? '!inner' : '';
 
         let query = client
             .from('requests')
@@ -195,8 +164,7 @@ export class RequestService {
                 tourist:users!requests_tourist_id_fkey(
                     email,
                     tourist_profile:tourist_profiles(first_name, last_name)
-                ),
-                details:request_details${detailsJoin}(package_name, destinations, start_date, nights)
+                )
             `, { count: 'exact' })
             .order('created_at', { ascending: false });
 
@@ -229,9 +197,9 @@ export class RequestService {
 
         if (filters.nightsValue !== undefined) {
             if (filters.nightsOperator === 'Higher than') {
-                query = query.gte('details.nights', filters.nightsValue);
+                query = query.gte('duration_nights', filters.nightsValue);
             } else if (filters.nightsOperator === 'Lower than') {
-                query = query.lte('details.nights', filters.nightsValue);
+                query = query.lte('duration_nights', filters.nightsValue);
             }
         }
 

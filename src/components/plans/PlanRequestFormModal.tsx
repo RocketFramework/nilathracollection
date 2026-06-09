@@ -30,7 +30,6 @@ export default function PlanRequestFormModal({
     const [email, setEmail] = useState("");
     const [phone, setPhone] = useState("");
     const [startDate, setStartDate] = useState("");
-    const [specialRequirements, setSpecialRequirements] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -59,13 +58,11 @@ export default function PlanRequestFormModal({
                 email,
                 phone_number: phone,
                 request_type: requestType,
-                package_name: packageName,
-                nights: nights,
-                estimated_price: totalPrice,
+                budget: totalPrice,
+                duration_nights: nights,
                 adults: travelers,
                 start_date: startDate || undefined,
-                special_requirements: specialRequirements || undefined,
-                note: specialRequirements || undefined,
+                note: `Package: ${packageName}`,
             });
 
             if (!res.success) {
@@ -198,15 +195,6 @@ export default function PlanRequestFormModal({
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-bold text-neutral-700 mb-2">Special Requirements <span className="text-neutral-400 font-normal">(Optional)</span></label>
-                                <textarea
-                                    value={specialRequirements}
-                                    onChange={e => setSpecialRequirements(e.target.value)}
-                                    className="w-full p-4 rounded-xl border border-neutral-200 focus:ring-brand-green focus:border-brand-green bg-neutral-50/50 text-sm min-h-[100px] text-brand-charcoal"
-                                    placeholder="Any dietary preferences, accessibility needs, or specific interests?"
-                                />
-                            </div>
 
                             <button
                                 type="submit"

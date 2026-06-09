@@ -28,7 +28,14 @@ export type FinalStep =
   | 'payment-supplier'
   | 'profit-loss';
 
-export type TravelStyle = 'Luxury' | 'Standard' | 'Budget' | 'Adventure' | 'Family' | 'Wellness';
-export type Gender = 'Male' | 'Female' | 'Other';
-export type RequestType = 'package' | 'custom-plan' | 'inquiry' | 'ultra-vip';
-export type RequestStatus = 'Pending' | 'Assigned' | 'Active' | 'Completed' | 'Cancelled';
+export const TRAVEL_STYLES = ['Luxury', 'Ultra-VIP', 'Premium', 'Regular', 'Mixed'] as const;
+export type TravelStyle = typeof TRAVEL_STYLES[number];
+
+export const GENDERS = ['Male', 'Female', 'Other'] as const;
+export type Gender = typeof GENDERS[number];
+
+export const REQUEST_TYPES = ['package', 'custom-plan', 'inquiry', 'ultra-vip'] as const;
+export type RequestType = typeof REQUEST_TYPES[number];
+
+export const REQUEST_STATUSES = ['Pending', 'Assigned', 'Active', 'Completed', 'Cancelled'] as const;
+export type RequestStatus = typeof REQUEST_STATUSES[number];

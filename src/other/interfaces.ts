@@ -75,19 +75,3 @@ export interface TripRequest {
     updated_at?: string;
 }
 
-export interface TripRequestDetails {
-    id: string; // UUID
-    request_id: string; // UUID references requests(id)
-    package_name?: string | null;
-    nights?: number | null;
-    estimated_price?: number | null;
-    destinations?: string[] | null;
-    start_date?: string | null;
-    end_date?: string | null;
-    adults: number;
-    children: number;
-    budget_tier?: string | null;
-    special_requirements?: string | null;
-    created_at?: string;
-    updated_at?: string;
-}

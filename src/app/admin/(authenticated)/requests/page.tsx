@@ -6,6 +6,7 @@ import { Package, MapPin, Search, Filter, Phone, Calendar, DollarSign, Plane, Us
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { createTourAction, getDashboardRequestsAction } from "@/actions/admin.actions";
+import { REQUEST_STATUSES } from "@/types/types";
 
 export default function AdminRequests() {
     const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
@@ -73,11 +74,8 @@ export default function AdminRequests() {
                 // Map database format to UI format
                 if (data) {
                     const mapped = data.map((req: any) => {
-                        const profile = req.tourist_profile?.[0];
                         const touristName = req.name;
-                        const dests = req.details?.[0]?.destinations || [];
-                        const packageName = req.details?.[0]?.package_name || req.request_type;
-                        const nights = req.details?.[0]?.nights || 0;
+                        const packageName = req.request_type;
 
                         return {
                             id: req.id,
@@ -86,14 +84,14 @@ export default function AdminRequests() {
                             email: req.email,
                             phone_number: req.phone_number,
                             country: req.departure_country,
-                            budget: req.budget || req.details?.[0]?.estimated_price,
-                            startDate: req.start_date || req.details?.[0]?.start_date,
-                            durationNights: req.duration_nights || req.details?.[0]?.nights || 0,
-                            adults: req.adults || req.details?.[0]?.adults || 0,
-                            children: req.children || req.details?.[0]?.children || 0,
+                            budget: req.budget,
+                            startDate: req.start_date,
+                            durationNights: req.duration_nights || 0,
+                            adults: req.adults || 0,
+                            children: req.children || 0,
                             infants: req.infants || 0,
                             status: req.status,
-                            destinations: Array.isArray(dests) ? dests : [dests].filter(Boolean),
+                            destinations: [],
                             assignedTo: req.admin_assigned_to ? 'Assigned' : 'Unassigned',
                             date: new Date(req.created_at).toLocaleDateString(),
                             time: new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -183,11 +181,9 @@ export default function AdminRequests() {
                                 className="w-full bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
                             >
                                 <option value="">All Statuses</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Assigned">Assigned</option>
-                                <option value="Active">Active</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Cancelled">Cancelled</option>
+                                {REQUEST_STATUSES.map((status) => (
+                                    <option key={status} value={status}>{status}</option>
+                                ))}
                             </select>
                         </div>
 

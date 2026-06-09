@@ -41,7 +41,7 @@ import {
   Heart,
   Globe
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
 import { ItineraryElements } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { getTouristDataAction, saveTouristDataAction } from '@/actions/admin.actions';
@@ -84,13 +84,7 @@ const MOCK_TOURIST_DATA: TouristDataDTO = {
   request: {
     id: "req-9823-a1",
     request_type: "custom-plan",
-    status: "Pending",
-    package_name: "Sri Lanka Golden Route & Coastline Custom Plan",
-    nights: 10,
-    estimated_price: 11500,
-    destinations: ["Colombo", "Kandy", "Nuwara Eliya", "Ella", "Galle"],
-    special_requirements: "Wants a highly knowledgeable English-speaking private chauffeur guide, premium boutique hotels, and cooking masterclass in Galle.",
-    budget_tier: "Premium"
+    status: "Pending"
   },
   team: [
     {
@@ -121,7 +115,7 @@ const MOCK_TOURIST_DATA: TouristDataDTO = {
 };
 
 function PlannerWizardWorkspace() {
-  const [tourId, setTourId] = useState<string>('draft-tour');
+  const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
   const STORAGE_KEY = `nilathra_planner_wizard_state_${tourId}`;
 
   // 1. Wizard Track State
@@ -148,7 +142,7 @@ function PlannerWizardWorkspace() {
 
   // 4. Interactive Tourist Data Form States
   const [touristData, setTouristData] = useState<TouristDataDTO>(MOCK_TOURIST_DATA);
-  const [activeFormTab, setActiveFormTab] = useState<'profile' | 'preferences' | 'request' | 'team'>('request');
+  const [activeFormTab, setActiveFormTab] = useState<'profile' | 'preferences' | 'team'>('profile');
   const [isAddingMember, setIsAddingMember] = useState<boolean>(false);
   const [newMember, setNewMember] = useState<TouristTeamMemberDTO>({
     id: '',
@@ -359,7 +353,7 @@ function PlannerWizardWorkspace() {
     async function restoreSession() {
       try {
         const params = new URLSearchParams(window.location.search);
-        const activeTourId = params.get('tourId') || 'draft-tour';
+        const activeTourId = params.get('tourId') || '60dec7e8-cbd9-4801-9f97-b41e5062fcc2';
         setTourId(activeTourId);
 
         if (activeTourId && activeTourId !== 'draft-tour') {
@@ -863,17 +857,6 @@ function PlannerWizardWorkspace() {
                     {/* Tab Navigation */}
                     <div className="flex flex-wrap border-b border-neutral-100 bg-neutral-50/50 p-3 gap-2">
                       <button
-                        onClick={() => setActiveFormTab('request')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
-                          ${activeFormTab === 'request'
-                            ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
-                            : 'text-neutral-500 hover:text-neutral-800'
-                          }`}
-                      >
-                        <MailQuestion className="w-3.5 h-3.5" />
-                        1. Original Inquiry Lead
-                      </button>
-                      <button
                         onClick={() => setActiveFormTab('profile')}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
                           ${activeFormTab === 'profile'
@@ -882,7 +865,7 @@ function PlannerWizardWorkspace() {
                           }`}
                       >
                         <User className="w-3.5 h-3.5" />
-                        2. Profile & Contact
+                        1. Profile & Inquiry Lead
                       </button>
                       <button
                         onClick={() => setActiveFormTab('preferences')}
@@ -893,7 +876,7 @@ function PlannerWizardWorkspace() {
                           }`}
                       >
                         <Compass className="w-3.5 h-3.5" />
-                        3. Travel Preferences
+                        2. Travel Preferences
                       </button>
                       <button
                         onClick={() => setActiveFormTab('team')}
@@ -904,19 +887,30 @@ function PlannerWizardWorkspace() {
                           }`}
                       >
                         <Users className="w-3.5 h-3.5" />
-                        4. Companions ({touristData.team.length})
+                        3. Companions ({touristData.team.length})
                       </button>
                     </div>
 
                     {/* Tab Content Panels */}
                     <div className="p-8">
                       
-                      {/* TAB 1: Profile & Contact */}
+                      {/* TAB 1: Profile & Inquiry Lead */}
                       {activeFormTab === 'profile' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
-                          <div className="border-b border-neutral-100 pb-3">
-                            <h3 className="text-md font-serif font-bold text-neutral-800">Primary Tourist Contact Info</h3>
-                            <p className="text-xs text-neutral-400">Manage basic profile details mapping directly to the users & tourist_profiles tables.</p>
+                          <div className="border-b border-neutral-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                              <h3 className="text-md font-serif font-bold text-neutral-800">Primary Tourist Profile & Inquiry Lead</h3>
+                              <p className="text-xs text-neutral-400">Manage basic profile details and review the linked inquiry lead request information.</p>
+                            </div>
+                            <div className="flex items-center gap-3 bg-neutral-50 px-4 py-2 rounded-2xl border border-neutral-100 text-xs">
+                              <span className="font-mono text-neutral-500 font-semibold">Lead ID: {touristData.request.id}</span>
+                              <span className="font-bold bg-amber-500/10 text-amber-600 px-2.5 py-0.5 rounded-full border border-amber-500/20 uppercase tracking-wider">
+                                {touristData.request.status}
+                              </span>
+                              <span className="font-bold bg-emerald-700/10 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-700/20 uppercase tracking-wider">
+                                {touristData.request.request_type}
+                              </span>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1016,12 +1010,11 @@ function PlannerWizardWorkspace() {
                                 onChange={(e) => handlePreferenceChange('travel_style', e.target.value as TravelStyle)}
                                 className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-white font-medium"
                               >
-                                <option value="Luxury">Luxury</option>
-                                <option value="Standard">Standard</option>
-                                <option value="Budget">Budget</option>
-                                <option value="Adventure">Adventure</option>
-                                <option value="Family">Family</option>
-                                <option value="Wellness">Wellness</option>
+                                {TRAVEL_STYLES.map((style) => (
+                                  <option key={style} value={style}>
+                                    {style}
+                                  </option>
+                                ))}
                               </select>
                             </div>
 
@@ -1186,99 +1179,6 @@ function PlannerWizardWorkspace() {
                         </div>
                       )}
 
-                      {/* TAB 3: Linked Inquiry Lead Request */}
-                      {activeFormTab === 'request' && (
-                        <div className="space-y-6 animate-in fade-in duration-200">
-                          <div className="border-b border-neutral-100 pb-3">
-                            <h3 className="text-md font-serif font-bold text-neutral-800">Original Inquiry Metadata</h3>
-                            <p className="text-xs text-neutral-400">Metadata linked to requests and request_details database layers. This carries initial planning requirements.</p>
-                          </div>
-
-                          <div className="bg-neutral-50 border border-neutral-100 rounded-2xl p-5 mb-4 flex items-center justify-between">
-                            <div>
-                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Lead Identifier</span>
-                              <span className="text-sm font-semibold text-neutral-700 block font-mono mt-0.5">{touristData.request.id}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-2.5 py-1 rounded-full border border-amber-500/20 uppercase tracking-wider">
-                                Status: {touristData.request.status}
-                              </span>
-                              <span className="text-[10px] font-bold bg-emerald-700/10 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-700/20 uppercase tracking-wider">
-                                {touristData.request.request_type}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Target Package Name</label>
-                              <input 
-                                type="text"
-                                value={touristData.request.package_name}
-                                onChange={(e) => handleRequestChange('package_name', e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
-                                placeholder="Package name"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Budget Tier</label>
-                              <input 
-                                type="text"
-                                value={touristData.request.budget_tier}
-                                onChange={(e) => handleRequestChange('budget_tier', e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
-                                placeholder="Budget classification (e.g. Mid-range, Premium)"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Inquiry Nights</label>
-                              <input 
-                                type="number"
-                                value={touristData.request.nights}
-                                onChange={(e) => handleRequestChange('nights', Number(e.target.value))}
-                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Estimated Client Price ($)</label>
-                              <div className="relative">
-                                <span className="absolute left-4 top-3.5 text-neutral-400 text-sm font-semibold">$</span>
-                                <input 
-                                  type="number"
-                                  value={touristData.request.estimated_price}
-                                  onChange={(e) => handleRequestChange('estimated_price', Number(e.target.value))}
-                                  className="w-full pl-8 pr-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Destinations Inquired (Comma Separated)</label>
-                              <input 
-                                type="text"
-                                value={touristData.request.destinations.join(', ')}
-                                onChange={(e) => handleRequestChange('destinations', e.target.value.split(',').map(s => s.trim()))}
-                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium font-mono"
-                                placeholder="Colombo, Galle, Kandy"
-                              />
-                            </div>
-
-                            <div className="md:col-span-2">
-                              <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Lead Special Requirements</label>
-                              <textarea 
-                                rows={3}
-                                value={touristData.request.special_requirements}
-                                onChange={(e) => handleRequestChange('special_requirements', e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-neutral-50/30 font-medium"
-                                placeholder="Requirements described in the customer lead form"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
                       {/* TAB 4: Travel Companions (Team List & Add Form) */}
                       {activeFormTab === 'team' && (
@@ -1324,9 +1224,9 @@ function PlannerWizardWorkspace() {
                                     onChange={(e) => setNewMember(prev => ({ ...prev, gender: e.target.value as Gender }))}
                                     className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
                                   >
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
+                                    {GENDERS.map((g) => (
+                                      <option key={g} value={g}>{g}</option>
+                                    ))}
                                   </select>
                                 </div>
 

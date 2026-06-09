@@ -3,6 +3,7 @@
 import { TripProfile, ServiceScope, TripData, Traveler } from "../types";
 import { Users, Calendar, Wallet, CheckSquare, Check, AlertTriangle, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
+import { GENDERS } from "@/types/types";
 
 const allScopes: ServiceScope[] = [
     'Book International Flights',
@@ -442,9 +443,9 @@ export function ScopeAndProfileStep({ tripData, updateData }: { tripData: TripDa
                                         <label className="text-xs text-neutral-500 mb-1 block">Gender</label>
                                         <select value={t.gender || ''} onChange={e => updateData({ travelers: (tripData.travelers || []).map(tv => tv.id === t.id ? { ...tv, gender: (e.target.value || undefined) as any } : tv) })} className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:ring-1 focus:ring-brand-gold outline-none">
                                             <option value="">N/A</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                            <option value="Other">Other</option>
+                                            {GENDERS.map(g => (
+                                                <option key={g} value={g}>{g}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div>

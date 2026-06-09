@@ -102,17 +102,19 @@ export class TourService {
         // 2. Fetch the request details
         const { data: requestMsg, error: reqError } = await supabaseAdmin
             .from('requests')
-            .select(`
-                *,
-                details:request_details(*)
-            `)
+            .select('*')
             .eq('id', requestId)
             .single();
 
         if (reqError) throw reqError;
         if (!requestMsg) throw new Error("Request not found");
 
-        const details = requestMsg.details?.[0] || {};
+        const details = {
+            package_name: requestMsg.name || `Custom Tour - ${requestMsg.email || 'Client'}`,
+            start_date: requestMsg.start_date || null,
+            end_date: requestMsg.start_date ? new Date(new Date(requestMsg.start_date).setDate(new Date(requestMsg.start_date).getDate() + (requestMsg.duration_nights || 1))).toISOString().split('T')[0] : null,
+            nights: requestMsg.duration_nights || 1
+        };
 
         // 3. Create the Tour
         const { data: newTour, error: insertError } = await supabaseAdmin
@@ -121,10 +123,10 @@ export class TourService {
                 request_id: requestId,
                 tourist_id: requestMsg.tourist_id || null, // Will need non-null tourist_id in future based on schema, if anonymous request this might fail unless triggered
                 agent_id: requestMsg.admin_assigned_to || null,
-                title: details.package_name || `Custom Tour - ${requestMsg.email || 'Client'}`,
+                title: details.package_name,
                 status: 'Draft',
-                start_date: details.start_date || null,
-                end_date: details.end_date || null,
+                start_date: details.start_date,
+                end_date: details.end_date,
             }])
             .select('id')
             .single();
@@ -196,8 +198,7 @@ export class TourService {
                     duration_nights,
                     adults,
                     children,
-                    infants,
-                    details:request_details(*)
+                    infants
                 ),
                 tourist:users!tours_tourist_id_fkey(
                     email,
@@ -248,8 +249,8 @@ export class TourService {
             adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2,
             children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0,
             infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
-            arrivalDate: touristProfile.arrival_date || tourMsg.start_date || tourMsg.request?.start_date || tourMsg.request?.details?.[0]?.start_date || '',
-            departureDate: touristProfile.departure_date || tourMsg.end_date || tourMsg.request?.details?.[0]?.end_date || '',
+            arrivalDate: touristProfile.arrival_date || tourMsg.start_date || tourMsg.request?.start_date || '',
+            departureDate: touristProfile.departure_date || tourMsg.end_date || '',
             durationDays: touristProfile.duration_days || 0,
             budgetTotal: touristProfile.budget_total || 0,
             budgetPerPerson: touristProfile.budget_per_person || 0,
@@ -277,9 +278,8 @@ export class TourService {
             tripData.profile = { ...tripData.profile, ...mergedProfile };
             tripData.travelers = travelers;
         } else {
-            // Otherwise seed it from the request_details
+            // Otherwise seed it from the requests table
             const reqInfo = tourMsg.request;
-            const details = reqInfo?.details?.[0] || {};
 
             tripData = {
                 id: tourId,
@@ -290,13 +290,13 @@ export class TourService {
                 clientAddress: touristProfile.address || '',
                 status: tourMsg.status as TripData['status'],
                 profile: {
-                    adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : (reqInfo?.adults || details.adults || 2),
-                    children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : (reqInfo?.children || details.children || 0),
+                    adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : (reqInfo?.adults || 2),
+                    children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : (reqInfo?.children || 0),
                     infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
-                    arrivalDate: touristProfile.arrival_date || reqInfo?.start_date || details.start_date || '',
-                    departureDate: touristProfile.departure_date || details.end_date || (() => {
-                        const start = reqInfo?.start_date || details.start_date;
-                        const nights = reqInfo?.duration_nights || details.nights;
+                    arrivalDate: touristProfile.arrival_date || reqInfo?.start_date || '',
+                    departureDate: touristProfile.departure_date || (() => {
+                        const start = reqInfo?.start_date;
+                        const nights = reqInfo?.duration_nights;
                         if (start && nights) {
                             const d = new Date(start);
                             d.setDate(d.getDate() + nights);
@@ -304,21 +304,21 @@ export class TourService {
                         }
                         return '';
                     })(),
-                    durationDays: touristProfile.duration_days || (reqInfo?.duration_nights || details.nights || 0) + ((reqInfo?.start_date || details.start_date) ? 1 : 0),
-                    budgetTotal: touristProfile.budget_total || reqInfo?.budget || details.estimated_price || 0,
+                    durationDays: touristProfile.duration_days || (reqInfo?.duration_nights || 0) + (reqInfo?.start_date ? 1 : 0),
+                    budgetTotal: touristProfile.budget_total || reqInfo?.budget || 0,
                     budgetPerPerson: touristProfile.budget_per_person || (
-                        (reqInfo?.budget || details.estimated_price) && (reqInfo?.adults || details.adults)
-                            ? (reqInfo?.budget || details.estimated_price) / (reqInfo?.adults || details.adults)
+                        reqInfo?.budget && reqInfo?.adults
+                            ? reqInfo.budget / reqInfo.adults
                             : 0
                     ),
-                    travelStyle: (touristProfile.travel_style || (details.budget_tier ? 'Premium' : 'Luxury')) as TravelStyle,
+                    travelStyle: (touristProfile.travel_style || 'Luxury') as TravelStyle,
                     departureCountry: touristProfile.departure_country || '',
                     specialConditions: {
-                        dietary: touristProfile.dietary_requirements || (details.special_requirements ? 'See internal notes' : ''),
+                        dietary: touristProfile.dietary_requirements || '',
                         medical: touristProfile.medical_conditions || '',
                         accessibility: touristProfile.accessibility_requirements || '',
                         language: touristProfile.language_preference || 'English',
-                        occasion: touristProfile.special_notes || reqInfo?.note || details?.special_requirements || ''
+                        occasion: touristProfile.special_notes || reqInfo?.note || ''
                     }
                 },
                 serviceScopes: [],
@@ -328,7 +328,7 @@ export class TourService {
                     costs: { flights: 0, hotels: 0, transport: 0, activities: 0, guide: 0, misc: 0, commission: 0, tax: 0 },
                     purchaseOrders: [],
                     supplierInvoices: [],
-                    sellingPrice: reqInfo?.budget || details.estimated_price || 0
+                    sellingPrice: reqInfo?.budget || 0
                 }
             };
         }

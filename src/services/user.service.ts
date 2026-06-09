@@ -82,7 +82,6 @@ export class AdminService {
             .from('requests')
             .select(`
                 *,
-                details:request_details(*),
                 tourist:users!requests_tourist_id_fkey(
                     email,
                     tourist_profile:tourist_profiles(first_name, last_name)
@@ -120,7 +119,7 @@ export class AdminService {
 
             const customerEmail = request.email || request.tourist?.email;
             const agentName = `${agent.first_name} ${agent.last_name || ''}`.trim();
-            const packageName = request.details?.[0]?.package_name || request.request_type;
+            const packageName = request.request_type;
 
             if (customerEmail) {
                 await emailService.sendAgentAssignedEmail({
