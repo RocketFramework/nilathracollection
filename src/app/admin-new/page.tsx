@@ -50,7 +50,7 @@ import {
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
 import { ItineraryElements, TouristActivity } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
-import { getTouristDataAction, saveTouristDataAction, getActivitiesAction } from '@/actions/admin.actions';
+import { getTouristDataAction, saveTouristDataAction, getActivitiesAction, getAppMarkupsAction } from '@/actions/admin.actions';
 
 interface StepItem {
   id: string;
@@ -170,10 +170,13 @@ function PlannerWizardWorkspace() {
   const [selectedActivityIds, setSelectedActivityIds] = useState<number[]>([]);
   const [activitySearchTerm, setActivitySearchTerm] = useState<string>('');
   const [activityCategoryFilter, setActivityCategoryFilter] = useState<string>('All');
+  const [activityTravelPrepTime, setActivityTravelPrepTime] = useState<number>(2);
+  const [dailyActivityHoursLimit, setDailyActivityHoursLimit] = useState<number>(6);
+  const [activityAverageSpeedKm, setActivityAverageSpeedKm] = useState<number>(30);
 
-  // Fetch activities from the database
+  // Fetch activities and settings from the database
   useEffect(() => {
-    async function loadActivities() {
+    async function loadActivitiesAndSettings() {
       try {
         const res = await getActivitiesAction();
         if (res.success && res.data) {
@@ -182,8 +185,26 @@ function PlannerWizardWorkspace() {
       } catch (error) {
         console.error("Failed to load activities from database:", error);
       }
+
+      try {
+        const res = await getAppMarkupsAction();
+        if (res.success && res.markups) {
+          const settings = res.markups as any;
+          if (settings.activity_travel_prep_time !== undefined) {
+            setActivityTravelPrepTime(Number(settings.activity_travel_prep_time));
+          }
+          if (settings.daily_activity_hours_limit !== undefined) {
+            setDailyActivityHoursLimit(Number(settings.daily_activity_hours_limit));
+          }
+          if (settings.activity_average_speed_km !== undefined) {
+            setActivityAverageSpeedKm(Number(settings.activity_average_speed_km));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load app settings from database:", error);
+      }
     }
-    loadActivities();
+    loadActivitiesAndSettings();
   }, []);
 
   const filteredActivities = useMemo(() => {
@@ -208,8 +229,21 @@ function PlannerWizardWorkspace() {
   }, [selectedActivityIds, activitiesList]);
 
   const totalInferredDuration = useMemo(() => {
-    return selectedActivities.reduce((acc, act) => acc + act.duration_hours, 0);
-  }, [selectedActivities]);
+    return selectedActivities.reduce((acc, act) => acc + act.duration_hours + activityTravelPrepTime, 0);
+  }, [selectedActivities, activityTravelPrepTime]);
+
+  const activityBudgetStats = useMemo(() => {
+    const days = touristData?.preferences?.duration_days || 0;
+    const availableHours = days * dailyActivityHoursLimit;
+    const remainingHours = availableHours - totalInferredDuration;
+    const remainingDays = remainingHours / dailyActivityHoursLimit;
+    return {
+      days,
+      availableHours,
+      remainingHours,
+      remainingDays
+    };
+  }, [touristData?.preferences?.duration_days, totalInferredDuration, dailyActivityHoursLimit]);
 
   const handleAddActivity = (id: number) => {
     if (!selectedActivityIds.includes(id)) {
@@ -221,19 +255,6 @@ function PlannerWizardWorkspace() {
     setSelectedActivityIds(prev => prev.filter(x => x !== id));
   };
 
-  const handleMoveActivity = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === selectedActivityIds.length - 1) return;
-    
-    const nextIds = [...selectedActivityIds];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    const temp = nextIds[index];
-    nextIds[index] = nextIds[targetIndex];
-    nextIds[targetIndex] = temp;
-    
-    setSelectedActivityIds(nextIds);
-  };
 
   const handleSaveProgress = async () => {
     if (!tourId || tourId === 'draft-tour') {
@@ -1476,7 +1497,7 @@ function PlannerWizardWorkspace() {
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in fade-in slide-in-from-bottom-3 duration-300">
                     
                     {/* Left Column: Activity List & Search */}
-                    <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+                    <div className="lg:col-span-6 xl:col-span-6 space-y-6">
                       
                       {/* Search & Filters */}
                       <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md space-y-4">
@@ -1618,7 +1639,7 @@ function PlannerWizardWorkspace() {
                     </div>
 
                     {/* Right Column: Selected Activities Sidebar */}
-                    <div className="lg:col-span-5 xl:col-span-4 sticky top-6 space-y-6">
+                    <div className="lg:col-span-6 xl:col-span-6 sticky top-6 space-y-6">
                       
                       {/* Sidebar Container */}
                       <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-6">
@@ -1629,22 +1650,95 @@ function PlannerWizardWorkspace() {
                           <p className="text-xs text-neutral-400">Order and prioritize the selected experiences for this basic itinerary draft.</p>
                         </div>
 
-                        {/* Summary Stats */}
-                        {selectedActivities.length > 0 && (
-                          <div className="grid grid-cols-2 gap-4 bg-neutral-50/80 border border-neutral-100 rounded-2xl p-4 mb-4">
-                            <div>
-                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Total Items</span>
-                              <span className="text-lg font-bold text-neutral-800">{selectedActivities.length} selected</span>
+                        {/* Summary Stats / Trip Duration Budget */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                          
+                          {/* Trip Duration */}
+                          <div className="bg-blue-50/40 border border-blue-100/50 rounded-2xl p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0">
+                              <CalendarDays className="w-5 h-5" />
                             </div>
-                            <div>
-                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Est. Duration</span>
-                              <span className="text-lg font-bold text-emerald-800">{totalInferredDuration.toFixed(1)} hrs</span>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Trip Duration</span>
+                              <span className="text-sm font-extrabold text-blue-950">{activityBudgetStats.days} Days</span>
                             </div>
                           </div>
-                        )}
+
+                          {/* Available Time */}
+                          <div className="bg-amber-50/40 border border-amber-100/50 rounded-2xl p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
+                              <Clock className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Available Time</span>
+                              <span className="text-sm font-extrabold text-amber-950">{activityBudgetStats.availableHours} hrs <span className="text-[8px] font-normal text-neutral-400 font-sans normal-case">({dailyActivityHoursLimit}h/d)</span></span>
+                            </div>
+                          </div>
+
+                          {/* Selected Items */}
+                          <div className="bg-purple-50/40 border border-purple-100/50 rounded-2xl p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 shrink-0">
+                              <Compass className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Selected Items</span>
+                              <span className="text-sm font-extrabold text-purple-950">{selectedActivities.length} selected</span>
+                            </div>
+                          </div>
+
+                          {/* Est. Duration */}
+                          <div className="bg-emerald-50/40 border border-emerald-100/50 rounded-2xl p-3 flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0">
+                              <CheckSquare className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Est. Duration</span>
+                              <span className="text-sm font-extrabold text-emerald-800">{totalInferredDuration.toFixed(1)} hrs</span>
+                            </div>
+                          </div>
+
+                          {/* Remaining Time */}
+                          <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${
+                            activityBudgetStats.remainingHours < 0 
+                              ? 'bg-red-50/40 border-red-100 text-red-900' 
+                              : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
+                          }`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              activityBudgetStats.remainingHours < 0 
+                                ? 'bg-red-500/10 text-red-600 animate-pulse' 
+                                : 'bg-neutral-500/10 text-neutral-600'
+                            }`}>
+                              <Clock className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Remaining Time</span>
+                              <span className="text-sm font-extrabold">{activityBudgetStats.remainingHours.toFixed(1)} hrs</span>
+                            </div>
+                          </div>
+
+                          {/* Remaining Days */}
+                          <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${
+                            activityBudgetStats.remainingDays < 0 
+                              ? 'bg-red-50/40 border-red-100 text-red-900' 
+                              : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
+                          }`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              activityBudgetStats.remainingDays < 0 
+                                ? 'bg-red-500/10 text-red-600 animate-pulse' 
+                                : 'bg-neutral-500/10 text-neutral-600'
+                            }`}>
+                              <CalendarDays className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Remaining Days</span>
+                              <span className="text-sm font-extrabold">{activityBudgetStats.remainingDays.toFixed(1)} Days</span>
+                            </div>
+                          </div>
+
+                        </div>
 
                         {/* Selected List */}
-                        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
                           {selectedActivities.map((act, index) => (
                             <div 
                               key={act.id} 
@@ -1658,40 +1752,24 @@ function PlannerWizardWorkspace() {
                               {/* Details */}
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-xs font-bold text-neutral-800 truncate">{act.activity_name}</h4>
-                                <span className="text-[10px] text-neutral-400 block truncate">{act.location_name} &bull; {act.duration_hours}h</span>
+                                <span className="text-[10px] text-neutral-400 block truncate">{act.location_name} &bull; {act.duration_hours}h (+{activityTravelPrepTime}h travel/prep)</span>
                               </div>
 
-                              {/* Controls (Move Up/Down & Remove) */}
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                  onClick={() => handleMoveActivity(index, 'up')}
-                                  disabled={index === 0}
-                                  className="p-1 hover:bg-neutral-100 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-20 transition-all"
-                                  title="Move Up"
-                                >
-                                  <ChevronUp className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleMoveActivity(index, 'down')}
-                                  disabled={index === selectedActivities.length - 1}
-                                  className="p-1 hover:bg-neutral-100 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-20 transition-all"
-                                  title="Move Down"
-                                >
-                                  <ChevronDown className="w-4 h-4" />
-                                </button>
+                              {/* Controls (Remove) */}
+                              <div className="flex items-center shrink-0">
                                 <button
                                   onClick={() => handleRemoveActivity(act.id)}
-                                  className="p-1 hover:bg-red-50 rounded text-neutral-400 hover:text-red-600 transition-all ml-1"
+                                  className="p-1.5 hover:bg-red-50 rounded-xl text-neutral-400 hover:text-red-600 transition-all"
                                   title="Remove"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-4.5 h-4.5" />
                                 </button>
                               </div>
                             </div>
                           ))}
 
                           {selectedActivities.length === 0 && (
-                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                            <div className="md:col-span-2 border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
                               <Compass className="w-8 h-8 text-neutral-300 mb-2" />
                               <span className="text-xs font-bold text-neutral-500">No activities selected</span>
                               <span className="text-[10px] text-neutral-400 mt-1 max-w-[180px]">Click "+ Add to Tour" on any activity card to prioritize it for this itinerary.</span>

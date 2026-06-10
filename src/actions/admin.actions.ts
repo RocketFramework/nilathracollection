@@ -995,6 +995,9 @@ export async function getAppMarkupsAction() {
             premium_vehicle_km_rate: 0,
             luxury_vehicle_km_rate: 0,
             ultra_vip_vehicle_km_rate: 0,
+            activity_travel_prep_time: 2,
+            daily_activity_hours_limit: 6,
+            activity_average_speed_km: 30,
         };
 
         if (data) {
@@ -1018,6 +1021,9 @@ export async function getAppMarkupsAction() {
             premium_vehicle_km_rate: 0,
             luxury_vehicle_km_rate: 0,
             ultra_vip_vehicle_km_rate: 0,
+            activity_travel_prep_time: 2,
+            daily_activity_hours_limit: 6,
+            activity_average_speed_km: 30,
         } };
     }
 }
