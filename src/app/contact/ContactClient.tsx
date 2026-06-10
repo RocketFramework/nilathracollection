@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
+import { useRouter } from "next/navigation";
 import { Phone, Mail, MapPin, MessageCircle, Send, Globe, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,8 +11,8 @@ import { logPageViewAction } from "@/actions/log.actions";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 
 export default function ContactClient() {
+    const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [form, setForm] = useState({
@@ -62,7 +63,7 @@ export default function ContactClient() {
                 const response = await fetch("https://get.geojs.io/v1/ip/geo.json");
                 const data = await response.json();
                 if (data.country) {
-                    setForm(prev => ({ ...prev, departureCountry: data.country }));
+                     setForm(prev => ({ ...prev, departureCountry: data.country }));
                 }
             } catch (error) {
                 // Silently fail if location tracking is blocked by adblockers or fails
@@ -82,15 +83,7 @@ export default function ContactClient() {
         try {
             const result = await submitInquiryAction(form);
             if (result.success) {
-                setIsSuccess(true);
-                setForm({
-                    name: "", email: "", phone: "",
-                    departureCountry: form.departureCountry,
-                    inquiryType: "Super Luxury VIP Experience",
-                    startDate: "", durationNights: 7,
-                    adults: 2, children: 0, infants: 0,
-                    budget: 5000, message: ""
-                });
+                router.push("/contact/thank-you");
             } else {
                 setError(result.error || "Failed to deliver inquiry.");
             }
@@ -161,25 +154,7 @@ export default function ContactClient() {
                                 <Globe size={300} />
                             </div>
 
-                            {isSuccess ? (
-                                <div className="h-full flex flex-col items-center justify-center text-center py-12 animate-in fade-in zoom-in duration-500">
-                                    <div className="w-20 h-20 bg-brand-green/10 text-brand-green rounded-full flex items-center justify-center mb-8">
-                                        <CheckCircle2 size={40} />
-                                    </div>
-                                    <h3 className="font-serif text-3xl text-brand-charcoal mb-4">Inquiry Delivered</h3>
-                                    <p className="text-brand-charcoal/60 max-w-sm">
-                                        Thank you for reaching out. A dedicated concierge will review your private inquiry and contact you shortly.
-                                    </p>
-                                    <button
-                                        onClick={() => setIsSuccess(false)}
-                                        className="mt-12 text-xs uppercase tracking-[0.3em] font-bold text-brand-gold hover:text-brand-green transition-colors"
-                                    >
-                                        Send Another Message
-                                    </button>
-                                </div>
-                            ) : (
-                                <>
-                                    <h3 className="font-serif text-3xl text-brand-green mb-10 relative z-10">Send a Private Inquiry</h3>
+                            <h3 className="font-serif text-3xl text-brand-green mb-10 relative z-10">Send a Private Inquiry</h3>
                                     <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
@@ -348,8 +323,6 @@ export default function ContactClient() {
                                             {isSubmitting ? "Delivering..." : "Deliver Inquiry"} <Send size={18} />
                                         </button>
                                     </form>
-                                </>
-                            )}
                         </div>
                     </div>
                 </div>
