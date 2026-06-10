@@ -75,3 +75,19 @@ export interface TripRequest {
     updated_at?: string;
 }
 
+export interface DBActivity {
+  id: number;
+  category: string;
+  activity_name: string;
+  location_name: string;
+  district: string;
+  lat: number | null;
+  lng: number | null;
+  description: string;
+  duration_hours: number;
+  optimal_start_time: string | null;
+  optimal_end_time: string | null;
+  time_flexible: boolean;
+  images: string[] | null;
+}
+

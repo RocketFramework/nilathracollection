@@ -39,10 +39,16 @@ import {
   DollarSign,
   Calendar,
   Heart,
-  Globe
+  Globe,
+  Search,
+  Check,
+  MapPin,
+  Clock,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
-import { ItineraryElements } from '../../other/interfaces';
+import { ItineraryElements, DBActivity } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { getTouristDataAction, saveTouristDataAction } from '@/actions/admin.actions';
 
@@ -53,6 +59,99 @@ interface StepItem {
   icon: React.ComponentType<any>;
   isSubStep?: boolean;
 }
+
+const MOCK_ACTIVITIES: DBActivity[] = [
+  {
+    id: 1,
+    category: "Adventure & Nature",
+    activity_name: "Scenic Train Ride (Kandy to Ella)",
+    location_name: "Ella Railway Station",
+    district: "Badulla",
+    lat: 6.8724,
+    lng: 81.0488,
+    description: "Experience one of the most beautiful train journeys in the world, passing through tea plantations, lush forests, and mountain bridges.",
+    duration_hours: 4.0,
+    optimal_start_time: "09:00:00",
+    optimal_end_time: "13:00:00",
+    time_flexible: false,
+    images: ["/images/activities/scenic_train_ride_1.avif"]
+  },
+  {
+    id: 2,
+    category: "Cultural & Historical",
+    activity_name: "Sigiriya Ancient Rock Fortress Climb",
+    location_name: "Sigiriya Rock",
+    district: "Matale",
+    lat: 7.9570,
+    lng: 80.7603,
+    description: "Climb the 5th-century fortress built by King Kashyapa. Admire the frescos, the mirror wall, and the giant lion paws at the terrace.",
+    duration_hours: 3.0,
+    optimal_start_time: "07:00:00",
+    optimal_end_time: "10:00:00",
+    time_flexible: true,
+    images: []
+  },
+  {
+    id: 3,
+    category: "Wildlife & Safari",
+    activity_name: "Yala National Park Afternoon Safari",
+    location_name: "Yala National Park",
+    district: "Hambantota",
+    lat: 6.3687,
+    lng: 81.5208,
+    description: "Embark on an exciting 4x4 game drive to spot leopards, elephants, sloth bears, crocodiles, and exotic birds in their natural habitat.",
+    duration_hours: 5.0,
+    optimal_start_time: "14:00:00",
+    optimal_end_time: "19:00:00",
+    time_flexible: false,
+    images: []
+  },
+  {
+    id: 4,
+    category: "Cultural & Historical",
+    activity_name: "Galle Fort Colonial Walking Tour",
+    location_name: "Galle Fort",
+    district: "Galle",
+    lat: 6.0270,
+    lng: 80.2170,
+    description: "Take a stroll along the historic ramparts of Galle Fort, exploring Dutch colonial buildings, museums, lighthouse, and charming streets.",
+    duration_hours: 2.0,
+    optimal_start_time: "16:00:00",
+    optimal_end_time: "18:00:00",
+    time_flexible: true,
+    images: []
+  },
+  {
+    id: 5,
+    category: "Adventure & Nature",
+    activity_name: "Whale Watching Excursion Mirissa",
+    location_name: "Mirissa Harbor",
+    district: "Matara",
+    lat: 5.9483,
+    lng: 80.4578,
+    description: "Sail out to the open ocean to witness majestic blue whales, sperm whales, and playful dolphins leaping alongside the boat.",
+    duration_hours: 4.5,
+    optimal_start_time: "06:30:00",
+    optimal_end_time: "11:00:00",
+    time_flexible: false,
+    images: []
+  },
+  {
+    id: 6,
+    category: "Cultural & Historical",
+    activity_name: "Temple of the Sacred Tooth Relic Visit",
+    location_name: "Sri Dalada Maligawa",
+    district: "Kandy",
+    lat: 7.2936,
+    lng: 80.6413,
+    description: "Visit Sri Lanka's most venerated Buddhist temple, which houses the sacred tooth relic of the Buddha in Kandy's royal palace complex.",
+    duration_hours: 1.5,
+    optimal_start_time: "09:00:00",
+    optimal_end_time: "10:30:00",
+    time_flexible: true,
+    images: []
+  }
+];
 
 const MOCK_TOURIST_DATA: TouristDataDTO = {
   profile: {
@@ -158,6 +257,60 @@ function PlannerWizardWorkspace() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Activity selection states
+  const [selectedActivityIds, setSelectedActivityIds] = useState<number[]>([]);
+  const [activitySearchTerm, setActivitySearchTerm] = useState<string>('');
+  const [activityCategoryFilter, setActivityCategoryFilter] = useState<string>('All');
+
+  const filteredActivities = useMemo(() => {
+    return MOCK_ACTIVITIES.filter(act => {
+      const matchesCategory = activityCategoryFilter === 'All' || act.category === activityCategoryFilter;
+      if (!activitySearchTerm) return matchesCategory;
+      
+      const term = activitySearchTerm.toLowerCase();
+      return matchesCategory && (
+        act.activity_name.toLowerCase().includes(term) ||
+        act.location_name.toLowerCase().includes(term) ||
+        act.district.toLowerCase().includes(term) ||
+        act.description.toLowerCase().includes(term)
+      );
+    });
+  }, [activitySearchTerm, activityCategoryFilter]);
+
+  const selectedActivities = useMemo(() => {
+    return selectedActivityIds
+      .map(id => MOCK_ACTIVITIES.find(act => act.id === id))
+      .filter(Boolean) as DBActivity[];
+  }, [selectedActivityIds]);
+
+  const totalInferredDuration = useMemo(() => {
+    return selectedActivities.reduce((acc, act) => acc + act.duration_hours, 0);
+  }, [selectedActivities]);
+
+  const handleAddActivity = (id: number) => {
+    if (!selectedActivityIds.includes(id)) {
+      setSelectedActivityIds(prev => [...prev, id]);
+    }
+  };
+
+  const handleRemoveActivity = (id: number) => {
+    setSelectedActivityIds(prev => prev.filter(x => x !== id));
+  };
+
+  const handleMoveActivity = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === selectedActivityIds.length - 1) return;
+    
+    const nextIds = [...selectedActivityIds];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    const temp = nextIds[index];
+    nextIds[index] = nextIds[targetIndex];
+    nextIds[targetIndex] = temp;
+    
+    setSelectedActivityIds(nextIds);
+  };
 
   const handleSaveProgress = async () => {
     if (!tourId || tourId === 'draft-tour') {
@@ -1388,6 +1541,238 @@ function PlannerWizardWorkspace() {
                           </div>
                         </div>
                       )}
+
+                    </div>
+
+                  </div>
+                ) : track === 'basic' && currentStep.id === 'activity-selection' ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in fade-in slide-in-from-bottom-3 duration-300">
+                    
+                    {/* Left Column: Activity List & Search */}
+                    <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+                      
+                      {/* Search & Filters */}
+                      <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md space-y-4">
+                        <div className="relative">
+                          <Search className="absolute left-4 top-3.5 text-neutral-400 w-5 h-5" />
+                          <input 
+                            type="text"
+                            value={activitySearchTerm}
+                            onChange={(e) => setActivitySearchTerm(e.target.value)}
+                            placeholder="Search activities by name, location, district or description..."
+                            className="w-full pl-12 pr-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 text-sm bg-neutral-50/30 font-medium"
+                          />
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {['All', 'Adventure & Nature', 'Cultural & Historical', 'Wildlife & Safari'].map((cat) => (
+                            <button
+                              key={cat}
+                              onClick={() => setActivityCategoryFilter(cat)}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                                ${activityCategoryFilter === cat
+                                  ? 'bg-emerald-800 text-white shadow-sm'
+                                  : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600'
+                                }`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Activities Display List */}
+                      <div className="space-y-4">
+                        {filteredActivities.map((act) => {
+                          const isSelected = selectedActivityIds.includes(act.id);
+                          return (
+                            <div 
+                              key={act.id}
+                              className={`bg-white rounded-3xl p-6 border transition-all flex flex-col md:flex-row gap-6 hover:shadow-md
+                                ${isSelected 
+                                  ? 'border-emerald-800/30 ring-1 ring-emerald-800/20 bg-emerald-50/5' 
+                                  : 'border-neutral-200'
+                                }`}
+                            >
+                              {/* Left side: Thumbnail */}
+                              <div className="w-full md:w-48 h-36 shrink-0 rounded-2xl overflow-hidden bg-neutral-100 border border-neutral-200 relative">
+                                {act.images && act.images.length > 0 ? (
+                                  <img 
+                                    src={act.images[0]} 
+                                    alt={act.activity_name} 
+                                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-tr from-neutral-100 to-neutral-200 flex items-center justify-center text-neutral-400">
+                                    <MapPin className="w-8 h-8 opacity-40" />
+                                  </div>
+                                )}
+                                <div className="absolute top-3 left-3">
+                                  <span className="text-[9px] font-bold bg-white/95 text-neutral-700 px-2 py-0.5 rounded-full border border-neutral-200/50 shadow-sm uppercase tracking-wide">
+                                    {act.category}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Middle side: Details */}
+                              <div className="flex-1 space-y-3">
+                                <div>
+                                  <h3 className="text-md font-serif font-bold text-neutral-800">{act.activity_name}</h3>
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-xs text-neutral-500 font-medium">
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+                                      {act.location_name}, {act.district}
+                                    </span>
+                                    {act.lat !== null && act.lng !== null && (
+                                      <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded font-mono">
+                                        {act.lat.toFixed(4)}°N, {act.lng.toFixed(4)}°E
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <p className="text-xs text-neutral-500 leading-relaxed font-medium">
+                                  {act.description}
+                                </p>
+
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  <span className="flex items-center gap-1 text-[11px] font-bold text-neutral-600 bg-neutral-100 px-2.5 py-1 rounded-xl">
+                                    <Clock className="w-3.5 h-3.5 text-neutral-400" />
+                                    {act.duration_hours} hrs
+                                  </span>
+                                  {act.optimal_start_time && act.optimal_end_time && (
+                                    <span className="text-[10px] font-semibold text-neutral-600 bg-neutral-100 px-2.5 py-1 rounded-xl">
+                                      Optimal: {act.optimal_start_time.substring(0, 5)} - {act.optimal_end_time.substring(0, 5)}
+                                    </span>
+                                  )}
+                                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-xl border
+                                    ${act.time_flexible 
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' 
+                                      : 'bg-amber-50 text-amber-600 border-amber-200/50'
+                                    }`}
+                                  >
+                                    {act.time_flexible ? 'Flexible Time' : 'Fixed Schedule'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Right side: Actions */}
+                              <div className="flex items-center justify-end md:flex-col md:justify-center shrink-0">
+                                {isSelected ? (
+                                  <button
+                                    onClick={() => handleRemoveActivity(act.id)}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200/50 hover:border-red-200 transition-all shadow-sm"
+                                  >
+                                    <Check className="w-4 h-4" /> Selected
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleAddActivity(act.id)}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-emerald-800 bg-white hover:bg-emerald-50 border border-emerald-800/30 hover:border-emerald-800 transition-all shadow-sm"
+                                  >
+                                    <Plus className="w-4 h-4" /> Add to Tour
+                                  </button>
+                                )}
+                              </div>
+
+                            </div>
+                          );
+                        })}
+
+                        {filteredActivities.length === 0 && (
+                          <div className="bg-white border border-neutral-200 rounded-3xl p-12 text-center flex flex-col items-center justify-center min-h-[200px]">
+                            <Compass className="w-10 h-10 text-neutral-300 mb-3" />
+                            <span className="text-sm font-bold text-neutral-600">No matching activities found</span>
+                            <span className="text-xs text-neutral-400 mt-1">Try expanding your search query or choosing a different category.</span>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+
+                    {/* Right Column: Selected Activities Sidebar */}
+                    <div className="lg:col-span-5 xl:col-span-4 sticky top-6 space-y-6">
+                      
+                      {/* Sidebar Container */}
+                      <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-6">
+                        
+                        {/* Header */}
+                        <div className="border-b border-neutral-100 pb-4 mb-4">
+                          <h3 className="text-md font-serif font-bold text-neutral-800">Selected Activities</h3>
+                          <p className="text-xs text-neutral-400">Order and prioritize the selected experiences for this basic itinerary draft.</p>
+                        </div>
+
+                        {/* Summary Stats */}
+                        {selectedActivities.length > 0 && (
+                          <div className="grid grid-cols-2 gap-4 bg-neutral-50/80 border border-neutral-100 rounded-2xl p-4 mb-4">
+                            <div>
+                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Total Items</span>
+                              <span className="text-lg font-bold text-neutral-800">{selectedActivities.length} selected</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Est. Duration</span>
+                              <span className="text-lg font-bold text-emerald-800">{totalInferredDuration.toFixed(1)} hrs</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Selected List */}
+                        <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                          {selectedActivities.map((act, index) => (
+                            <div 
+                              key={act.id} 
+                              className="flex items-center gap-3 p-3 rounded-2xl border border-neutral-200/80 bg-white hover:border-neutral-300 transition-all relative group"
+                            >
+                              {/* Order Badge */}
+                              <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-100/50 flex items-center justify-center text-xs font-bold shrink-0">
+                                {index + 1}
+                              </div>
+
+                              {/* Details */}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-xs font-bold text-neutral-800 truncate">{act.activity_name}</h4>
+                                <span className="text-[10px] text-neutral-400 block truncate">{act.location_name} &bull; {act.duration_hours}h</span>
+                              </div>
+
+                              {/* Controls (Move Up/Down & Remove) */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => handleMoveActivity(index, 'up')}
+                                  disabled={index === 0}
+                                  className="p-1 hover:bg-neutral-100 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-20 transition-all"
+                                  title="Move Up"
+                                >
+                                  <ChevronUp className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleMoveActivity(index, 'down')}
+                                  disabled={index === selectedActivities.length - 1}
+                                  className="p-1 hover:bg-neutral-100 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-20 transition-all"
+                                  title="Move Down"
+                                >
+                                  <ChevronDown className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveActivity(act.id)}
+                                  className="p-1 hover:bg-red-50 rounded text-neutral-400 hover:text-red-600 transition-all ml-1"
+                                  title="Remove"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {selectedActivities.length === 0 && (
+                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                              <Compass className="w-8 h-8 text-neutral-300 mb-2" />
+                              <span className="text-xs font-bold text-neutral-500">No activities selected</span>
+                              <span className="text-[10px] text-neutral-400 mt-1 max-w-[180px]">Click "+ Add to Tour" on any activity card to prioritize it for this itinerary.</span>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
 
                     </div>
 
