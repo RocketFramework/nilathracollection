@@ -75,6 +75,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`scroll-smooth ${outfit.variable} ${playfair.variable}`}>
       <head>
+        <meta name="ahrefs-site-verification" content="22fc30d51e6331979f27c2c228517f2c5970fd11f1da7bcf396ddc32b41d4e56"></meta>
+      </head>
+      <body className="antialiased min-h-screen bg-[#F5F3EF] text-[#2B2B2B] font-sans">
         {/* Google tag (gtag.js) */}
         <Script
           strategy="afterInteractive"
@@ -93,15 +96,12 @@ export default function RootLayout({
             `,
           }}
         />
-        <meta name="ahrefs-site-verification" content="22fc30d51e6331979f27c2c228517f2c5970fd11f1da7bcf396ddc32b41d4e56"></meta>
         {/* Ahrefs Analytics */}
         <Script
           strategy="lazyOnload"
           src="https://analytics.ahrefs.com/analytics.js"
           data-key="wlFIqe/l/FqpI6eKpT5gnQ"
         />
-      </head>
-      <body className="antialiased min-h-screen bg-[#F5F3EF] text-[#2B2B2B] font-sans">
         {children}
         <Analytics />
       </body>
