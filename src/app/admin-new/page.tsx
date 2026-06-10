@@ -48,9 +48,9 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
-import { ItineraryElements, DBActivity } from '../../other/interfaces';
+import { ItineraryElements, TouristActivity } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
-import { getTouristDataAction, saveTouristDataAction } from '@/actions/admin.actions';
+import { getTouristDataAction, saveTouristDataAction, getActivitiesAction } from '@/actions/admin.actions';
 
 interface StepItem {
   id: string;
@@ -59,99 +59,6 @@ interface StepItem {
   icon: React.ComponentType<any>;
   isSubStep?: boolean;
 }
-
-const MOCK_ACTIVITIES: DBActivity[] = [
-  {
-    id: 1,
-    category: "Adventure & Nature",
-    activity_name: "Scenic Train Ride (Kandy to Ella)",
-    location_name: "Ella Railway Station",
-    district: "Badulla",
-    lat: 6.8724,
-    lng: 81.0488,
-    description: "Experience one of the most beautiful train journeys in the world, passing through tea plantations, lush forests, and mountain bridges.",
-    duration_hours: 4.0,
-    optimal_start_time: "09:00:00",
-    optimal_end_time: "13:00:00",
-    time_flexible: false,
-    images: ["/images/activities/scenic_train_ride_1.avif"]
-  },
-  {
-    id: 2,
-    category: "Cultural & Historical",
-    activity_name: "Sigiriya Ancient Rock Fortress Climb",
-    location_name: "Sigiriya Rock",
-    district: "Matale",
-    lat: 7.9570,
-    lng: 80.7603,
-    description: "Climb the 5th-century fortress built by King Kashyapa. Admire the frescos, the mirror wall, and the giant lion paws at the terrace.",
-    duration_hours: 3.0,
-    optimal_start_time: "07:00:00",
-    optimal_end_time: "10:00:00",
-    time_flexible: true,
-    images: []
-  },
-  {
-    id: 3,
-    category: "Wildlife & Safari",
-    activity_name: "Yala National Park Afternoon Safari",
-    location_name: "Yala National Park",
-    district: "Hambantota",
-    lat: 6.3687,
-    lng: 81.5208,
-    description: "Embark on an exciting 4x4 game drive to spot leopards, elephants, sloth bears, crocodiles, and exotic birds in their natural habitat.",
-    duration_hours: 5.0,
-    optimal_start_time: "14:00:00",
-    optimal_end_time: "19:00:00",
-    time_flexible: false,
-    images: []
-  },
-  {
-    id: 4,
-    category: "Cultural & Historical",
-    activity_name: "Galle Fort Colonial Walking Tour",
-    location_name: "Galle Fort",
-    district: "Galle",
-    lat: 6.0270,
-    lng: 80.2170,
-    description: "Take a stroll along the historic ramparts of Galle Fort, exploring Dutch colonial buildings, museums, lighthouse, and charming streets.",
-    duration_hours: 2.0,
-    optimal_start_time: "16:00:00",
-    optimal_end_time: "18:00:00",
-    time_flexible: true,
-    images: []
-  },
-  {
-    id: 5,
-    category: "Adventure & Nature",
-    activity_name: "Whale Watching Excursion Mirissa",
-    location_name: "Mirissa Harbor",
-    district: "Matara",
-    lat: 5.9483,
-    lng: 80.4578,
-    description: "Sail out to the open ocean to witness majestic blue whales, sperm whales, and playful dolphins leaping alongside the boat.",
-    duration_hours: 4.5,
-    optimal_start_time: "06:30:00",
-    optimal_end_time: "11:00:00",
-    time_flexible: false,
-    images: []
-  },
-  {
-    id: 6,
-    category: "Cultural & Historical",
-    activity_name: "Temple of the Sacred Tooth Relic Visit",
-    location_name: "Sri Dalada Maligawa",
-    district: "Kandy",
-    lat: 7.2936,
-    lng: 80.6413,
-    description: "Visit Sri Lanka's most venerated Buddhist temple, which houses the sacred tooth relic of the Buddha in Kandy's royal palace complex.",
-    duration_hours: 1.5,
-    optimal_start_time: "09:00:00",
-    optimal_end_time: "10:30:00",
-    time_flexible: true,
-    images: []
-  }
-];
 
 const MOCK_TOURIST_DATA: TouristDataDTO = {
   profile: {
@@ -259,12 +166,28 @@ function PlannerWizardWorkspace() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Activity selection states
+  const [activitiesList, setActivitiesList] = useState<TouristActivity[]>([]);
   const [selectedActivityIds, setSelectedActivityIds] = useState<number[]>([]);
   const [activitySearchTerm, setActivitySearchTerm] = useState<string>('');
   const [activityCategoryFilter, setActivityCategoryFilter] = useState<string>('All');
 
+  // Fetch activities from the database
+  useEffect(() => {
+    async function loadActivities() {
+      try {
+        const res = await getActivitiesAction();
+        if (res.success && res.data) {
+          setActivitiesList(res.data as TouristActivity[]);
+        }
+      } catch (error) {
+        console.error("Failed to load activities from database:", error);
+      }
+    }
+    loadActivities();
+  }, []);
+
   const filteredActivities = useMemo(() => {
-    return MOCK_ACTIVITIES.filter(act => {
+    return activitiesList.filter(act => {
       const matchesCategory = activityCategoryFilter === 'All' || act.category === activityCategoryFilter;
       if (!activitySearchTerm) return matchesCategory;
       
@@ -276,13 +199,13 @@ function PlannerWizardWorkspace() {
         act.description.toLowerCase().includes(term)
       );
     });
-  }, [activitySearchTerm, activityCategoryFilter]);
+  }, [activitiesList, activitySearchTerm, activityCategoryFilter]);
 
   const selectedActivities = useMemo(() => {
     return selectedActivityIds
-      .map(id => MOCK_ACTIVITIES.find(act => act.id === id))
-      .filter(Boolean) as DBActivity[];
-  }, [selectedActivityIds]);
+      .map(id => activitiesList.find(act => act.id === id))
+      .filter(Boolean) as TouristActivity[];
+  }, [selectedActivityIds, activitiesList]);
 
   const totalInferredDuration = useMemo(() => {
     return selectedActivities.reduce((acc, act) => acc + act.duration_hours, 0);
@@ -539,6 +462,7 @@ function PlannerWizardWorkspace() {
             if (state.activeBasicStepIndex !== undefined) restoredBasicIdx = state.activeBasicStepIndex;
             if (state.activeFinalStepIndex !== undefined) restoredFinalIdx = state.activeFinalStepIndex;
             if (state.elements) restoredElements = state.elements;
+            if (state.selectedActivityIds) setSelectedActivityIds(state.selectedActivityIds);
             restoredFromDb = true;
           }
         }
@@ -552,6 +476,7 @@ function PlannerWizardWorkspace() {
             if (parsed.track) restoredTrack = parsed.track;
             if (parsed.activeBasicStepIndex !== undefined) restoredBasicIdx = parsed.activeBasicStepIndex;
             if (parsed.activeFinalStepIndex !== undefined) restoredFinalIdx = parsed.activeFinalStepIndex;
+            if (parsed.selectedActivityIds) setSelectedActivityIds(parsed.selectedActivityIds);
           }
         }
 
@@ -635,7 +560,8 @@ function PlannerWizardWorkspace() {
         track,
         activeBasicStepIndex,
         activeFinalStepIndex,
-        elements
+        elements,
+        selectedActivityIds
       }));
 
       // 2. Sync to Database in background
@@ -650,7 +576,8 @@ function PlannerWizardWorkspace() {
             track,
             activeBasicStepIndex,
             activeFinalStepIndex,
-            elements
+            elements,
+            selectedActivityIds
           }
         })
       }).catch(err => {
@@ -678,7 +605,7 @@ function PlannerWizardWorkspace() {
     } catch (e) {
       console.error("Failed to persist state:", e);
     }
-  }, [track, activeBasicStepIndex, activeFinalStepIndex, elements, isStateRestored, STORAGE_KEY, tourId, basicSteps, finalSteps]);
+  }, [track, activeBasicStepIndex, activeFinalStepIndex, elements, selectedActivityIds, isStateRestored, STORAGE_KEY, tourId, basicSteps, finalSteps]);
 
   if (!isStateRestored) {
     return (
@@ -1565,7 +1492,7 @@ function PlannerWizardWorkspace() {
                         </div>
                         
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {['All', 'Adventure & Nature', 'Cultural & Historical', 'Wildlife & Safari'].map((cat) => (
+                          {['All', 'Adventure', 'Beach', 'Cultural & Heritage', 'Nature', 'Casino', 'Food & Drink', 'Urban', 'Nature & Wildlife', 'Cultural', 'Wildlife', 'Wellness', 'Food', 'Water Sports'].map((cat) => (
                             <button
                               key={cat}
                               onClick={() => setActivityCategoryFilter(cat)}

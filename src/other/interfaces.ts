@@ -75,7 +75,7 @@ export interface TripRequest {
     updated_at?: string;
 }
 
-export interface DBActivity {
+export interface TouristActivity {
   id: number;
   category: string;
   activity_name: string;
