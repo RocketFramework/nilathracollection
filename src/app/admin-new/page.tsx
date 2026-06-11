@@ -45,12 +45,19 @@ import {
   MapPin,
   Clock,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  MessageSquare,
+  Upload,
+  Image
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
-import { ItineraryElements, TouristActivity } from '../../other/interfaces';
+import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
-import { getTouristDataAction, saveTouristDataAction, getActivitiesAction, getAppMarkupsAction } from '@/actions/admin.actions';
+import { getTouristDataAction, saveTouristDataAction, getActivitiesAction, getAppMarkupsAction, getTourDataAction, saveTourAction, getAIRulesAction, saveAIRuleAction } from '@/actions/admin.actions';
+import { createClient } from '@/utils/supabase/client';
+import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
+import { GeoLocation } from '@/lib/route-engine-new';
+import { AIRule } from '@/types/ai';
 
 interface StepItem {
   id: string;
@@ -120,6 +127,69 @@ const MOCK_TOURIST_DATA: TouristDataDTO = {
   ]
 };
 
+// Client-side image resizing using HTML5 Canvas
+const resizeImage = (file: File, maxWidth = 800): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Canvas toBlob failed'));
+          }
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
+// Client-side upload of resized image to Supabase payment-proofs bucket
+const uploadItineraryImage = async (file: File): Promise<string> => {
+  const supabase = createClient();
+  const fileExt = 'jpg'; // We compress canvas output to JPEG
+  const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  // Resize the image to max 800px width
+  const resizedBlob = await resizeImage(file, 800);
+
+  const { error: uploadError } = await supabase.storage
+    .from('payment-proofs')
+    .upload(filePath, resizedBlob, {
+      contentType: 'image/jpeg'
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage
+    .from('payment-proofs')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
+
 function PlannerWizardWorkspace() {
   const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
   const STORAGE_KEY = `nilathra_planner_wizard_state_${tourId}`;
@@ -173,6 +243,10 @@ function PlannerWizardWorkspace() {
   const [activityTravelPrepTime, setActivityTravelPrepTime] = useState<number>(2);
   const [dailyActivityHoursLimit, setDailyActivityHoursLimit] = useState<number>(6);
   const [activityAverageSpeedKm, setActivityAverageSpeedKm] = useState<number>(30);
+
+  // Next-Gen Itinerary States
+  const [tripData, setTripData] = useState<TripData | null>(null);
+  const [itinerary, setItinerary] = useState<InternalItineraryBlock[]>([]);
 
   // Fetch activities and settings from the database
   useEffect(() => {
@@ -264,13 +338,21 @@ function PlannerWizardWorkspace() {
     setIsSaving(true);
     try {
       const res = await saveTouristDataAction(tourId, touristData);
-      if (res.success) {
-        alert('Workflow state and client profile saved to database successfully.');
-      } else {
-        throw new Error(res.error || 'Failed to save');
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to save tourist data');
       }
+
+      if (tripData) {
+        const updatedTripData = { ...tripData, itinerary };
+        const tourRes = await saveTourAction(tourId, updatedTripData);
+        if (!tourRes.success) {
+          throw new Error(tourRes.error || 'Failed to save itinerary');
+        }
+      }
+
+      alert('Workflow state, client profile and itinerary saved to database successfully.');
     } catch (error: any) {
-      console.error("Failed to save tourist data:", error);
+      console.error("Failed to save progress:", error);
       alert("Error saving: " + (error.message || error));
     } finally {
       setIsSaving(false);
@@ -459,6 +541,15 @@ function PlannerWizardWorkspace() {
             setTouristData(touristRes.data);
           } else {
             console.error("Failed to load tourist relational data:", touristRes.error);
+          }
+
+          const tourRes = await getTourDataAction(activeTourId);
+          if (tourRes.success && tourRes.data) {
+            const fullTripData = tourRes.data.tripData as TripData;
+            setTripData(fullTripData);
+            setItinerary(fullTripData.itinerary || []);
+          } else {
+            console.error("Failed to load tour itinerary data:", tourRes.error);
           }
         }
 
@@ -1924,6 +2015,18 @@ function PlannerWizardWorkspace() {
                       </div>
                     </div>
                   </div>
+                ) : track === 'basic' && currentStep.id === 'ai-builder' ? (
+                  <AIItineraryBuilder
+                    itinerary={itinerary}
+                    setItinerary={setItinerary}
+                    durationDays={touristData?.preferences?.duration_days || 0}
+                    tourId={tourId}
+                    selectedActivities={selectedActivities}
+                    travelStyle={touristData?.preferences?.travel_style || 'Luxury'}
+                    onTravelStyleChange={(style) => handlePreferenceChange('travel_style', style)}
+                    arrivalDate={touristData?.preferences?.arrival_date || ''}
+                    departureDate={touristData?.preferences?.departure_date || ''}
+                  />
                 ) : (
                   /* Premium Placeholder Panel for Empty Steps */
                   <div className="bg-white rounded-3xl p-10 border border-neutral-200 shadow-md relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -1986,4 +2089,829 @@ function PlannerWizardWorkspace() {
 
 export default function NewPlannerWizard() {
   return <PlannerWizardWorkspace />;
+}
+
+interface AIItineraryBuilderProps {
+  itinerary: InternalItineraryBlock[];
+  setItinerary: React.Dispatch<React.SetStateAction<InternalItineraryBlock[]>>;
+  durationDays: number;
+  tourId: string;
+  selectedActivities: TouristActivity[];
+  travelStyle: TravelStyle;
+  onTravelStyleChange: (style: TravelStyle) => void;
+  arrivalDate: string;
+  departureDate: string;
+}
+
+function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, selectedActivities, travelStyle, onTravelStyleChange, arrivalDate, departureDate }: AIItineraryBuilderProps) {
+  const [activeDay, setActiveDay] = useState<number>(1);
+  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
+
+  // AI & Rules configuration state
+  const [aiRules, setAiRules] = useState({ generic: '', specific: '' });
+  const [isLoadingRules, setIsLoadingRules] = useState(false);
+  const [isSavingRules, setIsSavingRules] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showRulesConfig, setShowRulesConfig] = useState(false);
+
+  // Compute days list based on durationDays (default to 5 if 0 or invalid)
+  const totalDays = durationDays > 0 ? durationDays : 5;
+  const daysArray = Array.from({ length: totalDays }, (_, i) => i + 1);
+
+  const getDayDateString = (dayNum: number) => {
+    if (!arrivalDate) return '';
+    try {
+      const d = new Date(arrivalDate);
+      if (isNaN(d.getTime())) return '';
+      d.setDate(d.getDate() + (dayNum - 1));
+      return d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Load AI rules on mount
+  useEffect(() => {
+    async function loadRules() {
+      setIsLoadingRules(true);
+      try {
+        const res = await getAIRulesAction(tourId);
+        if (res.success && res.rules) {
+          const generic = res.rules.find((r: any) => r.rule_type === 'generic')?.content || '';
+          const specific = res.rules.find((r: any) => r.rule_type === 'specific')?.content || '';
+          setAiRules({ generic, specific });
+        }
+      } catch (err) {
+        console.error("Failed to load AI rules:", err);
+      } finally {
+        setIsLoadingRules(false);
+      }
+    }
+    if (tourId) {
+      loadRules();
+    }
+  }, [tourId]);
+
+  const handleSaveRules = async () => {
+    setIsSavingRules(true);
+    try {
+      const res1 = await saveAIRuleAction({
+        rule_type: 'generic',
+        content: aiRules.generic,
+        tour_id: null
+      });
+      const res2 = await saveAIRuleAction({
+        rule_type: 'specific',
+        content: aiRules.specific,
+        tour_id: tourId || null
+      });
+      if (res1.success && res2.success) {
+        alert("AI rules saved successfully!");
+      } else {
+        throw new Error("Failed to save rules to database");
+      }
+    } catch (err: any) {
+      console.error("Failed to save AI rules:", err);
+      alert("Error saving rules: " + (err.message || err));
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
+
+  const handleGenerateItinerary = async () => {
+    setIsGenerating(true);
+    try {
+      // 1. Save rules first to ensure DB is in sync
+      await Promise.all([
+        saveAIRuleAction({
+          rule_type: 'generic',
+          content: aiRules.generic,
+          tour_id: null
+        }),
+        saveAIRuleAction({
+          rule_type: 'specific',
+          content: aiRules.specific,
+          tour_id: tourId || null
+        })
+      ]);
+
+      // 2. Map chosen activities
+      const chosenActivities = selectedActivities.map(a => ({
+        id: a.id,
+        category: a.category,
+        activity_name: a.activity_name,
+        location_name: a.location_name,
+        district: a.district,
+        lat: a.lat,
+        lng: a.lng,
+        description: a.description,
+        duration_hours: a.duration_hours,
+        optimal_start_time: a.optimal_start_time,
+        optimal_end_time: a.optimal_end_time,
+        time_flexible: a.time_flexible
+      }));
+
+      // 3. Collect locations map
+      const locationsMap = new globalThis.Map<string, GeoLocation>();
+      chosenActivities.forEach(act => {
+        if (act.lat && act.lng) {
+          const key = `${act.lat.toFixed(3)},${act.lng.toFixed(3)}`;
+          if (!locationsMap.has(key)) {
+            locationsMap.set(key, {
+              lat: act.lat,
+              lng: act.lng,
+              name: `${act.location_name}, ${act.district}`
+            });
+          }
+        }
+      });
+      const locations = Array.from(locationsMap.values());
+      const combinedRules = `GENERIC RULES:\n${aiRules.generic}\n\nSPECIFIC RULES FOR THIS ITINERARY:\n${aiRules.specific}`;
+
+      // 4. Generate plan
+      const routeResult = await generateAIRoutePlan(chosenActivities as any, locations, totalDays, combinedRules, travelStyle);
+
+      // 5. Map events to InternalItineraryBlock
+      const generatedBlocks: InternalItineraryBlock[] = [];
+      routeResult.plan.forEach(day => {
+        day.events.forEach(event => {
+          // Lookup original activity for exact location metadata if type is activity
+          let matchedLat: number | undefined = undefined;
+          let matchedLng: number | undefined = undefined;
+          let matchedLocName: string | undefined = undefined;
+          let matchedActId: number | undefined = undefined;
+
+          if (event.type === 'activity') {
+            const act = chosenActivities.find(a => 
+              String(a.id) === String(event.activityId) || 
+              a.activity_name.toLowerCase() === event.name.toLowerCase()
+            );
+            if (act) {
+              matchedLat = act.lat || undefined;
+              matchedLng = act.lng || undefined;
+              matchedLocName = act.location_name;
+              matchedActId = act.id;
+            }
+          }
+
+          const block: InternalItineraryBlock = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+            dayNumber: day.day,
+            type: event.type as any,
+            name: event.name,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            bufferMins: 15,
+            durationHours: event.duration,
+            hotelName: event.type === 'sleep' ? (event.hotelName || event.name) : '',
+            roomName: '',
+            mealPlan: event.type === 'sleep' ? (event.mealPlan || 'BB') : '',
+            agreedPrice: event.type === 'sleep' ? event.rateUsd : undefined,
+            imageUrl: '',
+            confirmationStatus: 'Pending',
+            paymentStatus: 'Pending',
+            internalNotes: event.distance || '',
+            comments: [],
+            // Bind location data
+            locationName: matchedLocName || event.locationName || '',
+            lat: matchedLat !== undefined ? matchedLat : event.location?.lat,
+            lng: matchedLng !== undefined ? matchedLng : event.location?.lng,
+            activityId: matchedActId
+          };
+          generatedBlocks.push(block);
+        });
+      });
+
+      // 6. Handle dropped activities
+      if (routeResult.droppedActivities && routeResult.droppedActivities.length > 0) {
+        routeResult.droppedActivities.forEach(act => {
+          generatedBlocks.push({
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+            dayNumber: 0,
+            type: 'activity',
+            name: act.activity_name,
+            startTime: '',
+            endTime: '',
+            bufferMins: 0,
+            durationHours: act.duration_hours || 2,
+            hotelName: '',
+            roomName: '',
+            mealPlan: '',
+            imageUrl: '',
+            confirmationStatus: 'Pending',
+            paymentStatus: 'Pending',
+            internalNotes: 'This activity could not fit in the AI schedule.',
+            comments: []
+          });
+        });
+      }
+
+      setItinerary(generatedBlocks);
+      alert("AI itinerary generated successfully! Review the itinerary days and verify the plan.");
+    } catch (error: any) {
+      console.error("AI Generation failed:", error);
+      alert("AI Route Generation Error: " + (error.message || error));
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Filter blocks for active day
+  const dayBlocks = useMemo(() => {
+    return itinerary.filter(b => b.dayNumber === activeDay);
+  }, [itinerary, activeDay]);
+
+  const droppedBlocks = useMemo(() => {
+    return itinerary.filter(b => b.dayNumber === 0);
+  }, [itinerary]);
+
+  const handleAddBlock = () => {
+    const newBlock: InternalItineraryBlock = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+      dayNumber: activeDay,
+      type: 'activity',
+      name: '',
+      startTime: '09:00',
+      endTime: '11:00',
+      bufferMins: 0,
+      durationHours: 2,
+      hotelName: '',
+      roomName: '',
+      mealPlan: 'BB',
+      imageUrl: '',
+      confirmationStatus: 'Pending',
+      paymentStatus: 'Pending',
+      internalNotes: '',
+      comments: []
+    };
+    setItinerary(prev => [...prev, newBlock]);
+  };
+
+  const handleDeleteBlock = (id: string) => {
+    setItinerary(prev => prev.filter(b => b.id !== id));
+  };
+
+  const handleUpdateBlockField = (id: string, field: keyof InternalItineraryBlock, value: any) => {
+    setItinerary(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
+  };
+
+  const handleMoveBlock = (id: string, direction: 'up' | 'down') => {
+    const dayBlocksList = itinerary.filter(b => b.dayNumber === activeDay);
+    const index = dayBlocksList.findIndex(b => b.id === id);
+    if (index === -1) return;
+
+    if (direction === 'up' && index > 0) {
+      const swapped = [...dayBlocksList];
+      [swapped[index], swapped[index - 1]] = [swapped[index - 1], swapped[index]];
+      
+      const otherBlocks = itinerary.filter(b => b.dayNumber !== activeDay);
+      setItinerary([...otherBlocks, ...swapped]);
+    } else if (direction === 'down' && index < dayBlocksList.length - 1) {
+      const swapped = [...dayBlocksList];
+      [swapped[index], swapped[index + 1]] = [swapped[index + 1], swapped[index]];
+      
+      const otherBlocks = itinerary.filter(b => b.dayNumber !== activeDay);
+      setItinerary([...otherBlocks, ...swapped]);
+    }
+  };
+
+  const handleImageUpload = async (blockId: string, file: File) => {
+    setUploadingBlockId(blockId);
+    try {
+      const url = await uploadItineraryImage(file);
+      handleUpdateBlockField(blockId, 'imageUrl', url);
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploadingBlockId(null);
+    }
+  };
+
+  const handleAddComment = (blockId: string) => {
+    const text = commentDrafts[blockId] || '';
+    if (!text.trim()) return;
+
+    const newComment: BlockComment = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+      role: 'agent',
+      text: text.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    setItinerary(prev => prev.map(b => {
+      if (b.id === blockId) {
+        return {
+          ...b,
+          comments: b.comments ? [...b.comments, newComment] : [newComment]
+        };
+      }
+      return b;
+    }));
+
+    setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+  };
+
+  const blockTypes: { value: InternalItineraryBlock['type']; label: string }[] = [
+    { value: 'activity', label: 'Activity' },
+    { value: 'sleep', label: 'Hotel / Sleep' },
+    { value: 'meal', label: 'Meal' },
+    { value: 'travel', label: 'Transfer / Travel' },
+    { value: 'train', label: 'Train' },
+    { value: 'guide', label: 'Guide assignment' },
+    { value: 'custom', label: 'Custom Item' }
+  ];
+
+  const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI'];
+
+  return (
+    <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+      
+      {/* Header with AI Generator Button */}
+      <div className="border-b border-neutral-100 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-serif font-bold text-neutral-800">AI Itinerary Builder</h3>
+          <p className="text-xs text-neutral-400">Design a customized flat skeleton itinerary. Refine parameters, pacing rules, and let Gemini route day-by-day plans.</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          {/* Travel Style Dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-neutral-500 uppercase tracking-wide">Style:</span>
+            <select
+              value={travelStyle}
+              onChange={(e) => onTravelStyleChange(e.target.value as TravelStyle)}
+              className="text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 font-bold focus:outline-none focus:border-emerald-800 transition-all shadow-sm"
+            >
+              {TRAVEL_STYLES.map(style => (
+                <option key={style} value={style}>{style}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Travel Dates Display */}
+          {(arrivalDate || departureDate) && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-700 shadow-sm shrink-0">
+              <Calendar className="w-3.5 h-3.5 text-neutral-500" />
+              <span>{arrivalDate || 'TBD'} to {departureDate || 'TBD'}</span>
+            </div>
+          )}
+
+          {/* Rules toggle */}
+          <button
+            onClick={() => setShowRulesConfig(!showRulesConfig)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+              showRulesConfig
+                ? 'bg-neutral-100 border-neutral-300 text-neutral-700 font-sans shadow-inner'
+                : 'bg-white hover:bg-neutral-50 border-neutral-200 text-neutral-600'
+            }`}
+          >
+            <Settings className="w-4 h-4" /> AI Rules Config
+          </button>
+
+          {/* AI Generator */}
+          <button
+            onClick={handleGenerateItinerary}
+            disabled={isGenerating || selectedActivities.length === 0}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50 shadow-md hover:shadow-lg"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generating Route...</span>
+              </>
+            ) : (
+              <>
+                <BrainCircuit className="w-4 h-4 animate-pulse" />
+                <span>Auto-Generate Route</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Expandable Rules Configuration Card */}
+      {showRulesConfig && (
+        <div className="bg-neutral-50 border border-neutral-200/80 rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+            <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">AI Routing & Generation Constraints</h4>
+            <button
+              onClick={handleSaveRules}
+              disabled={isSavingRules}
+              className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+            >
+              {isSavingRules ? 'Saving...' : 'Save Rules'}
+            </button>
+          </div>
+
+          {isLoadingRules ? (
+            <div className="flex items-center justify-center py-6 text-xs text-neutral-400 gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-800" />
+              <span>Fetching rules from database...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">General Rules (All Tours)</label>
+                <textarea
+                  rows={4}
+                  placeholder="Specify universal rules, e.g. 'Always place breakfast first', 'Schedule lunch around 1:00 PM'."
+                  value={aiRules.generic}
+                  onChange={(e) => setAiRules(prev => ({ ...prev, generic: e.target.value }))}
+                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium resize-y"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Itinerary-Specific Rules (This Tour Only)</label>
+                <textarea
+                  rows={4}
+                  placeholder="Specify rules for this client, e.g. 'Must plan Sigiriya rock climb for morning due to heat', 'Avoid travel after 6 PM'."
+                  value={aiRules.specific}
+                  onChange={(e) => setAiRules(prev => ({ ...prev, specific: e.target.value }))}
+                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium resize-y"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dropped Activities warning list */}
+      {droppedBlocks.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2 text-xs text-amber-900">
+          <div className="font-bold flex items-center gap-2">
+            <HelpCircle className="w-4 h-4 text-amber-600" />
+            <span>Dropped Activities ({droppedBlocks.length})</span>
+          </div>
+          <p className="text-[10px] text-amber-700">These activities were selected but could not be routed within the requested day boundaries by Gemini. You can manually edit or move them to a day number:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+            {droppedBlocks.map(block => (
+              <div key={block.id} className="bg-white border border-amber-200 rounded-xl p-2.5 flex items-center justify-between gap-3">
+                <span className="font-bold truncate">{block.name}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <select
+                    value={block.dayNumber}
+                    onChange={(e) => handleUpdateBlockField(block.id, 'dayNumber', Number(e.target.value))}
+                    className="text-[10px] border border-neutral-200 rounded px-1.5 py-0.5 bg-neutral-50 text-neutral-700 font-bold"
+                  >
+                    <option value={0}>Unassigned</option>
+                    {daysArray.map(day => (
+                      <option key={day} value={day}>Day {day}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleDeleteBlock(block.id)}
+                    className="p-1 text-neutral-400 hover:text-red-600 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Days Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-neutral-100">
+        {daysArray.map(day => (
+          <button
+            key={day}
+            onClick={() => setActiveDay(day)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
+              activeDay === day
+                ? 'bg-emerald-800 border-emerald-800 text-white shadow-sm'
+                : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-600'
+            }`}
+          >
+            Day {day}
+          </button>
+        ))}
+      </div>
+
+      {/* Day Content */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-neutral-700 flex items-center gap-2">
+            <span>Day {activeDay} Schedule {getDayDateString(activeDay) ? `(${getDayDateString(activeDay)})` : ''}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono">
+              {dayBlocks.length} {dayBlocks.length === 1 ? 'item' : 'items'}
+            </span>
+          </h4>
+        </div>
+
+        {/* Schedule list */}
+        <div className="space-y-4">
+          {dayBlocks.map((block, idx) => {
+            const isCommentsOpen = openCommentsBlockId === block.id;
+            return (
+              <div
+                key={block.id}
+                className="group border border-neutral-200 rounded-2xl bg-neutral-50/50 hover:bg-white transition-all shadow-sm overflow-hidden"
+              >
+                {/* Card Top Banner / Drag / Ordering */}
+                <div className="bg-neutral-100/60 px-4 py-2 border-b border-neutral-200 flex items-center justify-between text-xs text-neutral-500 font-medium">
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 h-5 rounded-md bg-white border border-neutral-200 flex items-center justify-center font-bold text-[10px]">
+                      {idx + 1}
+                    </span>
+                    <span className="capitalize font-bold text-neutral-700">{block.type}</span>
+                  </div>
+
+                  {/* Ordering Controls & Delete */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleMoveBlock(block.id, 'up')}
+                      disabled={idx === 0}
+                      className="p-1 rounded hover:bg-white text-neutral-400 hover:text-neutral-700 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                      title="Move Up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleMoveBlock(block.id, 'down')}
+                      disabled={idx === dayBlocks.length - 1}
+                      className="p-1 rounded hover:bg-white text-neutral-400 hover:text-neutral-700 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                      title="Move Down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <span className="h-4 w-[1px] bg-neutral-300 mx-1" />
+                    <button
+                      onClick={() => handleDeleteBlock(block.id)}
+                      className="p-1 rounded hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Card Body */}
+                <div className="p-4 space-y-4">
+                  {/* Grid fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Item Type Dropdown */}
+                    <div className="md:col-span-3">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Type</label>
+                      <select
+                        value={block.type}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'type', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      >
+                        {blockTypes.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Item Name Input */}
+                    <div className="md:col-span-5">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Item Title / Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Cinnamon Grand Stay, Sigiriya Tour, Dinner..."
+                        value={block.name || ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'name', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      />
+                    </div>
+
+                    {/* Time Range */}
+                    <div className="md:col-span-2">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Start Time</label>
+                      <input
+                        type="text"
+                        placeholder="09:00"
+                        value={block.startTime || ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'startTime', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">End Time</label>
+                      <input
+                        type="text"
+                        placeholder="18:00"
+                        value={block.endTime || ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'endTime', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sleep type specific fields */}
+                  {block.type === 'sleep' && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-dashed border-neutral-200">
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Hotel Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Cinnamon Grand"
+                          value={block.hotelName || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'hotelName', e.target.value)}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Room Category / Type</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Deluxe Double Room"
+                          value={block.roomName || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'roomName', e.target.value)}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meal Plan</label>
+                        <select
+                          value={block.mealPlan || 'BB'}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'mealPlan', e.target.value)}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        >
+                          {mealPlans.map(mp => (
+                            <option key={mp} value={mp}>{mp}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Rate (USD)</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 250"
+                          value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description / Notes text area */}
+                  <div className="pt-2 border-t border-dashed border-neutral-200">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Description / Notes</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Specify important details or descriptions for this itinerary item..."
+                      value={block.internalNotes || ''}
+                      onChange={(e) => handleUpdateBlockField(block.id, 'internalNotes', e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium resize-none"
+                    />
+                  </div>
+
+                  {/* Image display & Image Uploading & Discussion controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-dashed border-neutral-200">
+                    
+                    {/* Left side: Upload Button & Image thumbnail */}
+                    <div className="flex items-center gap-3">
+                      {block.imageUrl ? (
+                        <div className="relative group/img w-16 h-12 rounded-lg border border-neutral-200 overflow-hidden shadow-sm">
+                          <img
+                            src={block.imageUrl}
+                            alt="Itinerary item"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => handleUpdateBlockField(block.id, 'imageUrl', '')}
+                            className="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-all text-[10px] font-bold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-[10px] font-bold text-neutral-600 cursor-pointer transition-all shadow-sm">
+                          {uploadingBlockId === block.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
+                              <span>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5 text-neutral-500" />
+                              <span>Upload Image</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingBlockId === block.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleImageUpload(block.id, file);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Right side: Comments button */}
+                    <button
+                      onClick={() => setOpenCommentsBlockId(isCommentsOpen ? null : block.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all shadow-sm ${
+                        isCommentsOpen
+                          ? 'bg-neutral-100 border-neutral-300 text-neutral-700'
+                          : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
+                      }`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-neutral-500" />
+                      <span>
+                        {block.comments && block.comments.length > 0
+                          ? `${block.comments.length} Comments`
+                          : 'Discussion'}
+                      </span>
+                    </button>
+
+                  </div>
+
+                </div>
+
+                {/* Comments Section Drawer (inside the card) */}
+                {isCommentsOpen && (
+                  <div className="bg-neutral-50 border-t border-neutral-200 p-4 space-y-4">
+                    <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-200 pb-1.5">
+                      Discussion Thread
+                    </div>
+
+                    {/* Comment list */}
+                    <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+                      {block.comments && block.comments.length > 0 ? (
+                        block.comments.map(c => {
+                          const isAgent = c.role === 'agent';
+                          return (
+                            <div key={c.id} className={`flex flex-col ${isAgent ? 'items-end' : 'items-start'}`}>
+                              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs shadow-sm ${
+                                isAgent
+                                  ? 'bg-emerald-800 text-white rounded-tr-none'
+                                  : 'bg-white text-neutral-800 border border-neutral-200 rounded-tl-none'
+                              }`}>
+                                <p className="leading-relaxed">{c.text}</p>
+                              </div>
+                              <span className="text-[9px] text-neutral-400 mt-1 font-mono">
+                                {isAgent ? 'Agent' : 'Tourist'} &bull; {new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-4 text-xs text-neutral-400 italic">
+                          No messages yet. Start collaborating by leaving a note.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Add Comment Input */}
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Write a message..."
+                        value={commentDrafts[block.id] || ''}
+                        onChange={(e) => setCommentDrafts(prev => ({ ...prev, [block.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddComment(block.id);
+                        }}
+                        className="flex-1 text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      />
+                      <button
+                        onClick={() => handleAddComment(block.id)}
+                        className="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                      >
+                        Send
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+
+              </div>
+            );
+          })}
+
+          {dayBlocks.length === 0 && (
+            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[200px]">
+              <Compass className="w-10 h-10 text-neutral-300 mb-3" />
+              <span className="text-xs font-bold text-neutral-500">No items planned for Day {activeDay}</span>
+              <span className="text-[10px] text-neutral-400 mt-1 max-w-[220px]">Click "+ Add Itinerary Item" below to start scheduling experiences and accommodations.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Add block button */}
+        <button
+          onClick={handleAddBlock}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-neutral-300 hover:border-emerald-800 bg-neutral-50/20 hover:bg-emerald-50/20 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer shadow-sm"
+        >
+          <Plus className="w-4 h-4" /> Add Itinerary Item
+        </button>
+      </div>
+    </div>
+  );
 }

@@ -28,7 +28,7 @@ export type FinalStep =
   | 'payment-supplier'
   | 'profit-loss';
 
-export const TRAVEL_STYLES = ['Luxury', 'Ultra-VIP', 'Premium', 'Regular', 'Mixed'] as const;
+export const TRAVEL_STYLES = ['Luxury', 'Ultra VIP', 'Premium', 'Regular', 'Mixed'] as const;
 export type TravelStyle = typeof TRAVEL_STYLES[number];
 
 export const GENDERS = ['Male', 'Female', 'Other'] as const;
@@ -39,3 +39,19 @@ export type RequestType = typeof REQUEST_TYPES[number];
 
 export const REQUEST_STATUSES = ['Pending', 'Assigned', 'Active', 'Completed', 'Cancelled'] as const;
 export type RequestStatus = typeof REQUEST_STATUSES[number];
+
+export type ServiceScope =
+    | 'Book International Flights'
+    | 'Plan Activities & Experiences'
+    | 'Visa Assistance';
+
+export type TripStatus =
+    | 'Draft'
+    | 'Proposal Sent'
+    | 'Client Reviewing'
+    | 'Approved'
+    | 'Booking In Progress'
+    | 'Fully Confirmed'
+    | 'Documents Sent'
+    | 'Completed'
+    | 'Archived';
