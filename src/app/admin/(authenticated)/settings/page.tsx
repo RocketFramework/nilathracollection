@@ -19,6 +19,26 @@ export default function SettingsPage() {
         activity_travel_prep_time: 2,
         daily_activity_hours_limit: 6,
         activity_average_speed_km: 30,
+        regular_service_fee: 10,
+        premium_service_fee: 20,
+        luxury_service_fee: 25,
+        ultra_vip_service_fee: 40,
+        regular_concierge_cost: 40,
+        premium_concierge_cost: 50,
+        luxury_concierge_cost: 100,
+        ultra_vip_concierge_cost: 200,
+        regular_breakfast_cost: 12,
+        premium_breakfast_cost: 20,
+        luxury_breakfast_cost: 30,
+        ultra_vip_breakfast_cost: 60,
+        regular_lunch_cost: 15,
+        premium_lunch_cost: 25,
+        luxury_lunch_cost: 50,
+        ultra_vip_lunch_cost: 100,
+        regular_dinner_cost: 20,
+        premium_dinner_cost: 35,
+        luxury_dinner_cost: 50,
+        ultra_vip_dinner_cost: 100,
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -338,6 +358,303 @@ export default function SettingsPage() {
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-12"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">km</span>
+                        </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2 border-t border-neutral-100 pt-6 mt-4">
+                        <h3 className="text-sm font-bold text-neutral-800 mb-4">Agency Fee & Tax by Tier (%)</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Regular Tier (%)</label>
+                                <div className="flex items-center relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                        value={markups.regular_service_fee}
+                                        onChange={(e) => setMarkups({ ...markups, regular_service_fee: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
+                                    />
+                                    <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Premium Tier (%)</label>
+                                <div className="flex items-center relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                        value={markups.premium_service_fee}
+                                        onChange={(e) => setMarkups({ ...markups, premium_service_fee: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
+                                    />
+                                    <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Luxury Tier (%)</label>
+                                <div className="flex items-center relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                        value={markups.luxury_service_fee}
+                                        onChange={(e) => setMarkups({ ...markups, luxury_service_fee: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
+                                    />
+                                    <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ultra VIP Tier (%)</label>
+                                <div className="flex items-center relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                        value={markups.ultra_vip_service_fee}
+                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_service_fee: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
+                                    />
+                                    <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2 border-t border-neutral-100 pt-6 mt-4">
+                        <h3 className="text-sm font-bold text-neutral-800 mb-4">Concierge, Ticket & Refreshment Cost by Tier ($ per person)</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Regular Tier ($)</label>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={markups.regular_concierge_cost}
+                                        onChange={(e) => setMarkups({ ...markups, regular_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Premium Tier ($)</label>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={markups.premium_concierge_cost}
+                                        onChange={(e) => setMarkups({ ...markups, premium_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Luxury Tier ($)</label>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={markups.luxury_concierge_cost}
+                                        onChange={(e) => setMarkups({ ...markups, luxury_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Ultra VIP Tier ($)</label>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={markups.ultra_vip_concierge_cost}
+                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-span-1 md:col-span-2 border-t border-neutral-100 pt-6 mt-4">
+                        <h3 className="text-sm font-bold text-neutral-800 mb-4">Daily Meal Cost by Tier ($ per person)</h3>
+                        <div className="space-y-4">
+                            {/* Regular Tier */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                                <span className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Regular Tier</span>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Breakfast"
+                                        value={markups.regular_breakfast_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, regular_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Lunch"
+                                        value={markups.regular_lunch_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, regular_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Dinner"
+                                        value={markups.regular_dinner_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, regular_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
+                                </div>
+                            </div>
+
+                            {/* Premium Tier */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                                <span className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Premium Tier</span>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Breakfast"
+                                        value={markups.premium_breakfast_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, premium_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Lunch"
+                                        value={markups.premium_lunch_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, premium_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Dinner"
+                                        value={markups.premium_dinner_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, premium_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
+                                </div>
+                            </div>
+
+                            {/* Luxury Tier */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                                <span className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Luxury Tier</span>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Breakfast"
+                                        value={markups.luxury_breakfast_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, luxury_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Lunch"
+                                        value={markups.luxury_lunch_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, luxury_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Dinner"
+                                        value={markups.luxury_dinner_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, luxury_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
+                                </div>
+                            </div>
+
+                            {/* Ultra VIP Tier */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                                <span className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Ultra VIP Tier</span>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Breakfast"
+                                        value={markups.ultra_vip_breakfast_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Lunch"
+                                        value={markups.ultra_vip_lunch_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
+                                </div>
+                                <div className="flex items-center relative">
+                                    <span className="absolute left-3 text-neutral-400 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        placeholder="Dinner"
+                                        value={markups.ultra_vip_dinner_cost ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

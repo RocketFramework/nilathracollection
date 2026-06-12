@@ -42,6 +42,7 @@ export interface TouristTeamMemberDTO {
     meal_preference: string;
     room_preference: string;
     medical_notes: string;
+    shared_with_ids?: string[];
 }
 
 export interface TripRequestDTO {
@@ -113,7 +114,8 @@ export namespace TouristDataDTO {
             dietary_preferences: row.dietary_preferences || '',
             meal_preference: row.meal_preference || 'Standard',
             room_preference: row.room_preference || 'Double',
-            medical_notes: row.medical_notes || ''
+            medical_notes: row.medical_notes || '',
+            shared_with_ids: row.shared_with_ids || []
         }));
 
         return {
@@ -251,7 +253,8 @@ export namespace TouristDataDTO {
                 dietary_preferences: t.dietary_preferences || null,
                 meal_preference: t.meal_preference || 'Standard',
                 room_preference: t.room_preference || 'Double',
-                medical_notes: t.medical_notes || null
+                medical_notes: t.medical_notes || null,
+                shared_with_ids: t.shared_with_ids || []
             }));
 
             const { error: insertTeamErr } = await supabaseAdmin

@@ -299,6 +299,8 @@ export interface InternalItineraryBlock {
     mealType?: string;
     transportRateType?: 'day' | 'km';
     transportQuantity?: number;
+    weather?: string;
+    baseRoomRate?: number;
 }
 
 export interface Traveler {
@@ -341,4 +343,23 @@ export interface TripData {
     financials: any; // Imported in index
     summary?: TripSummary;
 }
+
+export interface DraftItineraryVersion {
+    id: string;
+    tour_id: string;
+    version_number: number;
+    label: string | null;
+    itinerary_data: InternalItineraryBlock[];
+    created_by: string | null;
+    created_at: string;
+    parent_version_id: string | null;
+}
+
+export interface ItineraryLock {
+    tour_id: string;
+    locked_by: string;
+    locked_at: string;
+    expires_at: string;
+}
+
 

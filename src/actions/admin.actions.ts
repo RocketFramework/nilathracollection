@@ -22,6 +22,9 @@ import { QuotationService } from "@/services/quotation.service";
 import { CreateQuotationRequestDTO, UpdateQuotationDTO } from "../dtos/quotation.dto";
 import { VendorBookingService } from "@/services/vendor-booking.service";
 import { CreateVendorBookingDTO, UpdateBookingStatusDTO } from "../dtos/vendor-booking.dto";
+import { ItineraryDraftService } from "@/services/itinerary-draft.service";
+import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from "@/other/interfaces";
+
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
     try {
@@ -998,6 +1001,26 @@ export async function getAppMarkupsAction() {
             activity_travel_prep_time: 2,
             daily_activity_hours_limit: 6,
             activity_average_speed_km: 30,
+            regular_breakfast_cost: 12,
+            premium_breakfast_cost: 20,
+            luxury_breakfast_cost: 30,
+            ultra_vip_breakfast_cost: 60,
+            regular_lunch_cost: 15,
+            premium_lunch_cost: 25,
+            luxury_lunch_cost: 50,
+            ultra_vip_lunch_cost: 100,
+            regular_dinner_cost: 20,
+            premium_dinner_cost: 35,
+            luxury_dinner_cost: 50,
+            ultra_vip_dinner_cost: 100,
+            regular_service_fee: 10,
+            premium_service_fee: 20,
+            luxury_service_fee: 25,
+            ultra_vip_service_fee: 40,
+            regular_concierge_cost: 40,
+            premium_concierge_cost: 50,
+            luxury_concierge_cost: 100,
+            ultra_vip_concierge_cost: 200,
         };
 
         if (data) {
@@ -1024,6 +1047,26 @@ export async function getAppMarkupsAction() {
             activity_travel_prep_time: 2,
             daily_activity_hours_limit: 6,
             activity_average_speed_km: 30,
+            regular_breakfast_cost: 12,
+            premium_breakfast_cost: 20,
+            luxury_breakfast_cost: 30,
+            ultra_vip_breakfast_cost: 60,
+            regular_lunch_cost: 15,
+            premium_lunch_cost: 25,
+            luxury_lunch_cost: 50,
+            ultra_vip_lunch_cost: 100,
+            regular_dinner_cost: 20,
+            premium_dinner_cost: 35,
+            luxury_dinner_cost: 50,
+            ultra_vip_dinner_cost: 100,
+            regular_service_fee: 10,
+            premium_service_fee: 20,
+            luxury_service_fee: 25,
+            ultra_vip_service_fee: 40,
+            regular_concierge_cost: 40,
+            premium_concierge_cost: 50,
+            luxury_concierge_cost: 100,
+            ultra_vip_concierge_cost: 200,
         } };
     }
 }
@@ -1224,5 +1267,122 @@ export async function cancelVendorBookingAction(bookingId: string, reason?: stri
         return { success: false, error: error.message || "Failed to cancel booking." };
     }
 }
+
+export async function getDraftVersionsAction(tourId: string) {
+    try {
+        const versions = await ItineraryDraftService.getDraftVersions(tourId);
+        return { success: true, versions };
+    } catch (error: any) {
+        console.error("Error in getDraftVersionsAction:", error);
+        return { success: false, error: error.message || "Failed to fetch draft versions." };
+    }
+}
+
+export async function saveDraftVersionAction(
+    tourId: string,
+    itineraryData: InternalItineraryBlock[],
+    label: string | null,
+    parentVersionId?: string | null
+) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const version = await ItineraryDraftService.saveDraftVersion(
+            tourId,
+            itineraryData,
+            label,
+            user.id,
+            parentVersionId || null
+        );
+        return { success: true, version };
+    } catch (error: any) {
+        console.error("Error in saveDraftVersionAction:", error);
+        return { success: false, error: error.message || "Failed to save draft version." };
+    }
+}
+
+export async function acquireItineraryLockAction(tourId: string, lockDurationMinutes: number = 5) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const lock = await ItineraryDraftService.acquireLock(tourId, user.id, lockDurationMinutes);
+        if (!lock) {
+            const activeLock = await ItineraryDraftService.checkLockStatus(tourId);
+            let ownerName = "another planner";
+            if (activeLock) {
+                const adminSupabase = createAdminClient();
+                const { data: profile } = await adminSupabase
+                    .from('agent_profiles')
+                    .select('first_name, last_name')
+                    .eq('id', activeLock.locked_by)
+                    .maybeSingle();
+                if (profile) {
+                    ownerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "another planner";
+                }
+            }
+            return { success: true, acquired: false, message: `Itinerary is locked by ${ownerName}.` };
+        }
+        return { success: true, acquired: true, lock };
+    } catch (error: any) {
+        console.error("Error in acquireItineraryLockAction:", error);
+        return { success: false, error: error.message || "Failed to acquire lock." };
+    }
+}
+
+export async function refreshItineraryLockAction(tourId: string, lockDurationMinutes: number = 5) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const lock = await ItineraryDraftService.refreshLock(tourId, user.id, lockDurationMinutes);
+        if (!lock) {
+            return { success: true, refreshed: false, message: "Lock not found or owned by someone else." };
+        }
+        return { success: true, refreshed: true, lock };
+    } catch (error: any) {
+        console.error("Error in refreshItineraryLockAction:", error);
+        return { success: false, error: error.message || "Failed to refresh lock." };
+    }
+}
+
+export async function releaseItineraryLockAction(tourId: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        await ItineraryDraftService.releaseLock(tourId, user.id);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in releaseItineraryLockAction:", error);
+        return { success: false, error: error.message || "Failed to release lock." };
+    }
+}
+
+export async function checkItineraryLockStatusAction(tourId: string) {
+    try {
+        const lock = await ItineraryDraftService.checkLockStatus(tourId);
+        if (lock) {
+            const adminSupabase = createAdminClient();
+            const { data: profile } = await adminSupabase
+                .from('agent_profiles')
+                .select('first_name, last_name')
+                .eq('id', lock.locked_by)
+                .maybeSingle();
+            const ownerName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : null;
+            return { success: true, lock, ownerName };
+        }
+        return { success: true, lock: null };
+    } catch (error: any) {
+        console.error("Error in checkItineraryLockStatusAction:", error);
+        return { success: false, error: error.message || "Failed to check lock status." };
+    }
+}
+
 
 

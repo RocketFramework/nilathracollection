@@ -16,7 +16,14 @@ export class AdvancedAiRouteEngine {
         locations: GeoLocation[],
         durationDays: number,
         customRules?: string,
-        travelStyle?: string
+        travelStyle?: string,
+        arrivalDate?: string,
+        departureDate?: string,
+        adults?: number,
+        children?: number,
+        infants?: number,
+        guideNeeded?: boolean,
+        chauffeurNeeded?: boolean
     ): Promise<RoutePlan> {
 
         // System Instructions detailing exact required JSON format and rules
@@ -28,17 +35,19 @@ RULES:
 1. Limit daily activities to a maximum of 3-4 major events to avoid rushing.
 2. Group activities that are geographically close into the same day.
 3. Every day should start with Breakfast (around 8:00 AM) and end with sleep/overnight. Include lunch around 1:00 PM and dinner around 7:30 PM.
-4. Estimate realistic travel times between different cities (average speed in Sri Lanka is 35km/h).
+4. Estimate realistic travel times and road distances between different cities/activities (average speed in Sri Lanka is 35km/h). For all 'travel' events, or when there is travel/transfer between different locations or accommodations, calculate the approximate road distance in kilometers and specify it in the "distance" field (e.g. "45 km").
 5. IF an activity absolutely cannot logically fit or makes the day too rushed, add it to a \`droppedActivities\` array at the root level of your JSON response instead of forcing it in.
 6. The first day should ideally begin near ${this.startLocation.name} (${this.startLocation.lat}, ${this.startLocation.lng}).
-7. Recommend a hotelName for 'sleep' events based on the travelStyle of the tour:
-   - 'Ultra VIP': Recommend ultra-exclusive, high-end private villas, boutique estates or 5-star properties (e.g. Cape Weligama, Ani Sri Lanka, Ceylon Tea Trails, Amanwella). Rate rateUsd should be in range 800 - 2500.
-   - 'Luxury': Recommend premium 5-star resorts (e.g. 98 Acres Resort, Heritance Kandalama, Amangalla, Wild Coast Tented Lodge). Rate rateUsd should be in range 300 - 800.
-   - 'Premium': Recommend good 4-star hotels and quality accommodations (e.g. Jetwing Lighthouse, Cinnamon Wild, Heritance Tea Factory). Rate rateUsd should be in range 150 - 300.
-   - 'Regular': Recommend comfortable, standard 3-star accommodations (e.g. Ella Flower Garden Resort, Hotel Sigiriya). Rate rateUsd should be in range 70 - 150.
-   - 'Mixed': Recommend a mix of 4-star and 5-star properties. Rate rateUsd should be in range 150 - 500.
-8. Recommend a mealPlan for 'sleep' events from ('BB', 'HB', 'FB', 'AI') that fits the daily flow.
-9. Recommend a rateUsd for 'sleep' events (number representing room rate per night in USD) according to the travelStyle guidelines above.
+7. Recommend a hotelName for 'sleep' events based on the travelStyle and required hotelGrade of the tour:
+   - 'Ultra VIP' (super luxury hotel, and ultra luxury boutique hotel): Recommend ultra-exclusive, high-end private villas, boutique estates or super luxury 5-star properties (e.g. Cape Weligama, Ani Sri Lanka, Ceylon Tea Trails, Amanwella). Rate rateUsd should be in range 800 - 2500.
+   - 'Luxury' (all 5 star): Recommend premium 5-star resorts (e.g. 98 Acres Resort, Heritance Kandalama, Amangalla, Wild Coast Tented Lodge). Rate rateUsd should be in range 300 - 800.
+   - 'Premium' (4 star): Recommend standard 4-star hotels and accommodations (e.g. Ella Flower Garden Resort, Hotel Sigiriya). Rate rateUsd should be in range 150 - 300.
+   - 'Regular' (comfortable, standard 3-star accommodations): Recommend comfortable, standard 3-star accommodations (e.g. Ella Flower Garden Resort, Hotel Sigiriya). Rate rateUsd should be in range 70 - 150.
+   - 'Mixed' (a mix of 3-star, 4-star, and 5-star properties): Recommend a mix of 3-star, 4-star, and 5-star properties. Rate rateUsd should be in range 100 - 800.
+8. Recommend a mealPlan for 'sleep' events, which MUST always be 'HB' (Half-Board) basis.
+9. Recommend a rateUsd for 'sleep' events (number representing room rate per night in USD) according to the travelStyle guidelines above, adjusting the rate based on the Travel Dates and Season (Peak Season commands maximum rates, Off-Peak Season has discounted rates).
+10. Recommend a realistic roomCategory for 'sleep' events suitable for the chosen hotelName and travelStyle (e.g., "Deluxe Ocean View", "Junior Suite", "Superior Double", "Luxury Villa", "Classic Room").
+11. Predict and recommend the typical weather/temperature (e.g., "Sunny 29°C", "Passing Showers 27°C", "Mist & Cool 16°C") in the "weather" field for each day, taking into account the travel date/month and the district/location of that day.
 `;
 
         if (customRules) {
@@ -61,14 +70,15 @@ RULES:
            "duration": number (in hours),
            "locationName": "string",
            "distance": "string (e.g. 50 km)",
-           "location": { "lat": number, "lng": number }, (only for activities)
+           "location": { "lat": number, "lng": number }, (provide coordinates for activities, sleep/hotels, and meals whenever possible)
            "hotelName": "string", (only for type=sleep, recommend a real hotel matching travelStyle and location)
-           "mealPlan": "string", (only for type=sleep, recommend 'BB' | 'HB' | 'FB' | 'AI')
+           "roomCategory": "string", (only for type=sleep, recommend a realistic room category/type for the hotel)
+           "mealPlan": "string (MUST always be 'HB')", (only for type=sleep)
            "rateUsd": number (only for type=sleep, recommend room night rate in USD as a number)
          }
       ],
       "utilization": 0.8,
-      "weather": "Sunny 29°C",
+      "weather": "string (typical predicted weather/temperature for this day's location and dates, e.g., 'Sunny 30°C' or 'Mist & Cool 18°C')",
       "recommendation": "Brief positive summary of this day",
       "district": "Main district name"
     }
@@ -81,9 +91,44 @@ RULES:
 `;
 
 
+        const getHotelGrade = (style?: string): string => {
+            if (!style) return 'all 5 star';
+            const s = style.toLowerCase();
+            if (s === 'ultra vip') return 'super luxury hotel, and ultra luxury boutique hotel';
+            if (s === 'luxury') return 'all 5 star';
+            if (s === 'premium') return '4 star';
+            if (s === 'regular') return 'comfortable, standard 3-star accommodations';
+            if (s === 'mixed') return 'a mix of 3-star, 4-star, and 5-star properties';
+            return 'all 5 star';
+        };
+
+        const getSeason = (arrival?: string, departure?: string): string => {
+            if (!arrival) return 'Standard Season';
+            try {
+                const date = new Date(arrival);
+                const month = date.getMonth(); // 0-11
+                if ([11, 0, 1, 2, 3].includes(month)) {
+                    return 'Peak Season (Winter/High Demand - rates command premium)';
+                }
+                if ([6, 7].includes(month)) {
+                    return 'Mini-Peak Season (Summer - moderately higher rates)';
+                }
+                return 'Off-Peak / Monsoon Season (lower room rates and higher discount availability)';
+            } catch (e) {
+                return 'Standard Season';
+            }
+        };
+
+        const hotelGrade = getHotelGrade(travelStyle);
+        const season = getSeason(arrivalDate, departureDate);
+
         const userPrompt = `
 Duration: ${durationDays} Days
 Travel Style: ${travelStyle || 'Luxury'}
+Required Hotel Grade: ${hotelGrade}
+Travel Dates: ${arrivalDate || 'TBD'} to ${departureDate || 'TBD'} (${season})
+Travelers: ${adults || 2} Adults${children ? `, ${children} Children` : ''}${infants ? `, ${infants} Infants` : ''}
+Services: ${guideNeeded ? 'National Guide' : 'No Guide'} ${chauffeurNeeded ? '(Private Vehicle with Chauffeur Required)' : ''}
 
 Selected Activities:
 ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.lat, lng: a.lng, district: a.district, duration_hours: a.duration_hours, optimal_start_time: a.optimal_start_time })), null, 2)}
@@ -150,9 +195,16 @@ export async function generateAIRoutePlan(
     locations: GeoLocation[],
     durationDays = 5,
     customRules?: string,
-    travelStyle?: string
+    travelStyle?: string,
+    arrivalDate?: string,
+    departureDate?: string,
+    adults?: number,
+    children?: number,
+    infants?: number,
+    guideNeeded?: boolean,
+    chauffeurNeeded?: boolean
 ): Promise<RoutePlan> {
     const engine = new AdvancedAiRouteEngine();
-    return engine.generatePlan(activities, locations, durationDays, customRules, travelStyle);
+    return engine.generatePlan(activities, locations, durationDays, customRules, travelStyle, arrivalDate, departureDate, adults, children, infants, guideNeeded, chauffeurNeeded);
 }
 

@@ -23,6 +23,7 @@ export interface ItineraryEvent {
   carbon?: number;
   activityId?: string;
   hotelName?: string;
+  roomCategory?: string;
   mealPlan?: string;
   rateUsd?: number;
 }

@@ -292,14 +292,21 @@ export default function TourDetailsPage() {
                                             acc[item.category] = (acc[item.category] || 0) + (Number(item.totalPrice) || 0);
                                             return acc;
                                         }, {})
-                                    ).map(([category, amount]) => (
-                                        <div key={category} className="flex justify-between items-center text-sm">
-                                            <span className="text-neutral-600">
-                                                {category === 'Service and Support' ? 'Tax, Service and Support Fee (20%)' : category}
-                                            </span>
-                                            <span className="font-semibold text-neutral-800">${(amount as number).toFixed(2)}</span>
-                                        </div>
-                                    ))}
+                                    ).map(([category, amount]) => {
+                                        let displayName = category;
+                                        if (category === 'Service and Support') {
+                                            const agencyFeeItem = tour.rawPlannerData.financials.draftCosts.find((item: any) => item.category === 'Service and Support' && item.vendorName === 'Agency');
+                                            displayName = agencyFeeItem ? agencyFeeItem.serviceName : 'Tax, Service and Support Fee';
+                                        }
+                                        return (
+                                            <div key={category} className="flex justify-between items-center text-sm">
+                                                <span className="text-neutral-600">
+                                                    {displayName}
+                                                </span>
+                                                <span className="font-semibold text-neutral-800">${(amount as number).toFixed(2)}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
 

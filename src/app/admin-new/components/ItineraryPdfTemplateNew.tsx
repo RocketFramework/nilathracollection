@@ -1,0 +1,634 @@
+import React from 'react';
+import { InternalItineraryBlock } from '@/other/interfaces';
+import { TouristDataDTO } from '@/dtos/tourist-data.dto';
+import { TravelStyle } from '@/types/types';
+
+interface ItineraryPdfTemplateNewProps {
+  itinerary: InternalItineraryBlock[];
+  touristData: TouristDataDTO;
+  travelStyle: TravelStyle;
+  singleRoomsCount: number;
+  doubleRoomsCount: number;
+  tripleRoomsCount: number;
+  familyRoomsCount: number;
+  guideNeeded: boolean;
+  chauffeurNeeded: boolean;
+  appSettings?: any;
+}
+
+export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
+  ({
+    itinerary,
+    touristData,
+    travelStyle,
+    singleRoomsCount,
+    doubleRoomsCount,
+    tripleRoomsCount,
+    familyRoomsCount,
+    guideNeeded,
+    chauffeurNeeded,
+    appSettings
+  }, ref) => {
+    
+    const clientName = touristData.profile 
+      ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
+      : 'Valued Guest';
+
+    const adults = touristData.preferences?.adults || 0;
+    const children = touristData.preferences?.children || 0;
+    const infants = touristData.preferences?.infants || 0;
+    const totalPax = adults + children + infants;
+
+    const arrivalDate = touristData.preferences?.arrival_date || '';
+    const departureDate = touristData.preferences?.departure_date || '';
+    const durationDays = touristData.preferences?.duration_days || itinerary.reduce((max, b) => Math.max(max, b.dayNumber), 0) || 5;
+
+    // Calculate metrics
+    let totalDistance = 0;
+    let activityCount = 0;
+    const destinations = new Set<string>();
+
+    itinerary.forEach(block => {
+      if (block.type === 'activity') activityCount++;
+      if (block.locationName && block.locationName.trim() !== '') {
+        destinations.add(block.locationName.trim());
+      }
+      if (block.distance) {
+        const distVal = parseInt(block.distance.replace(/[^0-9]/g, ''));
+        if (!isNaN(distVal)) {
+          totalDistance += distVal;
+        }
+      }
+    });
+
+    const getShortFormattedDate = (dayNum: number) => {
+      if (!arrivalDate) return `Day ${dayNum}`;
+      try {
+        const d = new Date(arrivalDate);
+        if (isNaN(d.getTime())) return `Day ${dayNum}`;
+        d.setDate(d.getDate() + (dayNum - 1));
+        return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+      } catch (e) {
+        return `Day ${dayNum}`;
+      }
+    };
+
+    const getLongFormattedDate = (dayNum: number) => {
+      if (!arrivalDate) return '';
+      try {
+        const d = new Date(arrivalDate);
+        if (isNaN(d.getTime())) return '';
+        d.setDate(d.getDate() + (dayNum - 1));
+        return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      } catch (e) {
+        return '';
+      }
+    };
+
+    // Helper to calculate daily cost summary
+    const calculateDayTotal = (dayNum: number) => {
+      const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
+      
+      // 1. Hotel Cost
+      const hotel = blocksForDay
+        .filter(b => b.type === 'sleep')
+        .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+
+      // 2. Pax Count
+      const pax = (adults || 0) + (children || 0);
+
+      // Helper to get settings keys
+      const getTierValue = (suffix: string, defaultValue: number) => {
+        if (!appSettings) return defaultValue;
+        const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
+        const fullKey = `${key}_${suffix}`;
+        return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : defaultValue;
+      };
+
+      // 3. Meal Cost (Lunch cost per tourist * pax)
+      const lunchCostPerHead = getTierValue('lunch_cost', 15);
+      const meals = pax * lunchCostPerHead;
+
+      // 4. Transport Cost
+      const kmRate = getTierValue('vehicle_km_rate', 0.50);
+      const getBlockKm = (block: InternalItineraryBlock) => {
+        if (!block.distance) return 0;
+        const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
+        return isNaN(parsed) ? 0 : parsed;
+      };
+      const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
+      const transport = km * kmRate;
+
+      // 5. Concierge Cost (ticket, refreshment, seamless concierge)
+      const conciergeCostPerHead = getTierValue('concierge_cost', 40);
+      const concierge = pax * conciergeCostPerHead;
+
+      // 6. Agency Fee & Tax
+      const agencyFeePercent = getTierValue('service_fee', 10);
+      const subtotal = hotel + meals + transport + concierge;
+      const agencyFee = subtotal * (agencyFeePercent / 100);
+
+      const total = subtotal + agencyFee;
+
+      return {
+        hotel,
+        meals,
+        km,
+        transport,
+        concierge,
+        agencyFeePercent,
+        agencyFee,
+        total
+      };
+    };
+
+    // Calculate overall itinerary costs summary
+    const uniqueDays = Array.from(new Set(itinerary.map(b => b.dayNumber))).filter(d => d > 0).sort((a, b) => a - b);
+    const overallCostSummary = uniqueDays.reduce((totals, dayNum) => {
+      const dayCosts = calculateDayTotal(dayNum);
+      return {
+        hotel: totals.hotel + dayCosts.hotel,
+        meals: totals.meals + dayCosts.meals,
+        transport: totals.transport + dayCosts.transport,
+        concierge: totals.concierge + dayCosts.concierge,
+        agencyFee: totals.agencyFee + dayCosts.agencyFee,
+        total: totals.total + dayCosts.total
+      };
+    }, { hotel: 0, meals: 0, transport: 0, concierge: 0, agencyFee: 0, total: 0 });
+
+    // Calculate total price of hotel blocks in the skeleton itinerary
+    const hotelPriceTotal = itinerary
+      .filter(b => b.type === 'sleep' && b.agreedPrice !== undefined)
+      .reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
+
+    return (
+      <div 
+        ref={ref} 
+        className="bg-white mx-auto font-sans antialiased text-[#1F2937]"
+        style={{ 
+          WebkitPrintColorAdjust: "exact", 
+          printColorAdjust: "exact", 
+          width: "210mm", 
+          minHeight: "297mm",
+          backgroundColor: "#FFFFFF"
+        }}
+      >
+        {/* Style sheet for printable overrides */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body { 
+              background: white !important; 
+              margin: 0 !important; 
+              padding: 0 !important; 
+            }
+            .print-page-break { 
+              page-break-after: always; 
+              break-after: page;
+            }
+            .print-avoid-break { 
+              page-break-inside: avoid; 
+              break-inside: avoid;
+            }
+            .print-header-spacer { 
+              height: 20mm; 
+            }
+            .print-footer-spacer { 
+              height: 25mm; 
+            }
+          }
+        `}} />
+
+        {/* 1. COVER PAGE - Premium Emerald and Gold Theme */}
+        <div 
+          className="print-page-break flex flex-col items-center justify-between p-12 box-border relative overflow-hidden"
+          style={{ 
+            height: "297mm", 
+            backgroundColor: "#0A251D", 
+            color: "#FFFFFF",
+            padding: "30mm 20mm"
+          }}
+        >
+          {/* Subtle gold frames */}
+          <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/35 pointer-events-none"></div>
+          <div className="absolute inset-[36px] border border-[#D4AF37]/10 pointer-events-none"></div>
+          
+          {/* Header Area */}
+          <div className="z-10 text-center flex flex-col items-center mt-8">
+            <h1 className="text-3xl font-serif tracking-[0.35em] text-white uppercase font-light mb-2">
+              NILATHRA
+            </h1>
+            <span className="text-[#D4AF37] text-[9px] tracking-[0.5em] uppercase font-light">
+              The Collection
+            </span>
+            <div className="w-16 h-[1px] bg-[#D4AF37]/40 mt-6 mb-2"></div>
+          </div>
+
+          {/* Central Title Block */}
+          <div className="z-10 text-center flex flex-col items-center my-auto space-y-8 max-w-lg">
+            <span className="text-[#D4AF37] text-[10px] tracking-[0.4em] uppercase font-semibold">
+              Curated Private Journey
+            </span>
+            <h2 className="text-5xl font-serif text-white font-extralight italic leading-tight tracking-wide">
+              {clientName}
+            </h2>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-[0.5px] bg-[#D4AF37]/30"></div>
+              <span className="text-[#D4AF37]/80 text-[8px] tracking-[0.25em] uppercase font-mono">
+                Sri Lanka
+              </span>
+              <div className="w-10 h-[0.5px] bg-[#D4AF37]/30"></div>
+            </div>
+          </div>
+
+          {/* Cover Footer */}
+          <div className="z-10 text-center flex flex-col items-center mb-8 space-y-2">
+            <span className="text-white/60 text-[9px] uppercase tracking-[0.25em]">
+              {destinations.size} Destinations &bull; {durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights
+            </span>
+            <span className="text-[#D4AF37] text-[9px] uppercase tracking-[0.2em] font-semibold">
+              {arrivalDate ? new Date(arrivalDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Dates to be confirmed'}
+            </span>
+            <span className="text-white/30 text-[7px] uppercase tracking-[0.3em] pt-4 block">
+              Private & Confidential
+            </span>
+          </div>
+        </div>
+
+        {/* PRINT LAYOUT OUTER WRAPPER WITH TABLE FOR HEADER/FOOTER PAGINATION */}
+        <table className="w-full">
+          {/* Spacer header at top of pages when printing */}
+          <thead className="hidden print:table-header-group">
+            <tr>
+              <td>
+                <div className="print-header-spacer"></div>
+              </td>
+            </tr>
+          </thead>
+
+          {/* Spacer footer at bottom of pages when printing */}
+          <tfoot className="hidden print:table-footer-group">
+            <tr>
+              <td>
+                <div className="print-footer-spacer flex items-end justify-between px-16 pb-8 text-[8px] uppercase tracking-[0.2em] text-[#9CA3AF] font-sans">
+                  <span>Nilathra Collection</span>
+                  <span>Private & Confidential Itinerary</span>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+
+          <tbody className="table-row-group">
+            <tr>
+              <td>
+                
+                {/* 2. PROLOGUE / WELCOME PAGE */}
+                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
+                  <div className="text-center mb-16">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Prologue</span>
+                    <div className="w-10 h-[1px] bg-[#D4AF37] mx-auto"></div>
+                  </div>
+                  
+                  <div className="prose prose-neutral max-w-none text-[#4B5563] leading-[2.2] font-serif text-justify text-base pl-8 relative">
+                    {/* Gold vertical line accent */}
+                    <div className="absolute left-0 top-1 bottom-1 w-[1.5px] bg-gradient-to-b from-[#D4AF37]/20 via-[#D4AF37] to-[#D4AF37]/20"></div>
+                    
+                    <p className="mb-6 text-xl text-[#111827] font-normal tracking-wide">
+                      Ayubowan, Dear {clientName},
+                    </p>
+                    <p className="mb-6 font-light">
+                      Welcome to your personalized Ceylon journey, crafted by Nilathra Collection. We have designed this itinerary to ensure you experience Sri Lanka at its absolute finest—a seamless blend of ancient heritage, rare wild encounters, pristine coastlines, and unhurried luxury.
+                    </p>
+                    <p className="mb-6 font-light">
+                      Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. Whether climbing Sigiriya's mist-covered steps, wandering tea valleys, or resting in boutique oceanfront pavilions, this draft serves as your travel blueprint. 
+                    </p>
+                    <p className="mb-10 font-light">
+                      As your concierge hosts, we remain entirely at your disposal to refine these dates, hotels, or events to your perfect liking. We look forward to guiding you through this exquisite journey.
+                    </p>
+                    
+                    <div className="mt-16 pt-6">
+                      <p className="text-[#111827] font-serif italic text-lg mb-1">Warmest Greetings,</p>
+                      <p className="text-[#D4AF37] text-[10px] uppercase tracking-[0.25em] font-sans font-bold">The Nilathra Concierge Team</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. TRIP BLUEPRINT / METRICS OVERVIEW */}
+                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
+                  <div className="text-center mb-12">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">The Blueprint</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Journey Details</h3>
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 space-y-10">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-10">
+                      
+                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Party Details</span>
+                        <span className="font-serif text-lg text-neutral-800 font-medium">
+                          {adults} Adults {children > 0 ? `• ${children} Children` : ''} {infants > 0 ? `• ${infants} Infants` : ''} ({totalPax} Pax)
+                        </span>
+                      </div>
+
+                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Duration</span>
+                        <span className="font-serif text-lg text-neutral-800 font-medium">
+                          {durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights
+                        </span>
+                      </div>
+
+                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Style & Character</span>
+                        <span className="font-serif text-lg text-neutral-800 font-medium">
+                          {travelStyle} Travel Style
+                        </span>
+                      </div>
+
+                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Proposed Window</span>
+                        <span className="font-serif text-lg text-neutral-800 font-medium">
+                          {arrivalDate ? `${new Date(arrivalDate).toLocaleDateString()} to ${new Date(departureDate).toLocaleDateString()}` : 'Dates to be determined'}
+                        </span>
+                      </div>
+
+                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Services Included</span>
+                        <span className="font-serif text-base text-neutral-700 font-medium">
+                          {guideNeeded ? '✓ National Tour Guide ' : ''} 
+                          {chauffeurNeeded ? '✓ Chauffeur Driven Vehicle ' : ''}
+                          {!guideNeeded && !chauffeurNeeded ? 'Standard Package' : ''}
+                        </span>
+                      </div>
+
+                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Required Accommodations</span>
+                        <span className="font-serif text-base text-neutral-700 font-medium">
+                          {[
+                            singleRoomsCount > 0 ? `${singleRoomsCount} Single` : null,
+                            doubleRoomsCount > 0 ? `${doubleRoomsCount} Double` : null,
+                            tripleRoomsCount > 0 ? `${tripleRoomsCount} Triple` : null,
+                            familyRoomsCount > 0 ? `${familyRoomsCount} Family` : null,
+                          ].filter(Boolean).join(', ') || 'Not Specified'}
+                        </span>
+                      </div>
+
+                    </div>
+
+                    <div className="h-[0.5px] bg-[#E8DFD1] w-full"></div>
+
+                    {/* Quick Stats Grid */}
+                    <div className="grid grid-cols-3 gap-6 text-center">
+                      <div>
+                        <span className="font-serif text-3xl text-neutral-800 block font-light">{destinations.size}</span>
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Cities Visited</span>
+                      </div>
+                      <div>
+                        <span className="font-serif text-3xl text-neutral-800 block font-light">{activityCount}</span>
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Curated Activities</span>
+                      </div>
+                      <div>
+                        <span className="font-serif text-3xl text-neutral-800 block font-light">{totalDistance > 0 ? `${totalDistance} km` : 'TBD'}</span>
+                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Total Road Travel</span>
+                      </div>
+                    </div>
+
+                    {appSettings && overallCostSummary.total > 0 ? (
+                      <div className="mt-6 pt-4 border-t border-[#E8DFD1] space-y-2 text-xs font-sans text-neutral-600 bg-white p-4 rounded-xl border border-[#E8DFD1]/55 text-left">
+                        <div className="uppercase tracking-widest text-[9px] font-bold text-[#D4AF37] font-serif mb-2">Estimated Package Cost Overview</div>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10.5px]">
+                          <div className="flex justify-between">
+                            <span className="text-neutral-400">Total Accommodation Cost:</span>
+                            <span className="font-semibold text-neutral-700">${overallCostSummary.hotel.toFixed(2)} USD</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-400">Total Meal Cost ({adults + children} Pax):</span>
+                            <span className="font-semibold text-neutral-700">${overallCostSummary.meals.toFixed(2)} USD</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-400">Total Transport Cost:</span>
+                            <span className="font-semibold text-neutral-700">${overallCostSummary.transport.toFixed(2)} USD</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-neutral-400">Total Concierge & Seamless Support:</span>
+                            <span className="font-semibold text-neutral-700">${overallCostSummary.concierge.toFixed(2)} USD</span>
+                          </div>
+                          <div className="col-span-2 border-t border-neutral-100 pt-2 mt-1 flex justify-between font-bold text-neutral-800">
+                            <span>Subtotal:</span>
+                            <span>${(overallCostSummary.hotel + overallCostSummary.meals + overallCostSummary.transport + overallCostSummary.concierge).toFixed(2)} USD</span>
+                          </div>
+                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium">
+                            <span>Agency Fee, Tax & Support Fee:</span>
+                            <span>${overallCostSummary.agencyFee.toFixed(2)} USD</span>
+                          </div>
+                          <div className="col-span-2 border-t border-neutral-300 pt-2 mt-1 flex justify-between items-center text-sm font-serif font-black text-neutral-900 bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8DFD1]/55">
+                            <span className="uppercase tracking-wider text-[10px] text-[#8C6D3F]">Estimated Grand Total</span>
+                            <span>${overallCostSummary.total.toFixed(2)} USD</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      hotelPriceTotal > 0 && (
+                        <div className="mt-4 pt-4 border-t border-[#E8DFD1] flex justify-between items-center text-xs font-serif font-bold text-neutral-800 bg-[#FAFAF9] p-3 rounded-lg border border-[#E8DFD1]/55">
+                          <span className="uppercase tracking-widest text-[9px] text-[#D4AF37]">Estimated Hotel Cost Summary</span>
+                          <span className="text-sm text-neutral-900 font-sans font-bold">${hotelPriceTotal.toFixed(2)} USD</span>
+                        </div>
+                      )
+                    )}
+
+                  </div>
+                </div>
+
+                {/* 4. CHRONOLOGY - DAY-BY-DAY TIMELINE */}
+                <div className="px-16 py-12 max-w-[850px] mx-auto">
+                  <div className="text-center mb-12">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Chronology</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Your Custom Itinerary</h3>
+                  </div>
+
+                  <div className="space-y-16">
+                    {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
+                      
+                      // Filter blocks for active day, sorted by time
+                      const timeToMins = (timeStr?: string, type?: string) => {
+                        if (!timeStr || !timeStr.includes(':')) return type === 'sleep' ? 1440 : -1;
+                        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+                        if (!match) return type === 'sleep' ? 1440 : -1;
+                        let h = parseInt(match[1], 10);
+                        const m = parseInt(match[2], 10);
+                        if (isNaN(h) || isNaN(m)) return type === 'sleep' ? 1440 : -1;
+                        const period = match[3]?.toUpperCase();
+                        if (period === 'PM' && h < 12) h += 12;
+                        if (period === 'AM' && h === 12) h = 0;
+                        return h * 60 + m;
+                      };
+
+                      const dayBlocks = itinerary
+                        .filter(b => b.dayNumber === dayNum)
+                        .sort((a, b) => timeToMins(a.startTime, a.type) - timeToMins(b.startTime, b.type));
+
+                      if (dayBlocks.length === 0) return null;
+
+                      const weatherInfo = dayBlocks[0]?.weather;
+                      const sleepBlock = dayBlocks.find(b => b.type === 'sleep');
+
+                      return (
+                        <div key={dayNum} className="print-avoid-break space-y-6">
+                          
+                          {/* Centered Day Header with Day, Weather, and stay details */}
+                          <div className="text-center flex flex-col items-center">
+                            <div className="border border-[#E8DFD1] bg-[#FAF8F5] p-5 rounded-2xl max-w-xl w-full text-center shadow-sm">
+                              <span className="text-[9px] uppercase tracking-[0.25em] text-[#8C6D3F] font-sans font-bold block mb-1">
+                                Day {String(dayNum).padStart(2, '0')}
+                              </span>
+                              <h4 className="text-lg font-serif text-[#111827] font-bold mb-1">
+                                {getLongFormattedDate(dayNum)}
+                              </h4>
+                              {weatherInfo && (
+                                <span className="text-[9px] font-sans font-semibold text-neutral-500 bg-white border border-[#E8DFD1]/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-2.5">
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-amber-500">
+                                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
+                                  </svg>
+                                  {weatherInfo}
+                                </span>
+                              )}
+                              <div className="h-[0.5px] bg-[#E8DFD1] my-2 w-full"></div>
+                              {sleepBlock ? (
+                                <div className="text-[10px] text-neutral-600 font-sans leading-relaxed">
+                                  <div className="font-bold text-[#8C6D3F] text-[10.5px] mb-0.5">
+                                    {sleepBlock.hotelName || sleepBlock.name}
+                                  </div>
+                                  <div className="font-medium">
+                                    {sleepBlock.roomName || 'Standard Room'} &bull; {sleepBlock.mealPlan || 'HB'} Basis
+                                  </div>
+                                  {sleepBlock.locationName && (
+                                    <div className="text-neutral-400 font-bold uppercase tracking-wider text-[8px] mt-0.5">
+                                      Location: {sleepBlock.locationName}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-neutral-400 italic">
+                                  Accommodation: Pending Assignment
+                                </div>
+                              )}
+                              {appSettings && (() => {
+                                const costData = calculateDayTotal(dayNum);
+                                return (
+                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed text-left grid grid-cols-2 gap-x-4 gap-y-1 mt-3 bg-white p-2.5 rounded-lg border border-[#E8DFD1]/50 shadow-inner">
+                                    <div className="col-span-2 border-b border-neutral-100 pb-1 mb-1 flex justify-between font-bold text-[#8C6D3F]">
+                                      <span>Cost Breakdown Summary</span>
+                                      <span>Total: ${costData.total.toFixed(2)} USD</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-400">Hotel Cost:</span>
+                                      <span className="font-semibold text-neutral-700">${costData.hotel.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-400">Meal Cost ({adults + children} Pax):</span>
+                                      <span className="font-semibold text-neutral-700">${costData.meals.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-400">Transport ({costData.km.toFixed(0)} km):</span>
+                                      <span className="font-semibold text-neutral-700">${costData.transport.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-neutral-400">Concierge & Tickets:</span>
+                                      <span className="font-semibold text-neutral-700">${costData.concierge.toFixed(2)}</span>
+                                    </div>
+                                    <div className="col-span-2 border-t border-neutral-100 pt-1 mt-1 flex justify-between text-neutral-500 text-[9px]">
+                                      <span>Agency Fee & Tax ({costData.agencyFeePercent}%):</span>
+                                      <span className="font-semibold">${costData.agencyFee.toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* Itinerary Events Flow - Full Width, Box-free */}
+                          <div className="space-y-6">
+                            {dayBlocks.map((block) => {
+                              return (
+                                <div key={block.id} className="print-avoid-break pb-4">
+                                  
+                                  {/* Event Image (rendered above data) */}
+                                  {block.imageUrl && (
+                                    <div className="w-full mb-3 overflow-hidden rounded-xl">
+                                      <img 
+                                        src={block.imageUrl} 
+                                        alt={block.name} 
+                                        className="w-full object-cover max-h-[60mm]" 
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Row 1: Location, Description/Name, Time (from - to) */}
+                                  <div className="flex justify-between items-baseline py-1 text-sm border-b border-neutral-100">
+                                    {/* Location (Left) */}
+                                    <div className="w-1/3 text-left text-[#D4AF37] font-serif italic tracking-wide text-[11.5px] font-semibold truncate">
+                                      {block.locationName || 'TBD Location'}
+                                    </div>
+                                    {/* Description / Title (Center) */}
+                                    <div className="w-5/12 text-center text-neutral-800 font-bold text-[12.5px]">
+                                      {block.name}
+                                    </div>
+                                    {/* Time (Right) */}
+                                    <div className="w-1/4 text-right text-neutral-400 font-sans font-bold tracking-wider text-[9.5px] uppercase">
+                                      {block.startTime || 'TBD'} {block.endTime ? `— ${block.endTime}` : ''}
+                                    </div>
+                                  </div>
+
+                                  {/* Row 2: Other Data */}
+                                  <div className="py-1.5 text-xs text-neutral-500 flex flex-wrap gap-4 justify-between items-start leading-relaxed">
+                                    {/* Notes / Description */}
+                                    <div className="flex-1 min-w-[200px] text-left font-light text-[11px]">
+                                      {block.internalNotes || <span className="italic text-neutral-300">No additional details recorded.</span>}
+                                    </div>
+                                    
+                                    {/* Distance, sleep specific price, type badge */}
+                                    <div className="flex flex-col items-end shrink-0 space-y-0.5 text-[9.5px]">
+                                      <span className="text-[8px] uppercase tracking-wider font-bold text-neutral-400">
+                                        Type: {block.type}
+                                      </span>
+                                      {block.distance && (
+                                        <span className="font-semibold text-neutral-500">
+                                          Distance: {block.distance}
+                                        </span>
+                                      )}
+                                      {block.type === 'sleep' && block.agreedPrice !== undefined && (
+                                        <span className="font-extrabold text-neutral-800">
+                                          Calculated Price: ${block.agreedPrice.toFixed(2)} USD
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Agent Comments */}
+                                  {block.comments && block.comments.length > 0 && (
+                                    <div className="mt-1 text-[9.5px] italic text-[#8C6D3F] bg-[#FAF8F5] p-2 rounded-lg border border-[#E8DFD1]/30 pl-6 relative w-full text-left">
+                                      <span className="absolute left-2 top-0.5 text-[#D4AF37] font-serif font-black text-xs">“</span>
+                                      {block.comments.map(c => c.text).join(' | ')}
+                                    </div>
+                                  )}
+
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+    );
+  }
+);
+
+ItineraryPdfTemplateNew.displayName = 'ItineraryPdfTemplateNew';

@@ -48,16 +48,34 @@ import {
   ChevronDown,
   MessageSquare,
   Upload,
-  Image
+  Image,
+  CloudSun,
+  Download
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
-import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment } from '../../other/interfaces';
+import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
-import { getTouristDataAction, saveTouristDataAction, getActivitiesAction, getAppMarkupsAction, getTourDataAction, saveTourAction, getAIRulesAction, saveAIRuleAction } from '@/actions/admin.actions';
+import { 
+  getTouristDataAction, 
+  saveTouristDataAction, 
+  getActivitiesAction, 
+  getAppMarkupsAction, 
+  getTourDataAction, 
+  saveTourAction, 
+  getAIRulesAction, 
+  saveAIRuleAction,
+  getDraftVersionsAction,
+  saveDraftVersionAction,
+  acquireItineraryLockAction,
+  refreshItineraryLockAction,
+  releaseItineraryLockAction,
+  checkItineraryLockStatusAction
+} from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
 import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
+import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 
 interface StepItem {
   id: string;
@@ -216,6 +234,11 @@ function PlannerWizardWorkspace() {
   const [basicCompleted, setBasicCompleted] = useState<boolean>(false);
   const [isStateRestored, setIsStateRestored] = useState<boolean>(false);
 
+  // Collaborative edit locking & versioning states
+  const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
+  const [lockOwnerName, setLockOwnerName] = useState<string>('');
+  const [draftVersions, setDraftVersions] = useState<DraftItineraryVersion[]>([]);
+
   // 4. Interactive Tourist Data Form States
   const [touristData, setTouristData] = useState<TouristDataDTO>(MOCK_TOURIST_DATA);
   const [activeFormTab, setActiveFormTab] = useState<'profile' | 'preferences' | 'team'>('profile');
@@ -335,6 +358,15 @@ function PlannerWizardWorkspace() {
       alert('This planner is in preview mode and not attached to a definitive Tour yet.');
       return;
     }
+    const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
+    const activeIdx = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
+    const currentStepObj = activeStepsList[activeIdx] || activeStepsList[0];
+
+    if (track === 'basic' && currentStepObj?.id === 'ai-builder' && isLockedByOther) {
+      alert(`Cannot save: This itinerary is currently locked by ${lockOwnerName || 'another user'}.`);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await saveTouristDataAction(tourId, touristData);
@@ -350,12 +382,45 @@ function PlannerWizardWorkspace() {
         }
       }
 
+      // Automatically create a draft version snapshot when saving progress
+      if (track === 'basic' && currentStepObj?.id === 'ai-builder') {
+        const autoLabel = `Auto-saved on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        const draftRes = await saveDraftVersionAction(tourId, itinerary, autoLabel);
+        if (draftRes.success && draftRes.version) {
+          // Update draft versions list
+          setDraftVersions(prev => [draftRes.version as DraftItineraryVersion, ...prev]);
+        }
+      }
+
       alert('Workflow state, client profile and itinerary saved to database successfully.');
     } catch (error: any) {
       console.error("Failed to save progress:", error);
       alert("Error saving: " + (error.message || error));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleLoadVersion = (version: DraftItineraryVersion) => {
+    if (window.confirm(`Are you sure you want to load version ${version.version_number} (${version.label || 'no label'})? Any unsaved edits will be replaced.`)) {
+      setItinerary(version.itinerary_data);
+    }
+  };
+
+  const handleSaveNewVersion = async (label: string) => {
+    try {
+      const res = await saveDraftVersionAction(tourId, itinerary, label);
+      if (res.success && res.version) {
+        setDraftVersions(prev => [res.version as DraftItineraryVersion, ...prev]);
+        alert("Draft version snapshot saved successfully!");
+        return true;
+      } else {
+        alert("Failed to save draft version snapshot: " + res.error);
+        return false;
+      }
+    } catch (err: any) {
+      alert("Error saving version: " + (err.message || err));
+      return false;
     }
   };
 
@@ -718,6 +783,113 @@ function PlannerWizardWorkspace() {
       console.error("Failed to persist state:", e);
     }
   }, [track, activeBasicStepIndex, activeFinalStepIndex, elements, selectedActivityIds, isStateRestored, STORAGE_KEY, tourId, basicSteps, finalSteps]);
+
+  // Collaborative edit locking lifecycle
+  useEffect(() => {
+    let intervalId: any = null;
+    let isActive = true;
+
+    async function manageLock() {
+      const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
+      const activeIdx = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
+      const currentStepObj = activeStepsList[activeIdx];
+
+      if (track === 'basic' && currentStepObj?.id === 'ai-builder' && tourId && tourId !== 'draft-tour') {
+        try {
+          const res = await acquireItineraryLockAction(tourId, 5);
+          if (!isActive) return;
+
+          if (res.success) {
+            if (res.acquired) {
+              setIsLockedByOther(false);
+              setLockOwnerName('');
+              // Heartbeat every 2 minutes to refresh the lock
+              intervalId = setInterval(async () => {
+                if (isActive) {
+                  const refreshRes = await refreshItineraryLockAction(tourId, 5);
+                  if (refreshRes.success && !refreshRes.refreshed) {
+                    const statusRes = await checkItineraryLockStatusAction(tourId);
+                    if (statusRes.success && statusRes.lock) {
+                      setIsLockedByOther(true);
+                      setLockOwnerName(statusRes.ownerName || 'Another planner');
+                    }
+                  }
+                }
+              }, 2 * 60 * 1000);
+            } else {
+              setIsLockedByOther(true);
+              setLockOwnerName(res.message || 'Another planner');
+            }
+          }
+        } catch (err) {
+          console.error("Lock acquisition failed:", err);
+        }
+      } else {
+        setIsLockedByOther(false);
+        setLockOwnerName('');
+      }
+    }
+
+    manageLock();
+
+    return () => {
+      isActive = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
+      const activeIdx = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
+      const currentStepObj = activeStepsList[activeIdx];
+
+      if (track === 'basic' && currentStepObj?.id === 'ai-builder' && tourId && tourId !== 'draft-tour') {
+        releaseItineraryLockAction(tourId).catch(err => {
+          console.error("Failed to release lock on cleanup:", err);
+        });
+      }
+    };
+  }, [track, activeBasicStepIndex, activeFinalStepIndex, tourId, basicSteps, finalSteps]);
+
+  // Tab unload lock release handler
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
+      const activeIdx = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
+      const currentStepObj = activeStepsList[activeIdx];
+
+      if (track === 'basic' && currentStepObj?.id === 'ai-builder' && tourId && tourId !== 'draft-tour' && !isLockedByOther) {
+        releaseItineraryLockAction(tourId).catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [track, activeBasicStepIndex, activeFinalStepIndex, tourId, isLockedByOther, basicSteps, finalSteps]);
+
+  // Fetch draft versions when in the AI Builder step
+  useEffect(() => {
+    let isActive = true;
+    async function loadVersions() {
+      const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
+      const activeIdx = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
+      const currentStepObj = activeStepsList[activeIdx];
+
+      if (track === 'basic' && currentStepObj?.id === 'ai-builder' && tourId && tourId !== 'draft-tour') {
+        try {
+          const res = await getDraftVersionsAction(tourId);
+          if (res.success && res.versions && isActive) {
+            setDraftVersions(res.versions);
+          }
+        } catch (err) {
+          console.error("Error loading versions:", err);
+        }
+      }
+    }
+    loadVersions();
+    return () => {
+      isActive = false;
+    };
+  }, [track, activeBasicStepIndex, activeFinalStepIndex, tourId, basicSteps, finalSteps]);
 
   if (!isStateRestored) {
     return (
@@ -2026,6 +2198,22 @@ function PlannerWizardWorkspace() {
                     onTravelStyleChange={(style) => handlePreferenceChange('travel_style', style)}
                     arrivalDate={touristData?.preferences?.arrival_date || ''}
                     departureDate={touristData?.preferences?.departure_date || ''}
+                    adults={touristData?.preferences?.adults || 2}
+                    children={touristData?.preferences?.children || 0}
+                    infants={touristData?.preferences?.infants || 0}
+                    onAdultsChange={(count) => handlePreferenceChange('adults', count)}
+                    onChildrenChange={(count) => handlePreferenceChange('children', count)}
+                    onInfantsChange={(count) => handlePreferenceChange('infants', count)}
+                    guideNeeded={elements.guide}
+                    onGuideNeededChange={(needed) => setElements(prev => ({ ...prev, guide: needed }))}
+                    chauffeurNeeded={elements.driver}
+                    onChauffeurNeededChange={(needed) => setElements(prev => ({ ...prev, driver: needed }))}
+                    touristData={touristData}
+                    isLockedByOther={isLockedByOther}
+                    lockOwnerName={lockOwnerName}
+                    versions={draftVersions}
+                    onLoadVersion={handleLoadVersion}
+                    onSaveNewVersion={handleSaveNewVersion}
                   />
                 ) : (
                   /* Premium Placeholder Panel for Empty Steps */
@@ -2066,7 +2254,7 @@ function PlannerWizardWorkspace() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleSaveProgress}
-                disabled={isSaving}
+                disabled={isSaving || (track === 'basic' && currentStep.id === 'ai-builder' && isLockedByOther)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50"
               >
                 <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Progress'}
@@ -2101,13 +2289,256 @@ interface AIItineraryBuilderProps {
   onTravelStyleChange: (style: TravelStyle) => void;
   arrivalDate: string;
   departureDate: string;
+  adults: number;
+  children: number;
+  infants: number;
+  onAdultsChange: (count: number) => void;
+  onChildrenChange: (count: number) => void;
+  onInfantsChange: (count: number) => void;
+  guideNeeded: boolean;
+  onGuideNeededChange: (needed: boolean) => void;
+  chauffeurNeeded: boolean;
+  onChauffeurNeededChange: (needed: boolean) => void;
+  touristData: TouristDataDTO;
+  isLockedByOther: boolean;
+  lockOwnerName: string;
+  versions: DraftItineraryVersion[];
+  onLoadVersion: (version: DraftItineraryVersion) => void;
+  onSaveNewVersion: (label: string) => Promise<boolean>;
 }
 
-function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, selectedActivities, travelStyle, onTravelStyleChange, arrivalDate, departureDate }: AIItineraryBuilderProps) {
+function AIItineraryBuilder({
+  itinerary,
+  setItinerary,
+  durationDays,
+  tourId,
+  selectedActivities,
+  travelStyle,
+  onTravelStyleChange,
+  arrivalDate,
+  departureDate,
+  adults,
+  children,
+  infants,
+  onAdultsChange,
+  onChildrenChange,
+  onInfantsChange,
+  guideNeeded,
+  onGuideNeededChange,
+  chauffeurNeeded,
+  onChauffeurNeededChange,
+  touristData,
+  isLockedByOther,
+  lockOwnerName,
+  versions,
+  onLoadVersion,
+  onSaveNewVersion
+}: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
+
+  const getCardAccentBorder = (type: InternalItineraryBlock['type']) => {
+    switch (type) {
+      case 'sleep': return 'border-l-4 border-l-amber-500';
+      case 'activity': return 'border-l-4 border-l-emerald-500';
+      case 'meal': return 'border-l-4 border-l-rose-500';
+      case 'travel': return 'border-l-4 border-l-sky-500';
+      case 'train': return 'border-l-4 border-l-purple-500';
+      case 'guide': return 'border-l-4 border-l-teal-500';
+      default: return 'border-l-4 border-l-neutral-400';
+    }
+  };
+
+  const renderTypeBadge = (type: InternalItineraryBlock['type']) => {
+    switch (type) {
+      case 'sleep':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-amber-50 text-amber-800 border border-amber-200/50 shadow-sm shrink-0">
+            <BedDouble className="w-3.5 h-3.5 text-amber-600" /> Sleep
+          </span>
+        );
+      case 'activity':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200/50 shadow-sm shrink-0">
+            <Compass className="w-3.5 h-3.5 text-emerald-600" /> Activity
+          </span>
+        );
+      case 'meal':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-rose-50 text-rose-800 border border-rose-200/50 shadow-sm shrink-0">
+            <Utensils className="w-3.5 h-3.5 text-rose-600" /> Meal
+          </span>
+        );
+      case 'travel':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-sky-50 text-sky-800 border border-sky-200/50 shadow-sm shrink-0">
+            <Car className="w-3.5 h-3.5 text-sky-600" /> Travel
+          </span>
+        );
+      case 'train':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-purple-50 text-purple-800 border border-purple-200/50 shadow-sm shrink-0">
+            <Compass className="w-3.5 h-3.5 text-purple-600" /> Train
+          </span>
+        );
+      case 'guide':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-teal-50 text-teal-800 border border-teal-200/50 shadow-sm shrink-0">
+            <UserCheck className="w-3.5 h-3.5 text-teal-600" /> Guide
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-neutral-100 text-neutral-800 border border-neutral-200/60 shadow-sm shrink-0">
+            Custom
+          </span>
+        );
+    }
+  };
+
+  const printRef = React.useRef<HTMLDivElement>(null);
+
+  const clientName = touristData.profile 
+    ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
+    : 'Valued Guest';
+
+  const handleDownloadPdf = () => {
+    const printContent = printRef.current?.innerHTML;
+    if (printContent) {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(`
+          <html>
+            <head>
+              <title>Itinerary PDF - ${clientName}</title>
+              ${Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n')}
+              <style>
+                body { background: white !important; margin: 0; padding: 0; }
+                @page { size: A4; margin: 0; }
+              </style>
+            </head>
+            <body>
+              <div class="pdf-container">${printContent}</div>
+            </body>
+          </html>
+        `);
+        doc.close();
+        
+        // Wait for styles/images to render before printing
+        iframe.contentWindow?.focus();
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 800);
+      }
+    } else {
+      alert("Error: PDF content not prepared.");
+    }
+  };
+
+  // Room preference calculation from team members
+  const calculateRoomsFromTeam = () => {
+    let single = 0;
+    let double = 0;
+    let triple = 0;
+    let family = 0;
+
+    if (touristData?.team && touristData.team.length > 0) {
+      const processedIds = new Set<string>();
+
+      touristData.team.forEach(member => {
+        if (processedIds.has(member.id)) return;
+
+        processedIds.add(member.id);
+
+        if (member.shared_with_ids && member.shared_with_ids.length > 0) {
+          member.shared_with_ids.forEach(id => {
+            processedIds.add(id);
+          });
+        }
+
+        const pref = (member.room_preference || 'Double').toLowerCase();
+        if (pref.includes('single')) {
+          single++;
+        } else if (pref.includes('double') || pref.includes('twin')) {
+          double++;
+        } else if (pref.includes('triple')) {
+          triple++;
+        } else if (pref.includes('family')) {
+          family++;
+        } else {
+          double++; // default fallback
+        }
+      });
+    }
+    return { single, double, triple, family };
+  };
+
+  const teamRooms = useMemo(() => calculateRoomsFromTeam(), [touristData?.team]);
+  const hasTeam = touristData?.team && touristData.team.length > 0;
+
+  const [manualSingle, setManualSingle] = useState<number>(0);
+  const [manualDouble, setManualDouble] = useState<number>(1);
+  const [manualTriple, setManualTriple] = useState<number>(0);
+  const [manualFamily, setManualFamily] = useState<number>(0);
+
+  // Final resolved room counts:
+  const singleRoomsCount = hasTeam ? teamRooms.single : manualSingle;
+  const doubleRoomsCount = hasTeam ? teamRooms.double : manualDouble;
+  const tripleRoomsCount = hasTeam ? teamRooms.triple : manualTriple;
+  const familyRoomsCount = hasTeam ? teamRooms.family : manualFamily;
+
+  // Dynamically recalculate and update hotel prices across all days when room configuration changes
+  useEffect(() => {
+    setItinerary(prevItinerary => {
+      let changed = false;
+      const updated = prevItinerary.map(block => {
+        if (block.type === 'sleep') {
+          const baseRate = block.baseRoomRate || block.agreedPrice || 150;
+          
+          const singleRate = baseRate * 0.85;
+          const doubleRate = baseRate;
+          const tripleRate = baseRate * 1.4;
+          const familyRate = baseRate * 1.8;
+
+          let sleepPrice = (singleRoomsCount * singleRate) + 
+                           (doubleRoomsCount * doubleRate) + 
+                           (tripleRoomsCount * tripleRate) + 
+                           (familyRoomsCount * familyRate);
+          if (sleepPrice === 0) {
+            sleepPrice = baseRate;
+          }
+
+          const roundedPrice = Math.round(sleepPrice * 100) / 100;
+
+          if (block.agreedPrice !== roundedPrice || block.baseRoomRate !== baseRate) {
+            changed = true;
+            return {
+              ...block,
+              baseRoomRate: baseRate,
+              agreedPrice: roundedPrice
+            };
+          }
+        }
+        return block;
+      });
+      return changed ? updated : prevItinerary;
+    });
+  }, [singleRoomsCount, doubleRoomsCount, tripleRoomsCount, familyRoomsCount, setItinerary]);
 
   // AI & Rules configuration state
   const [aiRules, setAiRules] = useState({ generic: '', specific: '' });
@@ -2158,6 +2589,80 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
       loadRules();
     }
   }, [tourId]);
+
+  const [appSettings, setAppSettings] = useState<any>(null);
+
+  // Load app settings on mount
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await getAppMarkupsAction();
+        if (res.success && res.markups) {
+          setAppSettings(res.markups);
+        }
+      } catch (err) {
+        console.error("Failed to load settings in AIItineraryBuilder:", err);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  // Helper to calculate daily cost summary
+  const calculateDayTotal = (dayNum: number) => {
+    const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
+    
+    // 1. Hotel Cost
+    const hotel = blocksForDay
+      .filter(b => b.type === 'sleep')
+      .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+
+    // 2. Pax Count
+    const pax = (adults || 0) + (children || 0);
+
+    // Helper to get settings keys
+    const getTierValue = (suffix: string, defaultValue: number) => {
+      if (!appSettings) return defaultValue;
+      const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
+      const fullKey = `${key}_${suffix}`;
+      return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : defaultValue;
+    };
+
+    // 3. Meal Cost (Lunch cost per tourist * pax)
+    const lunchCostPerHead = getTierValue('lunch_cost', 15);
+    const meals = pax * lunchCostPerHead;
+
+    // 4. Transport Cost
+    const kmRate = getTierValue('vehicle_km_rate', 0.50);
+    const getBlockKm = (block: InternalItineraryBlock) => {
+      if (!block.distance) return 0;
+      const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
+      return isNaN(parsed) ? 0 : parsed;
+    };
+    const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
+    const transport = km * kmRate;
+
+    // 5. Concierge Cost (ticket, refreshment, seamless concierge)
+    const conciergeCostPerHead = getTierValue('concierge_cost', 40);
+    const concierge = pax * conciergeCostPerHead;
+
+    // 6. Agency Fee & Tax
+    const agencyFeePercent = getTierValue('service_fee', 10);
+    const subtotal = hotel + meals + transport + concierge;
+    const agencyFee = subtotal * (agencyFeePercent / 100);
+
+    const total = subtotal + agencyFee;
+
+    return {
+      hotel,
+      meals,
+      km,
+      transport,
+      concierge,
+      agencyFeePercent,
+      agencyFee,
+      total
+    };
+  };
 
   const handleSaveRules = async () => {
     setIsSavingRules(true);
@@ -2236,7 +2741,20 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
       const combinedRules = `GENERIC RULES:\n${aiRules.generic}\n\nSPECIFIC RULES FOR THIS ITINERARY:\n${aiRules.specific}`;
 
       // 4. Generate plan
-      const routeResult = await generateAIRoutePlan(chosenActivities as any, locations, totalDays, combinedRules, travelStyle);
+      const routeResult = await generateAIRoutePlan(
+        chosenActivities as any,
+        locations,
+        totalDays,
+        combinedRules,
+        travelStyle,
+        arrivalDate || undefined,
+        departureDate || undefined,
+        adults,
+        children,
+        infants,
+        guideNeeded,
+        chauffeurNeeded
+      );
 
       // 5. Map events to InternalItineraryBlock
       const generatedBlocks: InternalItineraryBlock[] = [];
@@ -2261,6 +2779,22 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
             }
           }
 
+          let sleepPrice = event.rateUsd;
+          if (event.type === 'sleep' && event.rateUsd) {
+            const singleRate = event.rateUsd * 0.85;
+            const doubleRate = event.rateUsd;
+            const tripleRate = event.rateUsd * 1.4;
+            const familyRate = event.rateUsd * 1.8;
+
+            sleepPrice = (singleRoomsCount * singleRate) + 
+                         (doubleRoomsCount * doubleRate) + 
+                         (tripleRoomsCount * tripleRate) + 
+                         (familyRoomsCount * familyRate);
+            if (sleepPrice === 0) {
+              sleepPrice = event.rateUsd;
+            }
+          }
+
           const block: InternalItineraryBlock = {
             id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
             dayNumber: day.day,
@@ -2271,28 +2805,133 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
             bufferMins: 15,
             durationHours: event.duration,
             hotelName: event.type === 'sleep' ? (event.hotelName || event.name) : '',
-            roomName: '',
+            roomName: event.type === 'sleep' ? (event.roomCategory || '') : '',
             mealPlan: event.type === 'sleep' ? (event.mealPlan || 'BB') : '',
-            agreedPrice: event.type === 'sleep' ? event.rateUsd : undefined,
+            agreedPrice: event.type === 'sleep' ? sleepPrice : undefined,
+            baseRoomRate: event.type === 'sleep' ? event.rateUsd : undefined,
             imageUrl: '',
             confirmationStatus: 'Pending',
             paymentStatus: 'Pending',
-            internalNotes: event.distance || '',
+            internalNotes: '',
+            distance: event.distance || '',
             comments: [],
             // Bind location data
             locationName: matchedLocName || event.locationName || '',
             lat: matchedLat !== undefined ? matchedLat : event.location?.lat,
             lng: matchedLng !== undefined ? matchedLng : event.location?.lng,
-            activityId: matchedActId
+            activityId: matchedActId,
+            weather: day.weather || ''
           };
           generatedBlocks.push(block);
         });
       });
 
+      // Post-process itinerary to automatically insert travel blocks and compute distances
+      const postProcessedBlocks: InternalItineraryBlock[] = [];
+      const nonDropped = generatedBlocks.filter(b => b.dayNumber > 0);
+      const dropped = generatedBlocks.filter(b => b.dayNumber === 0);
+      
+      const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c * 1.3); // Sri Lanka road multiplier factor
+      };
+
+      // Set initial location to Airport (Katunayake)
+      let lastLocBlock: { lat: number; lng: number; locationName: string; endTime?: string } = {
+        lat: 7.1725,
+        lng: 79.8853,
+        locationName: 'Katunayake Airport'
+      };
+
+      nonDropped.forEach((block, index) => {
+        if (block.type === 'travel') {
+          // If a travel block is generated, resolve its destination coordinates from itself or lookahead
+          let destLat = block.lat;
+          let destLng = block.lng;
+          if (destLat === undefined || destLng === undefined) {
+            // Look ahead for the first block with coordinates
+            for (let i = index + 1; i < nonDropped.length; i++) {
+              const nextB = nonDropped[i];
+              if (nextB.type !== 'travel' && nextB.lat !== undefined && nextB.lng !== undefined) {
+                destLat = nextB.lat;
+                destLng = nextB.lng;
+                break;
+              }
+            }
+          }
+
+          if (destLat !== undefined && destLng !== undefined) {
+            block.lat = destLat;
+            block.lng = destLng;
+            const dist = getDistanceKm(lastLocBlock.lat, lastLocBlock.lng, destLat, destLng);
+            block.distance = `${dist} km`;
+          }
+          postProcessedBlocks.push(block);
+        } else {
+          // It's a static location block (activity, meal, sleep, wait)
+          if (block.lat !== undefined && block.lng !== undefined) {
+            const dist = getDistanceKm(lastLocBlock.lat, lastLocBlock.lng, block.lat, block.lng);
+            if (dist > 3) { // Location changed by more than 3 km
+              // Check if the immediately preceding block in postProcessedBlocks is a travel block
+              const prevInProcessed = postProcessedBlocks[postProcessedBlocks.length - 1];
+              const hasPrecedingTravel = prevInProcessed && prevInProcessed.type === 'travel';
+
+              if (!hasPrecedingTravel) {
+                // Insert an auto-generated travel block
+                const travelDuration = Math.max(0.5, Math.round((dist / 35) * 2) / 2); // 35 km/h avg speed
+                const travelBlock: InternalItineraryBlock = {
+                  id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+                  dayNumber: block.dayNumber,
+                  type: 'travel',
+                  name: `Travel to ${block.locationName || block.name}`,
+                  startTime: lastLocBlock.endTime || block.startTime,
+                  endTime: block.startTime,
+                  bufferMins: 15,
+                  durationHours: travelDuration,
+                  hotelName: '',
+                  roomName: '',
+                  mealPlan: '',
+                  imageUrl: '',
+                  confirmationStatus: 'Pending',
+                  paymentStatus: 'Pending',
+                  internalNotes: 'Auto-generated travel block due to location change',
+                  comments: [],
+                  locationName: block.locationName || '',
+                  lat: block.lat,
+                  lng: block.lng,
+                  distance: `${dist} km`,
+                  weather: block.weather
+                };
+                postProcessedBlocks.push(travelBlock);
+              } else {
+                // Ensure the existing travel block has the correct destination and distance
+                prevInProcessed.lat = block.lat;
+                prevInProcessed.lng = block.lng;
+                prevInProcessed.distance = `${dist} km`;
+                if (!prevInProcessed.locationName) {
+                  prevInProcessed.locationName = block.locationName;
+                }
+              }
+            }
+            lastLocBlock = {
+              lat: block.lat,
+              lng: block.lng,
+              locationName: block.locationName || block.name,
+              endTime: block.endTime
+            };
+          }
+          postProcessedBlocks.push(block);
+        }
+      });
+
       // 6. Handle dropped activities
       if (routeResult.droppedActivities && routeResult.droppedActivities.length > 0) {
         routeResult.droppedActivities.forEach(act => {
-          generatedBlocks.push({
+          dropped.push({
             id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
             dayNumber: 0,
             type: 'activity',
@@ -2313,7 +2952,7 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
         });
       }
 
-      setItinerary(generatedBlocks);
+      setItinerary([...postProcessedBlocks, ...dropped]);
       alert("AI itinerary generated successfully! Review the itinerary days and verify the plan.");
     } catch (error: any) {
       console.error("AI Generation failed:", error);
@@ -2372,6 +3011,8 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
       confirmationStatus: 'Pending',
       paymentStatus: 'Pending',
       internalNotes: '',
+      distance: '',
+      locationName: '',
       comments: []
     };
     setItinerary(prev => [...prev, newBlock]);
@@ -2382,7 +3023,21 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
   };
 
   const handleUpdateBlockField = (id: string, field: keyof InternalItineraryBlock, value: any) => {
-    setItinerary(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
+    setItinerary(prev => prev.map(b => {
+      if (b.id === id) {
+        const updated = { ...b, [field]: value };
+        if (b.type === 'sleep' && field === 'agreedPrice' && value !== undefined) {
+          const factor = (singleRoomsCount * 0.85) + 
+                         (doubleRoomsCount * 1.0) + 
+                         (tripleRoomsCount * 1.4) + 
+                         (familyRoomsCount * 1.8);
+          const activeFactor = factor > 0 ? factor : 1.0;
+          updated.baseRoomRate = Math.round((Number(value) / activeFactor) * 100) / 100;
+        }
+        return updated;
+      }
+      return b;
+    }));
   };
 
   const handleMoveBlock = (id: string, direction: 'up' | 'down') => {
@@ -2452,26 +3107,44 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
     { value: 'custom', label: 'Custom Item' }
   ];
 
-  const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI'];
+  const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI'];  return (
+    <div className="relative overflow-hidden bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-neutral-200/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
+      {/* Decorative Glowing Blobs */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-full filter blur-3xl -translate-y-12 translate-x-12 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-amber-500/5 to-emerald-500/5 rounded-full filter blur-3xl translate-y-12 -translate-x-12 pointer-events-none" />
 
-  return (
-    <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
-      
+      {/* Cooperative Lock Warning Banner */}
+      {isLockedByOther && (
+        <div className="relative bg-rose-50/70 border border-rose-200/80 text-rose-900 rounded-2xl p-5 flex items-start gap-4 shadow-sm animate-in fade-in duration-200">
+          <div className="p-2 bg-rose-100/80 text-rose-800 rounded-xl shrink-0">
+            <Shield className="w-5 h-5 text-rose-600" />
+          </div>
+          <div>
+            <span className="font-serif font-black text-sm text-rose-950 block">Cooperative Editing Lock Active</span>
+            <span className="text-xs text-rose-700 leading-relaxed block mt-1">
+              This itinerary is currently being edited by <strong className="font-black text-rose-900">{lockOwnerName || 'another planner'}</strong>. 
+              Editing controls have been temporarily disabled to prevent conflicting changes. You can still view the itinerary and load older draft versions.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Header with AI Generator Button */}
-      <div className="border-b border-neutral-100 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="relative border-b border-neutral-100 pb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div>
-          <h3 className="text-lg font-serif font-bold text-neutral-800">AI Itinerary Builder</h3>
-          <p className="text-xs text-neutral-400">Design a customized flat skeleton itinerary. Refine parameters, pacing rules, and let Gemini route day-by-day plans.</p>
+          <h3 className="text-2xl font-serif font-extrabold text-neutral-800 tracking-tight">AI Itinerary Builder</h3>
+          <p className="text-xs text-neutral-500/90 font-medium leading-relaxed max-w-2xl mt-1">Design a customized flat skeleton itinerary. Refine parameters, pacing rules, and let Gemini route day-by-day plans.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           {/* Travel Style Dropdown */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-neutral-500 uppercase tracking-wide">Style:</span>
+            <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Style:</span>
             <select
               value={travelStyle}
               onChange={(e) => onTravelStyleChange(e.target.value as TravelStyle)}
-              className="text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 font-bold focus:outline-none focus:border-emerald-800 transition-all shadow-sm"
+              disabled={isLockedByOther}
+              className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
               {TRAVEL_STYLES.map(style => (
                 <option key={style} value={style}>{style}</option>
@@ -2481,29 +3154,79 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
 
           {/* Travel Dates Display */}
           {(arrivalDate || departureDate) && (
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-700 shadow-sm shrink-0">
-              <Calendar className="w-3.5 h-3.5 text-neutral-500" />
+            <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200/60 text-xs font-bold text-neutral-800 shadow-sm shrink-0">
+              <Calendar className="w-4 h-4 text-emerald-800" />
               <span>{arrivalDate || 'TBD'} to {departureDate || 'TBD'}</span>
             </div>
           )}
 
+          {/* Versions Dropdown Select */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Version:</span>
+            <select
+              value=""
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) {
+                  const selectedVer = versions.find(v => v.id === val);
+                  if (selectedVer) onLoadVersion(selectedVer);
+                }
+              }}
+              className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all cursor-pointer shadow-sm max-w-[200px]"
+            >
+              <option value="" disabled>Select Version...</option>
+              {versions.map(v => (
+                <option key={v.id} value={v.id}>
+                  V{v.version_number} - {v.label || `Draft V${v.version_number}`}
+                </option>
+              ))}
+              {versions.length === 0 && (
+                <option disabled>No versions saved yet</option>
+              )}
+            </select>
+          </div>
+
+          {/* Save Version Snapshot */}
+          <button
+            onClick={() => {
+              const label = prompt("Enter a label/description for this version snapshot (e.g. 'Changed Sigiriya hotel'):");
+              if (label !== null) {
+                onSaveNewVersion(label || `Snapshot V${versions.length + 1}`);
+              }
+            }}
+            disabled={isLockedByOther}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200/80 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-neutral-950 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shrink-0"
+            title="Save manual version snapshot"
+          >
+            <Save className="w-4 h-4 text-neutral-500" /> Save Version
+          </button>
+
           {/* Rules toggle */}
           <button
             onClick={() => setShowRulesConfig(!showRulesConfig)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border ${
               showRulesConfig
-                ? 'bg-neutral-100 border-neutral-300 text-neutral-700 font-sans shadow-inner'
-                : 'bg-white hover:bg-neutral-50 border-neutral-200 text-neutral-600'
+                ? 'bg-neutral-100 border-neutral-300/80 text-neutral-800 shadow-inner'
+                : 'bg-white hover:bg-neutral-50 border-neutral-200/80 text-neutral-700 hover:text-neutral-900'
             }`}
           >
-            <Settings className="w-4 h-4" /> AI Rules Config
+            <Settings className="w-4 h-4 text-neutral-500" /> AI Rules Config
+          </button>
+
+          {/* Download PDF */}
+          <button
+            onClick={handleDownloadPdf}
+            disabled={itinerary.length === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-200/80 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-neutral-950 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          >
+            <Download className="w-4 h-4 text-neutral-500" /> Download PDF
           </button>
 
           {/* AI Generator */}
           <button
             onClick={handleGenerateItinerary}
-            disabled={isGenerating || selectedActivities.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50 shadow-md hover:shadow-lg"
+            disabled={isGenerating || selectedActivities.length === 0 || isLockedByOther}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-white transition-all duration-300 text-xs font-bold uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed disabled:from-neutral-300 disabled:to-neutral-400 shadow-md hover:shadow-lg hover:shadow-emerald-800/10 active:scale-[0.98] shrink-0"
           >
             {isGenerating ? (
               <>
@@ -2520,45 +3243,203 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
         </div>
       </div>
 
+      {/* Traveler & Service Controls Box */}
+      <div className="bg-neutral-50/40 p-6 rounded-2xl border border-neutral-200/50 space-y-5">
+        {/* Row 1: Travelers & Services */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-5">
+          {/* Adults */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Adults</label>
+            <input
+              type="number"
+              min="1"
+              value={adults}
+              disabled={isLockedByOther}
+              onChange={(e) => onAdultsChange(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-full px-3.5 py-2 text-xs border border-neutral-200 rounded-xl bg-white font-bold text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 shadow-sm transition-all disabled:opacity-50"
+            />
+          </div>
+          {/* Children */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Children</label>
+            <input
+              type="number"
+              min="0"
+              value={children}
+              disabled={isLockedByOther}
+              onChange={(e) => onChildrenChange(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-full px-3.5 py-2 text-xs border border-neutral-200 rounded-xl bg-white font-bold text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 shadow-sm transition-all disabled:opacity-50"
+            />
+          </div>
+          {/* Infants */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Infants</label>
+            <input
+              type="number"
+              min="0"
+              value={infants}
+              disabled={isLockedByOther}
+              onChange={(e) => onInfantsChange(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-full px-3.5 py-2 text-xs border border-neutral-200 rounded-xl bg-white font-bold text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 shadow-sm transition-all disabled:opacity-50"
+            />
+          </div>
+          {/* Guide Needed checkbox */}
+          <div className="flex items-center gap-3 sm:pt-4 md:pt-5">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                id="top-guide-needed"
+                checked={guideNeeded}
+                disabled={isLockedByOther}
+                onChange={(e) => onGuideNeededChange(e.target.checked)}
+                className="w-4 h-4 rounded border-neutral-300 text-emerald-800 focus:ring-emerald-800 cursor-pointer accent-emerald-800 disabled:opacity-50"
+              />
+            </div>
+            <label htmlFor="top-guide-needed" className="text-xs font-bold text-neutral-700 cursor-pointer select-none">
+              Guide Needed
+            </label>
+          </div>
+          {/* Chauffeur Needed checkbox */}
+          <div className="flex items-center gap-3 sm:pt-4 md:pt-5">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                id="top-chauffeur-needed"
+                checked={chauffeurNeeded}
+                disabled={isLockedByOther}
+                onChange={(e) => onChauffeurNeededChange(e.target.checked)}
+                className="w-4 h-4 rounded border-neutral-300 text-emerald-800 focus:ring-emerald-800 cursor-pointer accent-emerald-800 disabled:opacity-50"
+              />
+            </div>
+            <label htmlFor="top-chauffeur-needed" className="text-xs font-bold text-neutral-700 cursor-pointer select-none">
+              Vehicle & Chauffeur
+            </label>
+          </div>
+        </div>
+
+        {/* Row 2: Room Configurations */}
+        <div className="border-t border-neutral-200/60 pt-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+            {/* Single Rooms */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Single Rooms</label>
+              <input
+                type="number"
+                min="0"
+                value={singleRoomsCount}
+                disabled={hasTeam || isLockedByOther}
+                onChange={(e) => setManualSingle(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${
+                  (hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                }`}
+              />
+            </div>
+            {/* Double Rooms */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Double / Twin Rooms</label>
+              <input
+                type="number"
+                min="0"
+                value={doubleRoomsCount}
+                disabled={hasTeam || isLockedByOther}
+                onChange={(e) => setManualDouble(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${
+                  (hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                }`}
+              />
+            </div>
+            {/* Triple Rooms */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Triple Rooms</label>
+              <input
+                type="number"
+                min="0"
+                value={tripleRoomsCount}
+                disabled={hasTeam || isLockedByOther}
+                onChange={(e) => setManualTriple(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-805 transition-all ${
+                  (hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                }`}
+              />
+            </div>
+            {/* Family Rooms */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Family Rooms</label>
+              <input
+                type="number"
+                min="0"
+                value={familyRoomsCount}
+                disabled={hasTeam || isLockedByOther}
+                onChange={(e) => setManualFamily(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${
+                  (hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                }`}
+              />
+            </div>
+          </div>
+          <div className="flex items-center self-end md:self-center">
+            {hasTeam ? (
+              <span className="text-[10px] bg-emerald-50/80 text-emerald-800 font-extrabold border border-emerald-200/50 px-3.5 py-2 rounded-xl shadow-sm">
+                ✓ Calculated from Client Team
+              </span>
+            ) : (
+              <span className="text-[10px] bg-amber-50/80 text-amber-800 font-extrabold border border-amber-200/50 px-3.5 py-2 rounded-xl shadow-sm">
+                ⚠ Manual room configuration
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Expandable Rules Configuration Card */}
       {showRulesConfig && (
-        <div className="bg-neutral-50 border border-neutral-200/80 rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+        <div className="bg-neutral-50/50 border border-neutral-200/70 rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center justify-between border-b border-neutral-200/60 pb-3">
             <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider">AI Routing & Generation Constraints</h4>
             <button
               onClick={handleSaveRules}
-              disabled={isSavingRules}
-              className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+              disabled={isSavingRules || isLockedByOther}
+              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm hover:shadow-emerald-800/10"
             >
               {isSavingRules ? 'Saving...' : 'Save Rules'}
             </button>
           </div>
 
           {isLoadingRules ? (
-            <div className="flex items-center justify-center py-6 text-xs text-neutral-400 gap-2">
+            <div className="flex items-center justify-center py-8 text-xs text-neutral-400 gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-emerald-800" />
               <span>Fetching rules from database...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">General Rules (All Tours)</label>
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">General Rules (All Tours)</label>
                 <textarea
                   rows={4}
                   placeholder="Specify universal rules, e.g. 'Always place breakfast first', 'Schedule lunch around 1:00 PM'."
                   value={aiRules.generic}
+                  disabled={isLockedByOther}
                   onChange={(e) => setAiRules(prev => ({ ...prev, generic: e.target.value }))}
-                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium resize-y"
+                  className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium resize-y shadow-inner disabled:opacity-50"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Itinerary-Specific Rules (This Tour Only)</label>
+                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Itinerary-Specific Rules (This Tour Only)</label>
                 <textarea
                   rows={4}
                   placeholder="Specify rules for this client, e.g. 'Must plan Sigiriya rock climb for morning due to heat', 'Avoid travel after 6 PM'."
                   value={aiRules.specific}
+                  disabled={isLockedByOther}
                   onChange={(e) => setAiRules(prev => ({ ...prev, specific: e.target.value }))}
-                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium resize-y"
+                  className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium resize-y shadow-inner disabled:opacity-50"
                 />
               </div>
             </div>
@@ -2568,21 +3449,22 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
 
       {/* Dropped Activities warning list */}
       {droppedBlocks.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2 text-xs text-amber-900">
-          <div className="font-bold flex items-center gap-2">
-            <HelpCircle className="w-4 h-4 text-amber-600" />
+        <div className="bg-amber-50/60 border border-amber-200/50 rounded-2xl p-5 space-y-3 text-xs text-amber-900 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="font-extrabold flex items-center gap-2 text-amber-800">
+            <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>Dropped Activities ({droppedBlocks.length})</span>
           </div>
-          <p className="text-[10px] text-amber-700">These activities were selected but could not be routed within the requested day boundaries by Gemini. You can manually edit or move them to a day number:</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+          <p className="text-[10px] text-amber-700 leading-relaxed">These activities were selected but could not be routed within the requested day boundaries by Gemini. You can manually edit or move them to a day number:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             {droppedBlocks.map(block => (
-              <div key={block.id} className="bg-white border border-amber-200 rounded-xl p-2.5 flex items-center justify-between gap-3">
-                <span className="font-bold truncate">{block.name}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
+              <div key={block.id} className="bg-white/80 backdrop-blur-sm border border-amber-200/50 rounded-xl p-3 flex items-center justify-between gap-3 shadow-inner">
+                <span className="font-bold truncate text-neutral-800">{block.name}</span>
+                <div className="flex items-center gap-2 shrink-0">
                   <select
                     value={block.dayNumber}
+                    disabled={isLockedByOther}
                     onChange={(e) => handleUpdateBlockField(block.id, 'dayNumber', Number(e.target.value))}
-                    className="text-[10px] border border-neutral-200 rounded px-1.5 py-0.5 bg-neutral-50 text-neutral-700 font-bold"
+                    className="text-[10px] border border-neutral-200 rounded-lg px-2 py-1 bg-neutral-50 text-neutral-800 font-bold focus:outline-none focus:border-amber-500 shadow-sm disabled:opacity-50"
                   >
                     <option value={0}>Unassigned</option>
                     {daysArray.map(day => (
@@ -2591,7 +3473,8 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                   </select>
                   <button
                     onClick={() => handleDeleteBlock(block.id)}
-                    className="p-1 text-neutral-400 hover:text-red-600 transition-all"
+                    disabled={isLockedByOther}
+                    className="p-1.5 text-neutral-400 hover:text-red-600 transition-all hover:bg-neutral-100 rounded-lg disabled:opacity-30"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -2603,67 +3486,162 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
       )}
 
       {/* Days Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-neutral-100">
-        {daysArray.map(day => (
-          <button
-            key={day}
-            onClick={() => setActiveDay(day)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
-              activeDay === day
-                ? 'bg-emerald-800 border-emerald-800 text-white shadow-sm'
-                : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-600'
-            }`}
-          >
-            Day {day}
-          </button>
-        ))}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 border-b border-neutral-100">
+        <div className="flex items-center gap-1.5 bg-neutral-100/80 p-1.5 rounded-2xl border border-neutral-200/30 shrink-0">
+          {daysArray.map(day => (
+            <button
+              key={day}
+              onClick={() => setActiveDay(day)}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 shrink-0 ${
+                activeDay === day
+                  ? 'bg-white text-emerald-900 border border-neutral-200/60 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40'
+              }`}
+            >
+              Day {day}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Day Content */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-bold text-neutral-700 flex items-center gap-2">
-            <span>Day {activeDay} Schedule {getDayDateString(activeDay) ? `(${getDayDateString(activeDay)})` : ''}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono">
-              {dayBlocks.length} {dayBlocks.length === 1 ? 'item' : 'items'}
-            </span>
+          <h4 className="text-sm font-bold text-neutral-700 flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <span>Day {activeDay} Schedule {getDayDateString(activeDay) ? `(${getDayDateString(activeDay)})` : ''}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono">
+                {dayBlocks.length} {dayBlocks.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+            {dayBlocks[0]?.weather && (
+              <span className="text-xs text-neutral-500 font-semibold bg-amber-50 text-amber-800 border border-amber-200/60 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-sm">
+                <CloudSun className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                <span>{dayBlocks[0].weather}</span>
+              </span>
+            )}
           </h4>
         </div>
 
+        {/* Daily Cost Summary Banner */}
+        {appSettings && (
+          <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200/60 pb-3">
+              <h5 className="text-xs font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-2">
+                <Coins className="w-4 h-4 text-emerald-800 shrink-0" />
+                <span>Day {activeDay} Cost Summary ({travelStyle} Tier)</span>
+              </h5>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Est. Day Total:</span>
+                <span className="text-lg font-black text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-xl">
+                  ${calculateDayTotal(activeDay).total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+              {/* Hotel Cost */}
+              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
+                <div className="flex items-center gap-2 text-neutral-400">
+                  <BedDouble className="w-4 h-4 text-amber-600" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Hotel Cost</span>
+                </div>
+                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).hotel.toFixed(2)}</span>
+              </div>
+
+              {/* Meal Cost */}
+              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between gap-1 text-neutral-400">
+                  <div className="flex items-center gap-2">
+                    <Utensils className="w-4 h-4 text-rose-600" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Meals</span>
+                  </div>
+                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({(adults || 0) + (children || 0)} Pax)</span>
+                </div>
+                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).meals.toFixed(2)}</span>
+              </div>
+
+              {/* Transport Cost */}
+              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between gap-1 text-neutral-400">
+                  <div className="flex items-center gap-2">
+                    <Car className="w-4 h-4 text-sky-600" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Transport</span>
+                  </div>
+                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({calculateDayTotal(activeDay).km.toFixed(0)} km)</span>
+                </div>
+                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).transport.toFixed(2)}</span>
+              </div>
+
+              {/* Concierge & Tickets */}
+              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between gap-1 text-neutral-400">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-indigo-600" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Concierge</span>
+                  </div>
+                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({(adults || 0) + (children || 0)} Pax)</span>
+                </div>
+                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).concierge.toFixed(2)}</span>
+              </div>
+
+              {/* Agency Fee & Tax */}
+              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between gap-1 text-neutral-400">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-emerald-600" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Agency Fee</span>
+                  </div>
+                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({calculateDayTotal(activeDay).agencyFeePercent}%)</span>
+                </div>
+                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).agencyFee.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Schedule list */}
-        <div className="space-y-4">
+        <div className="space-y-5">
           {dayBlocks.map((block, idx) => {
             const isCommentsOpen = openCommentsBlockId === block.id;
             return (
               <div
                 key={block.id}
-                className="group border border-neutral-200 rounded-2xl bg-neutral-50/50 hover:bg-white transition-all shadow-sm overflow-hidden"
+                className={`group border border-neutral-200/70 ${getCardAccentBorder(block.type)} rounded-2xl bg-white hover:shadow-md hover:border-neutral-300/80 transition-all duration-300 overflow-hidden shadow-sm`}
               >
                 {/* Card Top Banner / Drag / Ordering */}
-                <div className="bg-neutral-100/60 px-4 py-2 border-b border-neutral-200 flex items-center justify-between text-xs text-neutral-500 font-medium">
+                <div className="bg-neutral-50/80 px-5 py-3 border-b border-neutral-100 flex items-center justify-between text-xs text-neutral-500 font-medium select-none">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className="w-5 h-5 rounded-md bg-white border border-neutral-200 flex items-center justify-center font-bold text-[10px]">
+                    <span className="w-6 h-6 rounded-full bg-neutral-105 border border-neutral-200/40 flex items-center justify-center font-bold text-[10px] text-neutral-600 shadow-sm">
                       {idx + 1}
                     </span>
-                    <span className="capitalize font-bold text-neutral-700">
-                      {blockTypes.find(opt => opt.value === block.type)?.label || block.type}
-                    </span>
+                    {renderTypeBadge(block.type)}
                     {block.type === 'travel' ? (
                       <>
-                        <span className="text-neutral-400 font-normal">|</span>
-                        <span className="text-emerald-800 font-semibold flex items-center gap-1.5 bg-emerald-50/60 px-2 py-0.5 rounded-md border border-emerald-100/50">
+                        <span className="text-neutral-300 font-normal">|</span>
+                        <span className="text-emerald-800 font-bold flex items-center gap-1.5 bg-emerald-50/60 px-2.5 py-1 rounded-lg border border-emerald-100/60 text-[11px] shadow-sm">
                           <span>{getPrecedingLocation(idx)}</span>
-                          <span className="text-neutral-400 font-bold">→</span>
+                          <span className="text-emerald-400 font-black">→</span>
                           <span>{block.locationName || 'TBD'}</span>
+                          {block.distance && (
+                            <span className="text-[10px] text-emerald-700 font-extrabold bg-white px-2 py-0.5 rounded-md border border-emerald-200/40 ml-1 shrink-0">
+                              {block.distance}
+                            </span>
+                          )}
                         </span>
                       </>
                     ) : (
                       block.locationName && (
                         <>
-                          <span className="text-neutral-400 font-normal">|</span>
-                          <span className="text-neutral-600 font-semibold flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-neutral-200/50">
-                            <MapPin className="w-3 h-3 text-neutral-400 shrink-0" />
+                          <span className="text-neutral-300 font-normal">|</span>
+                          <span className="text-neutral-705 font-bold flex items-center gap-1.5 bg-neutral-50 px-2.5 py-1 rounded-lg border border-neutral-200/50 text-[11px] shadow-sm">
+                            <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                             <span>{block.locationName}</span>
+                            {block.distance && (
+                              <span className="text-[10px] text-neutral-500 font-extrabold bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/40 ml-1 shrink-0">
+                                {block.distance}
+                              </span>
+                            )}
                           </span>
                         </>
                       )
@@ -2671,27 +3649,28 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                   </div>
 
                   {/* Ordering Controls & Delete */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleMoveBlock(block.id, 'up')}
-                      disabled={idx === 0}
-                      className="p-1 rounded hover:bg-white text-neutral-400 hover:text-neutral-700 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                      disabled={idx === 0 || isLockedByOther}
+                      className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 disabled:opacity-25 disabled:pointer-events-none transition-all"
                       title="Move Up"
                     >
                       <ChevronUp className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleMoveBlock(block.id, 'down')}
-                      disabled={idx === dayBlocks.length - 1}
-                      className="p-1 rounded hover:bg-white text-neutral-400 hover:text-neutral-700 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                      disabled={idx === dayBlocks.length - 1 || isLockedByOther}
+                      className="p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 disabled:opacity-25 disabled:pointer-events-none transition-all"
                       title="Move Down"
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
-                    <span className="h-4 w-[1px] bg-neutral-300 mx-1" />
+                    <span className="h-4 w-[1px] bg-neutral-200 mx-1" />
                     <button
                       onClick={() => handleDeleteBlock(block.id)}
-                      className="p-1 rounded hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all"
+                      disabled={isLockedByOther}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-neutral-400 hover:text-red-650 transition-all disabled:opacity-25"
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -2700,16 +3679,17 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                 </div>
 
                 {/* Main Card Body */}
-                <div className="p-4 space-y-4">
+                <div className="p-5 space-y-5">
                   {/* Grid fields */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     {/* Item Type Dropdown */}
                     <div className="md:col-span-3">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Type</label>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Type</label>
                       <select
                         value={block.type}
                         onChange={(e) => handleUpdateBlockField(block.id, 'type', e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-805 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                       >
                         {blockTypes.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -2719,68 +3699,100 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
 
                     {/* Item Name Input */}
                     <div className="md:col-span-5">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Item Title / Name</label>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Item Title / Name</label>
                       <input
                         type="text"
                         placeholder="e.g. Cinnamon Grand Stay, Sigiriya Tour, Dinner..."
                         value={block.name || ''}
                         onChange={(e) => handleUpdateBlockField(block.id, 'name', e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-805 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                       />
                     </div>
 
                     {/* Time Range */}
                     <div className="md:col-span-2">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Start Time</label>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Start Time</label>
                       <input
                         type="text"
                         placeholder="09:00"
                         value={block.startTime || ''}
                         onChange={(e) => handleUpdateBlockField(block.id, 'startTime', e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-805 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-center disabled:opacity-50"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">End Time</label>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">End Time</label>
                       <input
                         type="text"
                         placeholder="18:00"
                         value={block.endTime || ''}
                         onChange={(e) => handleUpdateBlockField(block.id, 'endTime', e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-center disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location & Distance Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
+                    <div className="md:col-span-8">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Location / Destination</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Sigiriya, Colombo, Galle"
+                        value={block.locationName || ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'locationName', e.target.value)}
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                      />
+                    </div>
+                    <div className="md:col-span-4">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Distance (km)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 50 km"
+                        value={block.distance || ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'distance', e.target.value)}
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                       />
                     </div>
                   </div>
 
                   {/* Sleep type specific fields */}
                   {block.type === 'sleep' && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-dashed border-neutral-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-dashed border-neutral-200">
                       <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Hotel Name</label>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Hotel Name</label>
                         <input
                           type="text"
                           placeholder="e.g. Cinnamon Grand"
                           value={block.hotelName || ''}
                           onChange={(e) => handleUpdateBlockField(block.id, 'hotelName', e.target.value)}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Room Category / Type</label>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Room Category / Type</label>
                         <input
                           type="text"
                           placeholder="e.g. Deluxe Double Room"
                           value={block.roomName || ''}
                           onChange={(e) => handleUpdateBlockField(block.id, 'roomName', e.target.value)}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meal Plan</label>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Meal Plan</label>
                         <select
                           value={block.mealPlan || 'BB'}
                           onChange={(e) => handleUpdateBlockField(block.id, 'mealPlan', e.target.value)}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                         >
                           {mealPlans.map(mp => (
                             <option key={mp} value={mp}>{mp}</option>
@@ -2788,51 +3800,54 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                         </select>
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Rate (USD)</label>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Rate (USD)</label>
                         <input
                           type="number"
                           placeholder="e.g. 250"
                           value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
                           onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                         />
                       </div>
                     </div>
                   )}
 
                   {/* Description / Notes text area */}
-                  <div className="pt-2 border-t border-dashed border-neutral-200">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Description / Notes</label>
+                  <div className="pt-4 border-t border-dashed border-neutral-200">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Description / Notes</label>
                     <textarea
                       rows={2}
                       placeholder="Specify important details or descriptions for this itinerary item..."
                       value={block.internalNotes || ''}
                       onChange={(e) => handleUpdateBlockField(block.id, 'internalNotes', e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium resize-none"
+                      disabled={isLockedByOther}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium resize-none shadow-sm placeholder:text-neutral-300 disabled:opacity-50"
                     />
                   </div>
 
                   {/* Image display & Image Uploading & Discussion controls */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-dashed border-neutral-200">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-dashed border-neutral-200">
                     
                     {/* Left side: Upload Button & Image thumbnail */}
                     <div className="flex items-center gap-3">
                       {block.imageUrl ? (
-                        <div className="relative group/img w-16 h-12 rounded-lg border border-neutral-200 overflow-hidden shadow-sm">
+                        <div className="relative group/img w-16 h-12 rounded-xl border border-neutral-200/80 overflow-hidden shadow-sm transition-all duration-300 hover:scale-105">
                           <img
-                            src={block.imageUrl}
-                            alt="Itinerary item"
-                            className="w-full h-full object-cover"
+                             src={block.imageUrl}
+                             alt="Itinerary item"
+                             className="w-full h-full object-cover"
                           />
                           <button
                             onClick={() => handleUpdateBlockField(block.id, 'imageUrl', '')}
-                            className="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-all text-[10px] font-bold"
+                            disabled={isLockedByOther}
+                            className="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 disabled:group-hover/img:opacity-0 transition-all text-[10px] font-extrabold uppercase tracking-wide disabled:pointer-events-none"
                           >
                             Remove
                           </button>
                         </div>
                       ) : (
-                        <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-[10px] font-bold text-neutral-600 cursor-pointer transition-all shadow-sm">
+                        <label className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200/80 hover:bg-neutral-50 text-[10px] font-extrabold text-neutral-600 hover:text-neutral-800 cursor-pointer transition-all shadow-sm select-none ${isLockedByOther ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
                           {uploadingBlockId === block.id ? (
                             <>
                               <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
@@ -2840,7 +3855,7 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                             </>
                           ) : (
                             <>
-                              <Upload className="w-3.5 h-3.5 text-neutral-500" />
+                              <Upload className="w-3.5 h-3.5 text-neutral-400" />
                               <span>Upload Image</span>
                             </>
                           )}
@@ -2848,7 +3863,7 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            disabled={uploadingBlockId === block.id}
+                            disabled={uploadingBlockId === block.id || isLockedByOther}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) handleImageUpload(block.id, file);
@@ -2861,13 +3876,13 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                     {/* Right side: Comments button */}
                     <button
                       onClick={() => setOpenCommentsBlockId(isCommentsOpen ? null : block.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all shadow-sm ${
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${
                         isCommentsOpen
-                          ? 'bg-neutral-100 border-neutral-300 text-neutral-700'
-                          : 'border-neutral-200 hover:bg-neutral-50 text-neutral-600'
+                          ? 'bg-neutral-100 border-neutral-300 text-neutral-850 shadow-inner'
+                          : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
                       }`}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-neutral-500" />
+                      <MessageSquare className="w-3.5 h-3.5 text-neutral-400" />
                       <span>
                         {block.comments && block.comments.length > 0
                           ? `${block.comments.length} Comments`
@@ -2881,33 +3896,34 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
 
                 {/* Comments Section Drawer (inside the card) */}
                 {isCommentsOpen && (
-                  <div className="bg-neutral-50 border-t border-neutral-200 p-4 space-y-4">
-                    <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-200 pb-1.5">
-                      Discussion Thread
+                  <div className="bg-neutral-50/50 border-t border-neutral-200/60 p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-200/60 pb-2 flex items-center gap-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-neutral-400" />
+                      <span>Discussion Thread</span>
                     </div>
 
                     {/* Comment list */}
-                    <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+                    <div className="space-y-4 max-h-[220px] overflow-y-auto pr-1">
                       {block.comments && block.comments.length > 0 ? (
                         block.comments.map(c => {
                           const isAgent = c.role === 'agent';
                           return (
                             <div key={c.id} className={`flex flex-col ${isAgent ? 'items-end' : 'items-start'}`}>
-                              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs shadow-sm ${
+                              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm leading-relaxed ${
                                 isAgent
                                   ? 'bg-emerald-800 text-white rounded-tr-none'
-                                  : 'bg-white text-neutral-800 border border-neutral-200 rounded-tl-none'
+                                  : 'bg-white text-neutral-800 border border-neutral-200/80 rounded-tl-none'
                               }`}>
-                                <p className="leading-relaxed">{c.text}</p>
+                                <p>{c.text}</p>
                               </div>
-                              <span className="text-[9px] text-neutral-400 mt-1 font-mono">
+                              <span className="text-[9px] text-neutral-400 mt-1 font-bold">
                                 {isAgent ? 'Agent' : 'Tourist'} &bull; {new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                           );
                         })
                       ) : (
-                        <div className="text-center py-4 text-xs text-neutral-400 italic">
+                        <div className="text-center py-6 text-xs text-neutral-400 italic">
                           No messages yet. Start collaborating by leaving a note.
                         </div>
                       )}
@@ -2923,11 +3939,13 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleAddComment(block.id);
                         }}
-                        className="flex-1 text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                        disabled={isLockedByOther}
+                        className="flex-1 text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-inner disabled:opacity-50"
                       />
                       <button
                         onClick={() => handleAddComment(block.id)}
-                        className="px-3 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                        disabled={isLockedByOther}
+                        className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
                       >
                         Send
                       </button>
@@ -2941,10 +3959,10 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
           })}
 
           {dayBlocks.length === 0 && (
-            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[200px]">
-              <Compass className="w-10 h-10 text-neutral-300 mb-3" />
-              <span className="text-xs font-bold text-neutral-500">No items planned for Day {activeDay}</span>
-              <span className="text-[10px] text-neutral-400 mt-1 max-w-[220px]">Click "+ Add Itinerary Item" below to start scheduling experiences and accommodations.</span>
+            <div className="border border-dashed border-neutral-200 bg-neutral-50/20 rounded-2xl p-16 text-center flex flex-col items-center justify-center min-h-[220px]">
+              <Compass className="w-12 h-12 text-neutral-300 mb-3 animate-pulse" />
+              <span className="text-sm font-bold text-neutral-600">No items planned for Day {activeDay}</span>
+              <span className="text-[11px] text-neutral-400 mt-1 max-w-[280px] leading-relaxed">Click "+ Add Itinerary Item" below to start scheduling experiences and accommodations.</span>
             </div>
           )}
         </div>
@@ -2952,10 +3970,28 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
         {/* Add block button */}
         <button
           onClick={handleAddBlock}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-neutral-300 hover:border-emerald-800 bg-neutral-50/20 hover:bg-emerald-50/20 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer shadow-sm"
+          disabled={isLockedByOther}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border border-dashed border-neutral-350 hover:border-emerald-800/60 bg-neutral-50/10 hover:bg-emerald-50/30 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" /> Add Itinerary Item
         </button>
+      </div>
+
+      {/* Hidden PDF template container for printing */}
+      <div style={{ display: 'none' }}>
+        <ItineraryPdfTemplateNew
+          ref={printRef}
+          itinerary={itinerary}
+          touristData={touristData}
+          travelStyle={travelStyle}
+          singleRoomsCount={singleRoomsCount}
+          doubleRoomsCount={doubleRoomsCount}
+          tripleRoomsCount={tripleRoomsCount}
+          familyRoomsCount={familyRoomsCount}
+          guideNeeded={guideNeeded}
+          chauffeurNeeded={chauffeurNeeded}
+          appSettings={appSettings}
+        />
       </div>
     </div>
   );

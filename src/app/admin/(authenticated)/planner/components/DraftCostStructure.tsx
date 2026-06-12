@@ -318,15 +318,53 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
             });
         }
 
-        // Add 20% Service Fee
+        // Add Ticket, Refreshment & Seamless Concierge Service Cost
+        const travelStyle = data.profile?.travelStyle || 'Luxury';
+        const pax = (data.profile?.adults || 0) + (data.profile?.children || 0) || 1;
+        let conciergeUnitCost = 100;
+        if (travelStyle === 'Regular') {
+            conciergeUnitCost = markups.regular_concierge_cost !== undefined ? markups.regular_concierge_cost : 40;
+        } else if (travelStyle === 'Premium') {
+            conciergeUnitCost = markups.premium_concierge_cost !== undefined ? markups.premium_concierge_cost : 50;
+        } else if (travelStyle === 'Luxury') {
+            conciergeUnitCost = markups.luxury_concierge_cost !== undefined ? markups.luxury_concierge_cost : 100;
+        } else if (travelStyle === 'Ultra VIP') {
+            conciergeUnitCost = markups.ultra_vip_concierge_cost !== undefined ? markups.ultra_vip_concierge_cost : 200;
+        }
+
+        const conciergeTotal = conciergeUnitCost * pax;
+        if (conciergeTotal > 0) {
+            items.push({
+                id: generateId(),
+                category: 'Service and Support',
+                vendorName: 'Agency Concierge',
+                serviceName: 'Ticket, Refreshment & Seamless Concierge Service',
+                quantity: pax,
+                unitPrice: Number(conciergeUnitCost.toFixed(2)),
+                totalPrice: Number(conciergeTotal.toFixed(2))
+            });
+        }
+
+        // Add Service Fee based on travel style tier
+        let serviceFeePercent = 20;
+        if (travelStyle === 'Regular') {
+            serviceFeePercent = markups.regular_service_fee !== undefined ? markups.regular_service_fee : 10;
+        } else if (travelStyle === 'Premium') {
+            serviceFeePercent = markups.premium_service_fee !== undefined ? markups.premium_service_fee : 20;
+        } else if (travelStyle === 'Luxury') {
+            serviceFeePercent = markups.luxury_service_fee !== undefined ? markups.luxury_service_fee : 25;
+        } else if (travelStyle === 'Ultra VIP') {
+            serviceFeePercent = markups.ultra_vip_service_fee !== undefined ? markups.ultra_vip_service_fee : 40;
+        }
+
         const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-        const serviceFee = subtotal * 0.20;
+        const serviceFee = subtotal * (serviceFeePercent / 100);
         if (serviceFee > 0) {
             items.push({
                 id: generateId(),
                 category: 'Service and Support',
                 vendorName: 'Agency',
-                serviceName: 'Tax, Service and Support Fee (20%)',
+                serviceName: `Tax, Service and Support Fee (${serviceFeePercent}%)`,
                 quantity: 1,
                 unitPrice: Number(serviceFee.toFixed(2)),
                 totalPrice: Number(serviceFee.toFixed(2))
