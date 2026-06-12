@@ -28,6 +28,81 @@ const experienceAssets = [
   { src: "/images/luxury_bedroom_mountain_view_1773073980186.avif", label: "Sovereign Sanctuary" },
 ];
 
+const partnerLogos = [
+  { src: "/images/logo/aman.webp", alt: "Aman Resorts", category: "Hotels & Stays" },
+  { src: "/images/logo/anantara.webp", alt: "Anantara", category: "Hotels & Stays" },
+  { src: "/images/logo/cape-weligama.webp", alt: "Cape Weligama", category: "Hotels & Stays" },
+  { src: "/images/logo/tea-trails.webp", alt: "Ceylon Tea Trails", category: "Hotels & Stays" },
+  { src: "/images/logo/wild-cost-tent.webp", alt: "Wild Coast Tented Lodge", category: "Hotels & Stays" },
+  { src: "/images/logo/jetwinghotels.webp", alt: "Jetwing Hotels", category: "Hotels & Stays" },
+  { src: "/images/logo/cinnamon.webp", alt: "Cinnamon Hotels", category: "Hotels & Stays" },
+  { src: "/images/logo/shangrilla.webp", alt: "Shangri-La", category: "Hotels & Stays" },
+  { src: "/images/logo/marriot.webp", alt: "Marriott", category: "Hotels & Stays" },
+  { src: "/images/logo/hilton.webp", alt: "Hilton", category: "Hotels & Stays" },
+  { src: "/images/logo/tharu-villas.webp", alt: "Taru Villas", category: "Hotels & Stays" },
+  { src: "/images/logo/uga.webp", alt: "Uga Escapes", category: "Hotels & Stays" },
+  { src: "/images/logo/kayaam-wellness.webp", alt: "Kayaam Wellness", category: "Wellness & Spa" },
+  { src: "/images/logo/senok-air.webp", alt: "Senok Air", category: "Aviation & Helicopter" },
+  { src: "/images/logo/aahaasa.webp", alt: "Aahaasa", category: "Aviation & Helicopter" },
+  { src: "/images/logo/malkey-rent-car.webp", alt: "Malkey Limo & Chauffeur", category: "Limo & Chauffeur" },
+  { src: "/images/logo/srilankapersonalchauffeurs.webp", alt: "Sri Lanka Personal Chauffeurs", category: "Limo & Chauffeur" },
+  { src: "/images/logo/sea-adventures.webp", alt: "Sea Adventures", category: "Yacht & Marine" },
+  { src: "/images/logo/elite-shield.webp", alt: "Elite Shield Security", category: "VIP Security" },
+  { src: "/images/logo/the-one-group.webp", alt: "The One Group", category: "VIP Concierge" },
+  { src: "/images/logo/avant-garde.webp", alt: "Avant Garde", category: "VIP Services" },
+  { src: "/images/logo/aitken-spense.webp", alt: "Aitken Spence", category: "Luxury Travel" },
+  { src: "/images/logo/tea-drop.webp", alt: "Tea Drop", category: "Bespoke Culinary" },
+];
+
+function formatPartnerName(src: string) {
+  const fileName = src.split('/').pop()?.split('.')[0] || '';
+  return fileName
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function PartnerMarquee() {
+  const duplicatedLogos = [...partnerLogos, ...partnerLogos];
+  return (
+    <div className="relative w-full overflow-hidden py-10 bg-white/50 border-y border-brand-charcoal/5">
+      {/* Edge gradient overlays for smooth fade effect */}
+      <div className="absolute inset-y-0 left-0 w-24 md:w-48 bg-gradient-to-r from-[#FAF9F6] to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-24 md:w-48 bg-gradient-to-l from-[#FAF9F6] to-transparent z-10 pointer-events-none" />
+
+      <div className="flex gap-20 items-center flex-row flex-nowrap animate-marquee hover:pause-marquee min-w-max" id="partner-marquee-track">
+        {duplicatedLogos.map((logo, index) => {
+          const partnerName = formatPartnerName(logo.src);
+          return (
+            <div
+              key={`${logo.alt}-${index}`}
+              id={`partner-logo-${logo.alt.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${index}`}
+              className="relative flex-shrink-0 flex flex-col items-center justify-center w-36 h-20 group cursor-pointer"
+            >
+              {/* Logo image container with modern grayscale -> color filter on hover */}
+              <div className="relative w-28 h-12 transition-all duration-500 filter grayscale opacity-70 group-hover:filter-none group-hover:opacity-100 group-hover:scale-105">
+                <Image
+                  src={logo.src}
+                  alt={logo.alt}
+                  fill
+                  className="object-contain"
+                  sizes="140px"
+                />
+              </div>
+              
+              {/* Premium sub-label showing the partner's name from file name */}
+              <span className="absolute bottom-0 text-[9px] tracking-[0.2em] uppercase font-bold text-brand-charcoal/40 group-hover:text-brand-gold group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
+                {partnerName}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 function ExperienceGallery() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -82,6 +157,25 @@ export default function HomeClient() {
   return (
     <MainLayout>
       <Hero />
+
+      {/* Sovereign Partner Network Section */}
+      <section className="py-20 bg-[#FAF9F6] text-brand-charcoal relative overflow-hidden border-b border-brand-charcoal/5">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-brand-green/5 rounded-full blur-[100px] pointer-events-none opacity-20" />
+        <div className="max-w-7xl mx-auto px-6 md:px-12 mb-12 text-center relative z-10">
+          <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">
+            {t.home.partners_subtitle}
+          </span>
+          <h2 className="font-serif text-3xl md:text-5xl text-brand-green mb-6">
+            {t.home.partners_title}
+          </h2>
+          <p className="text-brand-charcoal/70 max-w-3xl mx-auto font-light leading-relaxed text-sm md:text-base">
+            {t.home.partners_desc}
+          </p>
+        </div>
+
+        {/* Animated Infinite Marquee */}
+        <PartnerMarquee />
+      </section>
 
       {/* Brand Story Section */}
       <section className="py-24 px-6 md:px-12 bg-white relative overflow-hidden">
