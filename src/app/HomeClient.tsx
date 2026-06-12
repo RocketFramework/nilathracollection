@@ -77,21 +77,21 @@ function PartnerMarquee() {
             <div
               key={`${logo.alt}-${index}`}
               id={`partner-logo-${logo.alt.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${index}`}
-              className="relative flex-shrink-0 flex flex-col items-center justify-center w-36 h-20 group cursor-pointer"
+              className="relative flex-shrink-0 flex flex-col items-center justify-start pt-1 w-40 h-20 group cursor-pointer"
             >
               {/* Logo image container with modern grayscale -> color filter on hover */}
-              <div className="relative w-28 h-12 transition-all duration-500 filter grayscale opacity-70 group-hover:filter-none group-hover:opacity-100 group-hover:scale-105">
+              <div className="relative w-32 h-14 transition-all duration-500 filter grayscale opacity-70 group-hover:filter-none group-hover:opacity-100 group-hover:scale-105">
                 <Image
                   src={logo.src}
                   alt={logo.alt}
                   fill
                   className="object-contain"
-                  sizes="140px"
+                  sizes="160px"
                 />
               </div>
               
               {/* Premium sub-label showing the partner's name from file name */}
-              <span className="absolute bottom-0 text-[9px] tracking-[0.2em] uppercase font-bold text-brand-charcoal/40 group-hover:text-brand-gold group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
+              <span className="text-[9px] tracking-[0.2em] uppercase font-bold text-brand-charcoal/40 group-hover:text-brand-gold group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap mt-2.5">
                 {partnerName}
               </span>
             </div>
