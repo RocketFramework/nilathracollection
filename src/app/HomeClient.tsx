@@ -77,16 +77,17 @@ function PartnerMarquee() {
             <div
               key={`${logo.alt}-${index}`}
               id={`partner-logo-${logo.alt.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${index}`}
-              className="relative flex-shrink-0 flex flex-col items-center justify-start pt-1 w-40 h-20 group cursor-pointer"
+              className="relative flex-shrink-0 flex flex-col items-center justify-start pt-1.5 w-44 h-24 group cursor-pointer"
             >
               {/* Logo image container with modern grayscale -> color filter on hover */}
-              <div className="relative w-32 h-14 transition-all duration-500 filter grayscale opacity-70 group-hover:filter-none group-hover:opacity-100 group-hover:scale-105">
+              <div className="relative w-36 h-16 transition-all duration-500 filter grayscale opacity-70 group-hover:filter-none group-hover:opacity-100 group-hover:scale-105">
                 <Image
                   src={logo.src}
                   alt={logo.alt}
                   fill
+                  style={{ objectFit: 'contain' }}
                   className="object-contain"
-                  sizes="160px"
+                  sizes="180px"
                 />
               </div>
               

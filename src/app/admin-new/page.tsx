@@ -2752,32 +2752,6 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                     </div>
                   </div>
 
-                  {/* Location & Coordinates Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2 border-t border-dashed border-neutral-200">
-                    <div className="md:col-span-6">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Latitude</label>
-                      <input
-                        type="number"
-                        step="any"
-                        placeholder="e.g. 7.9570"
-                        value={block.lat !== undefined && block.lat !== null ? block.lat : ''}
-                        onChange={(e) => handleUpdateBlockField(block.id, 'lat', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
-                      />
-                    </div>
-                    <div className="md:col-span-6">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Longitude</label>
-                      <input
-                        type="number"
-                        step="any"
-                        placeholder="e.g. 80.7603"
-                        value={block.lng !== undefined && block.lng !== null ? block.lng : ''}
-                        onChange={(e) => handleUpdateBlockField(block.id, 'lng', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
-                      />
-                    </div>
-                  </div>
-
                   {/* Sleep type specific fields */}
                   {block.type === 'sleep' && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-dashed border-neutral-200">
