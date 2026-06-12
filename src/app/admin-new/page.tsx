@@ -2332,6 +2332,29 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
     return itinerary.filter(b => b.dayNumber === 0);
   }, [itinerary]);
 
+  // Helper to find the closest preceding location for travel blocks
+  const getPrecedingLocation = (currentIdx: number) => {
+    // 1. Search preceding blocks in the same day (dayBlocks)
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      const prevBlock = dayBlocks[i];
+      if (prevBlock.locationName && prevBlock.locationName.trim() !== '') {
+        return prevBlock.locationName.trim();
+      }
+    }
+    // 2. Search preceding days in order
+    for (let d = activeDay - 1; d >= 1; d--) {
+      const prevDayBlocks = itinerary.filter(b => b.dayNumber === d);
+      for (let i = prevDayBlocks.length - 1; i >= 0; i--) {
+        const prevBlock = prevDayBlocks[i];
+        if (prevBlock.locationName && prevBlock.locationName.trim() !== '') {
+          return prevBlock.locationName.trim();
+        }
+      }
+    }
+    // 3. Fallback to Airport
+    return 'Katunayake';
+  };
+
   const handleAddBlock = () => {
     const newBlock: InternalItineraryBlock = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
@@ -2618,11 +2641,33 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
               >
                 {/* Card Top Banner / Drag / Ordering */}
                 <div className="bg-neutral-100/60 px-4 py-2 border-b border-neutral-200 flex items-center justify-between text-xs text-neutral-500 font-medium">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <span className="w-5 h-5 rounded-md bg-white border border-neutral-200 flex items-center justify-center font-bold text-[10px]">
                       {idx + 1}
                     </span>
-                    <span className="capitalize font-bold text-neutral-700">{block.type}</span>
+                    <span className="capitalize font-bold text-neutral-700">
+                      {blockTypes.find(opt => opt.value === block.type)?.label || block.type}
+                    </span>
+                    {block.type === 'travel' ? (
+                      <>
+                        <span className="text-neutral-400 font-normal">|</span>
+                        <span className="text-emerald-800 font-semibold flex items-center gap-1.5 bg-emerald-50/60 px-2 py-0.5 rounded-md border border-emerald-100/50">
+                          <span>{getPrecedingLocation(idx)}</span>
+                          <span className="text-neutral-400 font-bold">→</span>
+                          <span>{block.locationName || 'TBD'}</span>
+                        </span>
+                      </>
+                    ) : (
+                      block.locationName && (
+                        <>
+                          <span className="text-neutral-400 font-normal">|</span>
+                          <span className="text-neutral-600 font-semibold flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-neutral-200/50">
+                            <MapPin className="w-3 h-3 text-neutral-400 shrink-0" />
+                            <span>{block.locationName}</span>
+                          </span>
+                        </>
+                      )
+                    )}
                   </div>
 
                   {/* Ordering Controls & Delete */}
@@ -2702,6 +2747,32 @@ function AIItineraryBuilder({ itinerary, setItinerary, durationDays, tourId, sel
                         placeholder="18:00"
                         value={block.endTime || ''}
                         onChange={(e) => handleUpdateBlockField(block.id, 'endTime', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location & Coordinates Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2 border-t border-dashed border-neutral-200">
+                    <div className="md:col-span-6">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Latitude</label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="e.g. 7.9570"
+                        value={block.lat !== undefined && block.lat !== null ? block.lat : ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'lat', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
+                      />
+                    </div>
+                    <div className="md:col-span-6">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Longitude</label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="e.g. 80.7603"
+                        value={block.lng !== undefined && block.lng !== null ? block.lng : ''}
+                        onChange={(e) => handleUpdateBlockField(block.id, 'lng', e.target.value ? Number(e.target.value) : undefined)}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-700 focus:outline-none focus:border-emerald-800 transition-all font-medium"
                       />
                     </div>
