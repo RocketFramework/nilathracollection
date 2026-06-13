@@ -50,7 +50,17 @@ import {
   Upload,
   Image,
   CloudSun,
-  Download
+  Download,
+  Wifi,
+  Waves,
+  HeartPulse,
+  Briefcase,
+  Plane,
+  X,
+  CheckCircle2,
+  Copy,
+  Link as LinkIcon,
+  Link2Off
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock } from '../../other/interfaces';
@@ -65,11 +75,20 @@ import {
   getAIRulesAction, 
   saveAIRuleAction,
   getDraftVersionsAction,
+  getDraftVersionAction,
   saveDraftVersionAction,
   acquireItineraryLockAction,
   refreshItineraryLockAction,
   releaseItineraryLockAction,
-  checkItineraryLockStatusAction
+  checkItineraryLockStatusAction,
+  getAssignedHotelsAction,
+  searchHotelsAction,
+  getVendorsAction,
+  getTransportProvidersAction,
+  getDriversAction,
+  getTourGuidesAction,
+  getRestaurantsAction,
+  searchRestaurantsAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -237,7 +256,7 @@ function PlannerWizardWorkspace() {
   // Collaborative edit locking & versioning states
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [lockOwnerName, setLockOwnerName] = useState<string>('');
-  const [draftVersions, setDraftVersions] = useState<DraftItineraryVersion[]>([]);
+  const [draftVersions, setDraftVersions] = useState<Omit<DraftItineraryVersion, 'itinerary_data'>[]>([]);
 
   // 4. Interactive Tourist Data Form States
   const [touristData, setTouristData] = useState<TouristDataDTO>(MOCK_TOURIST_DATA);
@@ -401,9 +420,18 @@ function PlannerWizardWorkspace() {
     }
   };
 
-  const handleLoadVersion = (version: DraftItineraryVersion) => {
+  const handleLoadVersion = async (version: Omit<DraftItineraryVersion, 'itinerary_data'>) => {
     if (window.confirm(`Are you sure you want to load version ${version.version_number} (${version.label || 'no label'})? Any unsaved edits will be replaced.`)) {
-      setItinerary(version.itinerary_data);
+      try {
+        const res = await getDraftVersionAction(version.id);
+        if (res.success && res.version) {
+          setItinerary(res.version.itinerary_data);
+        } else {
+          alert("Failed to load version: " + res.error);
+        }
+      } catch (err: any) {
+        alert("Error loading version: " + (err.message || err));
+      }
     }
   };
 
@@ -411,7 +439,7 @@ function PlannerWizardWorkspace() {
     try {
       const res = await saveDraftVersionAction(tourId, itinerary, label);
       if (res.success && res.version) {
-        setDraftVersions(prev => [res.version as DraftItineraryVersion, ...prev]);
+        setDraftVersions(prev => [res.version as any, ...prev]);
         alert("Draft version snapshot saved successfully!");
         return true;
       } else {
@@ -615,6 +643,13 @@ function PlannerWizardWorkspace() {
             setItinerary(fullTripData.itinerary || []);
           } else {
             console.error("Failed to load tour itinerary data:", tourRes.error);
+          }
+
+          const versionsRes = await getDraftVersionsAction(activeTourId);
+          if (versionsRes.success && versionsRes.versions) {
+            setDraftVersions(versionsRes.versions);
+          } else {
+            console.error("Failed to load draft versions:", versionsRes.error);
           }
         }
 
@@ -2302,8 +2337,8 @@ interface AIItineraryBuilderProps {
   touristData: TouristDataDTO;
   isLockedByOther: boolean;
   lockOwnerName: string;
-  versions: DraftItineraryVersion[];
-  onLoadVersion: (version: DraftItineraryVersion) => void;
+  versions: Omit<DraftItineraryVersion, 'itinerary_data'>[];
+  onLoadVersion: (version: Omit<DraftItineraryVersion, 'itinerary_data'>) => void;
   onSaveNewVersion: (label: string) => Promise<boolean>;
 }
 
@@ -2338,6 +2373,429 @@ function AIItineraryBuilder({
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
+
+  // Master Data State for Binders
+  const [masterData, setMasterData] = useState<any>({
+    hotels: [],
+    vendors: [],
+    drivers: [],
+    guides: [],
+    restaurants: [],
+    transportProviders: [],
+    activities: []
+  });
+
+  const [loadingMaster, setLoadingMaster] = useState(false);
+  const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: string } | null>(null);
+  const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roomMarkup, setRoomMarkup] = useState<number>(10);
+  const [markups, setMarkups] = useState<Record<string, number>>({});
+
+  // Hotel Search State
+  const [hotelSearchCity, setHotelSearchCity] = useState('');
+  const [hotelSearchName, setHotelSearchName] = useState('');
+  const [hotelSearchResults, setHotelSearchResults] = useState<any[] | null>(null);
+  const [isSearchingHotels, setIsSearchingHotels] = useState(false);
+
+  // Restaurant Search State
+  const [restaurantSearchCity, setRestaurantSearchCity] = useState('');
+  const [restaurantSearchName, setRestaurantSearchName] = useState('');
+  const [restaurantSearchResults, setRestaurantSearchResults] = useState<any[] | null>(null);
+  const [isSearchingRestaurants, setIsSearchingRestaurants] = useState(false);
+
+  // Load master data on mount
+  useEffect(() => {
+    async function loadData() {
+      setLoadingMaster(true);
+      try {
+        const assignedHotelIds = itinerary
+          .filter(b => b.type === 'sleep' && b.hotelId)
+          .map(b => b.hotelId as string);
+
+        const [h, v, d, g, r, tp, act, markupRes] = await Promise.all([
+          getAssignedHotelsAction(assignedHotelIds),
+          getVendorsAction(),
+          getDriversAction(),
+          getTourGuidesAction(),
+          getRestaurantsAction(),
+          getTransportProvidersAction(),
+          getActivitiesAction(),
+          getAppMarkupsAction()
+        ]);
+        setMasterData({
+          hotels: h.success ? h.hotels : [],
+          vendors: v.success ? v.vendors : [],
+          drivers: d.success ? d.drivers : [],
+          guides: g.success ? g.guides : [],
+          restaurants: r.success ? r.restaurants : [],
+          transportProviders: tp.success ? tp.providers : [],
+          activities: act.success ? (act.data || (act as any).activities || []) : []
+        });
+        if (markupRes && markupRes.success && markupRes.markups) {
+          setMarkups(markupRes.markups);
+          setRoomMarkup(markupRes.markups.room_markup ?? 10);
+        }
+      } catch (err) {
+        console.error("Failed to load master data for assignment:", err);
+      } finally {
+        setLoadingMaster(false);
+      }
+    }
+    if (tourId) {
+      loadData();
+    }
+  }, [tourId]);
+
+  const handleSearchHotels = async () => {
+    setIsSearchingHotels(true);
+    try {
+      const res = await searchHotelsAction(hotelSearchCity, hotelSearchName);
+      if (res.success && res.hotels) {
+        setHotelSearchResults(res.hotels);
+        // Merge into masterData.hotels
+        setMasterData((prev: any) => {
+          const existingIds = new Set(prev.hotels.map((h: any) => h.id));
+          const newHotels = res.hotels.filter((h: any) => !existingIds.has(h.id));
+          return { ...prev, hotels: [...prev.hotels, ...newHotels] };
+        });
+      } else {
+        setHotelSearchResults([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setHotelSearchResults([]);
+    } finally {
+      setIsSearchingHotels(false);
+    }
+  };
+
+  const handleSearchRestaurants = async () => {
+    setIsSearchingRestaurants(true);
+    try {
+      const combinedSearch = `${restaurantSearchCity} ${restaurantSearchName}`.trim();
+      const res = await searchRestaurantsAction(combinedSearch);
+      if (res.success && res.restaurants) {
+        setRestaurantSearchResults(res.restaurants);
+        // Merge into masterData.restaurants
+        setMasterData((prev: any) => {
+          const existingIds = new Set(prev.restaurants.map((r: any) => r.id));
+          const newRestaurants = res.restaurants.filter((r: any) => !existingIds.has(r.id));
+          return { ...prev, restaurants: [...prev.restaurants, ...newRestaurants] };
+        });
+      } else {
+        setRestaurantSearchResults([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setRestaurantSearchResults([]);
+    } finally {
+      setIsSearchingRestaurants(false);
+    }
+  };
+
+  const updateBlock = (id: string, fields: Partial<InternalItineraryBlock>) => {
+    setItinerary(prev => prev.map(b => b.id === id ? { ...b, ...fields } : b));
+  };
+
+  const bindProvider = (blockId: string, field: keyof InternalItineraryBlock, value: any) => {
+    const block = itinerary.find(b => b.id === blockId);
+    if (!block) return;
+
+    // Sync logic for hotels
+    if (field === 'hotelId' && block.type === 'sleep') {
+      const hotel = masterData.hotels.find((h: any) => h.id === value);
+      if (hotel) {
+        // Auto-populate cover image if available
+        const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || block.imageUrl || '');
+        
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
+          hotelId: value,
+          hotelName: hotel.name,
+          imageUrl: autoImageUrl,
+          // reset room specific selections if switching to a different hotel
+          ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB', agreedPrice: undefined } : {})
+        } : b));
+      }
+    }
+
+    // Sync logic for restaurants
+    else if (field === 'restaurantId' && block.type === 'meal') {
+      const restaurant = masterData.restaurants.find((r: any) => r.id === value);
+      if (restaurant) {
+        const contractedRate = restaurant.lunch_rate_per_head || 25;
+        const markupPercent = markups.restaurant_markup ?? 10;
+        const agreedPrice = contractedRate * (1 + markupPercent / 100);
+        
+        setItinerary(prev => prev.map(b => b.id === blockId ? { 
+          ...b, 
+          restaurantId: value,
+          contractedPrice: contractedRate,
+          agreedPrice: agreedPrice
+        } : b));
+      }
+    }
+
+    // Sync logic for activities (Vendors)
+    else if (field === 'vendorId' && block.type === 'activity') {
+      const vendor = masterData.vendors.find((v: any) => v.id === value);
+      if (vendor) {
+        const blockActivityId = block.activityId || (() => {
+          if (!block.name) return undefined;
+          const cleanWords = (str: string) => {
+            return str.toLowerCase()
+              .replace(/[^\w\s]/g, '')
+              .split(/\s+/)
+              .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+          };
+          const blockWords = cleanWords(block.name);
+          if (blockWords.length === 0) return undefined;
+
+          let bestMatch: any = null;
+          let maxOverlap = 0;
+          masterData.activities.forEach((a: any) => {
+            const actWords = cleanWords(a.activity_name);
+            const overlap = blockWords.filter(w => actWords.includes(w)).length;
+            if (overlap > maxOverlap) {
+              maxOverlap = overlap;
+              bestMatch = a;
+            }
+          });
+          return maxOverlap > 0 ? bestMatch?.id : undefined;
+        })();
+
+        const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(blockActivityId));
+        
+        // Auto-populate cover image if available
+        const activityDetail = masterData.activities.find((a: any) => Number(a.id) === Number(blockActivityId));
+        const autoImageUrl = (activityDetail?.images && activityDetail.images.length > 0) 
+          ? activityDetail.images[0] 
+          : (block.imageUrl || '');
+
+        if (va) {
+          const markupPercent = markups.vendor_activity_markup ?? 10;
+          const contractedRate = va.vendor_price || 0;
+          const agreedPrice = contractedRate * (1 + markupPercent / 100);
+
+          setItinerary(prev => prev.map(b => b.id === blockId ? {
+            ...b,
+            vendorId: value,
+            activityId: blockActivityId,
+            vendorActivityId: va.id,
+            contractedPrice: contractedRate,
+            agreedPrice: agreedPrice,
+            imageUrl: autoImageUrl
+          } : b));
+        } else {
+          setItinerary(prev => prev.map(b => b.id === blockId ? {
+            ...b,
+            vendorId: value,
+            activityId: blockActivityId,
+            vendorActivityId: undefined,
+            contractedPrice: undefined,
+            agreedPrice: undefined,
+            imageUrl: autoImageUrl
+          } : b));
+        }
+      }
+    }
+
+    // Sync logic for transport defaults
+    else if (field === 'transportId' && block.type === 'travel') {
+      const provider = masterData.transportProviders.find((p: any) => p.id === value);
+      if (provider) {
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
+          transportId: value,
+          transportRateType: 'day',
+          transportQuantity: 1
+        } : b));
+      }
+    }
+  };
+
+  const getBindingDisplay = (block: InternalItineraryBlock) => {
+    if (block.type === 'sleep' && block.hotelId) {
+      const h = masterData.hotels.find((x: any) => x.id === block.hotelId);
+      let label = h?.name || block.hotelName || 'Linked Hotel';
+      if (block.roomName) {
+        label += ` - ${block.roomName}`;
+      }
+      if (block.mealPlan) {
+        label += ` (${block.mealPlan})`;
+      }
+      return {
+        name: label,
+        icon: <BedDouble className="w-3.5 h-3.5 text-indigo-500" />,
+        contact: h ? {
+          name: h.sales_agent_name || h.reservation_agent_name || h.gm_name || 'Reservations / Sales',
+          phone: h.sales_agent_contact || h.reservation_agent_contact || h.gm_contact || ''
+        } : undefined
+      };
+    }
+    if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId || block.name)) {
+      const v = masterData.vendors.find((x: any) => x.id === block.vendorId);
+      const resolvedActId = block.activityId || (() => {
+        if (!block.name) return undefined;
+        const cleanWords = (str: string) => {
+          return str.toLowerCase()
+            .replace(/[^\w\s]/g, '')
+            .split(/\s+/)
+            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+        };
+        const blockWords = cleanWords(block.name);
+        if (blockWords.length === 0) return undefined;
+
+        let bestMatch: any = null;
+        let maxOverlap = 0;
+        masterData.activities.forEach((a: any) => {
+          const actWords = cleanWords(a.activity_name);
+          const overlap = blockWords.filter(w => actWords.includes(w)).length;
+          if (overlap > maxOverlap) {
+            maxOverlap = overlap;
+            bestMatch = a;
+          }
+        });
+        return maxOverlap > 0 ? bestMatch?.id : undefined;
+      })();
+      const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                 v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+
+      if (v) {
+        const activityLabel = va?.activity_name || block.name || 'Activity';
+        const price = block.agreedPrice !== undefined ? block.agreedPrice : va?.vendor_price;
+
+        let label = `${v.name} - ${activityLabel}`;
+        if (price) label += ` ($${price.toLocaleString()})`;
+        return {
+          name: label,
+          icon: <Compass className="w-3.5 h-3.5 text-orange-500" />,
+          contact: { name: 'Vendor', phone: v.phone || '' }
+        };
+      }
+
+      let fallbackLabel = block.name || 'Linked Activity';
+      if (block.agreedPrice) fallbackLabel += ` ($${block.agreedPrice.toLocaleString()})`;
+
+      return { name: fallbackLabel, icon: <Compass className="w-3.5 h-3.5 text-orange-500" /> };
+    }
+    if (block.type === 'travel' && (block.driverId || block.transportId || block.vehicleId)) {
+      const d = masterData.drivers.find((x: any) => x.id === block.driverId);
+      const p = masterData.transportProviders.find((x: any) => x.id === block.transportId);
+      const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
+
+      let label = p?.name || 'Transport Provider';
+      let contact = undefined;
+      if (v) {
+        label = `${p?.name || ''} - ${v.make_and_model || v.vehicle_type}`;
+        if (block.transportQuantity) {
+          label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
+        }
+        if (v.with_driver) label += ' [Incl. Driver]';
+        else if (d) label += ` [Driver: ${d.first_name}]`;
+
+        if (d) contact = { name: `${d.first_name} (Driver)`, phone: d.phone || '' };
+        else if (p) contact = { name: p.name, phone: p.phone || '' };
+
+      } else if (d) {
+        label = `Driver: ${d.first_name} ${d.last_name}`;
+        contact = { name: `${d.first_name} (Driver)`, phone: d.phone || '' };
+      } else if (p) {
+        contact = { name: p.name, phone: p.phone || '' };
+      }
+
+      return { name: label, icon: <Car className="w-3.5 h-3.5 text-blue-500" />, contact };
+    }
+    if (block.type === 'guide' && block.guideId) {
+      const g = masterData.guides.find((x: any) => x.id === block.guideId);
+      return {
+        name: g ? `${g.first_name} ${g.last_name}` : 'Linked Guide',
+        icon: <UserCheck className="w-3.5 h-3.5 text-amber-500" />,
+        contact: g ? { name: g.first_name, phone: g.phone || '' } : undefined
+      };
+    }
+    if (block.type === 'meal' && block.restaurantId) {
+      const r = masterData.restaurants.find((x: any) => x.id === block.restaurantId);
+      let label = r?.name || 'Linked Restaurant';
+      if (block.mealType) label += ` - ${block.mealType}`;
+      if (block.agreedPrice) label += ` ($${block.agreedPrice.toLocaleString()})`;
+      return {
+        name: label,
+        icon: <Utensils className="w-3.5 h-3.5 text-green-500" />,
+        contact: r ? { name: r.contact_name || r.name, phone: r.contact_number || '' } : undefined
+      };
+    }
+    return null;
+  };
+
+  const filteredMasterData = useMemo(() => {
+    if (!activeAssignment) return [];
+    const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+
+    const checkMatch = (fields: (string | undefined | null)[]) => {
+      if (terms.length === 0) return true;
+      const combined = fields.filter(f => f).map(f => f!.toLowerCase()).join(' ');
+      return terms.every(t => combined.includes(t));
+    };
+
+    switch (activeAssignment.type) {
+      case 'sleep':
+        return masterData.hotels.filter((h: any) => checkMatch([h.name, h.closest_city, h.location_address]));
+      case 'activity':
+        return masterData.vendors.filter((v: any) => {
+          const activityStrings = v.vendor_activities?.flatMap((va: any) => {
+            const actData = (va as any).activities || (va as any).activity;
+            return [
+              va.activity_name,
+              actData?.location_name,
+              actData?.district
+            ];
+          }) || [];
+          return checkMatch([v.name, v.address, ...activityStrings]);
+        });
+      case 'meal':
+        return masterData.restaurants.filter((r: any) => checkMatch([r.name, r.address, r.city, r.district]));
+      case 'travel':
+        return {
+          providers: masterData.transportProviders.filter((p: any) => checkMatch([p.name, p.address])),
+          drivers: masterData.drivers.filter((d: any) => checkMatch([d.first_name, d.last_name]))
+        };
+      case 'guide':
+        return masterData.guides.filter((g: any) => checkMatch([g.first_name, g.last_name]));
+      default:
+        return [];
+    }
+  }, [activeAssignment, searchTerm, masterData]);
+
+  const handleCopyRatePrompt = (block: InternalItineraryBlock) => {
+    if (block.type !== 'sleep' || !block.hotelId) return;
+    const hotel = masterData.hotels.find((h: any) => h.id === block.hotelId);
+    if (!hotel) return;
+
+    let checkInStr = "<check_in_date>";
+    let checkOutStr = "<check_out_date>";
+    
+    if (arrivalDate) {
+      const checkInDate = new Date(arrivalDate);
+      checkInDate.setDate(checkInDate.getDate() + (block.dayNumber - 1));
+      
+      const checkOutDate = new Date(checkInDate);
+      checkOutDate.setDate(checkOutDate.getDate() + 1);
+
+      checkInStr = checkInDate.toISOString().split('T')[0];
+      checkOutStr = checkOutDate.toISOString().split('T')[0];
+    }
+
+    const hotelName = hotel.name || "<hotel_name>";
+    const hotelLocation = hotel.closest_city || "<hotel_location>";
+    const mealPlan = block.mealPlan || "BB";
+
+    const prompt = `Could you please provide the rate for a stay at ${hotelName} in ${hotelLocation} for ${adults} adults and ${children} children, from ${checkInStr} to ${checkOutStr}, on a ${mealPlan} basis?`;
+    
+    navigator.clipboard.writeText(prompt);
+    window.alert("Rate prompt copied to clipboard:\n\n" + prompt);
+  };
 
   const getCardAccentBorder = (type: InternalItineraryBlock['type']) => {
     switch (type) {
@@ -3113,6 +3571,12 @@ function AIItineraryBuilder({
       <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-full filter blur-3xl -translate-y-12 translate-x-12 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-amber-500/5 to-emerald-500/5 rounded-full filter blur-3xl translate-y-12 -translate-x-12 pointer-events-none" />
 
+      {/* Title & Description Header Section */}
+      <div className="relative border-b border-neutral-100 pb-5">
+        <h3 className="text-2xl font-serif font-extrabold text-neutral-800 tracking-tight">AI Itinerary Builder</h3>
+        <p className="text-xs text-neutral-500/90 font-medium leading-relaxed max-w-3xl mt-1">Design a customized flat skeleton itinerary. Refine parameters, pacing rules, and let Gemini route day-by-day plans.</p>
+      </div>
+
       {/* Cooperative Lock Warning Banner */}
       {isLockedByOther && (
         <div className="relative bg-rose-50/70 border border-rose-200/80 text-rose-900 rounded-2xl p-5 flex items-start gap-4 shadow-sm animate-in fade-in duration-200">
@@ -3129,14 +3593,9 @@ function AIItineraryBuilder({
         </div>
       )}
 
-      {/* Header with AI Generator Button */}
-      <div className="relative border-b border-neutral-100 pb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-        <div>
-          <h3 className="text-2xl font-serif font-extrabold text-neutral-800 tracking-tight">AI Itinerary Builder</h3>
-          <p className="text-xs text-neutral-500/90 font-medium leading-relaxed max-w-2xl mt-1">Design a customized flat skeleton itinerary. Refine parameters, pacing rules, and let Gemini route day-by-day plans.</p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
+      {/* Toolbar Controls Section */}
+      <div className="relative border-b border-neutral-100 pb-5 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3 w-full">
           {/* Travel Style Dropdown */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Style:</span>
@@ -3829,8 +4288,8 @@ function AIItineraryBuilder({
                   {/* Image display & Image Uploading & Discussion controls */}
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-dashed border-neutral-200">
                     
-                    {/* Left side: Upload Button & Image thumbnail */}
-                    <div className="flex items-center gap-3">
+                    {/* Left side: Upload Button & Image thumbnail AND Bind Provider */}
+                    <div className="flex items-center gap-3 flex-wrap">
                       {block.imageUrl ? (
                         <div className="relative group/img w-16 h-12 rounded-xl border border-neutral-200/80 overflow-hidden shadow-sm transition-all duration-300 hover:scale-105">
                           <img
@@ -3871,6 +4330,55 @@ function AIItineraryBuilder({
                           />
                         </label>
                       )}
+
+                      {/* Binder Control */}
+                      {['sleep', 'activity', 'meal', 'travel', 'guide'].includes(block.type) && (() => {
+                        const binding = getBindingDisplay(block);
+                        if (!binding) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveAssignment({ blockId: block.id, type: block.type });
+                                setSearchTerm("");
+                              }}
+                              disabled={isLockedByOther}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[10px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                            >
+                              <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                              <span>Bind Provider</span>
+                            </button>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveAssignment({ blockId: block.id, type: block.type });
+                                setSearchTerm("");
+                              }}
+                              disabled={isLockedByOther}
+                              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/80 text-[10px] font-extrabold text-neutral-700 transition-all shadow-sm max-w-[200px] truncate disabled:opacity-50"
+                              title="Edit binding"
+                            >
+                              {binding.icon}
+                              <span className="truncate">{binding.name}</span>
+                            </button>
+
+                            {block.type === 'sleep' && block.hotelId && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyRatePrompt(block)}
+                                className="p-2 hover:bg-neutral-100 text-neutral-500 hover:text-indigo-600 rounded-xl border border-neutral-200/60 shadow-sm transition-all"
+                                title="Copy ChatGPT Rate Prompt"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Right side: Comments button */}
@@ -3993,6 +4501,849 @@ function AIItineraryBuilder({
           appSettings={appSettings}
         />
       </div>
+
+      {/* Assignment Drawer Overlay */}
+      {activeAssignment && (() => {
+        const activeBlock = itinerary.find(b => b.id === activeAssignment.blockId);
+        if (!activeBlock) return null;
+
+        const dayNumber = activeBlock.dayNumber;
+        let stayDate = "";
+        if (arrivalDate) {
+          try {
+            const d = new Date(arrivalDate);
+            d.setDate(d.getDate() + (dayNumber - 1));
+            stayDate = d.toISOString().split('T')[0];
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        const calculateRoomPrice = (hotel: any, room: any, mealPlan: string, roomType: string) => {
+          let baseRate = 0;
+          let seasonLabel = "Standard";
+          if (room.room_rates && room.room_rates.length > 0) {
+            const applicableRates = room.room_rates.filter((r: any) => {
+              if (!stayDate) return true;
+              if (r.start_date) {
+                if (stayDate < r.start_date) return false;
+                if (r.end_date && stayDate > r.end_date) return false;
+                return true;
+              }
+              return true;
+            }).sort((a: any, b: any) => {
+              const aHasDates = a.start_date ? 1 : 0;
+              const bHasDates = b.start_date ? 1 : 0;
+              return bHasDates - aHasDates;
+            });
+            
+            const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
+            
+            if (ratesToSearch.length > 0) {
+              let prefix = 'dbl';
+              if (roomType === 'Single') prefix = 'sgl';
+              else if (roomType === 'Double' || roomType === 'Twin') prefix = 'dbl';
+              else if (roomType === 'Triple') prefix = 'tpl';
+              else if (roomType === 'Family') prefix = 'qud';
+
+              const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
+              const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
+              
+              if (matrixRateObj) {
+                baseRate = matrixRateObj[fieldName];
+                if (matrixRateObj.start_date) seasonLabel = `Rate applied`;
+              } else {
+                const fallbackFields = [`${prefix}_bb_rate`, `${prefix}_hb_rate`, `${prefix}_fb_rate`, `${prefix}_ai_rate`];
+                let lowestRate = Infinity;
+                let foundDate = false;
+                
+                ratesToSearch.forEach((r: any) => {
+                  fallbackFields.forEach(ff => {
+                    if (r[ff] !== undefined && r[ff] !== null && r[ff] > 0) {
+                      if (r[ff] < lowestRate) {
+                        lowestRate = r[ff];
+                        if (r.start_date) foundDate = true;
+                      }
+                    }
+                  });
+                });
+                
+                if (lowestRate !== Infinity) {
+                  baseRate = lowestRate;
+                  if (foundDate) seasonLabel = `Rate applied`;
+                } else {
+                  baseRate = 0;
+                }
+              }
+            }
+          }
+          return { total: baseRate, seasonLabel };
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md h-full bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
+              
+              {/* Header */}
+              <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-lg font-serif font-black text-emerald-900 uppercase tracking-wide">Assign Specialist</h4>
+                    <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">Provider Database for {activeAssignment.type.toUpperCase()} segments</p>
+                  </div>
+                  <button 
+                    onClick={() => { setActiveAssignment(null); setSearchTerm(""); }} 
+                    className="p-2 hover:bg-neutral-50 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                {activeAssignment.type === 'sleep' && stayDate && (
+                  <div className="mt-2.5 text-[10px] text-emerald-800 font-mono bg-emerald-50 border border-emerald-100/60 p-2 rounded-xl">
+                    Day {dayNumber} Stay | Date: {stayDate}
+                  </div>
+                )}
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 flex-1 overflow-y-auto space-y-5">
+                
+                {/* Search Bar (non-hotel & non-restaurant types) */}
+                {activeAssignment.type !== 'sleep' && activeAssignment.type !== 'meal' && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 text-neutral-400" size={16} />
+                    <input
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      placeholder={`Search ${activeAssignment.type} database...`}
+                      className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-inner"
+                    />
+                  </div>
+                )}
+
+                {/* Hotel Search Form */}
+                {activeAssignment.type === 'sleep' && (
+                  <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
+                        <input
+                          value={hotelSearchCity}
+                          onChange={e => setHotelSearchCity(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
+                          placeholder="E.g. Colombo"
+                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Hotel Name</label>
+                        <input
+                          value={hotelSearchName}
+                          onChange={e => setHotelSearchName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
+                          placeholder="Optional name"
+                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSearchHotels}
+                      disabled={!hotelSearchCity.trim() || isSearchingHotels}
+                      className="w-full py-2 bg-emerald-800 hover:bg-emerald-950 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {isSearchingHotels ? "Searching..." : "Search Hotels"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Restaurant Search Form */}
+                {activeAssignment.type === 'meal' && (
+                  <div className="bg-neutral-50/55 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
+                        <input
+                          value={restaurantSearchCity}
+                          onChange={e => setRestaurantSearchCity(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
+                          placeholder="E.g. Colombo"
+                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Restaurant Name</label>
+                        <input
+                          value={restaurantSearchName}
+                          onChange={e => setRestaurantSearchName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
+                          placeholder="Optional name"
+                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSearchRestaurants}
+                      disabled={!restaurantSearchCity.trim() || isSearchingRestaurants}
+                      className="w-full py-2 bg-emerald-800 hover:bg-emerald-955 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {isSearchingRestaurants ? "Searching..." : "Search Restaurants"}
+                    </button>
+                  </div>
+                )}
+
+                <div className="divide-y divide-neutral-100 border border-neutral-200/80 rounded-2xl overflow-hidden shadow-sm bg-white">
+                  
+                  {/* Hotel List */}
+                  {activeAssignment.type === 'sleep' && (() => {
+                    const assignedHotelId = activeBlock.hotelId;
+                    let dataToRender = hotelSearchResults !== null ? [...hotelSearchResults] : [];
+                    if (assignedHotelId && !dataToRender.some(h => h.id === assignedHotelId)) {
+                      const currentHotel = masterData.hotels.find((h: any) => h.id === assignedHotelId);
+                      if (currentHotel) {
+                        dataToRender = [currentHotel, ...dataToRender];
+                      }
+                    }
+
+                    if (hotelSearchResults === null && !assignedHotelId) {
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view available hotels.</div>;
+                    }
+
+                    if (dataToRender.length === 0) {
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">No hotels found. Try adjusting your search.</div>;
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {dataToRender.map((h: any) => {
+                          const isSelected = assignedHotelId === h.id;
+                          const rooms = h.hotel_rooms || [];
+                          
+                          const applicableRates = rooms.flatMap((r: any) => {
+                            if (!r.room_rates || r.room_rates.length === 0) return [];
+                            return r.room_rates.filter((rr: any) => {
+                              if (!stayDate) return true;
+                              if (rr.start_date) {
+                                if (stayDate < rr.start_date) return false;
+                                if (rr.end_date && stayDate > rr.end_date) return false;
+                                return true;
+                              }
+                              return true;
+                            }).sort((a: any, b: any) => {
+                              const aHasDates = a.start_date ? 1 : 0;
+                              const bHasDates = b.start_date ? 1 : 0;
+                              return bHasDates - aHasDates;
+                            }).flatMap((rr: any) => {
+                              return [
+                                rr.sgl_bb_rate, rr.sgl_hb_rate, rr.sgl_fb_rate, rr.sgl_ai_rate,
+                                rr.dbl_bb_rate, rr.dbl_hb_rate, rr.dbl_fb_rate, rr.dbl_ai_rate,
+                                rr.tpl_bb_rate, rr.tpl_hb_rate, rr.tpl_fb_rate, rr.tpl_ai_rate,
+                                rr.qud_bb_rate, rr.qud_hb_rate, rr.qud_fb_rate, rr.qud_ai_rate
+                              ].filter(v => v && v > 0);
+                            });
+                          }).filter((rate: any) => rate && rate > 0);
+
+                          const minRate = applicableRates.length > 0 ? Math.min(...applicableRates) : (h.base_rate || 0);
+
+                          const amenities = [
+                            { key: 'internet', icon: <Wifi className="w-3 h-3 text-neutral-400" />, label: 'WiFi' },
+                            { key: 'outdoor_pool', icon: <Waves className="w-3 h-3 text-neutral-400" />, label: 'Pool' },
+                            { key: 'wellness', icon: <HeartPulse className="w-3 h-3 text-neutral-400" />, label: 'Spa' },
+                            { key: 'business_facility', icon: <Briefcase className="w-3 h-3 text-neutral-400" />, label: 'Business' },
+                            { key: 'airport_shuttle', icon: <Plane className="w-3 h-3 text-neutral-400" />, label: 'Shuttle' },
+                            { key: 'parking', icon: <Car className="w-3 h-3 text-neutral-400" />, label: 'Parking' },
+                          ].filter(a => h[a.key]);
+
+                          return (
+                            <div key={h.id} className="space-y-3">
+                              <button 
+                                onClick={() => bindProvider(activeAssignment.blockId, 'hotelId', h.id)}
+                                className={`w-full p-4 rounded-xl border text-left transition-all flex flex-col gap-3 ${
+                                  isSelected 
+                                    ? 'border-emerald-800 bg-emerald-50/10 shadow-sm ring-2 ring-emerald-800/10' 
+                                    : 'border-neutral-200 bg-white hover:border-emerald-800/50'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start w-full">
+                                  <div className="flex-1 min-w-0 pr-4">
+                                    <p className="font-bold text-xs text-neutral-800 truncate">{h.name}</p>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <MapPin size={10} className="text-neutral-400" />
+                                      <span className="text-[9px] text-neutral-500 font-medium">{h.closest_city}</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex flex-col items-end">
+                                    <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Starting From</span>
+                                    <span className="text-xs font-black text-neutral-800">${minRate}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-1.5">
+                                  {amenities.map(a => (
+                                    <div key={a.key} className="flex items-center gap-1 px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100">
+                                      {a.icon}
+                                      <span className="text-[8px] font-bold text-neutral-500">{a.label}</span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {isSelected && (
+                                  <div className="w-full flex items-center justify-center gap-1.5 py-1 bg-emerald-50/60 rounded-lg border border-emerald-250/20">
+                                    <CheckCircle2 size={12} className="text-emerald-800" />
+                                    <span className="text-[9px] font-black text-emerald-800 uppercase">Currently Assigned</span>
+                                  </div>
+                                )}
+                              </button>
+
+                              {isSelected && (
+                                <div className="space-y-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200/60 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Select Room Category & Meal Plan</span>
+                                  {rooms.map((room: any) => {
+                                    const isRoomSelectedHere = activeBlock.roomName === room.room_name;
+                                    const currentMealPlan = activeBlock.mealPlan || 'BB';
+                                    return (
+                                      <div key={room.id} className={`p-3 rounded-xl border bg-white space-y-2.5 transition-all ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}>
+                                        <div className="flex justify-between items-start">
+                                          <div>
+                                            <p className="text-xs font-bold text-neutral-850">{room.room_name}</p>
+                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider mt-0.5">{room.room_standard} &bull; Max {room.max_guests} Pax</p>
+                                          </div>
+                                          {isRoomSelectedHere && (
+                                            <span className="text-[8px] bg-emerald-850 text-white font-extrabold px-1.5 py-0.5 rounded tracking-wider uppercase">Active</span>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-100">
+                                          <div className="flex bg-neutral-100 p-0.5 rounded-lg border border-neutral-200/50">
+                                            {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => {
+                                              const pricing = calculateRoomPrice(h, room, mp, 'Double');
+                                              const hasRate = pricing.total > 0;
+                                              return (
+                                                <button
+                                                  key={mp}
+                                                  disabled={!hasRate}
+                                                  onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const p = calculateRoomPrice(h, room, mp, 'Double');
+                                                    const baseRate = p.total * (1 + roomMarkup / 100);
+                                                    updateBlock(activeAssignment.blockId, {
+                                                      roomName: room.room_name,
+                                                      mealPlan: mp,
+                                                      baseRoomRate: baseRate,
+                                                      agreedPrice: undefined
+                                                    });
+                                                  }}
+                                                  className={`px-2 py-1 text-[9px] font-black rounded transition-all ${
+                                                    isRoomSelectedHere && currentMealPlan === mp
+                                                      ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-black/5'
+                                                      : 'text-neutral-500 hover:text-neutral-700 disabled:opacity-30'
+                                                  }`}
+                                                >
+                                                  {mp}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                          
+                                          {(() => {
+                                            const pricing = calculateRoomPrice(h, room, currentMealPlan, 'Double');
+                                            const contractedPrice = pricing.total;
+                                            const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
+                                            return (
+                                              <div className="text-right">
+                                                <span className="text-xs font-black text-neutral-800">${agreedUnitPrice.toFixed(0)}</span>
+                                                <span className="text-[9px] text-neutral-450 font-bold ml-1.5 line-through">${contractedPrice.toFixed(0)}</span>
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
+                                        
+                                        {!isRoomSelectedHere && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const mp = activeBlock.mealPlan || 'BB';
+                                              const pricing = calculateRoomPrice(h, room, mp, 'Double');
+                                              const baseRate = pricing.total * (1 + roomMarkup / 100);
+                                              updateBlock(activeAssignment.blockId, {
+                                                roomName: room.room_name,
+                                                mealPlan: mp,
+                                                baseRoomRate: baseRate,
+                                                agreedPrice: undefined
+                                              });
+                                            }}
+                                            className="w-full py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[10px] font-bold rounded-lg transition-all"
+                                          >
+                                            Select Category
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  {rooms.length === 0 && (
+                                    <span className="text-[10px] text-neutral-400 italic">No room categories configured.</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Activity List */}
+                  {activeAssignment.type === 'activity' && (() => {
+                    const resolvedActId = activeBlock.activityId || (() => {
+                      if (!activeBlock.name) return undefined;
+                      const cleanWords = (str: string) => {
+                        return str.toLowerCase()
+                          .replace(/[^\w\s]/g, '')
+                          .split(/\s+/)
+                          .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+                      };
+                      const blockWords = cleanWords(activeBlock.name);
+                      if (blockWords.length === 0) return undefined;
+
+                      let bestMatch: any = null;
+                      let maxOverlap = 0;
+                      masterData.activities.forEach((a: any) => {
+                        const actWords = cleanWords(a.activity_name);
+                        const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                        if (overlap > maxOverlap) {
+                          maxOverlap = overlap;
+                          bestMatch = a;
+                        }
+                      });
+                      return maxOverlap > 0 ? bestMatch?.id : undefined;
+                    })();
+
+                    const baseActivity = masterData.activities.find((a: any) => Number(a.id) === Number(resolvedActId));
+
+                    const specializedVendorsUnfiltered = masterData.vendors.filter((v: any) =>
+                      v.vendor_activities?.some((va: any) => 
+                        (activeBlock.vendorActivityId && va.id === activeBlock.vendorActivityId) ||
+                        (resolvedActId && Number(va.activity_id) === Number(resolvedActId))
+                      )
+                    );
+
+                    const specializedVendors = specializedVendorsUnfiltered.filter((v: any) =>
+                      (filteredMasterData as any[]).some((fv: any) => fv.id === v.id)
+                    );
+
+                    const otherVendors = (filteredMasterData as any[]).filter((v: any) =>
+                      !specializedVendorsUnfiltered.some((sv: any) => sv.id === v.id)
+                    );
+
+                    return (
+                      <>
+                        {baseActivity && (
+                          <div className="mx-4 mt-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-white rounded-xl shadow-sm border border-neutral-100">
+                                <Compass className="w-5 h-5 text-emerald-800" />
+                              </div>
+                              <div className="flex-1">
+                                <h5 className="text-xs font-bold text-neutral-800">{baseActivity.activity_name}</h5>
+                                <p className="text-[9px] text-neutral-500 font-bold mt-0.5 flex items-center gap-1">
+                                  <MapPin size={10} /> {baseActivity.location_name}, {baseActivity.district}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-4">
+                          Specialist Vendors ({specializedVendors.length})
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 p-4">
+                          {specializedVendors.map((v: any) => {
+                            const isSelected = activeBlock.vendorId === v.id;
+                            const va = v.vendor_activities?.find((a: any) => a.id === activeBlock.vendorActivityId) ||
+                                       v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
+                            return (
+                              <button 
+                                key={v.id} 
+                                type="button"
+                                onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
+                                className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'border-emerald-800 bg-emerald-50/10' 
+                                    : 'border-neutral-200 bg-white hover:border-emerald-800/30'
+                                }`}
+                              >
+                                <div className="flex-1">
+                                  <p className="font-bold text-xs text-neutral-800">{v.name}</p>
+                                  {va && <p className="text-[10px] font-extrabold text-emerald-800 mt-1">${va.vendor_price?.toLocaleString()}</p>}
+                                </div>
+                                <ChevronRight size={16} className={isSelected ? 'text-emerald-800' : 'text-neutral-300'} />
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {otherVendors.length > 0 && (
+                          <>
+                            <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-2">
+                              Other Matching Vendors ({otherVendors.length})
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 p-4">
+                              {otherVendors.map((v: any) => {
+                                const isSelected = activeBlock.vendorId === v.id;
+                                const va = v.vendor_activities?.find((a: any) => a.id === activeBlock.vendorActivityId) ||
+                                           v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
+                                return (
+                                  <button 
+                                    key={'other-' + v.id} 
+                                    type="button"
+                                    onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
+                                    className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between opacity-80 hover:opacity-100 ${
+                                      isSelected 
+                                        ? 'border-emerald-800 bg-emerald-50/10' 
+                                        : 'border-neutral-200 bg-white hover:border-emerald-800/30'
+                                    }`}
+                                  >
+                                    <div className="flex-1">
+                                      <p className="font-bold text-xs text-neutral-800">{v.name}</p>
+                                      {va && <p className="text-[10px] font-extrabold text-emerald-800 mt-1">${va.vendor_price?.toLocaleString()}</p>}
+                                      <p className="text-[9px] font-bold text-neutral-400 mt-1 flex items-center gap-1"><MapPin size={10} /> {v.address || 'Address Unknown'}</p>
+                                    </div>
+                                    <div className="text-[8px] uppercase font-extrabold text-neutral-400 px-2 py-1 bg-neutral-100 rounded-md">General</div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  {/* Travel List */}
+                  {activeAssignment.type === 'travel' && (() => {
+                    const providers = (filteredMasterData as any).providers || [];
+                    const drivers = (filteredMasterData as any).drivers || [];
+                    
+                    return (
+                      <>
+                        <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-b">
+                          Transport Providers
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 p-4">
+                          {providers.map((tp: any) => {
+                            const isSelected = activeBlock.transportId === tp.id;
+                            return (
+                              <div key={tp.id} className="space-y-2">
+                                <button 
+                                  type="button"
+                                  onClick={() => bindProvider(activeAssignment.blockId, 'transportId', tp.id)}
+                                  className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                                    isSelected 
+                                      ? 'border-sky-600 bg-sky-50/30 ring-1 ring-sky-500/10' 
+                                      : 'border-neutral-200 bg-white hover:border-sky-450'
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="font-bold text-xs text-neutral-805">{tp.name}</p>
+                                    <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-tight">{tp.transport_vehicles?.length || 0} Assets Available</p>
+                                  </div>
+                                  {isSelected && <div className="w-2 h-2 bg-sky-550 rounded-full" />}
+                                </button>
+
+                                {isSelected && tp.transport_vehicles && tp.transport_vehicles.length > 0 && (
+                                  <div className="bg-neutral-50 rounded-2xl p-3 space-y-3 border border-neutral-200 mx-1 shadow-inner">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      {tp.transport_vehicles.map((v: any) => {
+                                        const isVehicleSelected = activeBlock.vehicleId === v.id;
+                                        return (
+                                          <button
+                                            key={v.id}
+                                            type="button"
+                                            onClick={() => {
+                                              const updates: Partial<InternalItineraryBlock> = {
+                                                vehicleId: v.id,
+                                                transportId: tp.id,
+                                                transportRateType: 'day',
+                                                transportQuantity: 1
+                                              };
+                                              if (v.with_driver) {
+                                                updates.driverId = undefined;
+                                              }
+                                              updateBlock(activeAssignment.blockId, updates);
+                                            }}
+                                            className={`w-full p-3 rounded-xl border text-left transition-all flex flex-col gap-2 shadow-sm ${
+                                              isVehicleSelected
+                                                ? 'bg-white border-sky-500 ring-1 ring-sky-500/10'
+                                                : 'bg-white/70 border-neutral-100 hover:border-sky-400/30'
+                                            }`}
+                                          >
+                                            <div className="flex justify-between items-start w-full">
+                                              <div className="flex-1">
+                                                <p className="text-xs font-bold text-neutral-800">{v.make_and_model || v.vehicle_type}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                  <span className="text-[9px] bg-neutral-150 px-1.5 py-0.5 rounded text-neutral-500 font-bold uppercase tracking-wider">{v.vehicle_number}</span>
+                                                  {v.with_driver && <span className="text-[9px] bg-green-50 px-1.5 py-0.5 rounded text-green-600 font-bold uppercase">Incl. Driver</span>}
+                                                </div>
+                                              </div>
+                                              <div className="text-right shrink-0">
+                                                <p className="text-[10px] font-extrabold text-emerald-805">${v.day_rate?.toLocaleString()}<span className="text-[9px] text-neutral-400 font-normal">/day</span></p>
+                                              </div>
+                                            </div>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-2">
+                          Chauffeur Database
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 p-4">
+                          {drivers.map((d: any) => {
+                            const isSelected = activeBlock.driverId === d.id;
+                            return (
+                              <button 
+                                key={d.id} 
+                                type="button"
+                                onClick={() => updateBlock(activeAssignment.blockId, { driverId: d.id })}
+                                className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'border-sky-500 bg-sky-50/20' 
+                                    : 'border-neutral-200 bg-white hover:border-sky-400'
+                                }`}
+                              >
+                                <div>
+                                  <p className="font-bold text-xs text-neutral-800">{d.first_name} {d.last_name}</p>
+                                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight">Professional Driver</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] font-extrabold text-emerald-805">${d.per_day_rate?.toLocaleString()}<span className="text-[9px] text-neutral-400 font-normal">/day</span></p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {/* Restaurant List */}
+                  {activeAssignment.type === 'meal' && (() => {
+                    const assignedRestaurantId = activeBlock.restaurantId;
+                    let dataToRender = restaurantSearchResults !== null ? [...restaurantSearchResults] : [];
+                    if (assignedRestaurantId && !dataToRender.some(r => r.id === assignedRestaurantId)) {
+                      const currentRestaurant = masterData.restaurants.find((r: any) => r.id === assignedRestaurantId);
+                      if (currentRestaurant) {
+                        dataToRender = [currentRestaurant, ...dataToRender];
+                      }
+                    }
+
+                    if (restaurantSearchResults === null && !assignedRestaurantId) {
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view available restaurants.</div>;
+                    }
+
+                    if (dataToRender.length === 0) {
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">No restaurants found. Try adjusting your search.</div>;
+                    }
+                    
+                    return (
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {dataToRender.map((r: any) => {
+                          const isSelected = assignedRestaurantId === r.id;
+                          return (
+                            <div key={r.id} className="space-y-3">
+                              <button 
+                                type="button"
+                                onClick={() => bindProvider(activeAssignment.blockId, 'restaurantId', r.id)}
+                                className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                                  isSelected 
+                                    ? 'border-emerald-800 bg-emerald-50/10' 
+                                    : 'border-neutral-200 bg-white hover:border-emerald-800/30'
+                                }`}
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-bold text-xs text-neutral-800">{r.name}</p>
+                                    {r.city && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-500 rounded text-[8px] uppercase font-bold tracking-tight">{r.city}</span>}
+                                  </div>
+                                  <div className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight mt-1 flex flex-wrap gap-2 items-center">
+                                    <span>{r.cuisine_type || 'General'} Cuisine</span>
+                                    <span>&bull;</span>
+                                    <span>{r.is_buffet ? 'Buffet Available' : 'A La Carte Only'}</span>
+                                    {r.total_capacity && (
+                                      <>
+                                        <span>&bull;</span>
+                                        <span>{r.total_capacity} Pax Capacity</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                {isSelected && <div className="w-2 h-2 bg-emerald-800 rounded-full" />}
+                              </button>
+                              
+                              {isSelected && (
+                                <div className="bg-neutral-50 rounded-2xl p-3 grid grid-cols-1 gap-3 border border-neutral-100 mx-1">
+                                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-neutral-100">
+                                    <span className="text-xs font-bold text-neutral-600 px-2">Pax Count</span>
+                                    <input 
+                                      type="number" 
+                                      min="1"
+                                      className="w-16 text-center text-xs font-bold bg-neutral-50 border border-neutral-200 rounded-md py-1 outline-none focus:border-emerald-800"
+                                      value={activeBlock.restaurantQuantity || adults || 1}
+                                      onChange={(e) => updateBlock(activeAssignment.blockId, { restaurantQuantity: parseInt(e.target.value) || 1 })}
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {[
+                                      { id: 'breakfast', label: 'Breakfast', active: r.has_breakfast, price: r.breakfast_rate_per_head },
+                                      { id: 'lunch', label: 'Lunch', active: r.has_lunch, price: r.lunch_rate_per_head },
+                                      { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head }
+                                    ].filter(m => m.active).map(meal => {
+                                      const contractedRate = meal.price || 0;
+                                      const markupPercent = markups.restaurant_markup ?? 10;
+                                      const agreedPrice = contractedRate * (1 + markupPercent / 100);
+                                      return (
+                                        <button 
+                                          key={meal.id} 
+                                          type="button"
+                                          onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}
+                                          className={`p-3 rounded-xl flex items-center justify-between text-xs font-bold ${
+                                            activeBlock.mealType === meal.label 
+                                              ? 'bg-white border-emerald-800 border shadow-sm' 
+                                              : 'bg-white/50 border-transparent hover:border-neutral-200 border'
+                                          }`}
+                                        >
+                                          <span>{meal.label}</span>
+                                          <span className="text-emerald-800">${agreedPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Guide List */}
+                  {activeAssignment.type === 'guide' && (() => {
+                    const guidesList = (filteredMasterData as any[]) || [];
+                    return (
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {guidesList.map((g: any) => {
+                          const isSelected = activeBlock.guideId === g.id;
+                          return (
+                            <button 
+                              key={g.id} 
+                              type="button"
+                              onClick={() => bindProvider(activeAssignment.blockId, 'guideId', g.id)}
+                              className={`p-4 rounded-xl border text-left transition-all flex flex-col gap-2 ${
+                                isSelected 
+                                  ? 'border-amber-500 bg-amber-50/10' 
+                                  : 'border-neutral-200 bg-white hover:border-amber-400'
+                              }`}
+                            >
+                              <div className="flex justify-between items-start w-full">
+                                <div>
+                                  <p className="font-bold text-xs text-neutral-800">{g.first_name} {g.last_name}</p>
+                                  <p className="text-[9px] text-neutral-500 font-mono mt-0.5">{g.license_id ? `Lic: ${g.license_id}` : 'Professional Guide'}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] font-extrabold text-emerald-850">${g.per_day_rate || 0}<span className="text-[9px] text-neutral-400 font-normal">/day</span></p>
+                                </div>
+                              </div>
+                              {g.languages && g.languages.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {g.languages.map((l: string) => (
+                                    <span key={l} className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded text-[8px] font-bold uppercase tracking-tight">{l}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* No Results Check */}
+                  {(() => {
+                    const noResults = activeAssignment.type === 'travel'
+                      ? (((filteredMasterData as any).providers?.length || 0) === 0 && ((filteredMasterData as any).drivers?.length || 0) === 0)
+                      : ((filteredMasterData as any[]) || []).length === 0;
+
+                    if (noResults) {
+                      return (
+                        <div className="p-12 text-center text-neutral-400 italic text-xs">
+                          No providers found matching "{searchTerm}"
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                {/* Clear Assignment Button */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateBlock(activeAssignment.blockId, {
+                        hotelId: undefined,
+                        hotelName: undefined,
+                        roomName: undefined,
+                        mealPlan: 'BB',
+                        baseRoomRate: undefined,
+                        agreedPrice: undefined,
+                        vendorId: undefined,
+                        activityId: undefined,
+                        vendorActivityId: undefined,
+                        contractedPrice: undefined,
+                        transportId: undefined,
+                        vehicleId: undefined,
+                        driverId: undefined,
+                        guideId: undefined,
+                        restaurantId: undefined,
+                        restaurantQuantity: undefined,
+                        mealType: undefined,
+                        transportRateType: undefined,
+                        transportQuantity: undefined,
+                        imageUrl: ''
+                      });
+                      setActiveAssignment(null);
+                      setSearchTerm("");
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3 text-red-500 hover:text-red-700 text-[10px] font-extrabold uppercase tracking-widest hover:bg-red-50/80 rounded-xl transition-all border border-red-100"
+                  >
+                    <Link2Off size={14} /> Clear Assignment
+                  </button>
+                </div>
+              </div>
+
+              {/* Finish Drawer Footer */}
+              <div className="p-6 sticky bottom-0 bg-white border-t border-neutral-100">
+                <button 
+                  type="button"
+                  onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                  className="w-full py-3 bg-emerald-800 hover:bg-emerald-950 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={18} /> Finish Assignment
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

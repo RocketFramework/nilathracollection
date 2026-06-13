@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '../utils/supabase/server';
 import { createAdminClient } from '../utils/supabase/admin';
 import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from '../other/interfaces';
 
@@ -7,16 +8,17 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export class ItineraryDraftService {
-    // 1. Get all draft versions for a tour
-    static async getDraftVersions(tourId: string): Promise<DraftItineraryVersion[]> {
-        const { data, error } = await supabase
+    // 1. Get all draft versions for a tour (metadata only)
+    static async getDraftVersions(tourId: string): Promise<Omit<DraftItineraryVersion, 'itinerary_data'>[]> {
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin
             .from('draft_itinerary_versions')
-            .select('*')
+            .select('id, tour_id, version_number, label, created_by, created_at, parent_version_id')
             .eq('tour_id', tourId)
             .order('version_number', { ascending: false });
 
         if (error) throw error;
-        return data as DraftItineraryVersion[];
+        return data as Omit<DraftItineraryVersion, 'itinerary_data'>[];
     }
 
     // 2. Save a new draft version
@@ -149,7 +151,8 @@ export class ItineraryDraftService {
 
     // 6. Check active lock status
     static async checkLockStatus(tourId: string): Promise<ItineraryLock | null> {
-        const { data, error } = await supabase
+        const serverClient = await createServerClient();
+        const { data, error } = await serverClient
             .from('itinerary_locks')
             .select('*')
             .eq('tour_id', tourId)
@@ -161,5 +164,18 @@ export class ItineraryDraftService {
         const now = new Date();
         const isExpired = new Date(data.expires_at).getTime() < now.getTime();
         return isExpired ? null : (data as ItineraryLock);
+    }
+
+    // 7. Get a specific draft version (with full itinerary_data)
+    static async getDraftVersion(versionId: string): Promise<DraftItineraryVersion> {
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('*')
+            .eq('id', versionId)
+            .single();
+
+        if (error) throw error;
+        return data as DraftItineraryVersion;
     }
 }

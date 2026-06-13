@@ -333,6 +333,19 @@ export class TourService {
             };
         }
 
+        // Check if there is any draft version in draft_itinerary_versions to pull from
+        const { data: latestDraft } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('itinerary_data')
+            .eq('tour_id', tourId)
+            .order('version_number', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestDraft && latestDraft.itinerary_data) {
+            tripData.itinerary = latestDraft.itinerary_data;
+        }
+
         return { tripData, tourMsg };
     }
 

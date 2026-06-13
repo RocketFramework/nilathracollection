@@ -1384,5 +1384,15 @@ export async function checkItineraryLockStatusAction(tourId: string) {
     }
 }
 
+export async function getDraftVersionAction(versionId: string) {
+    try {
+        const version = await ItineraryDraftService.getDraftVersion(versionId);
+        return { success: true, version };
+    } catch (error: any) {
+        console.error("Error in getDraftVersionAction:", error);
+        return { success: false, error: error.message || "Failed to fetch draft version." };
+    }
+}
+
 
 
