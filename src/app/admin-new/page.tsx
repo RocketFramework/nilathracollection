@@ -82,6 +82,7 @@ import {
   releaseItineraryLockAction,
   checkItineraryLockStatusAction,
   getAssignedHotelsAction,
+  getAssignedRestaurantsAction,
   searchHotelsAction,
   getVendorsAction,
   getTransportProvidersAction,
@@ -289,6 +290,21 @@ function PlannerWizardWorkspace() {
   // Next-Gen Itinerary States
   const [tripData, setTripData] = useState<TripData | null>(null);
   const [itinerary, setItinerary] = useState<InternalItineraryBlock[]>([]);
+  const [manualSingle, setManualSingle] = useState<number>(0);
+  const [manualDouble, setManualDouble] = useState<number>(1);
+  const [manualTriple, setManualTriple] = useState<number>(0);
+  const [manualFamily, setManualFamily] = useState<number>(0);
+
+  // Master Data State for Binders
+  const [masterData, setMasterData] = useState<any>({
+    hotels: [],
+    vendors: [],
+    drivers: [],
+    guides: [],
+    restaurants: [],
+    transportProviders: [],
+    activities: []
+  });
 
   // Fetch activities and settings from the database
   useEffect(() => {
@@ -370,8 +386,6 @@ function PlannerWizardWorkspace() {
   const handleRemoveActivity = (id: number) => {
     setSelectedActivityIds(prev => prev.filter(x => x !== id));
   };
-
-
   const handleSaveProgress = async () => {
     if (!tourId || tourId === 'draft-tour') {
       alert('This planner is in preview mode and not attached to a definitive Tour yet.');
@@ -394,7 +408,20 @@ function PlannerWizardWorkspace() {
       }
 
       if (tripData) {
-        const updatedTripData = { ...tripData, itinerary };
+        const updatedTripData = { 
+          ...tripData, 
+          itinerary,
+          manualSingle,
+          manualDouble,
+          manualTriple,
+          manualFamily,
+          profile: tripData.profile ? {
+            ...tripData.profile,
+            adults: touristData.preferences.adults ?? tripData.profile.adults,
+            children: touristData.preferences.children ?? tripData.profile.children,
+            infants: touristData.preferences.infants ?? tripData.profile.infants,
+          } : tripData.profile
+        };
         const tourRes = await saveTourAction(tourId, updatedTripData);
         if (!tourRes.success) {
           throw new Error(tourRes.error || 'Failed to save itinerary');
@@ -404,7 +431,16 @@ function PlannerWizardWorkspace() {
       // Automatically create a draft version snapshot when saving progress
       if (track === 'basic' && currentStepObj?.id === 'ai-builder') {
         const autoLabel = `Auto-saved on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        const draftRes = await saveDraftVersionAction(tourId, itinerary, autoLabel);
+        const counts = {
+          adults: touristData?.preferences?.adults || 2,
+          children: touristData?.preferences?.children || 0,
+          infants: touristData?.preferences?.infants || 0,
+          single_rooms: manualSingle,
+          double_rooms: manualDouble,
+          triple_rooms: manualTriple,
+          family_rooms: manualFamily
+        };
+        const draftRes = await saveDraftVersionAction(tourId, itinerary, autoLabel, null, counts);
         if (draftRes.success && draftRes.version) {
           // Update draft versions list
           setDraftVersions(prev => [draftRes.version as DraftItineraryVersion, ...prev]);
@@ -426,6 +462,60 @@ function PlannerWizardWorkspace() {
         const res = await getDraftVersionAction(version.id);
         if (res.success && res.version) {
           setItinerary(res.version.itinerary_data);
+
+          // Fetch any assigned hotels and restaurants to populate masterData
+          const hotelIds = (res.version.itinerary_data || [])
+            .filter((b: any) => b.type === 'sleep' && b.hotelId)
+            .map((b: any) => b.hotelId as string);
+          if (hotelIds.length > 0) {
+            getAssignedHotelsAction(hotelIds).then(hRes => {
+              if (hRes.success && hRes.hotels) {
+                setMasterData((prev: any) => {
+                  const existingIds = new Set(prev.hotels.map((h: any) => h.id));
+                  const newHotels = hRes.hotels.filter((h: any) => !existingIds.has(h.id));
+                  return { ...prev, hotels: [...prev.hotels, ...newHotels] };
+                });
+              }
+            });
+          }
+
+          const restaurantIds = (res.version.itinerary_data || [])
+            .filter((b: any) => b.type === 'meal' && b.restaurantId)
+            .map((b: any) => b.restaurantId as string);
+          if (restaurantIds.length > 0) {
+            getAssignedRestaurantsAction(restaurantIds).then(rRes => {
+              if (rRes.success && rRes.restaurants) {
+                setMasterData((prev: any) => {
+                  const existingIds = new Set(prev.restaurants.map((r: any) => r.id));
+                  const newRestaurants = rRes.restaurants.filter((r: any) => !existingIds.has(r.id));
+                  return { ...prev, restaurants: [...prev.restaurants, ...newRestaurants] };
+                });
+              }
+            });
+          }
+          
+          // Restore guest counts and room counts from the selected version!
+          if (res.version.adults !== undefined && res.version.adults !== null) {
+            handlePreferenceChange('adults', res.version.adults);
+          }
+          if (res.version.children !== undefined && res.version.children !== null) {
+            handlePreferenceChange('children', res.version.children);
+          }
+          if (res.version.infants !== undefined && res.version.infants !== null) {
+            handlePreferenceChange('infants', res.version.infants);
+          }
+          if (res.version.single_rooms !== undefined && res.version.single_rooms !== null) {
+            setManualSingle(res.version.single_rooms);
+          }
+          if (res.version.double_rooms !== undefined && res.version.double_rooms !== null) {
+            setManualDouble(res.version.double_rooms);
+          }
+          if (res.version.triple_rooms !== undefined && res.version.triple_rooms !== null) {
+            setManualTriple(res.version.triple_rooms);
+          }
+          if (res.version.family_rooms !== undefined && res.version.family_rooms !== null) {
+            setManualFamily(res.version.family_rooms);
+          }
         } else {
           alert("Failed to load version: " + res.error);
         }
@@ -437,7 +527,16 @@ function PlannerWizardWorkspace() {
 
   const handleSaveNewVersion = async (label: string) => {
     try {
-      const res = await saveDraftVersionAction(tourId, itinerary, label);
+      const counts = {
+        adults: touristData?.preferences?.adults || 2,
+        children: touristData?.preferences?.children || 0,
+        infants: touristData?.preferences?.infants || 0,
+        single_rooms: manualSingle,
+        double_rooms: manualDouble,
+        triple_rooms: manualTriple,
+        family_rooms: manualFamily
+      };
+      const res = await saveDraftVersionAction(tourId, itinerary, label, null, counts);
       if (res.success && res.version) {
         setDraftVersions(prev => [res.version as any, ...prev]);
         alert("Draft version snapshot saved successfully!");
@@ -451,7 +550,6 @@ function PlannerWizardWorkspace() {
       return false;
     }
   };
-
   // Define the ordered steps for Basic Track
   const basicSteps: StepItem[] = useMemo(() => [
     { 
@@ -641,6 +739,59 @@ function PlannerWizardWorkspace() {
             const fullTripData = tourRes.data.tripData as TripData;
             setTripData(fullTripData);
             setItinerary(fullTripData.itinerary || []);
+            if (fullTripData.manualSingle !== undefined) setManualSingle(fullTripData.manualSingle);
+            if (fullTripData.manualDouble !== undefined) setManualDouble(fullTripData.manualDouble);
+            if (fullTripData.manualTriple !== undefined) setManualTriple(fullTripData.manualTriple);
+            if (fullTripData.manualFamily !== undefined) setManualFamily(fullTripData.manualFamily);
+
+            // Fetch any assigned hotels and restaurants to populate masterData
+            const hotelIds = (fullTripData.itinerary || [])
+              .filter(b => b.type === 'sleep' && b.hotelId)
+              .map(b => b.hotelId as string);
+            if (hotelIds.length > 0) {
+              getAssignedHotelsAction(hotelIds).then(hRes => {
+                if (hRes.success && hRes.hotels) {
+                  setMasterData((prev: any) => {
+                    const existingIds = new Set(prev.hotels.map((h: any) => h.id));
+                    const newHotels = hRes.hotels.filter((h: any) => !existingIds.has(h.id));
+                    return { ...prev, hotels: [...prev.hotels, ...newHotels] };
+                  });
+                }
+              });
+            }
+
+            const restaurantIds = (fullTripData.itinerary || [])
+              .filter(b => b.type === 'meal' && b.restaurantId)
+              .map(b => b.restaurantId as string);
+            if (restaurantIds.length > 0) {
+              getAssignedRestaurantsAction(restaurantIds).then(rRes => {
+                if (rRes.success && rRes.restaurants) {
+                  setMasterData((prev: any) => {
+                    const existingIds = new Set(prev.restaurants.map((r: any) => r.id));
+                    const newRestaurants = rRes.restaurants.filter((r: any) => !existingIds.has(r.id));
+                    return { ...prev, restaurants: [...prev.restaurants, ...newRestaurants] };
+                  });
+                }
+              });
+            }
+
+            if (fullTripData.profile) {
+              setTouristData(prev => ({
+                ...prev,
+                preferences: {
+                  ...prev.preferences,
+                  adults: fullTripData.profile.adults !== undefined && fullTripData.profile.adults !== null
+                    ? fullTripData.profile.adults
+                    : prev.preferences.adults,
+                  children: fullTripData.profile.children !== undefined && fullTripData.profile.children !== null
+                    ? fullTripData.profile.children
+                    : prev.preferences.children,
+                  infants: fullTripData.profile.infants !== undefined && fullTripData.profile.infants !== null
+                    ? fullTripData.profile.infants
+                    : prev.preferences.infants,
+                }
+              }));
+            }
           } else {
             console.error("Failed to load tour itinerary data:", tourRes.error);
           }
@@ -901,30 +1052,7 @@ function PlannerWizardWorkspace() {
     };
   }, [track, activeBasicStepIndex, activeFinalStepIndex, tourId, isLockedByOther, basicSteps, finalSteps]);
 
-  // Fetch draft versions when in the AI Builder step
-  useEffect(() => {
-    let isActive = true;
-    async function loadVersions() {
-      const activeStepsList = track === 'basic' ? basicSteps : finalSteps;
-      const activeIdx = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
-      const currentStepObj = activeStepsList[activeIdx];
 
-      if (track === 'basic' && currentStepObj?.id === 'ai-builder' && tourId && tourId !== 'draft-tour') {
-        try {
-          const res = await getDraftVersionsAction(tourId);
-          if (res.success && res.versions && isActive) {
-            setDraftVersions(res.versions);
-          }
-        } catch (err) {
-          console.error("Error loading versions:", err);
-        }
-      }
-    }
-    loadVersions();
-    return () => {
-      isActive = false;
-    };
-  }, [track, activeBasicStepIndex, activeFinalStepIndex, tourId, basicSteps, finalSteps]);
 
   if (!isStateRestored) {
     return (
@@ -2249,6 +2377,16 @@ function PlannerWizardWorkspace() {
                     versions={draftVersions}
                     onLoadVersion={handleLoadVersion}
                     onSaveNewVersion={handleSaveNewVersion}
+                    manualSingle={manualSingle}
+                    setManualSingle={setManualSingle}
+                    manualDouble={manualDouble}
+                    setManualDouble={setManualDouble}
+                    manualTriple={manualTriple}
+                    setManualTriple={setManualTriple}
+                    manualFamily={manualFamily}
+                    setManualFamily={setManualFamily}
+                    masterData={masterData}
+                    setMasterData={setMasterData}
                   />
                 ) : (
                   /* Premium Placeholder Panel for Empty Steps */
@@ -2340,6 +2478,16 @@ interface AIItineraryBuilderProps {
   versions: Omit<DraftItineraryVersion, 'itinerary_data'>[];
   onLoadVersion: (version: Omit<DraftItineraryVersion, 'itinerary_data'>) => void;
   onSaveNewVersion: (label: string) => Promise<boolean>;
+  manualSingle: number;
+  setManualSingle: React.Dispatch<React.SetStateAction<number>>;
+  manualDouble: number;
+  setManualDouble: React.Dispatch<React.SetStateAction<number>>;
+  manualTriple: number;
+  setManualTriple: React.Dispatch<React.SetStateAction<number>>;
+  manualFamily: number;
+  setManualFamily: React.Dispatch<React.SetStateAction<number>>;
+  masterData: any;
+  setMasterData: React.Dispatch<React.SetStateAction<any>>;
 }
 
 function AIItineraryBuilder({
@@ -2367,23 +2515,22 @@ function AIItineraryBuilder({
   lockOwnerName,
   versions,
   onLoadVersion,
-  onSaveNewVersion
+  onSaveNewVersion,
+  manualSingle,
+  setManualSingle,
+  manualDouble,
+  setManualDouble,
+  manualTriple,
+  setManualTriple,
+  manualFamily,
+  setManualFamily,
+  masterData,
+  setMasterData
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
-
-  // Master Data State for Binders
-  const [masterData, setMasterData] = useState<any>({
-    hotels: [],
-    vendors: [],
-    drivers: [],
-    guides: [],
-    restaurants: [],
-    transportProviders: [],
-    activities: []
-  });
 
   const [loadingMaster, setLoadingMaster] = useState(false);
   const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: string } | null>(null);
@@ -2949,10 +3096,7 @@ function AIItineraryBuilder({
   const teamRooms = useMemo(() => calculateRoomsFromTeam(), [touristData?.team]);
   const hasTeam = touristData?.team && touristData.team.length > 0;
 
-  const [manualSingle, setManualSingle] = useState<number>(0);
-  const [manualDouble, setManualDouble] = useState<number>(1);
-  const [manualTriple, setManualTriple] = useState<number>(0);
-  const [manualFamily, setManualFamily] = useState<number>(0);
+
 
   // Final resolved room counts:
   const singleRoomsCount = hasTeam ? teamRooms.single : manualSingle;
@@ -4499,6 +4643,7 @@ function AIItineraryBuilder({
           guideNeeded={guideNeeded}
           chauffeurNeeded={chauffeurNeeded}
           appSettings={appSettings}
+          masterData={masterData}
         />
       </div>
 

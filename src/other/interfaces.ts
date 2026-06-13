@@ -342,6 +342,10 @@ export interface TripData {
     itinerary: InternalItineraryBlock[];
     financials: any; // Imported in index
     summary?: TripSummary;
+    manualSingle?: number;
+    manualDouble?: number;
+    manualTriple?: number;
+    manualFamily?: number;
 }
 
 export interface DraftItineraryVersion {
@@ -353,6 +357,13 @@ export interface DraftItineraryVersion {
     created_by: string | null;
     created_at: string;
     parent_version_id: string | null;
+    adults?: number;
+    children?: number;
+    infants?: number;
+    single_rooms?: number;
+    double_rooms?: number;
+    triple_rooms?: number;
+    family_rooms?: number;
 }
 
 export interface ItineraryLock {

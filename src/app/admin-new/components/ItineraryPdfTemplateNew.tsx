@@ -14,6 +14,7 @@ interface ItineraryPdfTemplateNewProps {
   guideNeeded: boolean;
   chauffeurNeeded: boolean;
   appSettings?: any;
+  masterData?: any;
 }
 
 export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
@@ -27,7 +28,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     familyRoomsCount,
     guideNeeded,
     chauffeurNeeded,
-    appSettings
+    appSettings,
+    masterData
   }, ref) => {
     
     const clientName = touristData.profile 
@@ -140,6 +142,87 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         agencyFee,
         total
       };
+    };
+
+    const getResolvedBindingDisplay = (block: InternalItineraryBlock) => {
+      if (!masterData) return null;
+
+      if (block.type === 'sleep' && block.hotelId) {
+        const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
+        let label = h?.name || block.hotelName || 'Linked Hotel';
+        if (block.roomName) {
+          label += ` — Room: ${block.roomName}`;
+        }
+        if (block.mealPlan) {
+          label += ` (${block.mealPlan})`;
+        }
+        return {
+          label,
+          type: 'Accommodation',
+        };
+      }
+      if (block.type === 'meal' && block.restaurantId) {
+        const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
+        let label = r?.name || 'Linked Restaurant';
+        if (block.mealType) {
+          label += ` — ${block.mealType}`;
+        }
+        if (block.agreedPrice) {
+          label += ` ($${block.agreedPrice.toLocaleString()})`;
+        }
+        return {
+          label,
+          type: 'Dining',
+        };
+      }
+      if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId)) {
+        const v = masterData.vendors?.find((x: any) => x.id === block.vendorId);
+        const resolvedActId = block.activityId;
+        const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                   v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+        
+        const activityLabel = va?.activity_name || block.name || 'Activity';
+        let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
+        if (block.agreedPrice) {
+          label += ` ($${block.agreedPrice.toLocaleString()})`;
+        }
+        return {
+          label,
+          type: 'Activity',
+        };
+      }
+      if (block.type === 'travel' && (block.driverId || block.transportId || block.vehicleId)) {
+        const d = masterData.drivers?.find((x: any) => x.id === block.driverId);
+        const p = masterData.transportProviders?.find((x: any) => x.id === block.transportId);
+        const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
+
+        let label = p?.name || 'Transport';
+        if (v) {
+          label = `${p?.name || ''} — ${v.make_and_model || v.vehicle_type}`;
+          if (block.transportQuantity) {
+            label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
+          }
+          if (v.with_driver) {
+            label += ' [Incl. Driver]';
+          } else if (d) {
+            label += ` [Driver: ${d.first_name}]`;
+          }
+        } else if (d) {
+          label = `Driver: ${d.first_name} ${d.last_name}`;
+        }
+        return {
+          label,
+          type: 'Transport',
+        };
+      }
+      if (block.type === 'guide' && block.guideId) {
+        const g = masterData.guides?.find((x: any) => x.id === block.guideId);
+        return {
+          label: g ? `Guide: ${g.first_name} ${g.last_name}` : 'Linked Guide',
+          type: 'Guide',
+        };
+      }
+      return null;
     };
 
     // Calculate overall itinerary costs summary
@@ -576,6 +659,27 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       {block.startTime || 'TBD'} {block.endTime ? `— ${block.endTime}` : ''}
                                     </div>
                                   </div>
+
+                                  {/* Bound Item Details (if any) */}
+                                  {(() => {
+                                    const bind = getResolvedBindingDisplay(block);
+                                    if (!bind) return null;
+                                    return (
+                                      <div className="mt-1.5 px-3 py-1.5 bg-[#FAF9F6] border border-[#EBE6DC] rounded-xl flex items-center justify-between text-[10.5px] text-neutral-700 font-sans">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[7.5px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
+                                            {bind.type}
+                                          </span>
+                                          <span className="font-semibold">{bind.label}</span>
+                                        </div>
+                                        {block.agreedPrice !== undefined && block.agreedPrice !== null && block.type !== 'sleep' && (
+                                          <span className="font-bold text-[#8C6D3F] text-[10px]">
+                                            ${block.agreedPrice.toLocaleString()} USD
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Row 2: Other Data */}
                                   <div className="py-1.5 text-xs text-neutral-500 flex flex-wrap gap-4 justify-between items-start leading-relaxed">

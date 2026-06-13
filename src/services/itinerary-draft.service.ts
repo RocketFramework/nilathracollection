@@ -13,7 +13,7 @@ export class ItineraryDraftService {
         const supabaseAdmin = createAdminClient();
         const { data, error } = await supabaseAdmin
             .from('draft_itinerary_versions')
-            .select('id, tour_id, version_number, label, created_by, created_at, parent_version_id')
+            .select('id, tour_id, version_number, label, created_by, created_at, parent_version_id, adults, children, infants, single_rooms, double_rooms, triple_rooms, family_rooms')
             .eq('tour_id', tourId)
             .order('version_number', { ascending: false });
 
@@ -27,7 +27,16 @@ export class ItineraryDraftService {
         itineraryData: InternalItineraryBlock[],
         label: string | null,
         userId: string | null,
-        parentVersionId: string | null = null
+        parentVersionId: string | null = null,
+        counts?: {
+            adults: number;
+            children: number;
+            infants: number;
+            single_rooms: number;
+            double_rooms: number;
+            triple_rooms: number;
+            family_rooms: number;
+        }
     ): Promise<DraftItineraryVersion> {
         const supabaseAdmin = createAdminClient();
         
@@ -51,7 +60,14 @@ export class ItineraryDraftService {
                 label,
                 itinerary_data: itineraryData,
                 created_by: userId,
-                parent_version_id: parentVersionId
+                parent_version_id: parentVersionId,
+                adults: counts?.adults ?? 2,
+                children: counts?.children ?? 0,
+                infants: counts?.infants ?? 0,
+                single_rooms: counts?.single_rooms ?? 0,
+                double_rooms: counts?.double_rooms ?? 0,
+                triple_rooms: counts?.triple_rooms ?? 0,
+                family_rooms: counts?.family_rooms ?? 0
             }])
             .select('*')
             .single();

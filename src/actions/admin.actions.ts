@@ -1282,7 +1282,16 @@ export async function saveDraftVersionAction(
     tourId: string,
     itineraryData: InternalItineraryBlock[],
     label: string | null,
-    parentVersionId?: string | null
+    parentVersionId?: string | null,
+    counts?: {
+        adults: number;
+        children: number;
+        infants: number;
+        single_rooms: number;
+        double_rooms: number;
+        triple_rooms: number;
+        family_rooms: number;
+    }
 ) {
     try {
         const supabase = await createClient();
@@ -1294,7 +1303,8 @@ export async function saveDraftVersionAction(
             itineraryData,
             label,
             user.id,
-            parentVersionId || null
+            parentVersionId || null,
+            counts
         );
         return { success: true, version };
     } catch (error: any) {
