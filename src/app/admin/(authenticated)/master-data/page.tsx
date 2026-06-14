@@ -428,7 +428,12 @@ export default function MasterDataPage() {
                                 ) : (
                                     hotels.map(row => (
                                         <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
-                                            <td className="p-4 pl-6 font-bold">{row.name}</td>
+                                            <td className="p-4 pl-6 font-bold">
+                                                {row.name}
+                                                {!row.photo_url && (
+                                                    <span className="text-red-500 ml-1 font-extrabold" title="No photo uploaded">*</span>
+                                                )}
+                                            </td>
                                             <td className="p-4 text-neutral-500">{row.hotel_class || 'Not Specified'}</td>
                                             <td className="p-4 text-neutral-500">{row.location_address || 'Not Specified'}{row.closest_city ? `, ${row.closest_city}` : ''}</td>
                                             <td className="p-4 text-center">

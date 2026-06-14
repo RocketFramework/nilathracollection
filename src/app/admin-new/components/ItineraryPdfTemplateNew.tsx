@@ -167,9 +167,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         if (block.mealType) {
           label += ` — ${block.mealType}`;
         }
-        if (block.agreedPrice) {
-          label += ` ($${block.agreedPrice.toLocaleString()})`;
-        }
         return {
           label,
           type: 'Dining',
@@ -183,9 +180,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         
         const activityLabel = va?.activity_name || block.name || 'Activity';
         let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
-        if (block.agreedPrice) {
-          label += ` ($${block.agreedPrice.toLocaleString()})`;
-        }
         return {
           label,
           type: 'Activity',
@@ -634,15 +628,65 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 <div key={block.id} className="print-avoid-break pb-4">
                                   
                                   {/* Event Image (rendered above data) */}
-                                  {block.imageUrl && (
-                                    <div className="w-full mb-3 overflow-hidden rounded-xl">
-                                      <img 
-                                        src={block.imageUrl} 
-                                        alt={block.name} 
-                                        className="w-full object-cover max-h-[60mm]" 
-                                      />
-                                    </div>
-                                  )}
+                                  {(() => {
+                                    let imgUrl = block.imageUrl;
+                                    if (!imgUrl && block.type === 'sleep' && block.hotelId) {
+                                      const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
+                                      if (h) {
+                                        imgUrl = (h.images && h.images.length > 0) ? h.images[0] : (h.photo_url || '');
+                                      }
+                                    }
+                                    if (!imgUrl && block.type === 'meal' && block.restaurantId) {
+                                      const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
+                                      if (r) {
+                                        imgUrl = (r.images && r.images.length > 0) ? r.images[0] : (r.photo_url || '');
+                                      }
+                                    }
+                                    if (!imgUrl && block.type === 'activity') {
+                                       const resolvedActId = block.activityId || (() => {
+                                         if (!block.name) return undefined;
+                                         const cleanWords = (str: string) => {
+                                           return str.toLowerCase()
+                                             .replace(/[^\w\s]/g, '')
+                                             .split(/\s+/)
+                                             .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
+                                         };
+                                         const blockWords = cleanWords(block.name);
+                                         if (blockWords.length === 0) return undefined;
+
+                                         let bestMatch: any = null;
+                                         let maxOverlap = 0;
+                                         masterData.activities?.forEach((a: any) => {
+                                           const actWords = cleanWords(a.activity_name);
+                                           const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                                           if (overlap > maxOverlap) {
+                                             maxOverlap = overlap;
+                                             bestMatch = a;
+                                           }
+                                         });
+                                         return maxOverlap > 0 ? bestMatch?.id : undefined;
+                                       })();
+
+                                       const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
+                                       const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                                                  v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+                                       const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+                                       if (activityDetail) {
+                                         imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
+                                       }
+                                     }
+
+                                    if (!imgUrl) return null;
+                                    return (
+                                      <div className="w-full mb-3 overflow-hidden rounded-xl">
+                                        <img 
+                                          src={imgUrl} 
+                                          alt={block.name} 
+                                          className="w-full object-cover max-h-[60mm]" 
+                                        />
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Row 1: Location, Description/Name, Time (from - to) */}
                                   <div className="flex justify-between items-baseline py-1 text-sm border-b border-neutral-100">
@@ -672,7 +716,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                           </span>
                                           <span className="font-semibold">{bind.label}</span>
                                         </div>
-                                        {block.agreedPrice !== undefined && block.agreedPrice !== null && block.type !== 'sleep' && (
+                                        {block.agreedPrice !== undefined && block.agreedPrice !== null && block.type !== 'sleep' && !block.restaurantId && !block.vendorId && (
                                           <span className="font-bold text-[#8C6D3F] text-[10px]">
                                             ${block.agreedPrice.toLocaleString()} USD
                                           </span>
@@ -698,7 +742,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                           Distance: {block.distance}
                                         </span>
                                       )}
-                                      {block.type === 'sleep' && block.agreedPrice !== undefined && (
+                                      {block.type === 'sleep' && block.agreedPrice !== undefined && !block.hotelId && (
                                         <span className="font-extrabold text-neutral-800">
                                           Calculated Price: ${block.agreedPrice.toFixed(2)} USD
                                         </span>

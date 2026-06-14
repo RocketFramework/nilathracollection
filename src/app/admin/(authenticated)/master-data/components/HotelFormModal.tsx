@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { Hotel, HotelRoom, RoomRate, HotelService } from "@/services/hotel.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { refreshPlannerCacheAction, saveHotelAction } from "@/actions/admin.actions";
+import { refreshPlannerCacheAction, saveHotelAction, uploadHotelPhotoAction } from "@/actions/admin.actions";
 
 interface HotelFormModalProps {
     isOpen: boolean;
@@ -29,6 +29,8 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
     const [loading, setLoading] = useState(false);
     const [masterRecreations, setMasterRecreations] = useState<Array<{ id: string, name: string }>>([]);
     const [proofImage, setProofImage] = useState<File | null>(null);
+    const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string>("");
 
     // Form State
     const [formData, setFormData] = useState<Partial<Hotel>>({
@@ -71,6 +73,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
             fetchMasterData();
             if (hotel) {
                 setFormData({ ...hotel, has_contracted_price: hotel.has_contracted_price ?? true });
+                setPhotoPreview(hotel.photo_url || "");
             } else {
                 setFormData({
                     name: "", location_address: "", closest_city: "", location_coordinates: "", description: "", hotel_class: "", number_of_rooms: 0,
@@ -82,9 +85,11 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                     child_free_until_age: 6, child_half_price_until_age: 12, child_half_price_percentage: 50, child_policy_notes: "",
                     rooms: [], recreations: [], payment_details: {}
                 });
+                setPhotoPreview("");
             }
             setActiveTab(TABS[0]);
             setProofImage(null);
+            setPhotoFile(null);
         }
     }, [isOpen, hotel]);
 
@@ -99,6 +104,16 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
 
     const handleChange = (field: keyof Hotel, value: string | number | boolean | undefined) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setPhotoFile(file);
+        if (file) {
+            setPhotoPreview(URL.createObjectURL(file));
+        } else {
+            setPhotoPreview(formData.photo_url || "");
+        }
     };
 
     const handleRoomChange = (index: number, field: keyof HotelRoom, value: string | number | boolean | undefined) => {
@@ -187,6 +202,19 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
         if (!formData.location_coordinates) return alert("Location coordinates are required");
         setLoading(true);
         try {
+            let currentPhotoUrl = formData.photo_url || "";
+            if (photoFile) {
+                const fileData = new FormData();
+                fileData.append("file", photoFile);
+                const uploadRes = await uploadHotelPhotoAction(fileData);
+                if (uploadRes.error) {
+                    throw new Error("Failed to upload hotel photo: " + uploadRes.error);
+                }
+                currentPhotoUrl = uploadRes.url || "";
+            }
+
+            const submissionData = { ...formData, photo_url: currentPhotoUrl };
+
             if (userRole === 'agent') {
                 let proof_image_url = null;
                 const hasPayment = formData.payment_details?.bank_name || formData.payment_details?.account_number;
@@ -202,14 +230,14 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                     entity_type: 'hotel',
                     entity_id: formData.id || null,
                     action: formData.id ? 'UPDATE' : 'CREATE',
-                    proposed_data: formData,
+                    proposed_data: submissionData,
                     contact_details: { name: formData.gm_name, phone: formData.gm_contact },
                     proof_image_url
                 });
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const response = await saveHotelAction(formData as Hotel);
+                const response = await saveHotelAction(submissionData as Hotel);
                 if (response.error) {
                     throw new Error(response.error);
                 }
@@ -220,6 +248,7 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                 if (savedHotel.id) {
                     const updated = await HotelService.getHotel(savedHotel.id);
                     setFormData({ ...updated });
+                    setPhotoPreview(updated.photo_url || "");
                 }
 
                 await refreshPlannerCacheAction();
@@ -285,6 +314,36 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                             <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Description</label>
                                 <textarea rows={3} className="w-full outline-none text-brand-charcoal font-medium" value={formData.description || ''} onChange={e => handleChange('description', e.target.value)} />
+                            </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-4 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all bg-neutral-50/30">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider block mb-2">Hotel Photo</label>
+                                <div className="flex items-center gap-4">
+                                    {photoPreview && (
+                                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100 flex-shrink-0">
+                                            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPhotoFile(null);
+                                                    setPhotoPreview("");
+                                                    handleChange('photo_url', "");
+                                                }}
+                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="flex-1">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="w-full text-sm outline-none text-brand-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-green/10 file:text-brand-green hover:file:bg-brand-green/20 cursor-pointer"
+                                            onChange={handlePhotoChange}
+                                        />
+                                        <p className="text-[10px] text-neutral-400 mt-2">Supports JPEG, PNG, GIF, JPG. Images will be optimized to WebP format.</p>
+                                    </div>
+                                </div>
                             </div>
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Hotel Class (Star Rating)</label>

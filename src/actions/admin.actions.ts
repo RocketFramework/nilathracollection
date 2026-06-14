@@ -1,4 +1,5 @@
 "use server";
+import sharp from "sharp";
 
 import { revalidatePath } from "next/cache";
 import { AdminService } from "@/services/user.service";
@@ -325,6 +326,46 @@ export async function saveHotelAction(hotel: Hotel) {
     } catch (error: any) {
         console.error("Error saving hotel:", error);
         return { error: error.message || "Failed to save hotel." };
+    }
+}
+
+export async function uploadHotelPhotoAction(formData: FormData) {
+    try {
+        const file = formData.get("file") as File;
+        if (!file) {
+            return { error: "No file provided" };
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Convert the input image buffer (JPEG, PNG, GIF, JPG) to optimized WebP format
+        const optimizedBuffer = await sharp(buffer)
+            .webp({ quality: 80 })
+            .toBuffer();
+
+        const adminSupabase = createAdminClient();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.webp`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await adminSupabase.storage
+            .from('payment-proofs')
+            .upload(filePath, optimizedBuffer, {
+                contentType: 'image/webp',
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        const { data } = adminSupabase.storage
+            .from('payment-proofs')
+            .getPublicUrl(filePath);
+
+        return { success: true, url: data.publicUrl };
+    } catch (error: any) {
+        console.error("Error uploading hotel photo:", error);
+        return { error: error.message || "Failed to upload photo." };
     }
 }
 

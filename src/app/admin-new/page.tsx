@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { 
   Users, 
@@ -1360,7 +1361,7 @@ function PlannerWizardWorkspace() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           
           {/* Main Panel Content (Step Panel) */}
-          <main className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col pb-24">
+          <main id="main-scroll-container" className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col pb-24">
             <div className="w-full flex-1 flex flex-col justify-between">
               
               {/* Step Panel Details */}
@@ -2354,6 +2355,8 @@ function PlannerWizardWorkspace() {
                   <AIItineraryBuilder
                     itinerary={itinerary}
                     setItinerary={setItinerary}
+                    tripData={tripData}
+                    setTripData={setTripData}
                     durationDays={touristData?.preferences?.duration_days || 0}
                     tourId={tourId}
                     selectedActivities={selectedActivities}
@@ -2455,6 +2458,8 @@ export default function NewPlannerWizard() {
 interface AIItineraryBuilderProps {
   itinerary: InternalItineraryBlock[];
   setItinerary: React.Dispatch<React.SetStateAction<InternalItineraryBlock[]>>;
+  tripData: TripData | null;
+  setTripData: React.Dispatch<React.SetStateAction<TripData | null>>;
   durationDays: number;
   tourId: string;
   selectedActivities: TouristActivity[];
@@ -2493,6 +2498,8 @@ interface AIItineraryBuilderProps {
 function AIItineraryBuilder({
   itinerary,
   setItinerary,
+  tripData,
+  setTripData,
   durationDays,
   tourId,
   selectedActivities,
@@ -2534,6 +2541,7 @@ function AIItineraryBuilder({
 
   const [loadingMaster, setLoadingMaster] = useState(false);
   const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [roomMarkup, setRoomMarkup] = useState<number>(10);
@@ -2550,6 +2558,32 @@ function AIItineraryBuilder({
   const [restaurantSearchName, setRestaurantSearchName] = useState('');
   const [restaurantSearchResults, setRestaurantSearchResults] = useState<any[] | null>(null);
   const [isSearchingRestaurants, setIsSearchingRestaurants] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock background scroll when assignment drawer is active
+  useEffect(() => {
+    const mainScrollContainer = document.getElementById('main-scroll-container');
+    if (activeAssignment) {
+      document.body.style.overflow = 'hidden';
+      if (mainScrollContainer) {
+        mainScrollContainer.style.overflow = 'hidden';
+      }
+    } else {
+      document.body.style.overflow = '';
+      if (mainScrollContainer) {
+        mainScrollContainer.style.overflow = '';
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+      if (mainScrollContainer) {
+        mainScrollContainer.style.overflow = '';
+      }
+    };
+  }, [activeAssignment]);
 
   // Load master data on mount
   useEffect(() => {
@@ -2661,9 +2695,53 @@ function AIItineraryBuilder({
           hotelId: value,
           hotelName: hotel.name,
           imageUrl: autoImageUrl,
-          // reset room specific selections if switching to a different hotel
-          ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB', agreedPrice: undefined } : {})
+          // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
+          ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
         } : b));
+
+        if (tripData) {
+          let newAccs = [...(tripData.accommodations || [])];
+          const existingAccIndex = newAccs.findIndex(a => Number(a.nightIndex) === Number(block.dayNumber));
+          if (existingAccIndex >= 0) {
+            newAccs[existingAccIndex] = {
+              ...newAccs[existingAccIndex],
+              hotelId: hotel.id,
+              hotelName: hotel.name,
+              stayClass: hotel.hotel_class || newAccs[existingAccIndex].stayClass,
+              address: hotel.location_address || newAccs[existingAccIndex].address,
+              ...(newAccs[existingAccIndex].hotelId !== hotel.id ? { roomId: undefined, roomName: '', roomStandard: '', mealPlan: undefined, pricePerNight: 0, selectedRooms: [] } : {})
+            };
+          } else {
+            newAccs.push({
+              id: crypto.randomUUID(),
+              nightIndex: block.dayNumber,
+              hotelId: hotel.id,
+              hotelName: hotel.name,
+              stayClass: hotel.hotel_class || 'Standard',
+              address: hotel.location_address || '',
+              mapLink: '',
+              contactPerson: hotel.reservation_agent_name || '',
+              contactNumber: hotel.reservation_agent_contact || '',
+              email: '',
+              rateCardUrl: '',
+              roomStandard: 'Standard Room',
+              numberOfRooms: 1,
+              pricePerNight: 0,
+              mealPlan: 'BB',
+              status: 'Tentative',
+              confirmationReference: '',
+              paymentStatus: 'Pending',
+              cancellationDeadline: '',
+              beddingConfiguration: '',
+              specialRequests: '',
+              selectedRooms: []
+            });
+          }
+          setTripData({
+            ...tripData,
+            accommodations: newAccs
+          });
+        }
       }
     }
 
@@ -2678,8 +2756,8 @@ function AIItineraryBuilder({
         setItinerary(prev => prev.map(b => b.id === blockId ? { 
           ...b, 
           restaurantId: value,
-          contractedPrice: contractedRate,
-          agreedPrice: agreedPrice
+          contractedPrice: b.contractedPrice ?? contractedRate,
+          agreedPrice: b.agreedPrice ?? agreedPrice
         } : b));
       }
     }
@@ -2730,8 +2808,8 @@ function AIItineraryBuilder({
             vendorId: value,
             activityId: blockActivityId,
             vendorActivityId: va.id,
-            contractedPrice: contractedRate,
-            agreedPrice: agreedPrice,
+            contractedPrice: b.contractedPrice ?? contractedRate,
+            agreedPrice: b.agreedPrice ?? agreedPrice,
             imageUrl: autoImageUrl
           } : b));
         } else {
@@ -2740,8 +2818,8 @@ function AIItineraryBuilder({
             vendorId: value,
             activityId: blockActivityId,
             vendorActivityId: undefined,
-            contractedPrice: undefined,
-            agreedPrice: undefined,
+            contractedPrice: b.contractedPrice,
+            agreedPrice: b.agreedPrice,
             imageUrl: autoImageUrl
           } : b));
         }
@@ -2781,7 +2859,7 @@ function AIItineraryBuilder({
         } : undefined
       };
     }
-    if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId || block.name)) {
+    if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId)) {
       const v = masterData.vendors.find((x: any) => x.id === block.vendorId);
       const resolvedActId = block.activityId || (() => {
         if (!block.name) return undefined;
@@ -2789,7 +2867,7 @@ function AIItineraryBuilder({
           return str.toLowerCase()
             .replace(/[^\w\s]/g, '')
             .split(/\s+/)
-            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
         };
         const blockWords = cleanWords(block.name);
         if (blockWords.length === 0) return undefined;
@@ -2811,10 +2889,7 @@ function AIItineraryBuilder({
 
       if (v) {
         const activityLabel = va?.activity_name || block.name || 'Activity';
-        const price = block.agreedPrice !== undefined ? block.agreedPrice : va?.vendor_price;
-
         let label = `${v.name} - ${activityLabel}`;
-        if (price) label += ` ($${price.toLocaleString()})`;
         return {
           name: label,
           icon: <Compass className="w-3.5 h-3.5 text-orange-500" />,
@@ -2822,8 +2897,8 @@ function AIItineraryBuilder({
         };
       }
 
-      let fallbackLabel = block.name || 'Linked Activity';
-      if (block.agreedPrice) fallbackLabel += ` ($${block.agreedPrice.toLocaleString()})`;
+      const activityDetail = masterData.activities.find((x: any) => Number(x.id) === Number(resolvedActId));
+      let fallbackLabel = activityDetail?.activity_name || block.name || 'Linked Activity';
 
       return { name: fallbackLabel, icon: <Compass className="w-3.5 h-3.5 text-orange-500" /> };
     }
@@ -2866,7 +2941,6 @@ function AIItineraryBuilder({
       const r = masterData.restaurants.find((x: any) => x.id === block.restaurantId);
       let label = r?.name || 'Linked Restaurant';
       if (block.mealType) label += ` - ${block.mealType}`;
-      if (block.agreedPrice) label += ` ($${block.agreedPrice.toLocaleString()})`;
       return {
         name: label,
         icon: <Utensils className="w-3.5 h-3.5 text-green-500" />,
@@ -4402,17 +4476,19 @@ function AIItineraryBuilder({
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Rate (USD)</label>
-                        <input
-                          type="number"
-                          placeholder="e.g. 250"
-                          value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
-                          onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
-                          disabled={isLockedByOther}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
-                        />
-                      </div>
+                      {!block.hotelId && (
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Rate (USD)</label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 250"
+                            value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
+                            onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
+                            disabled={isLockedByOther}
+                            className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -4434,46 +4510,101 @@ function AIItineraryBuilder({
                     
                     {/* Left side: Upload Button & Image thumbnail AND Bind Provider */}
                     <div className="flex items-center gap-3 flex-wrap">
-                      {block.imageUrl ? (
-                        <div className="relative group/img w-16 h-12 rounded-xl border border-neutral-200/80 overflow-hidden shadow-sm transition-all duration-300 hover:scale-105">
-                          <img
-                             src={block.imageUrl}
-                             alt="Itinerary item"
-                             className="w-full h-full object-cover"
-                          />
-                          <button
-                            onClick={() => handleUpdateBlockField(block.id, 'imageUrl', '')}
-                            disabled={isLockedByOther}
-                            className="absolute inset-0 bg-red-600/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 disabled:group-hover/img:opacity-0 transition-all text-[10px] font-extrabold uppercase tracking-wide disabled:pointer-events-none"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <label className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200/80 hover:bg-neutral-50 text-[10px] font-extrabold text-neutral-600 hover:text-neutral-800 cursor-pointer transition-all shadow-sm select-none ${isLockedByOther ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
-                          {uploadingBlockId === block.id ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
-                              <span>Uploading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-3.5 h-3.5 text-neutral-400" />
-                              <span>Upload Image</span>
-                            </>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={uploadingBlockId === block.id || isLockedByOther}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageUpload(block.id, file);
-                            }}
-                          />
-                        </label>
-                      )}
+                      {(() => {
+                        let imgUrl = block.imageUrl;
+                        if (!imgUrl && block.type === 'sleep' && block.hotelId) {
+                          const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
+                          if (h) {
+                            imgUrl = (h.images && h.images.length > 0) ? h.images[0] : (h.photo_url || '');
+                          }
+                        }
+                        if (!imgUrl && block.type === 'meal' && block.restaurantId) {
+                          const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
+                          if (r) {
+                            imgUrl = (r.images && r.images.length > 0) ? r.images[0] : (r.photo_url || '');
+                          }
+                        }
+                        if (!imgUrl && block.type === 'activity') {
+                          const resolvedActId = block.activityId || (() => {
+                            if (!block.name) return undefined;
+                            const cleanWords = (str: string) => {
+                              return str.toLowerCase()
+                                .replace(/[^\w\s]/g, '')
+                                .split(/\s+/)
+                                .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
+                            };
+                            const blockWords = cleanWords(block.name);
+                            if (blockWords.length === 0) return undefined;
+
+                            let bestMatch: any = null;
+                            let maxOverlap = 0;
+                            masterData.activities?.forEach((a: any) => {
+                              const actWords = cleanWords(a.activity_name);
+                              const overlap = blockWords.filter(w => actWords.includes(w)).length;
+                              if (overlap > maxOverlap) {
+                                maxOverlap = overlap;
+                                bestMatch = a;
+                              }
+                            });
+                            return maxOverlap > 0 ? bestMatch?.id : undefined;
+                          })();
+
+                          const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
+                          const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                                     v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+                          const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+                          if (activityDetail) {
+                            imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
+                          }
+                        }
+
+                        if (imgUrl) {
+                          return (
+                            <div className="relative group/img w-16 h-12 rounded-xl border border-neutral-200/80 overflow-hidden shadow-sm transition-all duration-300 hover:scale-105">
+                              <img
+                                 src={imgUrl}
+                                 alt="Itinerary item"
+                                 className="w-full h-full object-cover"
+                              />
+                              {block.imageUrl && (
+                                <button
+                                  onClick={() => handleUpdateBlockField(block.id, 'imageUrl', '')}
+                                  disabled={isLockedByOther}
+                                  className="absolute inset-0 bg-red-650/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 disabled:group-hover/img:opacity-0 transition-all text-[10px] font-extrabold uppercase tracking-wide disabled:pointer-events-none"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <label className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200/80 hover:bg-neutral-50 text-[10px] font-extrabold text-neutral-600 hover:text-neutral-800 cursor-pointer transition-all shadow-sm select-none ${isLockedByOther ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
+                            {uploadingBlockId === block.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
+                                <span>Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                                <span>Upload Image</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingBlockId === block.id || isLockedByOther}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleImageUpload(block.id, file);
+                              }}
+                            />
+                          </label>
+                        );
+                      })()}
 
                       {/* Binder Control */}
                       {['sleep', 'activity', 'meal', 'travel', 'guide'].includes(block.type) && (() => {
@@ -4648,7 +4779,7 @@ function AIItineraryBuilder({
       </div>
 
       {/* Assignment Drawer Overlay */}
-      {activeAssignment && (() => {
+      {activeAssignment && mounted && createPortal((() => {
         const activeBlock = itinerary.find(b => b.id === activeAssignment.blockId);
         if (!activeBlock) return null;
 
@@ -4727,7 +4858,7 @@ function AIItineraryBuilder({
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md h-full bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
+            <div className="w-full max-w-md h-screen bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
               
               {/* Header */}
               <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
@@ -4940,91 +5071,185 @@ function AIItineraryBuilder({
                               </button>
 
                               {isSelected && (
-                                <div className="space-y-3 p-3 bg-neutral-50 rounded-xl border border-neutral-200/60 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Select Room Category & Meal Plan</span>
-                                  {rooms.map((room: any) => {
-                                    const isRoomSelectedHere = activeBlock.roomName === room.room_name;
-                                    const currentMealPlan = activeBlock.mealPlan || 'BB';
+                                <div className="space-y-4 px-1 pb-4 pt-2">
+                                  {(() => {
+                                    const roomTypes = ['Single', 'Double', 'Twin', 'Triple', 'Family'];
+                                    const currentAcc = (tripData?.accommodations || []).find(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber)) || {} as any;
+                                    const selectedRooms = currentAcc.selectedRooms || [];
+
                                     return (
-                                      <div key={room.id} className={`p-3 rounded-xl border bg-white space-y-2.5 transition-all ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}>
-                                        <div className="flex justify-between items-start">
-                                          <div>
-                                            <p className="text-xs font-bold text-neutral-850">{room.room_name}</p>
-                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider mt-0.5">{room.room_standard} &bull; Max {room.max_guests} Pax</p>
-                                          </div>
-                                          {isRoomSelectedHere && (
-                                            <span className="text-[8px] bg-emerald-850 text-white font-extrabold px-1.5 py-0.5 rounded tracking-wider uppercase">Active</span>
-                                          )}
-                                        </div>
-                                        
-                                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-100">
-                                          <div className="flex bg-neutral-100 p-0.5 rounded-lg border border-neutral-200/50">
-                                            {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => {
-                                              const pricing = calculateRoomPrice(h, room, mp, 'Double');
-                                              const hasRate = pricing.total > 0;
-                                              return (
-                                                <button
-                                                  key={mp}
-                                                  disabled={!hasRate}
-                                                  onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    const p = calculateRoomPrice(h, room, mp, 'Double');
-                                                    const baseRate = p.total * (1 + roomMarkup / 100);
-                                                    updateBlock(activeAssignment.blockId, {
-                                                      roomName: room.room_name,
-                                                      mealPlan: mp,
-                                                      baseRoomRate: baseRate,
-                                                      agreedPrice: undefined
-                                                    });
-                                                  }}
-                                                  className={`px-2 py-1 text-[9px] font-black rounded transition-all ${
-                                                    isRoomSelectedHere && currentMealPlan === mp
-                                                      ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-black/5'
-                                                      : 'text-neutral-500 hover:text-neutral-700 disabled:opacity-30'
-                                                  }`}
-                                                >
-                                                  {mp}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
+                                      <div className="space-y-4">
+                                        {roomTypes.map((rType) => {
+                                          const reqId = rType;
+                                          const stateKey = `${activeBlock?.id}-${reqId}`;
+                                          const assignedRoom = selectedRooms.find((sr: any) => sr.reqId === reqId);
+                                          const isReqMet = !!assignedRoom;
                                           
-                                          {(() => {
-                                            const pricing = calculateRoomPrice(h, room, currentMealPlan, 'Double');
-                                            const contractedPrice = pricing.total;
-                                            const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
-                                            return (
-                                              <div className="text-right">
-                                                <span className="text-xs font-black text-neutral-800">${agreedUnitPrice.toFixed(0)}</span>
-                                                <span className="text-[9px] text-neutral-450 font-bold ml-1.5 line-through">${contractedPrice.toFixed(0)}</span>
+                                          const pendingState = pendingRoomState[stateKey] || {};
+                                          const currentMealPlan = assignedRoom?.mealPlan || pendingState.mealPlan || 'BB';
+                                          
+                                          // Calculate a default suggestion based on travelers if not currently assigned
+                                          let defaultCount = 0;
+                                          if (!isReqMet) {
+                                            const matchTravelers = (tripData?.travelers || []).filter(t => t.roomPreference === rType);
+                                            if (matchTravelers.length > 0) {
+                                              const roomCount = matchTravelers.reduce((acc, t) => {
+                                                const validLinks = (t.sharedWithIds || []).filter(id => matchTravelers.some(mt => mt.id === id));
+                                                return acc + (1 / (1 + validLinks.length));
+                                              }, 0);
+                                              defaultCount = Math.ceil(roomCount);
+                                            }
+                                          }
+                                          const displayCount = assignedRoom?.quantity ?? pendingState.count ?? defaultCount ?? 0;
+
+                                          return (
+                                            <div key={reqId} className="border border-neutral-200 rounded-xl overflow-hidden shadow-sm bg-neutral-50/50">
+                                              <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center gap-4">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-[10px] font-bold text-neutral-600 uppercase whitespace-nowrap">{rType} Rooms</span>
+                                                  <input 
+                                                    type="number" 
+                                                    min="0" 
+                                                    value={displayCount}
+                                                    onChange={(e) => {
+                                                      const newQty = parseInt(e.target.value) || 0;
+                                                      if (assignedRoom) {
+                                                        if (newQty === 0) {
+                                                          // Remove room if qty goes to 0
+                                                          const newSelected = selectedRooms.filter((sr: any) => sr.reqId !== reqId);
+                                                          if (tripData) {
+                                                            setTripData({
+                                                              ...tripData,
+                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                            });
+                                                          }
+                                                        } else {
+                                                          // Update quantity
+                                                          const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, quantity: newQty } : sr);
+                                                          if (tripData) {
+                                                            setTripData({
+                                                              ...tripData,
+                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                            });
+                                                          }
+                                                        }
+                                                      } else {
+                                                        // Save pending quantity
+                                                        setPendingRoomState(prev => ({ ...prev, [stateKey]: { ...prev[stateKey], count: newQty } }));
+                                                      }
+                                                    }}
+                                                    className="w-16 text-xs font-bold text-center py-1 px-2 border border-neutral-300 rounded focus:border-emerald-800 outline-none bg-white text-neutral-800"
+                                                  />
+                                                </div>
+                                                {isReqMet ? (
+                                                  <span className="text-[9px] font-black text-emerald-855 px-1.5 py-0.5 bg-emerald-50 rounded tracking-tight">ASSIGNED</span>
+                                                ) : (
+                                                  <span className="text-[9px] font-bold text-neutral-450 px-1.5 py-0.5 bg-neutral-100 rounded border border-neutral-200 tracking-tight">UNASSIGNED</span>
+                                                )}
                                               </div>
-                                            );
-                                          })()}
-                                        </div>
-                                        
-                                        {!isRoomSelectedHere && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const mp = activeBlock.mealPlan || 'BB';
-                                              const pricing = calculateRoomPrice(h, room, mp, 'Double');
-                                              const baseRate = pricing.total * (1 + roomMarkup / 100);
-                                              updateBlock(activeAssignment.blockId, {
-                                                roomName: room.room_name,
-                                                mealPlan: mp,
-                                                baseRoomRate: baseRate,
-                                                agreedPrice: undefined
-                                              });
-                                            }}
-                                            className="w-full py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[10px] font-bold rounded-lg transition-all"
-                                          >
-                                            Select Category
-                                          </button>
-                                        )}
+
+                                              {displayCount > 0 && (
+                                                <div className="p-2 space-y-2">
+                                                  {/* Assigned Room Meal Plan Toggle Header */}
+                                                  <div className="flex bg-neutral-200/50 p-1 rounded-xl gap-1 mb-2">
+                                                    {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => (
+                                                      <button
+                                                        key={mp}
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          if (assignedRoom) {
+                                                            const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
+                                                            if (tripData) {
+                                                              setTripData({
+                                                                ...tripData,
+                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                              });
+                                                            }
+                                                          } else {
+                                                            // Save pending meal plan
+                                                            setPendingRoomState(prev => ({ ...prev, [stateKey]: { ...prev[stateKey], mealPlan: mp } }));
+                                                          }
+                                                        }}
+                                                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${currentMealPlan === mp ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
+                                                      >
+                                                        {mp}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+
+                                                  <div className="grid grid-cols-1 gap-2">
+                                                    {rooms.map((room: any) => {
+                                                      const isRoomSelectedHere = assignedRoom?.roomId === room.id;
+                                                      const pricing = calculateRoomPrice(h, room, currentMealPlan, rType);
+                                                      const contractedPrice = pricing.total;
+                                                      const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
+
+                                                      return (
+                                                        <button
+                                                          key={room.id}
+                                                          onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            const newSelected = [...selectedRooms.filter((sr: any) => sr.reqId !== reqId)];
+                                                            newSelected.push({
+                                                              reqId: reqId,
+                                                              roomId: room.id,
+                                                              roomName: room.room_name,
+                                                              roomStandard: room.room_standard,
+                                                              quantity: displayCount,
+                                                              contractedPrice: contractedPrice,
+                                                              pricePerNight: agreedUnitPrice,
+                                                              mealPlan: currentMealPlan
+                                                            });
+                                                            
+                                                            // Also, update the main block's roomName and mealPlan with the primary selection for simplicity
+                                                            updateBlock(activeAssignment.blockId, {
+                                                              roomName: room.room_name,
+                                                              mealPlan: currentMealPlan
+                                                            });
+
+                                                            if (tripData) {
+                                                              setTripData({
+                                                                ...tripData,
+                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? {
+                                                                  ...a,
+                                                                  selectedRooms: newSelected,
+                                                                  roomId: room.id,
+                                                                  roomName: room.room_name,
+                                                                  mealPlan: currentMealPlan
+                                                                } : a)
+                                                              });
+                                                            }
+                                                          }}
+                                                          className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
+                                                        >
+                                                          <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                              <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
+                                                              <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests} Pax</span>
+                                                            </div>
+                                                            <div className="flex flex-col mt-1 space-y-0.5">
+                                                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} &bull; {pricing.seasonLabel}</span>
+                                                            </div>
+                                                          </div>
+                                                          <div className="text-right">
+                                                            <p className="text-xs font-black text-neutral-850">${agreedUnitPrice?.toFixed(0)}</p>
+                                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tighter line-through">${contractedPrice?.toFixed(0)} Base</p>
+                                                            <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Per Night</p>
+                                                          </div>
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     );
-                                  })}
+                                  })()}
                                   {rooms.length === 0 && (
                                     <span className="text-[10px] text-neutral-400 italic">No room categories configured.</span>
                                   )}
@@ -5436,59 +5661,65 @@ function AIItineraryBuilder({
                     return null;
                   })()}
                 </div>
-
-                {/* Clear Assignment Button */}
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      updateBlock(activeAssignment.blockId, {
-                        hotelId: undefined,
-                        hotelName: undefined,
-                        roomName: undefined,
-                        mealPlan: 'BB',
-                        baseRoomRate: undefined,
-                        agreedPrice: undefined,
-                        vendorId: undefined,
-                        activityId: undefined,
-                        vendorActivityId: undefined,
-                        contractedPrice: undefined,
-                        transportId: undefined,
-                        vehicleId: undefined,
-                        driverId: undefined,
-                        guideId: undefined,
-                        restaurantId: undefined,
-                        restaurantQuantity: undefined,
-                        mealType: undefined,
-                        transportRateType: undefined,
-                        transportQuantity: undefined,
-                        imageUrl: ''
-                      });
-                      setActiveAssignment(null);
-                      setSearchTerm("");
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-red-500 hover:text-red-700 text-[10px] font-extrabold uppercase tracking-widest hover:bg-red-50/80 rounded-xl transition-all border border-red-100"
-                  >
-                    <Link2Off size={14} /> Clear Assignment
-                  </button>
-                </div>
               </div>
-
-              {/* Finish Drawer Footer */}
-              <div className="p-6 sticky bottom-0 bg-white border-t border-neutral-100">
-                <button 
-                  type="button"
-                  onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
-                  className="w-full py-3 bg-emerald-800 hover:bg-emerald-950 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <CheckCircle2 size={18} /> Finish Assignment
-                </button>
-              </div>
+ 
+               {/* Finish Drawer Footer */}
+               <div className="p-6 sticky bottom-0 bg-white border-t border-neutral-100 flex gap-3">
+                 <button
+                   type="button"
+                   onClick={() => {
+                     const block = itinerary.find(b => b.id === activeAssignment.blockId);
+                     if (block) {
+                       if (tripData && block.type === 'sleep') {
+                         const newAccs = (tripData.accommodations || []).filter(a => Number(a.nightIndex) !== Number(block.dayNumber));
+                         setTripData({
+                           ...tripData,
+                           accommodations: newAccs
+                         });
+                       }
+                     }
+                     updateBlock(activeAssignment.blockId, {
+                       hotelId: undefined,
+                       hotelName: undefined,
+                       roomName: undefined,
+                       mealPlan: 'BB',
+                       baseRoomRate: undefined,
+                       agreedPrice: undefined,
+                       vendorId: undefined,
+                       activityId: undefined,
+                       vendorActivityId: undefined,
+                       contractedPrice: undefined,
+                       transportId: undefined,
+                       vehicleId: undefined,
+                       driverId: undefined,
+                       guideId: undefined,
+                       restaurantId: undefined,
+                       restaurantQuantity: undefined,
+                       mealType: undefined,
+                       transportRateType: undefined,
+                       transportQuantity: undefined,
+                       imageUrl: ''
+                     });
+                     setActiveAssignment(null);
+                     setSearchTerm("");
+                   }}
+                   className="flex-1 flex items-center justify-center gap-2 py-3 text-red-500 hover:text-red-700 text-[10px] font-extrabold uppercase tracking-widest hover:bg-red-50/80 rounded-xl transition-all border border-red-100"
+                 >
+                   <Link2Off size={14} /> Clear Assignment
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                   className="flex-1 py-3 bg-emerald-800 hover:bg-emerald-950 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                 >
+                   <CheckCircle2 size={18} /> Finish Assignment
+                 </button>
+               </div>
 
             </div>
           </div>
         );
-      })()}
+      })(), document.body)}
     </div>
   );
 }

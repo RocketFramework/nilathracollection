@@ -82,6 +82,7 @@ export interface Hotel {
     payment_details?: PaymentDetails;
     rooms?: HotelRoom[];
     recreations?: HotelRecreation[];
+    photo_url?: string;
 }
 
 export class HotelService {
