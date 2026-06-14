@@ -630,6 +630,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                   {/* Event Image (rendered above data) */}
                                   {(() => {
                                     let imgUrl = block.imageUrl;
+                                    if (imgUrl === 'none') {
+                                      return null;
+                                    }
                                     if (!imgUrl && block.type === 'sleep' && block.hotelId) {
                                       const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
                                       if (h) {
@@ -643,38 +646,15 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       }
                                     }
                                     if (!imgUrl && block.type === 'activity') {
-                                       const resolvedActId = block.activityId || (() => {
-                                         if (!block.name) return undefined;
-                                         const cleanWords = (str: string) => {
-                                           return str.toLowerCase()
-                                             .replace(/[^\w\s]/g, '')
-                                             .split(/\s+/)
-                                             .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
-                                         };
-                                         const blockWords = cleanWords(block.name);
-                                         if (blockWords.length === 0) return undefined;
-
-                                         let bestMatch: any = null;
-                                         let maxOverlap = 0;
-                                         masterData.activities?.forEach((a: any) => {
-                                           const actWords = cleanWords(a.activity_name);
-                                           const overlap = blockWords.filter(w => actWords.includes(w)).length;
-                                           if (overlap > maxOverlap) {
-                                             maxOverlap = overlap;
-                                             bestMatch = a;
-                                           }
-                                         });
-                                         return maxOverlap > 0 ? bestMatch?.id : undefined;
-                                       })();
-
-                                       const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
-                                       const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                                                  v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
-                                       const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
-                                       if (activityDetail) {
-                                         imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
-                                       }
-                                     }
+                                      const resolvedActId = block.activityId;
+                                      const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
+                                      const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                                                 (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+                                      const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+                                      if (activityDetail) {
+                                        imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
+                                      }
+                                    }
 
                                     if (!imgUrl) return null;
                                     return (

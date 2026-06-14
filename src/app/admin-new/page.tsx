@@ -2762,6 +2762,19 @@ function AIItineraryBuilder({
       }
     }
 
+    else if (field === 'activityId' && block.type === 'activity') {
+      const activity = masterData.activities.find((a: any) => a.id === value);
+      if (activity) {
+        const autoImageUrl = (activity.images && activity.images.length > 0) ? activity.images[0] : (block.imageUrl || '');
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
+          activityId: value,
+          imageUrl: autoImageUrl,
+          ...(b.activityId !== value ? { vendorId: undefined, vendorActivityId: undefined, contractedPrice: undefined, agreedPrice: undefined } : {})
+        } : b));
+      }
+    }
+
     // Sync logic for activities (Vendors)
     else if (field === 'vendorId' && block.type === 'activity') {
       const vendor = masterData.vendors.find((v: any) => v.id === value);
@@ -4512,49 +4525,30 @@ function AIItineraryBuilder({
                     <div className="flex items-center gap-3 flex-wrap">
                       {(() => {
                         let imgUrl = block.imageUrl;
-                        if (!imgUrl && block.type === 'sleep' && block.hotelId) {
-                          const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
-                          if (h) {
-                            imgUrl = (h.images && h.images.length > 0) ? h.images[0] : (h.photo_url || '');
+                        if (imgUrl === 'none') {
+                          imgUrl = '';
+                        } else {
+                          if (!imgUrl && block.type === 'sleep' && block.hotelId) {
+                            const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
+                            if (h) {
+                              imgUrl = (h.images && h.images.length > 0) ? h.images[0] : (h.photo_url || '');
+                            }
                           }
-                        }
-                        if (!imgUrl && block.type === 'meal' && block.restaurantId) {
-                          const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
-                          if (r) {
-                            imgUrl = (r.images && r.images.length > 0) ? r.images[0] : (r.photo_url || '');
+                          if (!imgUrl && block.type === 'meal' && block.restaurantId) {
+                            const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
+                            if (r) {
+                              imgUrl = (r.images && r.images.length > 0) ? r.images[0] : (r.photo_url || '');
+                            }
                           }
-                        }
-                        if (!imgUrl && block.type === 'activity') {
-                          const resolvedActId = block.activityId || (() => {
-                            if (!block.name) return undefined;
-                            const cleanWords = (str: string) => {
-                              return str.toLowerCase()
-                                .replace(/[^\w\s]/g, '')
-                                .split(/\s+/)
-                                .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
-                            };
-                            const blockWords = cleanWords(block.name);
-                            if (blockWords.length === 0) return undefined;
-
-                            let bestMatch: any = null;
-                            let maxOverlap = 0;
-                            masterData.activities?.forEach((a: any) => {
-                              const actWords = cleanWords(a.activity_name);
-                              const overlap = blockWords.filter(w => actWords.includes(w)).length;
-                              if (overlap > maxOverlap) {
-                                maxOverlap = overlap;
-                                bestMatch = a;
-                              }
-                            });
-                            return maxOverlap > 0 ? bestMatch?.id : undefined;
-                          })();
-
-                          const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
-                          const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                                     v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
-                          const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
-                          if (activityDetail) {
-                            imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
+                          if (!imgUrl && block.type === 'activity') {
+                            const resolvedActId = block.activityId;
+                            const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
+                            const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                                       (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+                            const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+                            if (activityDetail) {
+                              imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
+                            }
                           }
                         }
 
@@ -4566,43 +4560,53 @@ function AIItineraryBuilder({
                                  alt="Itinerary item"
                                  className="w-full h-full object-cover"
                               />
-                              {block.imageUrl && (
-                                <button
-                                  onClick={() => handleUpdateBlockField(block.id, 'imageUrl', '')}
-                                  disabled={isLockedByOther}
-                                  className="absolute inset-0 bg-red-650/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 disabled:group-hover/img:opacity-0 transition-all text-[10px] font-extrabold uppercase tracking-wide disabled:pointer-events-none"
-                                >
-                                  Remove
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleUpdateBlockField(block.id, 'imageUrl', 'none')}
+                                disabled={isLockedByOther}
+                                className="absolute inset-0 bg-red-650/80 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 disabled:group-hover/img:opacity-0 transition-all text-[10px] font-extrabold uppercase tracking-wide disabled:pointer-events-none"
+                              >
+                                Remove
+                              </button>
                             </div>
                           );
                         }
 
                         return (
-                          <label className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200/80 hover:bg-neutral-50 text-[10px] font-extrabold text-neutral-600 hover:text-neutral-800 cursor-pointer transition-all shadow-sm select-none ${isLockedByOther ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
-                            {uploadingBlockId === block.id ? (
-                              <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
-                                <span>Uploading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="w-3.5 h-3.5 text-neutral-400" />
-                                <span>Upload Image</span>
-                              </>
+                          <div className="flex items-center gap-2">
+                            <label className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-200/80 hover:bg-neutral-50 text-[10px] font-extrabold text-neutral-600 hover:text-neutral-800 cursor-pointer transition-all shadow-sm select-none ${isLockedByOther ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}>
+                              {uploadingBlockId === block.id ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-800" />
+                                  <span>Uploading...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3.5 h-3.5 text-neutral-400" />
+                                  <span>Upload Image</span>
+                                </>
+                              )}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingBlockId === block.id || isLockedByOther}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleImageUpload(block.id, file);
+                                }}
+                              />
+                            </label>
+                            {block.imageUrl === 'none' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateBlockField(block.id, 'imageUrl', '')}
+                                disabled={isLockedByOther}
+                                className="text-[10px] font-extrabold text-emerald-800 hover:text-emerald-950 hover:underline px-2 py-1 uppercase tracking-wider transition-all"
+                              >
+                                Restore Default
+                              </button>
                             )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              disabled={uploadingBlockId === block.id || isLockedByOther}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleImageUpload(block.id, file);
-                              }}
-                            />
-                          </label>
+                          </div>
                         );
                       })()}
 
@@ -5264,31 +5268,19 @@ function AIItineraryBuilder({
 
                   {/* Activity List */}
                   {activeAssignment.type === 'activity' && (() => {
-                    const resolvedActId = activeBlock.activityId || (() => {
-                      if (!activeBlock.name) return undefined;
-                      const cleanWords = (str: string) => {
-                        return str.toLowerCase()
-                          .replace(/[^\w\s]/g, '')
-                          .split(/\s+/)
-                          .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
-                      };
-                      const blockWords = cleanWords(activeBlock.name);
-                      if (blockWords.length === 0) return undefined;
-
-                      let bestMatch: any = null;
-                      let maxOverlap = 0;
-                      masterData.activities.forEach((a: any) => {
-                        const actWords = cleanWords(a.activity_name);
-                        const overlap = blockWords.filter(w => actWords.includes(w)).length;
-                        if (overlap > maxOverlap) {
-                          maxOverlap = overlap;
-                          bestMatch = a;
-                        }
-                      });
-                      return maxOverlap > 0 ? bestMatch?.id : undefined;
-                    })();
+                    const resolvedActId = activeBlock.activityId;
 
                     const baseActivity = masterData.activities.find((a: any) => Number(a.id) === Number(resolvedActId));
+
+                    const matchedActivities = searchTerm.trim()
+                      ? masterData.activities.filter((act: any) => {
+                          const actName = act.activity_name?.toLowerCase() || '';
+                          const locName = act.location_name?.toLowerCase() || '';
+                          const dist = act.district?.toLowerCase() || '';
+                          const searchLower = searchTerm.toLowerCase();
+                          return actName.includes(searchLower) || locName.includes(searchLower) || dist.includes(searchLower);
+                        })
+                      : [];
 
                     const specializedVendorsUnfiltered = masterData.vendors.filter((v: any) =>
                       v.vendor_activities?.some((va: any) => 
@@ -5321,6 +5313,43 @@ function AIItineraryBuilder({
                               </div>
                             </div>
                           </div>
+                        )}
+
+                        {matchedActivities.length > 0 && (
+                          <>
+                            <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-4">
+                              Matching Activities ({matchedActivities.length})
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 p-4">
+                              {matchedActivities.map((act: any) => {
+                                const isActSelected = activeBlock.activityId === act.id;
+                                return (
+                                  <button
+                                    key={'act-' + act.id}
+                                    type="button"
+                                    onClick={() => {
+                                      bindProvider(activeAssignment.blockId, 'activityId', act.id);
+                                    }}
+                                    className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                                      isActSelected
+                                        ? 'border-orange-500 bg-orange-50/10'
+                                        : 'border-neutral-200 bg-white hover:border-orange-300'
+                                    }`}
+                                  >
+                                    <div className="flex-1">
+                                      <p className="font-bold text-xs text-neutral-800">{act.activity_name}</p>
+                                      <p className="text-[9px] font-bold text-neutral-400 mt-1 flex items-center gap-1">
+                                        <MapPin size={10} /> {act.location_name}, {act.district}
+                                      </p>
+                                    </div>
+                                    <div className="text-[8px] uppercase font-extrabold text-orange-600 px-2 py-1 bg-orange-50 rounded-md">
+                                      {isActSelected ? 'Linked' : 'Link Activity'}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
                         )}
 
                         <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-4">
