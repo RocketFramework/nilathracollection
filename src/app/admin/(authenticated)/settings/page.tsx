@@ -39,6 +39,12 @@ export default function SettingsPage() {
         premium_dinner_cost: 35,
         luxury_dinner_cost: 50,
         ultra_vip_dinner_cost: 100,
+        policy_generic: "",
+        policy_regular: "",
+        policy_premium: "",
+        policy_luxury: "",
+        policy_ultra_vip: "",
+        policy_draft: "",
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -655,6 +661,105 @@ export default function SettingsPage() {
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">Communication Settings</h2>
+                        <p className="text-sm text-neutral-500">Configure policy notes, terms & conditions to include in client itinerary PDFs (separate lines with Enter).</p>
+                    </div>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-2">Generic Policy Notes (Applies to all itineraries)</label>
+                            <textarea
+                                rows={4}
+                                value={markups.policy_generic || ""}
+                                onChange={(e) => setMarkups({ ...markups, policy_generic: e.target.value })}
+                                placeholder="Enter generic policy notes, one per line..."
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-2">Draft Itinerary Terms (Applies to draft itineraries)</label>
+                            <textarea
+                                rows={4}
+                                value={markups.policy_draft || ""}
+                                onChange={(e) => setMarkups({ ...markups, policy_draft: e.target.value })}
+                                placeholder="Enter draft itinerary terms, one per line..."
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-2">Regular Tier Policies</label>
+                            <textarea
+                                rows={4}
+                                value={markups.policy_regular || ""}
+                                onChange={(e) => setMarkups({ ...markups, policy_regular: e.target.value })}
+                                placeholder="Enter Regular tier policies..."
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-2">Premium Tier Policies</label>
+                            <textarea
+                                rows={4}
+                                value={markups.policy_premium || ""}
+                                onChange={(e) => setMarkups({ ...markups, policy_premium: e.target.value })}
+                                placeholder="Enter Premium tier policies..."
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-2">Luxury Tier Policies</label>
+                            <textarea
+                                rows={4}
+                                value={markups.policy_luxury || ""}
+                                onChange={(e) => setMarkups({ ...markups, policy_luxury: e.target.value })}
+                                placeholder="Enter Luxury tier policies..."
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-neutral-700 mb-2">Ultra VIP Tier Policies</label>
+                            <textarea
+                                rows={4}
+                                value={markups.policy_ultra_vip || ""}
+                                onChange={(e) => setMarkups({ ...markups, policy_ultra_vip: e.target.value })}
+                                placeholder="Enter Ultra VIP tier policies..."
+                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                            />
                         </div>
                     </div>
                 </div>

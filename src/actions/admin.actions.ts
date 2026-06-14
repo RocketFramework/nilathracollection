@@ -25,6 +25,7 @@ import { VendorBookingService } from "@/services/vendor-booking.service";
 import { CreateVendorBookingDTO, UpdateBookingStatusDTO } from "../dtos/vendor-booking.dto";
 import { ItineraryDraftService } from "@/services/itinerary-draft.service";
 import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from "@/other/interfaces";
+import { TourSharedEmailService } from "@/services/tour-shared-email.service";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -1062,12 +1063,22 @@ export async function getAppMarkupsAction() {
             premium_concierge_cost: 50,
             luxury_concierge_cost: 100,
             ultra_vip_concierge_cost: 200,
+            policy_generic: "",
+            policy_regular: "",
+            policy_premium: "",
+            policy_luxury: "",
+            policy_ultra_vip: "",
+            policy_draft: "",
         };
 
         if (data) {
             data.forEach(item => {
                 if (item.setting_key in markups) {
-                    (markups as any)[item.setting_key] = Number(item.setting_value);
+                    if (item.setting_key.startsWith('policy_')) {
+                        (markups as any)[item.setting_key] = item.setting_value || "";
+                    } else {
+                        (markups as any)[item.setting_key] = Number(item.setting_value);
+                    }
                 }
             });
         }
@@ -1108,16 +1119,22 @@ export async function getAppMarkupsAction() {
             premium_concierge_cost: 50,
             luxury_concierge_cost: 100,
             ultra_vip_concierge_cost: 200,
+            policy_generic: "",
+            policy_regular: "",
+            policy_premium: "",
+            policy_luxury: "",
+            policy_ultra_vip: "",
+            policy_draft: "",
         } };
     }
 }
 
-export async function saveAppMarkupsAction(markups: Record<string, number>) {
+export async function saveAppMarkupsAction(markups: Record<string, any>) {
     try {
         const adminSupabase = createAdminClient();
         const updates = Object.entries(markups).map(([key, value]) => ({
             setting_key: key,
-            setting_value: value.toString()
+            setting_value: value !== undefined && value !== null ? value.toString() : ""
         }));
         const { error } = await adminSupabase.from('app_settings').upsert(updates);
         if (error) throw error;
@@ -1442,6 +1459,46 @@ export async function getDraftVersionAction(versionId: string) {
     } catch (error: any) {
         console.error("Error in getDraftVersionAction:", error);
         return { success: false, error: error.message || "Failed to fetch draft version." };
+    }
+}
+
+export async function logSharedEmailAction(
+    tourId: string,
+    recipientEmail: string,
+    senderEmail: string,
+    subject: string,
+    bodyHtml: string,
+    attachments: string[]
+) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const sentBy = user ? user.id : undefined;
+
+        const logId = await TourSharedEmailService.logSharedEmail({
+            tour_id: tourId,
+            recipient_email: recipientEmail,
+            sender_email: senderEmail,
+            subject: subject,
+            body_html: bodyHtml,
+            attachments: attachments,
+            sent_by: sentBy
+        });
+
+        return { success: true, logId };
+    } catch (error: any) {
+        console.error("Error in logSharedEmailAction:", error);
+        return { success: false, error: error.message || "Failed to log shared email." };
+    }
+}
+
+export async function getSharedEmailsAction(tourId: string) {
+    try {
+        const emails = await TourSharedEmailService.getSharedEmailsByTourId(tourId);
+        return { success: true, emails };
+    } catch (error: any) {
+        console.error("Error in getSharedEmailsAction:", error);
+        return { success: false, error: error.message || "Failed to fetch shared emails." };
     }
 }
 

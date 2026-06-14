@@ -17,8 +17,12 @@ import {
   Shield, 
   UserCheck, 
   User, 
+  Mail, 
   MailQuestion, 
   Send, 
+  Type, 
+  Code, 
+  Paperclip, 
   Receipt, 
   CircleDollarSign, 
   TrendingUp,
@@ -26,6 +30,7 @@ import {
   ChevronLeft,
   Save,
   CheckCircle,
+  AlertCircle,
   Play,
   Settings,
   HelpCircle,
@@ -64,7 +69,7 @@ import {
   Link2Off
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
-import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock } from '../../other/interfaces';
+import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
   getTouristDataAction, 
@@ -90,7 +95,11 @@ import {
   getDriversAction,
   getTourGuidesAction,
   getRestaurantsAction,
-  searchRestaurantsAction
+  searchRestaurantsAction,
+  getEmailTemplatesAction,
+  sendCustomEmailAction,
+  getSharedEmailsAction,
+  logSharedEmailAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -306,6 +315,19 @@ function PlannerWizardWorkspace() {
     transportProviders: [],
     activities: []
   });
+
+  // Share with Tourist email states
+  const [shareEmailTo, setShareEmailTo] = useState('');
+  const [shareEmailSubject, setShareEmailSubject] = useState('');
+  const [shareEmailBody, setShareEmailBody] = useState('');
+  const [shareEmailFrom, setShareEmailFrom] = useState('concierge@nilathra.com');
+  const [isSendingShareEmail, setIsSendingShareEmail] = useState(false);
+  const [shareEmailFeedback, setShareEmailFeedback] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [shareTemplateLoaded, setShareTemplateLoaded] = useState<string | null>(null);
+  const shareEditorRef = React.useRef<HTMLDivElement>(null);
+  const [showShareHtml, setShowShareHtml] = useState(false);
+  const [shareEmailAttachments, setShareEmailAttachments] = useState<File[]>([]);
+  const [sharedEmails, setSharedEmails] = useState<TourSharedEmail[]>([]);
 
   // Fetch activities and settings from the database
   useEffect(() => {
@@ -573,13 +595,6 @@ function PlannerWizardWorkspace() {
       isSubStep: true
     },
     { 
-      id: 'rough-costing', 
-      label: 'Rough Costing', 
-      description: 'Perform a high-level budget estimation and profit margin check.', 
-      icon: Coins,
-      isSubStep: true
-    },
-    { 
       id: 'share-tourist', 
       label: 'Share with Tourist', 
       description: 'Export and share the draft basic itinerary link with the tourist for initial feedback.', 
@@ -716,6 +731,99 @@ function PlannerWizardWorkspace() {
   const activeSteps = track === 'basic' ? basicSteps : finalSteps;
   const activeIndex = track === 'basic' ? activeBasicStepIndex : activeFinalStepIndex;
   const currentStep = activeSteps[activeIndex] || activeSteps[0];
+
+  // Load email template for Share with Tourist step
+  useEffect(() => {
+    if (currentStep?.id === 'share-tourist') {
+      const cacheKey = `${tourId}_${touristData?.profile?.email || ''}`;
+      if (shareTemplateLoaded === cacheKey) {
+        return; // Already loaded for this session
+      }
+
+      // Pre-fill recipient email
+      if (touristData?.profile?.email) {
+        setShareEmailTo(touristData.profile.email);
+      }
+
+      async function loadShareTemplate() {
+        try {
+          const res = await getEmailTemplatesAction();
+          if (res.success && res.templates) {
+            const template = res.templates.find((t: any) => t.name === 'Draft Itinerary Share');
+            if (template) {
+              setShareEmailSubject(template.subject || 'Your Journey to Sri Lanka — A First Look');
+              
+              if (template.from_email) {
+                setShareEmailFrom(template.from_email);
+              } else {
+                const supabase = createClient();
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user && user.email) {
+                  setShareEmailFrom(user.email);
+                }
+              }
+
+              let bodyHtml = template.body_html || '';
+              
+              const guestName = touristData?.profile 
+                ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest' 
+                : 'Valued Guest';
+              
+              let agentName = 'Your Concierge Team';
+              const supabase = createClient();
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+              }
+
+              bodyHtml = bodyHtml.replace(/\[Guest Name\]/g, guestName);
+              bodyHtml = bodyHtml.replace(/\[Your Name\]/g, agentName);
+
+              setShareEmailBody(bodyHtml);
+              setShareTemplateLoaded(cacheKey);
+
+              // Sync editor HTML after DOM mounts
+              setTimeout(() => {
+                if (shareEditorRef.current) {
+                  shareEditorRef.current.innerHTML = bodyHtml;
+                }
+              }, 150);
+            }
+          }
+        } catch (err) {
+          console.error("Error loading share template:", err);
+        }
+      }
+
+      loadShareTemplate();
+    }
+  }, [currentStep?.id, touristData, tourId, shareTemplateLoaded]);
+
+  // Load email sharing history logs
+  useEffect(() => {
+    if (currentStep?.id === 'share-tourist' && tourId) {
+      async function loadSharedEmails() {
+        try {
+          const res = await getSharedEmailsAction(tourId);
+          if (res.success && res.emails) {
+            setSharedEmails(res.emails as TourSharedEmail[]);
+          }
+        } catch (err) {
+          console.error("Error loading shared emails history:", err);
+        }
+      }
+      loadSharedEmails();
+    }
+  }, [currentStep?.id, tourId]);
+
+  // Sync shareEditorRef on navigation/tab switch
+  useEffect(() => {
+    if (currentStep?.id === 'share-tourist' && !showShareHtml && shareEditorRef.current) {
+      if (shareEditorRef.current.innerHTML !== shareEmailBody) {
+        shareEditorRef.current.innerHTML = shareEmailBody;
+      }
+    }
+  }, [currentStep?.id, showShareHtml, shareEmailBody]);
 
   // A. RESTORE STATE ON MOUNT (Runs exactly once on mount)
   useEffect(() => {
@@ -870,7 +978,6 @@ function PlannerWizardWorkspace() {
             'tourist-data',
             'activity-selection',
             'ai-builder',
-            'rough-costing',
             'share-tourist'
           ];
           const localFinalSteps = [
@@ -1119,6 +1226,82 @@ function PlannerWizardWorkspace() {
 
     // 3. Clamp the active index to prevent out-of-bounds
     setActiveFinalStepIndex(prev => Math.min(prev, dynamicStepsCount - 1));
+  };
+
+  const handleSendShareEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shareEmailTo.trim()) {
+      setShareEmailFeedback({ type: 'error', text: 'Recipient email is required.' });
+      return;
+    }
+    if (!shareEmailSubject.trim()) {
+      setShareEmailFeedback({ type: 'error', text: 'Email subject is required.' });
+      return;
+    }
+    if (!shareEmailBody.trim()) {
+      setShareEmailFeedback({ type: 'error', text: 'Email body cannot be empty.' });
+      return;
+    }
+
+    setIsSendingShareEmail(true);
+    setShareEmailFeedback(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('from', shareEmailFrom);
+      formData.append('to', shareEmailTo);
+      formData.append('subject', shareEmailSubject);
+      formData.append('body', shareEmailBody);
+
+      shareEmailAttachments.forEach(file => {
+        formData.append('attachments', file);
+      });
+
+      const result = await sendCustomEmailAction(formData);
+      if (result.success) {
+        setShareEmailFeedback({ type: 'success', text: 'Draft itinerary shared with client successfully!' });
+        
+        // Log shared email details to DB
+        const attachmentNames = shareEmailAttachments.map(f => f.name);
+        try {
+          await logSharedEmailAction(
+            tourId,
+            shareEmailTo,
+            shareEmailFrom,
+            shareEmailSubject,
+            shareEmailBody,
+            attachmentNames
+          );
+          
+          // Re-fetch shared emails list
+          const refreshRes = await getSharedEmailsAction(tourId);
+          if (refreshRes.success && refreshRes.emails) {
+            setSharedEmails(refreshRes.emails as TourSharedEmail[]);
+          }
+        } catch (logErr) {
+          console.error('Failed to log email sharing history:', logErr);
+        }
+
+        setShareEmailAttachments([]);
+      } else {
+        setShareEmailFeedback({ type: 'error', text: result.error || 'Failed to send email.' });
+      }
+    } catch (error: any) {
+      console.error('Error sharing draft itinerary:', error);
+      setShareEmailFeedback({ type: 'error', text: error.message || 'An unexpected error occurred.' });
+    } finally {
+      setIsSendingShareEmail(false);
+    }
+  };
+
+  const handleShareAttachmentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setShareEmailAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const removeShareAttachment = (index: number) => {
+    setShareEmailAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   // Tourist Data Form Handlers
@@ -2391,6 +2574,341 @@ function PlannerWizardWorkspace() {
                     masterData={masterData}
                     setMasterData={setMasterData}
                   />
+                ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
+                  <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                    <div>
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 mb-1">Share Draft Itinerary</h3>
+                      <p className="text-xs text-neutral-500">
+                        Review the pre-filled email template below, customize the message, and send the draft itinerary to the guest.
+                      </p>
+                    </div>
+
+                    {/* Sharing History Section */}
+                    <div className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold text-neutral-800 font-serif flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-emerald-800" />
+                          Itinerary Sharing History
+                          {sharedEmails.length > 0 && (
+                            <span className="px-2 py-0.5 bg-emerald-800/10 text-emerald-800 rounded-full text-[10px] font-mono font-bold">
+                              {sharedEmails.length}
+                            </span>
+                          )}
+                        </h4>
+                      </div>
+
+                      {sharedEmails.length === 0 ? (
+                        <p className="text-xs text-neutral-500 italic py-2 text-center bg-white border border-neutral-150 rounded-2xl">
+                          No emails have been shared with this guest yet.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-sm">
+                          <table className="min-w-full divide-y divide-neutral-200 text-left text-xs">
+                            <thead className="bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                              <tr>
+                                <th scope="col" className="px-4 py-3">Date Shared</th>
+                                <th scope="col" className="px-4 py-3">Sender</th>
+                                <th scope="col" className="px-4 py-3">Recipient</th>
+                                <th scope="col" className="px-4 py-3">Subject</th>
+                                <th scope="col" className="px-4 py-3">Attachments</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100 text-neutral-700 font-medium">
+                              {sharedEmails.map((email) => (
+                                <tr key={email.id} className="hover:bg-neutral-50/50 transition-colors">
+                                  <td className="px-4 py-3 font-mono text-[10px] whitespace-nowrap text-neutral-500">
+                                    {new Date(email.shared_at).toLocaleString(undefined, {
+                                      dateStyle: 'short',
+                                      timeStyle: 'short',
+                                    })}
+                                  </td>
+                                  <td className="px-4 py-3 truncate max-w-[120px] font-mono text-neutral-600" title={email.sender_email}>
+                                    {email.sender_email}
+                                  </td>
+                                  <td className="px-4 py-3 truncate max-w-[120px] font-mono text-neutral-600" title={email.recipient_email}>
+                                    {email.recipient_email}
+                                  </td>
+                                  <td className="px-4 py-3 font-semibold text-neutral-800 truncate max-w-[180px]" title={email.subject}>
+                                    {email.subject}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {Array.isArray(email.attachments) && email.attachments.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {email.attachments.map((name, i) => (
+                                          <span
+                                            key={i}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-full text-[9px] font-bold"
+                                            title={name}
+                                          >
+                                            <Paperclip className="w-2.5 h-2.5 text-neutral-400" />
+                                            {name.length > 15 ? name.substring(0, 12) + '...' : name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-neutral-400 text-[10px] italic">None</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {shareEmailFeedback && (
+                      <div className={`p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${
+                        shareEmailFeedback.type === 'success' 
+                          ? 'bg-green-50 text-green-700 border border-green-100' 
+                          : 'bg-red-50 text-red-700 border border-red-100'
+                      }`}>
+                        {shareEmailFeedback.type === 'success' ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5 text-red-600" />
+                        )}
+                        <p className="text-xs font-bold">{shareEmailFeedback.text}</p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      {/* Left: Metadata & Link Sharing */}
+                      <div className="space-y-6 lg:col-span-1">
+                        <div className="bg-[#FBFBFA] border border-neutral-200 rounded-2xl p-6 space-y-4">
+                          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-widest font-mono">Itinerary Link</h4>
+                          <p className="text-xs text-neutral-500 leading-relaxed">
+                            Guests can use this secure link to view their interactive draft itinerary, provide daily feedback, and view their summary details.
+                          </p>
+                          
+                          <div className="bg-white border border-neutral-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-sm">
+                            <span className="text-xs font-mono truncate text-neutral-600 select-all">
+                              {typeof window !== 'undefined' 
+                                ? `${window.location.origin}/tourist/tour/${tourId}` 
+                                : `/tourist/tour/${tourId}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const shareLink = typeof window !== 'undefined' 
+                                  ? `${window.location.origin}/tourist/tour/${tourId}` 
+                                  : `/tourist/tour/${tourId}`;
+                                navigator.clipboard.writeText(shareLink);
+                                alert("Link copied to clipboard!");
+                              }}
+                              className="p-2 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-lg text-neutral-500 hover:text-emerald-800 transition-colors shadow-sm"
+                              title="Copy Link"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#FBFBFA] border border-neutral-200 rounded-2xl p-6 space-y-4">
+                          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-widest font-mono">Guest Details</h4>
+                          <div className="space-y-3">
+                            <div>
+                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Client Name</span>
+                              <span className="text-xs text-neutral-700 font-medium">
+                                {touristData?.profile 
+                                  ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest' 
+                                  : 'Valued Guest'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Client Email</span>
+                              <span className="text-xs text-neutral-700 font-mono block truncate">
+                                {touristData?.profile?.email || 'No email provided'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Duration</span>
+                              <span className="text-xs text-neutral-700 font-medium">
+                                {touristData?.preferences?.duration_days 
+                                  ? `${touristData.preferences.duration_days} Days` 
+                                  : 'Not Specified'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#FBFBFA] border border-neutral-200 rounded-2xl p-6 space-y-4">
+                          <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-widest font-mono font-serif">Guest Credentials</h4>
+                          <p className="text-[11px] text-neutral-500 leading-relaxed">
+                            Share these details to allow the guest to access their interactive online portal:
+                          </p>
+                          <div className="space-y-3 text-xs">
+                            <div>
+                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Portal URL</span>
+                              <span className="font-mono text-neutral-600 block bg-white border border-neutral-200 rounded-xl p-2 mt-1 truncate select-all">
+                                {typeof window !== 'undefined' ? `${window.location.origin}/tourist/login` : '/tourist/login'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Login Email</span>
+                              <span className="font-mono text-neutral-600 block bg-white border border-neutral-200 rounded-xl p-2 mt-1 truncate select-all">
+                                {touristData?.profile?.email || 'No email provided'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Authentication Method</span>
+                              <span className="text-neutral-700 font-medium block bg-white border border-neutral-200 rounded-xl p-2 mt-1">
+                                Magic Link (Instant Login link sent to email)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Email Composer */}
+                      <form onSubmit={handleSendShareEmail} className="lg:col-span-2 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 text-amber-600" /> Sender Email (From)
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              value={shareEmailFrom}
+                              onChange={(e) => setShareEmailFrom(e.target.value)}
+                              placeholder="sender@nilathra.com"
+                              className="w-full bg-[#FBFBFA] border border-neutral-200 text-neutral-800 rounded-xl p-3 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 outline-none text-xs transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <User className="w-3.5 h-3.5 text-amber-600" /> Recipient Email (To)
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              value={shareEmailTo}
+                              onChange={(e) => setShareEmailTo(e.target.value)}
+                              placeholder="client@example.com"
+                              className="w-full bg-[#FBFBFA] border border-neutral-200 text-neutral-800 rounded-xl p-3 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 outline-none text-xs transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2 md:col-span-2">
+                            <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Type className="w-3.5 h-3.5 text-amber-600" /> Subject Line
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={shareEmailSubject}
+                              onChange={(e) => setShareEmailSubject(e.target.value)}
+                              placeholder="Your Journey to Sri Lanka — A First Look"
+                              className="w-full bg-[#FBFBFA] border border-neutral-200 text-neutral-800 rounded-xl p-3 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 outline-none text-xs transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <MessageSquare className="w-3.5 h-3.5 text-amber-600" /> Message Body
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setShowShareHtml(!showShareHtml)}
+                              className="text-[10px] flex items-center gap-1 text-neutral-500 hover:text-neutral-800 transition-colors uppercase font-bold tracking-wider"
+                            >
+                              <Code className="w-3 h-3" /> {showShareHtml ? "View Formatted" : "View HTML Source"}
+                            </button>
+                          </div>
+                          
+                          {showShareHtml ? (
+                            <textarea
+                              required
+                              rows={12}
+                              value={shareEmailBody}
+                              onChange={(e) => {
+                                setShareEmailBody(e.target.value);
+                                if (shareEditorRef.current) {
+                                  shareEditorRef.current.innerHTML = e.target.value;
+                                }
+                              }}
+                              placeholder="Dear Guest, ..."
+                              className="w-full bg-[#FBFBFA] border border-neutral-200 text-neutral-800 rounded-xl p-4 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 outline-none text-xs transition-all resize-y font-mono"
+                            />
+                          ) : (
+                            <div
+                              ref={shareEditorRef}
+                              contentEditable
+                              onInput={() => {
+                                if (shareEditorRef.current) {
+                                  setShareEmailBody(shareEditorRef.current.innerHTML);
+                                }
+                              }}
+                              onBlur={() => {
+                                if (shareEditorRef.current) {
+                                  setShareEmailBody(shareEditorRef.current.innerHTML);
+                                }
+                              }}
+                              className="w-full bg-[#FBFBFA] border border-neutral-200 text-neutral-800 rounded-xl p-4 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 outline-none text-xs transition-all overflow-y-auto min-h-[250px] prose prose-sm max-w-none"
+                            />
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <Paperclip className="w-3.5 h-3.5 text-amber-600" /> Attachments (e.g. Itinerary PDF)
+                          </label>
+                          <div className="flex flex-col gap-3">
+                            <input
+                              type="file"
+                              multiple
+                              onChange={handleShareAttachmentsChange}
+                              className="w-full text-xs text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-600/10 file:text-amber-700 hover:file:bg-amber-600/20 transition-all cursor-pointer"
+                            />
+                            {shareEmailAttachments.length > 0 && (
+                              <ul className="space-y-2 mt-2">
+                                {shareEmailAttachments.map((file, idx) => (
+                                  <li key={idx} className="flex items-center justify-between bg-neutral-50 p-2 px-4 rounded-xl border border-neutral-200 text-xs shadow-sm">
+                                    <span className="truncate text-neutral-700 font-medium">{file.name}</span>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => removeShareAttachment(idx)} 
+                                      className="text-red-500 hover:text-red-700 transition-colors p-1"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                          <button
+                            type="submit"
+                            disabled={isSendingShareEmail}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold tracking-wider transition-all text-xs uppercase ${
+                              isSendingShareEmail 
+                                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed' 
+                                : 'bg-emerald-800 text-white hover:bg-emerald-950 shadow-md hover:shadow-lg'
+                            }`}
+                          >
+                            {isSendingShareEmail ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4" />
+                                Send Itinerary Email
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
                 ) : (
                   /* Premium Placeholder Panel for Empty Steps */
                   <div className="bg-white rounded-3xl p-10 border border-neutral-200 shadow-md relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -2545,7 +3063,7 @@ function AIItineraryBuilder({
   const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [roomMarkup, setRoomMarkup] = useState<number>(10);
-  const [markups, setMarkups] = useState<Record<string, number>>({});
+  const [markups, setMarkups] = useState<Record<string, any>>({});
 
   // Hotel Search State
   const [hotelSearchCity, setHotelSearchCity] = useState('');
@@ -4779,6 +5297,7 @@ function AIItineraryBuilder({
           chauffeurNeeded={chauffeurNeeded}
           appSettings={appSettings}
           masterData={masterData}
+          tripStatus={tripData?.status}
         />
       </div>
 

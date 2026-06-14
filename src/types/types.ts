@@ -7,7 +7,6 @@ export type BasicStep =
 
 export type PrepareBasicSubStep = 
   | 'ai-builder' 
-  | 'rough-costing' 
   | 'share-tourist';
 
 export type FinalStep =

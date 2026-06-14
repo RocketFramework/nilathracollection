@@ -15,6 +15,7 @@ interface ItineraryPdfTemplateNewProps {
   chauffeurNeeded: boolean;
   appSettings?: any;
   masterData?: any;
+  tripStatus?: string;
 }
 
 export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
@@ -29,7 +30,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     guideNeeded,
     chauffeurNeeded,
     appSettings,
-    masterData
+    masterData,
+    tripStatus
   }, ref) => {
     
     const clientName = touristData.profile 
@@ -291,9 +293,17 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           
           {/* Header Area */}
           <div className="z-10 text-center flex flex-col items-center mt-8">
-            <h1 className="text-3xl font-serif tracking-[0.35em] text-white uppercase font-light mb-2">
-              NILATHRA
-            </h1>
+            <div className="mb-4">
+              <img 
+                src="/images/nilathra_logo-02.png" 
+                alt="Nilathra Collection" 
+                className="w-48 opacity-90 relative z-10 filter brightness-200" 
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-3xl font-serif text-white uppercase tracking-[0.35em] mb-2">NILATHRA</h1>');
+                }} 
+              />
+            </div>
             <span className="text-[#D4AF37] text-[9px] tracking-[0.5em] uppercase font-light">
               The Collection
             </span>
@@ -521,7 +531,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     <h3 className="text-3xl font-serif text-[#111827] font-light italic">Your Custom Itinerary</h3>
                   </div>
 
-                  <div className="space-y-16">
+                  <div className="space-y-10">
                     {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
                       
                       // Filter blocks for active day, sorted by time
@@ -622,10 +632,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                           </div>
 
                           {/* Itinerary Events Flow - Full Width, Box-free */}
-                          <div className="space-y-6">
+                          <div className="space-y-4">
                             {dayBlocks.map((block) => {
                               return (
-                                <div key={block.id} className="print-avoid-break pb-4">
+                                <div key={block.id} className="print-avoid-break pb-2">
                                   
                                   {/* Event Image (rendered above data) */}
                                   {(() => {
@@ -748,6 +758,81 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     })}
                   </div>
                 </div>
+
+                {/* 5. POLICIES & IMPORTANT TERMS */}
+                {(() => {
+                  const getTierPolicyKey = (style: string) => {
+                    switch (style) {
+                      case 'Regular': return 'policy_regular';
+                      case 'Premium': return 'policy_premium';
+                      case 'Luxury': return 'policy_luxury';
+                      case 'Ultra VIP': return 'policy_ultra_vip';
+                      default: return null;
+                    }
+                  };
+
+                  const isDraft = tripStatus?.toLowerCase() === 'draft';
+                  const genericPolicyText = appSettings?.policy_generic || '';
+                  const tierKey = travelStyle ? getTierPolicyKey(travelStyle) : null;
+                  const tierPolicyText = (tierKey && appSettings?.[tierKey]) || '';
+
+                  const parsePolicyLines = (text: string) => {
+                    if (!text) return [];
+                    return text
+                      .split('\n')
+                      .map(line => line.trim())
+                      .filter(line => line.length > 0);
+                  };
+
+                  const allPolicies = isDraft
+                    ? parsePolicyLines(appSettings?.policy_draft || '')
+                    : [
+                        ...parsePolicyLines(genericPolicyText),
+                        ...parsePolicyLines(tierPolicyText)
+                      ];
+
+                  if (allPolicies.length === 0) return null;
+
+                  return (
+                    <div className="print-avoid-break">
+                      <div className="px-16 py-12 max-w-[850px] mx-auto border-t border-[#E8DFD1]/55 mt-8">
+                        <div className="text-center mb-8">
+                          <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">
+                            {isDraft ? "Draft Itinerary Terms" : "Policies & Terms"}
+                          </span>
+                          <h3 className="text-3xl font-serif text-[#111827] font-light italic">
+                            {isDraft ? "Proposal Terms" : "Important Information"}
+                          </h3>
+                        </div>
+
+                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-4 font-sans text-xs text-[#4B5563] leading-relaxed relative text-left">
+                          <div className="absolute left-0 top-6 bottom-6 w-[2px] bg-gradient-to-b from-[#D4AF37]/20 via-[#D4AF37] to-[#D4AF37]/20"></div>
+                          <ul className="space-y-3 pl-4 list-none">
+                            {allPolicies.map((policy, idx) => (
+                              <li key={idx} className="relative pl-6">
+                                <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                                <span className="font-medium text-[11.5px] text-[#374151]">{policy}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="mt-16 pt-8 border-t border-[#E8DFD1]/55 text-center pb-8 break-inside-avoid max-w-[850px] mx-auto">
+                        <div className="mb-6">
+                          <img src="/images/nilathra_logo-02.png" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                        </div>
+                        <div className="flex justify-center items-center gap-8 text-[8px] uppercase tracking-[0.2em] font-sans">
+                          <a href="https://www.nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>
+                          <span className="text-[#E5E7EB]">|</span>
+                          <a href="https://www.nilathra.com/terms" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Terms of Service</a>
+                          <span className="text-[#E5E7EB]">|</span>
+                          <a href="https://www.nilathra.com/booking-conditions" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Booking Conditions</a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
               </td>
             </tr>

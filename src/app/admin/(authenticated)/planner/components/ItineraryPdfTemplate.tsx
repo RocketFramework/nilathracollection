@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { TripData } from "../types";
 import { MapPin, Clock, Bed, Compass, Utensils, Car, Info, Calendar } from "lucide-react";
 import { getBookingTermsAction } from "@/actions/terms.actions";
-import { getItineraryDatesAction } from "@/actions/admin.actions";
+import { getItineraryDatesAction, getAppMarkupsAction } from "@/actions/admin.actions";
 
 export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData: TripData, masterData?: any }>(
     ({ tripData, masterData }, ref) => {
         const { profile, itinerary, accommodations, transports, financials } = tripData;
         const [luxuryTerms, setLuxuryTerms] = useState<any>(null);
         const [dbDates, setDbDates] = useState<Record<number, string> | null>(null);
+        const [appSettings, setAppSettings] = useState<any>(null);
 
         useEffect(() => {
             getBookingTermsAction().then(res => {
                 if (res.success && res.terms) {
                     const term = res.terms.find((t: any) => t.tier === 'luxury');
                     if (term) setLuxuryTerms(term);
+                }
+            });
+
+            getAppMarkupsAction().then(res => {
+                if (res.success && res.markups) {
+                    setAppSettings(res.markups);
                 }
             });
 
@@ -200,7 +207,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                 }} />
                             </div>
                             <div className="w-[1px] h-16 bg-gradient-to-b from-[#D4AF37]/0 via-[#D4AF37]/50 to-[#D4AF37]/0 my-6"></div>
-                            <span className="text-[#D4AF37] text-[10px] tracking-[0.4em] uppercase font-light">The Collection</span>
+                            <span className="text-[#D4AF37] text-[10px] tracking-[0.4em] uppercase font-light">Collection</span>
                         </div>
 
                         <div className="flex flex-col items-center justify-center space-y-12 my-auto">
@@ -338,7 +345,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                         {/* Central Timeline Spine */}
                                         <div className="absolute left-[31px] top-6 bottom-0 w-[1px] bg-gradient-to-b from-[#D4AF37]/30 via-[#D4AF37]/15 to-[#D4AF37]/30"></div>
 
-                                        <div className="space-y-12">
+                                        <div className="space-y-8">
                                             {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
                                                 const timeToMins = (timeStr?: string, blockType?: string) => {
                                                     if (!timeStr || !timeStr.includes(':')) return blockType === 'sleep' ? 1440 : -1;
@@ -388,11 +395,11 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                                         </div>
                                                                     ) : null;
                                                                 })()}
-                                                                <div className="space-y-4">
+                                                                <div className="space-y-2.5">
                                                                     {dayBlocks.map((block) => {
                                                                         const config = getBlockTypeConfig(block.type);
                                                                         return (
-                                                                            <div key={block.id} className={`p-4 rounded-xl border ${config.border} ${config.bg} shadow-sm transition-all hover:shadow-md relative overflow-hidden break-inside-avoid`}>
+                                                                            <div key={block.id} className={`p-3 rounded-xl border ${config.border} ${config.bg} shadow-sm transition-all hover:shadow-md relative overflow-hidden break-inside-avoid`}>
                                                                                 {/* Top bar with time, type badge, etc. */}
                                                                                 <div className="flex flex-wrap justify-between items-center gap-2 mb-2.5">
                                                                                     <div className="flex items-center gap-2">
@@ -727,7 +734,42 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                             </div>
                                         </div>
 
-                                        {luxuryTerms && (
+                                        {/* Draft Itinerary Terms */}
+                                        {(() => {
+                                            const draftPolicyText = appSettings?.policy_draft || '';
+                                            if (!draftPolicyText) return null;
+
+                                            const parsePolicyLines = (text: string) => {
+                                                if (!text) return [];
+                                                return text
+                                                    .split('\n')
+                                                    .map(line => line.trim())
+                                                    .filter(line => line.length > 0);
+                                            };
+
+                                            const draftPolicies = parsePolicyLines(draftPolicyText);
+                                            if (draftPolicies.length === 0) return null;
+
+                                            return (
+                                                <div className="mt-16 pt-16 border-t border-[#E5E7EB] text-left pb-16 break-inside-avoid">
+                                                    <h4 className="text-[#111827] font-serif text-2xl mb-8 text-center text-[#D4AF37]">Draft Itinerary Terms</h4>
+                                                    <div className="bg-[#FAFAF9] border border-[#E5E7EB] rounded-2xl p-8 space-y-4 font-sans text-xs text-[#4B5563] leading-relaxed relative">
+                                                        <div className="absolute left-0 top-6 bottom-6 w-[2px] bg-gradient-to-b from-[#D4AF37]/20 via-[#D4AF37] to-[#D4AF37]/20"></div>
+                                                        <ul className="space-y-3 pl-4 list-none text-left">
+                                                            {draftPolicies.map((policy: string, idx: number) => (
+                                                                <li key={idx} className="relative pl-6">
+                                                                    <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                                                                    <span className="font-medium text-[11.5px] text-[#374151]">{policy}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Standard Tier Booking Terms (only if no draft terms are present) */}
+                                        {!appSettings?.policy_draft && luxuryTerms && (
                                             <div className="mt-16 pt-16 border-t border-[#E5E7EB] text-left pb-16 break-inside-avoid">
                                                 <h4 className="text-[#111827] font-serif text-2xl mb-8 text-center text-[#D4AF37]">Luxury Tier Booking Terms</h4>
                                                 
@@ -756,7 +798,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
 
                                         <div className="mt-16 pt-8 border-t border-[#E5E7EB] text-center pb-8 break-inside-avoid">
                                             <div className="mb-6">
-                                                <img src="/images/nilathra-logo.png" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                <img src="/images/nilathra_logo-02.png" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
                                             </div>
                                             <div className="flex justify-center items-center gap-8 text-[8px] uppercase tracking-[0.2em]">
                                                 <a href="https://www.nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>

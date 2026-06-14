@@ -153,7 +153,7 @@ export function ItineraryBuilder({
 
     // Settings State
     const [roomMarkup, setRoomMarkup] = useState<number>(10);
-    const [markups, setMarkups] = useState<Record<string, number>>({});
+    const [markups, setMarkups] = useState<Record<string, any>>({});
 
     // Hotel Search State
     const [hotelSearchCity, setHotelSearchCity] = useState('');

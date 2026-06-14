@@ -373,4 +373,16 @@ export interface ItineraryLock {
     expires_at: string;
 }
 
+export interface TourSharedEmail {
+    id: string;
+    tour_id: string;
+    recipient_email: string;
+    sender_email: string;
+    subject: string;
+    body_html: string;
+    attachments: string[];
+    shared_at: string;
+    sent_by?: string;
+}
+
 
