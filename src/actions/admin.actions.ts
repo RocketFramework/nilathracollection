@@ -26,6 +26,7 @@ import { CreateVendorBookingDTO, UpdateBookingStatusDTO } from "../dtos/vendor-b
 import { ItineraryDraftService } from "@/services/itinerary-draft.service";
 import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from "@/other/interfaces";
 import { TourSharedEmailService } from "@/services/tour-shared-email.service";
+import { enforcePermission } from "@/utils/auth-enforcer";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -315,6 +316,9 @@ export async function getHotelAction(id: string) {
 
 export async function saveHotelAction(hotel: Hotel) {
     try {
+        const scope = hotel.id ? 'scopes:hotel:update' : 'scopes:hotel:create';
+        await enforcePermission('urn:nilathra:resource:hotel', scope, { id: hotel.id, payload: hotel });
+
         const adminSupabase = createAdminClient();
         let savedHotel;
         if (hotel.id) {
@@ -329,6 +333,7 @@ export async function saveHotelAction(hotel: Hotel) {
         return { error: error.message || "Failed to save hotel." };
     }
 }
+
 
 export async function uploadHotelPhotoAction(formData: FormData) {
     try {
@@ -415,6 +420,7 @@ export async function updateTransportProviderContactInfoAction(id: string, phone
 
 export async function deleteHotelAction(id: string) {
     try {
+        await enforcePermission('urn:nilathra:resource:hotel', 'scopes:hotel:delete', { id });
         const adminSupabase = createAdminClient();
         await HotelService.deleteHotel(id, { client: adminSupabase });
         revalidatePath("/admin/master-data/hotels");

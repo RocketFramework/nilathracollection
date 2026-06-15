@@ -48,6 +48,9 @@ export function UserListTable({ users, onEdit, onResetPassword, onRefresh }: Use
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        {users[0]?.role === 'agent' && (
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supervisor</th>
+                        )}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -64,15 +67,22 @@ export function UserListTable({ users, onEdit, onResetPassword, onRefresh }: Use
                             <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                                 {user.phone || 'N/A'}
                             </td>
+                            {user.role === 'agent' && (
+                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                    {user.supervisor 
+                                        ? `${user.supervisor.first_name} ${user.supervisor.last_name || ''}`.trim()
+                                        : 'None'}
+                                </td>
+                            )}
                             <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${(user as any).is_active === false ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                                    {(user as any).is_active === false ? 'Inactive' : 'Active'}
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active === false ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                    {user.is_active === false ? 'Inactive' : 'Active'}
                                 </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                                 <button className="text-blue-600 hover:text-blue-900" onClick={() => onEdit(user)}>Edit</button>
                                 <button className="text-yellow-600 hover:text-yellow-900" onClick={() => onResetPassword(user)}>Reset Password</button>
-                                {(user as any).is_active === false ? (
+                                {user.is_active === false ? (
                                     <button className="text-green-600 hover:text-green-900" onClick={() => handleActivate(user.id, user.role!)}>Enable</button>
                                 ) : (
                                     <button className="text-red-600 hover:text-red-900" onClick={() => handleDeactivate(user.id, user.role!)}>Disable</button>

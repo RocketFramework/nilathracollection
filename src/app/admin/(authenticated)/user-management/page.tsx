@@ -7,7 +7,7 @@ import { UserListTable } from "./components/UserListTable";
 import { UserFormModal } from "./components/UserFormModal";
 import { PasswordResetModal } from "./components/PasswordResetModal";
 
-type Role = 'admin' | 'agent' | 'tourist';
+type Role = 'admin' | 'agent' | 'agent_supervisor' | 'tourist';
 
 export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState<Role>('agent');
@@ -66,9 +66,15 @@ export default function UserManagementPage() {
 
     const tabs: { id: Role, label: string }[] = [
         { id: 'admin', label: 'Admins' },
+        { id: 'agent_supervisor', label: 'Supervisors' },
         { id: 'agent', label: 'Agents' },
         { id: 'tourist', label: 'Tourists' },
     ];
+
+    const getRoleLabel = (r: Role) => {
+        if (r === 'agent_supervisor') return 'Supervisor';
+        return r.charAt(0).toUpperCase() + r.slice(1);
+    };
 
     return (
         <div className="p-6">
@@ -78,7 +84,7 @@ export default function UserManagementPage() {
                     onClick={handleCreateNew}
                     className="bg-black text-white px-4 py-2 rounded shadow hover:bg-gray-800"
                 >
-                    + Add New {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                    + Add New {getRoleLabel(activeTab)}
                 </button>
             </div>
 

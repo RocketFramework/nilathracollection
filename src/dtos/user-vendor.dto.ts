@@ -4,7 +4,8 @@ export interface CreateUserDTO {
     email: string;
     phone?: string;
     password?: string; // Only for initial creation
-    role: 'tourist' | 'agent' | 'admin';
+    role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin';
+    supervisor_id?: string; // Links agent to supervisor
 }
 
 export interface UpdateUserDTO {
@@ -12,6 +13,7 @@ export interface UpdateUserDTO {
     last_name?: string;
     phone?: string;
     is_active?: boolean;
+    supervisor_id?: string; // Can change agent's supervisor
 }
 
 export interface ResetPasswordDTO {
@@ -27,7 +29,13 @@ export interface UserProfileDTO {
     phone?: string;
     photo_url?: string;
     country?: string;
-    role?: 'tourist' | 'agent' | 'admin';
+    role?: 'tourist' | 'agent' | 'agent_supervisor' | 'admin';
+    supervisor_id?: string; // Links agent to supervisor
+    is_active?: boolean;
+    supervisor?: {
+        first_name: string;
+        last_name: string;
+    };
 }
 
 export interface VendorDTO {

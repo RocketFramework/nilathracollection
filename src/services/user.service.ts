@@ -9,20 +9,28 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export class UserService {
     static async getCurrentUserProfile(): Promise<UserProfileDTO | null> {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const { createClient: createServerClient } = await import('../utils/supabase/server');
+        const serverSupabase = await createServerClient();
+        const { data: { user }, error: authError } = await serverSupabase.auth.getUser();
         if (authError || !user) return null;
 
+        const adminClient = createAdminClient();
+
         // Check tourist profile
-        const { data: tourist } = await supabase.from('tourist_profiles').select('*').eq('id', user.id).single();
+        const { data: tourist } = await adminClient.from('tourist_profiles').select('*').eq('id', user.id).maybeSingle();
         if (tourist) return { ...tourist, role: 'tourist' };
 
         // Check agent profile
-        const { data: agent } = await supabase.from('agent_profiles').select('*').eq('id', user.id).single();
+        const { data: agent } = await adminClient.from('agent_profiles').select('*').eq('id', user.id).maybeSingle();
         if (agent) return { ...agent, role: 'agent' };
 
         // Check admin profile
-        const { data: admin } = await supabase.from('admin_profiles').select('*').eq('id', user.id).single();
+        const { data: admin } = await adminClient.from('admin_profiles').select('*').eq('id', user.id).maybeSingle();
         if (admin) return { ...admin, role: 'admin' };
+
+        // Check agent supervisor profile
+        const { data: supervisor } = await adminClient.from('agent_supervisor_profiles').select('*').eq('id', user.id).maybeSingle();
+        if (supervisor) return { ...supervisor, role: 'agent_supervisor' };
 
         return { id: user.id };
     }
@@ -188,15 +196,21 @@ export class AdminService {
 
         // 4. Create Profile
         const profileTable = `${dto.role}_profiles`;
+        const profilePayload: any = {
+            id: newUserId,
+            first_name: dto.first_name,
+            last_name: dto.last_name,
+            phone: dto.phone || null,
+            is_active: true
+        };
+
+        if (dto.role === 'agent' && dto.supervisor_id) {
+            profilePayload.supervisor_id = dto.supervisor_id;
+        }
+
         const { error: profileError } = await supabaseAdmin
             .from(profileTable)
-            .upsert([{
-                id: newUserId,
-                first_name: dto.first_name,
-                last_name: dto.last_name,
-                phone: dto.phone || null,
-                is_active: true
-            }], { onConflict: 'id' });
+            .upsert([profilePayload], { onConflict: 'id' });
 
         if (profileError) throw new Error(`Role assigned, but ${dto.role} profile creation failed: ${profileError.message || JSON.stringify(profileError)}`);
 
@@ -214,6 +228,7 @@ export class AdminService {
                 ...(dto.last_name !== undefined && { last_name: dto.last_name }),
                 ...(dto.phone !== undefined && { phone: dto.phone }),
                 ...(dto.is_active !== undefined && { is_active: dto.is_active }),
+                ...(role === 'agent' && dto.supervisor_id !== undefined && { supervisor_id: dto.supervisor_id || null }),
             })
             .eq('id', userId);
 
@@ -242,14 +257,16 @@ export class AdminService {
         return true;
     }
 
-    static async getUsersByRole(role: 'tourist' | 'agent' | 'admin') {
+    static async getUsersByRole(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
         const supabaseAdmin = createAdminClient();
         const profileTable = `${role}_profiles`;
 
-        const { data, error } = await supabaseAdmin
-            .from(profileTable)
-            .select('*')
-            .order('created_at', { ascending: false });
+        let query = supabaseAdmin.from(profileTable).select('*');
+        if (role === 'agent') {
+            query = supabaseAdmin.from(profileTable).select('*, supervisor:agent_supervisor_profiles(first_name, last_name)');
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw new Error(`Failed to fetch ${role}s: ${error.message}`);
 
@@ -268,7 +285,24 @@ export class AdminService {
         });
     }
 
-    static async deactivateUser(userId: string, role: 'tourist' | 'agent' | 'admin') {
+    static async deactivateUser(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
         return this.updateUser(userId, role, { is_active: false });
+    }
+
+    static async getAllSupervisors() {
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin
+            .from('agent_supervisor_profiles')
+            .select('id, first_name, last_name, is_active')
+            .eq('is_active', true)
+            .order('first_name', { ascending: true });
+
+        if (error) throw error;
+        return (data || []).map(item => ({
+            id: item.id,
+            first_name: item.first_name,
+            last_name: item.last_name,
+            name: `${item.first_name} ${item.last_name || ''}`.trim()
+        }));
     }
 }

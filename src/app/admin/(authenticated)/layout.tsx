@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, Settings, LogOut, Package, Compass, MapPin, Database, UserPlus, Navigation, Mail, LayoutTemplate, Inbox as InboxIcon } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, Package, Compass, MapPin, Database, UserPlus, Navigation, Mail, LayoutTemplate, Inbox as InboxIcon, Shield } from "lucide-react";
 import { logoutAction } from "../../actions/auth";
 
 import { createClient } from "@/utils/supabase/server";
@@ -104,6 +104,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                             <Link href="/admin/users/create-agent" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
                                 <UserPlus size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                                 <span className="font-medium tracking-wide">Create Agent</span>
+                            </Link>
+                            <Link href="/admin/settings/permissions" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                                <Shield size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                                <span className="font-medium tracking-wide">Permissions</span>
                             </Link>
                         </>
                     )}

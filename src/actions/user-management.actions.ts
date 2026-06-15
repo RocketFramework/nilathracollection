@@ -6,13 +6,14 @@ import { CreateUserDTO, UpdateUserDTO, ResetPasswordDTO } from "@/dtos/user-vend
 
 export async function createUserAction(formData: FormData) {
     try {
-        const role = formData.get("role") as 'tourist' | 'agent' | 'admin';
+        const role = formData.get("role") as 'tourist' | 'agent' | 'agent_supervisor' | 'admin';
         const dto: CreateUserDTO = {
             first_name: formData.get("first_name") as string,
             last_name: formData.get("last_name") as string,
             email: formData.get("email") as string,
             phone: formData.get("phone") as string,
             password: formData.get("password") as string,
+            supervisor_id: formData.get("supervisor_id") as string || undefined,
             role
         };
 
@@ -46,7 +47,7 @@ export async function resetPasswordAction(userId: string, newPassword: string) {
     }
 }
 
-export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'admin') {
+export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
     try {
         const users = await AdminService.getUsersByRole(role);
         return { success: true, users };
@@ -56,7 +57,7 @@ export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'admin') 
     }
 }
 
-export async function deactivateUserAction(userId: string, role: 'tourist' | 'agent' | 'admin') {
+export async function deactivateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
     try {
         await AdminService.deactivateUser(userId, role);
         revalidatePath("/admin/user-management");
@@ -67,7 +68,7 @@ export async function deactivateUserAction(userId: string, role: 'tourist' | 'ag
     }
 }
 
-export async function activateUserAction(userId: string, role: 'tourist' | 'agent' | 'admin') {
+export async function activateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
     try {
         await AdminService.updateUser(userId, role, { is_active: true });
         revalidatePath("/admin/user-management");
@@ -75,5 +76,15 @@ export async function activateUserAction(userId: string, role: 'tourist' | 'agen
     } catch (error: any) {
         console.error("Error activating user:", error);
         return { error: error.message || "Failed to activate user." };
+    }
+}
+
+export async function getAllSupervisorsAction() {
+    try {
+        const supervisors = await AdminService.getAllSupervisors();
+        return { success: true, supervisors };
+    } catch (error: any) {
+        console.error("Error fetching supervisors list:", error);
+        return { error: error.message || "Failed to fetch supervisors list." };
     }
 }

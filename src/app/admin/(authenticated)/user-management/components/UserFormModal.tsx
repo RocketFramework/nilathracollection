@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserProfileDTO } from "@/dtos/user-vendor.dto";
-import { createUserAction, updateUserAction } from "@/actions/user-management.actions";
+import { createUserAction, updateUserAction, getAllSupervisorsAction } from "@/actions/user-management.actions";
 
 interface UserFormModalProps {
     isOpen: boolean;
@@ -10,12 +10,23 @@ interface UserFormModalProps {
     onSuccess: () => void;
     user: UserProfileDTO | null;
     isEdit: boolean;
-    currentTabRole: 'admin' | 'agent' | 'tourist';
+    currentTabRole: 'admin' | 'agent' | 'agent_supervisor' | 'tourist';
 }
 
 export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, currentTabRole }: UserFormModalProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [supervisors, setSupervisors] = useState<Array<{ id: string, name: string }>>([]);
+
+    useEffect(() => {
+        if (isOpen && currentTabRole === 'agent') {
+            getAllSupervisorsAction().then(res => {
+                if (res.success && res.supervisors) {
+                    setSupervisors(res.supervisors);
+                }
+            });
+        }
+    }, [isOpen, currentTabRole]);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -31,6 +42,7 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
                     first_name: formData.get('first_name') as string,
                     last_name: formData.get('last_name') as string,
                     phone: formData.get('phone') as string,
+                    ...(currentTabRole === 'agent' && { supervisor_id: formData.get('supervisor_id') as string || '' })
                 };
                 const res = await updateUserAction(user.id, user.role || currentTabRole, data);
                 if (res.error) throw new Error(res.error);
@@ -48,13 +60,18 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
         }
     }
 
+    const getRoleLabel = (r: typeof currentTabRole) => {
+        if (r === 'agent_supervisor') return 'Supervisor';
+        return r.charAt(0).toUpperCase() + r.slice(1);
+    };
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
             <div className="bg-white rounded shadow-xl w-full max-w-lg p-6">
                 <h2 className="text-xl font-bold mb-4">
-                    {isEdit ? 'Edit User Profile' : `Add New ${currentTabRole.charAt(0).toUpperCase() + currentTabRole.slice(1)}`}
+                    {isEdit ? 'Edit User Profile' : `Add New ${getRoleLabel(currentTabRole)}`}
                 </h2>
 
                 {error && <div className="mb-4 text-red-600 bg-red-50 p-3 rounded">{error}</div>}
@@ -107,6 +124,22 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
+
+                    {currentTabRole === 'agent' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Supervisor</label>
+                            <select
+                                name="supervisor_id"
+                                defaultValue={user?.supervisor_id || ''}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            >
+                                <option value="">No Supervisor (Unassigned)</option>
+                                {supervisors.map(sup => (
+                                    <option key={sup.id} value={sup.id}>{sup.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="flex justify-end space-x-3 mt-6">
                         <button
