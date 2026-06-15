@@ -346,6 +346,15 @@ export interface TripData {
     manualDouble?: number;
     manualTriple?: number;
     manualFamily?: number;
+    dayCostOverrides?: Record<number, {
+        hotel?: number;
+        meals?: number;
+        transport?: number;
+        concierge?: number;
+        agencyFeePercent?: number;
+        agencyFee?: number;
+        total?: number;
+    }>;
 }
 
 export interface DraftItineraryVersion {

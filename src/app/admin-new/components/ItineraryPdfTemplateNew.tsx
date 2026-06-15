@@ -16,6 +16,7 @@ interface ItineraryPdfTemplateNewProps {
   appSettings?: any;
   masterData?: any;
   tripStatus?: string;
+  dayCostOverrides?: Record<number, any>;
 }
 
 export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
@@ -31,7 +32,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     chauffeurNeeded,
     appSettings,
     masterData,
-    tripStatus
+    tripStatus,
+    dayCostOverrides
   }, ref) => {
     
     const clientName = touristData.profile 
@@ -65,6 +67,116 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       }
     });
 
+    // Analyze active activities in the itinerary to customize the prologue
+    let hasWildlife = false;
+    let hasCoastline = false;
+    let hasHeritage = false;
+    let hasSigiriya = false;
+    let hasHighlands = false;
+
+    itinerary.forEach(block => {
+      if (block.type === ItineraryBlockTypes.ACTIVITY) {
+        const resolvedActId = block.activityId;
+        const v = block.vendorId ? masterData?.vendors?.find((x: any) => x.id === block.vendorId) : null;
+        const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                   (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+        const activityDetail = masterData?.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+        
+        if (activityDetail) {
+          const cat = activityDetail.category;
+          const nameLower = (activityDetail.activity_name || '').toLowerCase();
+          const locLower = (activityDetail.location_name || '').toLowerCase();
+
+          if (cat === 'Wildlife' || cat === 'Nature & Wildlife') {
+            hasWildlife = true;
+          }
+          if (cat === 'Beach') {
+            hasCoastline = true;
+          }
+          if (cat === 'Cultural') {
+            hasHeritage = true;
+            if (nameLower.includes('sigiriya') || locLower.includes('sigiriya')) {
+              hasSigiriya = true;
+            }
+          }
+          if (
+            nameLower.includes('tea') ||
+            nameLower.includes('ella') ||
+            nameLower.includes('nuwara eliya') ||
+            nameLower.includes('hakgala') ||
+            nameLower.includes('horton plains') ||
+            locLower.includes('ella') ||
+            locLower.includes('nuwara eliya') ||
+            locLower.includes('hakgala')
+          ) {
+            hasHighlands = true;
+          }
+        }
+      }
+    });
+
+    const blendElements: string[] = [];
+    if (hasHeritage) blendElements.push("ancient heritage");
+    if (hasHighlands) blendElements.push("emerald tea valleys");
+    if (hasWildlife) blendElements.push("rare wild encounters");
+    if (hasCoastline) blendElements.push("pristine coastlines");
+    blendElements.push("unhurried luxury");
+
+    let blendText = "";
+    if (blendElements.length === 1) {
+      blendText = blendElements[0];
+    } else if (blendElements.length === 2) {
+      blendText = `${blendElements[0]} and ${blendElements[1]}`;
+    } else {
+      blendText = `${blendElements.slice(0, -1).join(', ')}, and ${blendElements[blendElements.length - 1]}`;
+    }
+
+    const welcomeText = `Welcome to your personalized Ceylon journey, crafted by Nilathra Collection. We have designed this itinerary to ensure you experience Sri Lanka at its absolute finest—a seamless blend of ${blendText}.`;
+
+    const highlightElements: string[] = [];
+    if (hasSigiriya) {
+      highlightElements.push("climbing Sigiriya's mist-covered steps");
+    } else if (hasHeritage) {
+      highlightElements.push("exploring sacred ancient temples");
+    }
+    if (hasHighlands) {
+      highlightElements.push("wandering through emerald tea valleys");
+    }
+    if (hasWildlife) {
+      highlightElements.push("seeking rare wildlife on private safaris");
+    }
+    if (hasCoastline) {
+      highlightElements.push("resting in boutique oceanfront pavilions");
+    }
+
+    let highlightsSentence = "";
+    if (highlightElements.length >= 2) {
+      let highlightText = "";
+      if (highlightElements.length === 2) {
+        highlightText = `${highlightElements[0]} or ${highlightElements[1]}`;
+      } else {
+        highlightText = `${highlightElements.slice(0, -1).join(', ')}, or ${highlightElements[highlightElements.length - 1]}`;
+      }
+      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. Whether ${highlightText}, this draft serves as your travel blueprint.`;
+    } else if (highlightElements.length === 1) {
+      let singlePhrase = "";
+      if (hasSigiriya) {
+        singlePhrase = "As you climb Sigiriya's mist-covered steps";
+      } else if (hasHeritage) {
+        singlePhrase = "As you explore sacred ancient temples";
+      } else if (hasHighlands) {
+        singlePhrase = "As you wander through emerald tea valleys";
+      } else if (hasWildlife) {
+        singlePhrase = "As you seek rare wildlife on private safaris";
+      } else if (hasCoastline) {
+        singlePhrase = "As you rest in boutique oceanfront pavilions";
+      }
+      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. ${singlePhrase}, this draft serves as your travel blueprint.`;
+    } else {
+      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. This draft serves as your travel blueprint to guide your journey.`;
+    }
+
+
     const getShortFormattedDate = (dayNum: number) => {
       if (!arrivalDate) return `Day ${dayNum}`;
       try {
@@ -91,12 +203,15 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
     // Helper to calculate daily cost summary
     const calculateDayTotal = (dayNum: number) => {
+      const overrides = dayCostOverrides?.[dayNum] || {};
       const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
       
       // 1. Hotel Cost
-      const hotel = blocksForDay
-        .filter(b => b.type === ItineraryBlockTypes.SLEEP)
-        .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+      const hotel = overrides.hotel !== undefined 
+        ? overrides.hotel 
+        : blocksForDay
+            .filter(b => b.type === ItineraryBlockTypes.SLEEP)
+            .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
       // 2. Pax Count
       const pax = (adults || 0) + (children || 0);
@@ -111,7 +226,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
       // 3. Meal Cost (Lunch cost per tourist * pax)
       const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
-      const meals = pax * lunchCostPerHead;
+      const meals = overrides.meals !== undefined 
+        ? overrides.meals 
+        : pax * lunchCostPerHead;
 
       // 4. Transport Cost
       const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
@@ -121,18 +238,29 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         return isNaN(parsed) ? 0 : parsed;
       };
       const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
-      const transport = km * kmRate;
+      const transport = overrides.transport !== undefined 
+        ? overrides.transport 
+        : km * kmRate;
 
       // 5. Concierge Cost (ticket, refreshment, seamless concierge)
       const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
-      const concierge = pax * conciergeCostPerHead;
+      const concierge = overrides.concierge !== undefined 
+        ? overrides.concierge 
+        : pax * conciergeCostPerHead;
 
       // 6. Agency Fee & Tax
-      const agencyFeePercent = getTierValue(TierSettingDefinitions.SERVICE_FEE);
+      const agencyFeePercent = overrides.agencyFeePercent !== undefined
+        ? overrides.agencyFeePercent
+        : getTierValue(TierSettingDefinitions.SERVICE_FEE);
+        
       const subtotal = hotel + meals + transport + concierge;
-      const agencyFee = subtotal * (agencyFeePercent / 100);
+      const agencyFee = overrides.agencyFee !== undefined
+        ? overrides.agencyFee
+        : subtotal * (agencyFeePercent / 100);
 
-      const total = subtotal + agencyFee;
+      const total = overrides.total !== undefined
+        ? overrides.total
+        : subtotal + agencyFee;
 
       return {
         hotel,
@@ -383,10 +511,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       Ayubowan, Dear {clientName},
                     </p>
                     <p className="mb-6 font-light">
-                      Welcome to your personalized Ceylon journey, crafted by Nilathra Collection. We have designed this itinerary to ensure you experience Sri Lanka at its absolute finest—a seamless blend of ancient heritage, rare wild encounters, pristine coastlines, and unhurried luxury.
+                      {welcomeText}
                     </p>
                     <p className="mb-6 font-light">
-                      Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. Whether climbing Sigiriya's mist-covered steps, wandering tea valleys, or resting in boutique oceanfront pavilions, this draft serves as your travel blueprint. 
+                      {highlightsSentence}
                     </p>
                     <p className="mb-10 font-light">
                       As your concierge hosts, we remain entirely at your disposal to refine these dates, hotels, or events to your perfect liking. We look forward to guiding you through this exquisite journey.

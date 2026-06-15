@@ -66,7 +66,9 @@ import {
   CheckCircle2,
   Copy,
   Link as LinkIcon,
-  Link2Off
+  Link2Off,
+  Train,
+  Pencil
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail } from '../../other/interfaces';
@@ -77,6 +79,7 @@ import {
   getActivitiesAction, 
   getAppMarkupsAction, 
   getTourDataAction, 
+  getDailyActivitiesAction,
   saveTourAction, 
   getAIRulesAction, 
   saveAIRuleAction,
@@ -241,6 +244,13 @@ const uploadItineraryImage = async (file: File): Promise<string> => {
 function PlannerWizardWorkspace() {
   const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
   const STORAGE_KEY = `nilathra_planner_wizard_state_${tourId}`;
+
+  // Daily activities manifest states
+  const [dbActivities, setDbActivities] = useState<any[]>([]);
+  const [isLoadingDbActivities, setIsLoadingDbActivities] = useState<boolean>(false);
+  const [dbActivitySearchQuery, setDbActivitySearchQuery] = useState<string>('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
 
   // 1. Wizard Track State
   const [track, setTrack] = useState<TrackType>('basic');
@@ -607,9 +617,9 @@ function PlannerWizardWorkspace() {
   const finalSteps: StepItem[] = useMemo(() => {
     const list: StepItem[] = [
       { 
-        id: 'tour-itinerary', 
-        label: 'Tour Itinerary', 
-        description: 'Review and refine the locked base itinerary before assigning specific operational resources.', 
+        id: 'daily-activities', 
+        label: 'Daily Activities Manifest', 
+        description: 'Review and audit the daily activities database manifest grouped by operational categories.', 
         icon: CalendarDays 
       },
       { 
@@ -911,6 +921,12 @@ function PlannerWizardWorkspace() {
           } else {
             console.error("Failed to load draft versions:", versionsRes.error);
           }
+
+          getDailyActivitiesAction(activeTourId).then(daRes => {
+            if (daRes.success && daRes.activities) {
+              setDbActivities(daRes.activities);
+            }
+          });
         }
 
         const urlTrack = params.get('track') as TrackType | null;
@@ -981,7 +997,7 @@ function PlannerWizardWorkspace() {
             'share-tourist'
           ];
           const localFinalSteps = [
-            'tour-itinerary',
+            'daily-activities',
             'element-selection',
             activeElements.hotel && 'hotel-selection',
             activeElements.activity && 'activity-provider',
@@ -1020,6 +1036,30 @@ function PlannerWizardWorkspace() {
 
     restoreSession();
   }, []);
+
+  const loadDailyActivities = async (tid: string) => {
+    if (!tid || tid === 'draft-tour') return;
+    setIsLoadingDbActivities(true);
+    try {
+      const res = await getDailyActivitiesAction(tid);
+      if (res.success && res.activities) {
+        setDbActivities(res.activities);
+      } else {
+        console.error("Failed to load daily activities:", res.error);
+      }
+    } catch (err) {
+      console.error("Error loading daily activities:", err);
+    } finally {
+      setIsLoadingDbActivities(false);
+    }
+  };
+
+  useEffect(() => {
+    if (track === 'final' && tourId) {
+      loadDailyActivities(tourId);
+    }
+  }, [track, tourId]);
+
 
   // B. SYNC STATE TO LOCALSTORAGE & DATABASE & URL (whenever track, step, or elements change)
   useEffect(() => {
@@ -2392,6 +2432,337 @@ function PlannerWizardWorkspace() {
                     </div>
 
                   </div>
+                ) : track === 'final' && currentStep.id === 'daily-activities' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                          <CalendarDays className="w-5 h-5 text-emerald-800" />
+                          Daily Activities Operational Manifest
+                        </h3>
+                        <p className="text-xs text-neutral-400">
+                          Verify and audit the complete daily itinerary activities loaded directly from database, grouped by operational category baskets.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => loadDailyActivities(tourId)}
+                        disabled={isLoadingDbActivities}
+                        className="px-4 py-2 border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 disabled:bg-neutral-100 disabled:text-neutral-400 text-neutral-700 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 self-start md:self-auto shrink-0"
+                      >
+                        {isLoadingDbActivities ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Compass className="w-3.5 h-3.5 text-emerald-800" />
+                        )}
+                        Refresh Manifest
+                      </button>
+                    </div>
+
+                    {isLoadingDbActivities ? (
+                      <div className="py-20 flex flex-col items-center justify-center text-center">
+                        <Loader2 className="w-10 h-10 text-emerald-800 animate-spin mb-4" />
+                        <span className="text-sm font-bold text-neutral-600">Retrieving Daily Activities...</span>
+                        <span className="text-xs text-neutral-400 mt-1">Connecting to Supabase to fetch tour schedules...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Search & Stats Bar */}
+                        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-[#FBFBFA] p-4 rounded-2xl border border-neutral-150">
+                          <div className="relative flex-1">
+                            <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              value={dbActivitySearchQuery}
+                              onChange={(e) => setDbActivitySearchQuery(e.target.value)}
+                              placeholder="Search daily activities by title, description, or database ID..."
+                              className="w-full bg-white border border-neutral-200 text-neutral-800 rounded-xl pl-10 pr-4 py-2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-800 outline-none text-xs transition-all shadow-sm"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-400">Total Loaded:</span>
+                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-100 text-xs font-bold rounded-lg shadow-sm">
+                              {dbActivities.length} items
+                            </span>
+                          </div>
+                        </div>
+
+                        {(() => {
+                          const formatTime = (timeStr: string) => {
+                            if (!timeStr) return '';
+                            try {
+                              const parts = timeStr.split(':');
+                              if (parts.length < 2) return timeStr;
+                              let hours = parseInt(parts[0], 10);
+                              const minutes = parts[1];
+                              const ampm = hours >= 12 ? 'PM' : 'AM';
+                              hours = hours % 12;
+                              hours = hours ? hours : 12;
+                              return `${hours}:${minutes} ${ampm}`;
+                            } catch (e) {
+                              return timeStr;
+                            }
+                          };
+
+                          const handleCopyId = (val: string, uniqueKey: string) => {
+                            navigator.clipboard.writeText(val);
+                            setCopiedId(uniqueKey);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          };
+
+                          const filtered = dbActivities.filter(a => {
+                            if (!dbActivitySearchQuery) return true;
+                            const query = dbActivitySearchQuery.toLowerCase();
+                            const matchesTitle = (a.title || '').toLowerCase().includes(query);
+                            const matchesDesc = (a.description || '').toLowerCase().includes(query);
+                            const matchesHotelId = (a.hotel_id || '').toLowerCase().includes(query);
+                            const matchesRoomId = (a.hotel_room_id || '').toLowerCase().includes(query);
+                            const matchesRestId = (a.restaurant_id || '').toLowerCase().includes(query);
+                            const matchesActId = String(a.activity_id || '').toLowerCase().includes(query);
+                            const matchesVendorId = (a.vendor_id || '').toLowerCase().includes(query);
+                            const matchesTransportId = (a.transport_id || '').toLowerCase().includes(query);
+                            const matchesDriverId = (a.driver_id || '').toLowerCase().includes(query);
+                            const matchesGuideId = (a.guide_id || '').toLowerCase().includes(query);
+                            return matchesTitle || matchesDesc || matchesHotelId || matchesRoomId || matchesRestId || matchesActId || matchesVendorId || matchesTransportId || matchesDriverId || matchesGuideId;
+                          });
+
+                          const baskets: Record<ItineraryBlockType, any[]> = {
+                            sleep: [],
+                            meal: [],
+                            activity: [],
+                            travel: [],
+                            train: [],
+                            guide: [],
+                            buffer: [],
+                            wait: [],
+                            custom: []
+                          };
+
+                          filtered.forEach(a => {
+                            const type = (a.activity_type || 'custom') as ItineraryBlockType;
+                            if (baskets[type]) {
+                              baskets[type].push(a);
+                            } else {
+                              baskets['custom'].push(a);
+                            }
+                          });
+
+                          const basketConfig: Record<ItineraryBlockType, {
+                            label: string;
+                            icon: React.ComponentType<any>;
+                            themeColor: string;
+                            borderColor: string;
+                            textColor: string;
+                            bgGradient: string;
+                            keyMappers: Array<{ label: string; key: string }>;
+                          }> = {
+                            sleep: {
+                              label: 'Sleep / Accommodation',
+                              icon: BedDouble,
+                              themeColor: 'indigo',
+                              borderColor: 'border-indigo-100',
+                              textColor: 'text-indigo-900',
+                              bgGradient: 'from-indigo-50/70 to-purple-50/40',
+                              keyMappers: [
+                                { label: 'Hotel ID', key: 'hotel_id' },
+                                { label: 'Room ID', key: 'hotel_room_id' }
+                              ]
+                            },
+                            meal: {
+                              label: 'Dining & Meals',
+                              icon: Utensils,
+                              themeColor: 'amber',
+                              borderColor: 'border-amber-100',
+                              textColor: 'text-amber-900',
+                              bgGradient: 'from-amber-50/70 to-orange-50/40',
+                              keyMappers: [
+                                { label: 'Restaurant ID', key: 'restaurant_id' }
+                              ]
+                            },
+                            activity: {
+                              label: 'Experiences & Activities',
+                              icon: Award,
+                              themeColor: 'emerald',
+                              borderColor: 'border-emerald-100',
+                              textColor: 'text-emerald-950',
+                              bgGradient: 'from-emerald-50/70 to-teal-50/40',
+                              keyMappers: [
+                                { label: 'Activity ID', key: 'activity_id' },
+                                { label: 'Vendor ID', key: 'vendor_id' },
+                                { label: 'Vendor Activity ID', key: 'vendor_activity_id' }
+                              ]
+                            },
+                            travel: {
+                              label: 'Travel & Logistics',
+                              icon: Car,
+                              themeColor: 'sky',
+                              borderColor: 'border-sky-100',
+                              textColor: 'text-sky-900',
+                              bgGradient: 'from-sky-50/70 to-blue-50/40',
+                              keyMappers: [
+                                { label: 'Transport ID', key: 'transport_id' },
+                                { label: 'Vehicle ID', key: 'vehicle_id' },
+                                { label: 'Driver ID', key: 'driver_id' }
+                              ]
+                            },
+                            train: {
+                              label: 'Rail Transfers',
+                              icon: Train,
+                              themeColor: 'cyan',
+                              borderColor: 'border-cyan-100',
+                              textColor: 'text-cyan-900',
+                              bgGradient: 'from-cyan-50/70 to-sky-50/40',
+                              keyMappers: [
+                                { label: 'Transport ID', key: 'transport_id' }
+                              ]
+                            },
+                            guide: {
+                              label: 'Guides',
+                              icon: UserCheck,
+                              themeColor: 'rose',
+                              borderColor: 'border-rose-100',
+                              textColor: 'text-rose-900',
+                              bgGradient: 'from-rose-50/70 to-pink-50/40',
+                              keyMappers: [
+                                { label: 'Guide ID', key: 'guide_id' }
+                              ]
+                            },
+                            buffer: {
+                              label: 'Time Buffers',
+                              icon: Clock,
+                              themeColor: 'slate',
+                              borderColor: 'border-slate-150',
+                              textColor: 'text-slate-900',
+                              bgGradient: 'from-slate-50/80 to-slate-100/50',
+                              keyMappers: []
+                            },
+                            wait: {
+                              label: 'Wait Times',
+                              icon: Clock,
+                              themeColor: 'neutral',
+                              borderColor: 'border-neutral-200',
+                              textColor: 'text-neutral-800',
+                              bgGradient: 'from-neutral-50/80 to-neutral-100/50',
+                              keyMappers: []
+                            },
+                            custom: {
+                              label: 'Custom Events',
+                              icon: Compass,
+                              themeColor: 'purple',
+                              borderColor: 'border-purple-100',
+                              textColor: 'text-purple-900',
+                              bgGradient: 'from-purple-50/70 to-violet-50/40',
+                              keyMappers: []
+                            }
+                          };
+
+                          return (
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                              {Object.entries(basketConfig).map(([typeKey, cfg]) => {
+                                const list = baskets[typeKey as ItineraryBlockType] || [];
+                                const IconComp = cfg.icon;
+                                
+                                return (
+                                  <div 
+                                    key={typeKey} 
+                                    className={`bg-white border rounded-3xl shadow-sm hover:shadow-md transition-all flex flex-col overflow-hidden min-h-[300px] ${cfg.borderColor}`}
+                                  >
+                                    <div className={`bg-gradient-to-r ${cfg.bgGradient} p-4 border-b border-neutral-100 flex items-center justify-between shrink-0`}>
+                                      <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-xl bg-white shadow-sm ${cfg.textColor}`}>
+                                          <IconComp className="w-4 h-4" />
+                                        </div>
+                                        <span className={`text-xs font-extrabold ${cfg.textColor}`}>
+                                          {cfg.label}
+                                        </span>
+                                      </div>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm bg-white border ${cfg.textColor} ${cfg.borderColor}`}>
+                                        {list.length} items
+                                      </span>
+                                    </div>
+
+                                    <div className="p-4 flex-1 overflow-y-auto max-h-[350px] space-y-3 bg-[#FCFCFB]/40">
+                                      {list.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center py-12 text-center">
+                                          <IconComp className="w-8 h-8 text-neutral-300 mb-2 opacity-60" />
+                                          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">No activities loaded</span>
+                                        </div>
+                                      ) : (
+                                        list.map((act) => (
+                                          <div 
+                                            key={act.id} 
+                                            className="bg-white border border-neutral-200 hover:border-neutral-300 rounded-2xl p-3 shadow-sm transition-all space-y-2 group"
+                                          >
+                                            <div className="flex items-start justify-between gap-2">
+                                              <span className="text-xs font-bold text-neutral-800 leading-snug group-hover:text-emerald-950 transition-colors">
+                                                {act.title}
+                                              </span>
+                                              {act.time_start && (
+                                                <span className="text-[9px] font-mono font-bold text-neutral-400 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-100 shrink-0">
+                                                  {formatTime(act.time_start)}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            {act.description && (
+                                              <p className="text-[10px] text-neutral-500 leading-relaxed line-clamp-3">
+                                                {act.description.startsWith('[') || act.description.startsWith('{')
+                                                  ? (() => {
+                                                      try {
+                                                        const parsed = JSON.parse(act.description);
+                                                        if (Array.isArray(parsed)) {
+                                                          return parsed.map(c => c.text || c).join(', ');
+                                                        }
+                                                        return act.description;
+                                                      } catch (e) {
+                                                        return act.description;
+                                                      }
+                                                    })()
+                                                  : act.description}
+                                              </p>
+                                            )}
+
+                                            {cfg.keyMappers.length > 0 && (
+                                              <div className="pt-2 border-t border-dashed border-neutral-100 space-y-1.5">
+                                                {cfg.keyMappers.map((mapper) => {
+                                                  const val = act[mapper.key];
+                                                  if (!val) return null;
+                                                  const isCopied = copiedId === `${act.id}_${mapper.key}`;
+                                                  
+                                                  return (
+                                                    <div key={mapper.key} className="flex items-center justify-between gap-2 text-[9px]">
+                                                      <span className="text-neutral-400 font-medium">{mapper.label}:</span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => handleCopyId(val, `${act.id}_${mapper.key}`)}
+                                                        className="font-mono text-[9px] bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded px-1.5 py-0.5 flex items-center gap-1 transition-all max-w-[150px] truncate"
+                                                        title="Click to copy ID"
+                                                      >
+                                                        <span className="truncate">{val}</span>
+                                                        {isCopied ? (
+                                                          <Check className="w-2.5 h-2.5 text-emerald-600" />
+                                                        ) : (
+                                                          <Copy className="w-2.5 h-2.5 text-neutral-400 group-hover:text-neutral-600 shrink-0" />
+                                                        )}
+                                                      </button>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
                 ) : track === 'final' && currentStep.id === 'element-selection' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
@@ -3053,6 +3424,8 @@ function AIItineraryBuilder({
   setMasterData
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
+  const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
+  const [editingDayValue, setEditingDayValue] = useState<string>('');
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
@@ -3816,12 +4189,15 @@ function AIItineraryBuilder({
 
   // Helper to calculate daily cost summary
   const calculateDayTotal = (dayNum: number) => {
+    const overrides = tripData?.dayCostOverrides?.[dayNum] || {};
     const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
     
     // 1. Hotel Cost
-    const hotel = blocksForDay
-      .filter(b => b.type === ItineraryBlockTypes.SLEEP)
-      .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+    const hotel = overrides.hotel !== undefined 
+      ? overrides.hotel 
+      : blocksForDay
+          .filter(b => b.type === ItineraryBlockTypes.SLEEP)
+          .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
     // 2. Pax Count
     const pax = (adults || 0) + (children || 0);
@@ -3836,7 +4212,9 @@ function AIItineraryBuilder({
 
     // 3. Meal Cost (Lunch cost per tourist * pax)
     const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
-    const meals = pax * lunchCostPerHead;
+    const meals = overrides.meals !== undefined 
+      ? overrides.meals 
+      : pax * lunchCostPerHead;
 
     // 4. Transport Cost
     const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
@@ -3846,18 +4224,29 @@ function AIItineraryBuilder({
       return isNaN(parsed) ? 0 : parsed;
     };
     const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
-    const transport = km * kmRate;
+    const transport = overrides.transport !== undefined 
+      ? overrides.transport 
+      : km * kmRate;
 
     // 5. Concierge Cost (ticket, refreshment, seamless concierge)
     const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
-    const concierge = pax * conciergeCostPerHead;
+    const concierge = overrides.concierge !== undefined 
+      ? overrides.concierge 
+      : pax * conciergeCostPerHead;
 
     // 6. Agency Fee & Tax
-    const agencyFeePercent = getTierValue(TierSettingDefinitions.SERVICE_FEE);
+    const agencyFeePercent = overrides.agencyFeePercent !== undefined
+      ? overrides.agencyFeePercent
+      : getTierValue(TierSettingDefinitions.SERVICE_FEE);
+      
     const subtotal = hotel + meals + transport + concierge;
-    const agencyFee = subtotal * (agencyFeePercent / 100);
+    const agencyFee = overrides.agencyFee !== undefined
+      ? overrides.agencyFee
+      : subtotal * (agencyFeePercent / 100);
 
-    const total = subtotal + agencyFee;
+    const total = overrides.total !== undefined
+      ? overrides.total
+      : subtotal + agencyFee;
 
     return {
       hotel,
@@ -3869,6 +4258,47 @@ function AIItineraryBuilder({
       agencyFee,
       total
     };
+  };
+
+  const handleSaveDayCostOverride = (dayNum: number, field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee', valStr: string) => {
+    const val = parseFloat(valStr);
+    
+    setTripData(prev => {
+      if (!prev) return prev;
+      const dayCostOverrides = { ...(prev.dayCostOverrides || {}) };
+      const dayOverrides = { ...(dayCostOverrides[dayNum] || {}) };
+      
+      if (isNaN(val)) {
+        delete dayOverrides[field];
+      } else {
+        dayOverrides[field] = val;
+      }
+      
+      if (Object.keys(dayOverrides).length === 0) {
+        delete dayCostOverrides[dayNum];
+      } else {
+        dayCostOverrides[dayNum] = dayOverrides;
+      }
+      
+      return {
+        ...prev,
+        dayCostOverrides
+      };
+    });
+    
+    setEditingDayField(null);
+  };
+
+  const handleResetDayCostOverrides = (dayNum: number) => {
+    setTripData(prev => {
+      if (!prev) return prev;
+      const dayCostOverrides = { ...(prev.dayCostOverrides || {}) };
+      delete dayCostOverrides[dayNum];
+      return {
+        ...prev,
+        dayCostOverrides
+      };
+    });
   };
 
   const handleSaveRules = async () => {
@@ -4733,12 +5163,23 @@ function AIItineraryBuilder({
 
         {/* Daily Cost Summary Banner */}
         {appSettings && (
-          <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5">
+          <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200/60 pb-3">
-              <h5 className="text-xs font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-2">
-                <Coins className="w-4 h-4 text-emerald-800 shrink-0" />
-                <span>Day {activeDay} Cost Summary ({travelStyle} Tier)</span>
-              </h5>
+              <div className="flex items-center gap-3">
+                <h5 className="text-xs font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-emerald-800 shrink-0" />
+                  <span>Day {activeDay} Cost Summary ({travelStyle} Tier)</span>
+                </h5>
+                {tripData?.dayCostOverrides?.[activeDay] && (
+                  <button
+                    onClick={() => handleResetDayCostOverrides(activeDay)}
+                    className="text-[10px] text-red-700 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200/50 px-2 py-0.5 rounded-lg transition-all font-bold flex items-center gap-1 shrink-0 cursor-pointer shadow-xs"
+                    title="Reset all overrides for this day"
+                  >
+                    Reset to Auto
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Est. Day Total:</span>
                 <span className="text-lg font-black text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-xl">
@@ -4747,64 +5188,91 @@ function AIItineraryBuilder({
               </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              {/* Hotel Cost */}
-              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
-                <div className="flex items-center gap-2 text-neutral-400">
-                  <BedDouble className="w-4 h-4 text-amber-600" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Hotel Cost</span>
-                </div>
-                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).hotel.toFixed(2)}</span>
-              </div>
+            {(() => {
+              const renderCostCard = (
+                label: string,
+                field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent',
+                value: number,
+                icon: React.ReactNode,
+                paxText?: string
+              ) => {
+                const isEditing = editingDayField?.dayNum === activeDay && editingDayField?.field === field;
+                const isOverridden = tripData?.dayCostOverrides?.[activeDay]?.[field] !== undefined;
 
-              {/* Meal Cost */}
-              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
-                <div className="flex items-center justify-between gap-1 text-neutral-400">
-                  <div className="flex items-center gap-2">
-                    <Utensils className="w-4 h-4 text-rose-600" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Meals</span>
-                  </div>
-                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({(adults || 0) + (children || 0)} Pax)</span>
-                </div>
-                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).meals.toFixed(2)}</span>
-              </div>
+                return (
+                  <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-2 relative group min-h-[90px]">
+                    <div className="flex items-center justify-between text-neutral-400">
+                      <div className="flex items-center gap-2">
+                        {icon}
+                        <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+                      </div>
+                      {!isEditing && (
+                        <button
+                          onClick={() => {
+                            setEditingDayField({ dayNum: activeDay, field });
+                            setEditingDayValue(value.toString());
+                          }}
+                          className="opacity-0 group-hover:opacity-100 hover:text-emerald-800 transition-opacity p-0.5 cursor-pointer"
+                          title={`Edit ${label}`}
+                        >
+                          <Pencil className="w-3 h-3 text-neutral-400 hover:text-emerald-800" />
+                        </button>
+                      )}
+                    </div>
 
-              {/* Transport Cost */}
-              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
-                <div className="flex items-center justify-between gap-1 text-neutral-400">
-                  <div className="flex items-center gap-2">
-                    <Car className="w-4 h-4 text-sky-600" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Transport</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <input
+                          type="number"
+                          step="any"
+                          value={editingDayValue}
+                          onChange={(e) => setEditingDayValue(e.target.value)}
+                          className="w-full bg-[#FBFBFA] border border-neutral-300 text-neutral-805 rounded px-1.5 py-0.5 text-xs outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-850/10"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveDayCostOverride(activeDay, field, editingDayValue);
+                            if (e.key === 'Escape') setEditingDayField(null);
+                          }}
+                        />
+                        <button
+                          onClick={() => handleSaveDayCostOverride(activeDay, field, editingDayValue)}
+                          className="text-emerald-700 hover:text-emerald-950 shrink-0 cursor-pointer"
+                          title="Save"
+                        >
+                          <Check className="w-3.5 h-3.5 font-black" />
+                        </button>
+                        <button
+                          onClick={() => setEditingDayField(null)}
+                          className="text-neutral-400 hover:text-neutral-600 shrink-0 cursor-pointer"
+                          title="Cancel"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className={`text-base font-extrabold ${isOverridden ? 'text-amber-600 font-black' : 'text-neutral-800'}`}>
+                          {field === 'agencyFeePercent' ? `${value}%` : `$${value.toFixed(2)}`}
+                        </span>
+                        {paxText && <span className="text-[9px] text-neutral-400 font-bold shrink-0">{paxText}</span>}
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({calculateDayTotal(activeDay).km.toFixed(0)} km)</span>
-                </div>
-                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).transport.toFixed(2)}</span>
-              </div>
+                );
+              };
 
-              {/* Concierge & Tickets */}
-              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
-                <div className="flex items-center justify-between gap-1 text-neutral-400">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="w-4 h-4 text-indigo-600" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Concierge</span>
-                  </div>
-                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({(adults || 0) + (children || 0)} Pax)</span>
-                </div>
-                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).concierge.toFixed(2)}</span>
-              </div>
+              const dayTotalObj = calculateDayTotal(activeDay);
 
-              {/* Agency Fee & Tax */}
-              <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between gap-2">
-                <div className="flex items-center justify-between gap-1 text-neutral-400">
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-emerald-600" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Agency Fee</span>
-                  </div>
-                  <span className="text-[9px] text-neutral-400 font-bold shrink-0">({calculateDayTotal(activeDay).agencyFeePercent}%)</span>
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                  {renderCostCard('Hotel Cost', 'hotel', dayTotalObj.hotel, <BedDouble className="w-4 h-4 text-amber-605 shrink-0" />)}
+                  {renderCostCard('Meals', 'meals', dayTotalObj.meals, <Utensils className="w-4 h-4 text-rose-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
+                  {renderCostCard('Transport', 'transport', dayTotalObj.transport, <Car className="w-4 h-4 text-sky-600 shrink-0" />, `(${dayTotalObj.km.toFixed(0)} km)`)}
+                  {renderCostCard('Concierge', 'concierge', dayTotalObj.concierge, <Receipt className="w-4 h-4 text-indigo-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
+                  {renderCostCard('Agency Fee', 'agencyFeePercent', dayTotalObj.agencyFeePercent, <Coins className="w-4 h-4 text-emerald-600 shrink-0" />, `($${dayTotalObj.agencyFee.toFixed(2)})`)}
                 </div>
-                <span className="text-base font-extrabold text-neutral-800">${calculateDayTotal(activeDay).agencyFee.toFixed(2)}</span>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         )}
 
@@ -5298,6 +5766,7 @@ function AIItineraryBuilder({
           appSettings={appSettings}
           masterData={masterData}
           tripStatus={tripData?.status}
+          dayCostOverrides={tripData?.dayCostOverrides}
         />
       </div>
 

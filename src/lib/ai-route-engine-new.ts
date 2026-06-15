@@ -135,7 +135,7 @@ ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.
     `;
 
         try {
-            const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
             const prompt = systemPrompt + "\n\n" + userPrompt;
 
             const result = await model.generateContent({
