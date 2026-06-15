@@ -68,7 +68,7 @@ import {
   Link as LinkIcon,
   Link2Off
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
@@ -488,7 +488,7 @@ function PlannerWizardWorkspace() {
 
           // Fetch any assigned hotels and restaurants to populate masterData
           const hotelIds = (res.version.itinerary_data || [])
-            .filter((b: any) => b.type === 'sleep' && b.hotelId)
+            .filter((b: any) => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
             .map((b: any) => b.hotelId as string);
           if (hotelIds.length > 0) {
             getAssignedHotelsAction(hotelIds).then(hRes => {
@@ -503,7 +503,7 @@ function PlannerWizardWorkspace() {
           }
 
           const restaurantIds = (res.version.itinerary_data || [])
-            .filter((b: any) => b.type === 'meal' && b.restaurantId)
+            .filter((b: any) => b.type === ItineraryBlockTypes.MEAL && b.restaurantId)
             .map((b: any) => b.restaurantId as string);
           if (restaurantIds.length > 0) {
             getAssignedRestaurantsAction(restaurantIds).then(rRes => {
@@ -855,7 +855,7 @@ function PlannerWizardWorkspace() {
 
             // Fetch any assigned hotels and restaurants to populate masterData
             const hotelIds = (fullTripData.itinerary || [])
-              .filter(b => b.type === 'sleep' && b.hotelId)
+              .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
               .map(b => b.hotelId as string);
             if (hotelIds.length > 0) {
               getAssignedHotelsAction(hotelIds).then(hRes => {
@@ -870,7 +870,7 @@ function PlannerWizardWorkspace() {
             }
 
             const restaurantIds = (fullTripData.itinerary || [])
-              .filter(b => b.type === 'meal' && b.restaurantId)
+              .filter(b => b.type === ItineraryBlockTypes.MEAL && b.restaurantId)
               .map(b => b.restaurantId as string);
             if (restaurantIds.length > 0) {
               getAssignedRestaurantsAction(restaurantIds).then(rRes => {
@@ -3058,7 +3058,7 @@ function AIItineraryBuilder({
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
 
   const [loadingMaster, setLoadingMaster] = useState(false);
-  const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: string } | null>(null);
+  const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: ItineraryBlockType } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -3109,7 +3109,7 @@ function AIItineraryBuilder({
       setLoadingMaster(true);
       try {
         const assignedHotelIds = itinerary
-          .filter(b => b.type === 'sleep' && b.hotelId)
+          .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
           .map(b => b.hotelId as string);
 
         const [h, v, d, g, r, tp, act, markupRes] = await Promise.all([
@@ -3202,7 +3202,7 @@ function AIItineraryBuilder({
     if (!block) return;
 
     // Sync logic for hotels
-    if (field === 'hotelId' && block.type === 'sleep') {
+    if (field === 'hotelId' && block.type === ItineraryBlockTypes.SLEEP) {
       const hotel = masterData.hotels.find((h: any) => h.id === value);
       if (hotel) {
         // Auto-populate cover image if available
@@ -3264,7 +3264,7 @@ function AIItineraryBuilder({
     }
 
     // Sync logic for restaurants
-    else if (field === 'restaurantId' && block.type === 'meal') {
+    else if (field === 'restaurantId' && block.type === ItineraryBlockTypes.MEAL) {
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
         const contractedRate = restaurant.lunch_rate_per_head || 25;
@@ -3280,7 +3280,7 @@ function AIItineraryBuilder({
       }
     }
 
-    else if (field === 'activityId' && block.type === 'activity') {
+    else if (field === 'activityId' && block.type === ItineraryBlockTypes.ACTIVITY) {
       const activity = masterData.activities.find((a: any) => a.id === value);
       if (activity) {
         const autoImageUrl = (activity.images && activity.images.length > 0) ? activity.images[0] : (block.imageUrl || '');
@@ -3294,7 +3294,7 @@ function AIItineraryBuilder({
     }
 
     // Sync logic for activities (Vendors)
-    else if (field === 'vendorId' && block.type === 'activity') {
+    else if (field === 'vendorId' && block.type === ItineraryBlockTypes.ACTIVITY) {
       const vendor = masterData.vendors.find((v: any) => v.id === value);
       if (vendor) {
         const blockActivityId = block.activityId || (() => {
@@ -3358,7 +3358,7 @@ function AIItineraryBuilder({
     }
 
     // Sync logic for transport defaults
-    else if (field === 'transportId' && block.type === 'travel') {
+    else if (field === 'transportId' && block.type === ItineraryBlockTypes.TRAVEL) {
       const provider = masterData.transportProviders.find((p: any) => p.id === value);
       if (provider) {
         setItinerary(prev => prev.map(b => b.id === blockId ? {
@@ -3372,7 +3372,7 @@ function AIItineraryBuilder({
   };
 
   const getBindingDisplay = (block: InternalItineraryBlock) => {
-    if (block.type === 'sleep' && block.hotelId) {
+    if (block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
       const h = masterData.hotels.find((x: any) => x.id === block.hotelId);
       let label = h?.name || block.hotelName || 'Linked Hotel';
       if (block.roomName) {
@@ -3390,7 +3390,7 @@ function AIItineraryBuilder({
         } : undefined
       };
     }
-    if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId)) {
+    if (block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.vendorActivityId || block.activityId)) {
       const v = masterData.vendors.find((x: any) => x.id === block.vendorId);
       const resolvedActId = block.activityId || (() => {
         if (!block.name) return undefined;
@@ -3433,7 +3433,7 @@ function AIItineraryBuilder({
 
       return { name: fallbackLabel, icon: <Compass className="w-3.5 h-3.5 text-orange-500" /> };
     }
-    if (block.type === 'travel' && (block.driverId || block.transportId || block.vehicleId)) {
+    if (block.type === ItineraryBlockTypes.TRAVEL && (block.driverId || block.transportId || block.vehicleId)) {
       const d = masterData.drivers.find((x: any) => x.id === block.driverId);
       const p = masterData.transportProviders.find((x: any) => x.id === block.transportId);
       const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
@@ -3460,7 +3460,7 @@ function AIItineraryBuilder({
 
       return { name: label, icon: <Car className="w-3.5 h-3.5 text-blue-500" />, contact };
     }
-    if (block.type === 'guide' && block.guideId) {
+    if (block.type === ItineraryBlockTypes.GUIDE && block.guideId) {
       const g = masterData.guides.find((x: any) => x.id === block.guideId);
       return {
         name: g ? `${g.first_name} ${g.last_name}` : 'Linked Guide',
@@ -3468,7 +3468,7 @@ function AIItineraryBuilder({
         contact: g ? { name: g.first_name, phone: g.phone || '' } : undefined
       };
     }
-    if (block.type === 'meal' && block.restaurantId) {
+    if (block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
       const r = masterData.restaurants.find((x: any) => x.id === block.restaurantId);
       let label = r?.name || 'Linked Restaurant';
       if (block.mealType) label += ` - ${block.mealType}`;
@@ -3492,9 +3492,9 @@ function AIItineraryBuilder({
     };
 
     switch (activeAssignment.type) {
-      case 'sleep':
+      case ItineraryBlockTypes.SLEEP:
         return masterData.hotels.filter((h: any) => checkMatch([h.name, h.closest_city, h.location_address]));
-      case 'activity':
+      case ItineraryBlockTypes.ACTIVITY:
         return masterData.vendors.filter((v: any) => {
           const activityStrings = v.vendor_activities?.flatMap((va: any) => {
             const actData = (va as any).activities || (va as any).activity;
@@ -3506,14 +3506,14 @@ function AIItineraryBuilder({
           }) || [];
           return checkMatch([v.name, v.address, ...activityStrings]);
         });
-      case 'meal':
+      case ItineraryBlockTypes.MEAL:
         return masterData.restaurants.filter((r: any) => checkMatch([r.name, r.address, r.city, r.district]));
-      case 'travel':
+      case ItineraryBlockTypes.TRAVEL:
         return {
           providers: masterData.transportProviders.filter((p: any) => checkMatch([p.name, p.address])),
           drivers: masterData.drivers.filter((d: any) => checkMatch([d.first_name, d.last_name]))
         };
-      case 'guide':
+      case ItineraryBlockTypes.GUIDE:
         return masterData.guides.filter((g: any) => checkMatch([g.first_name, g.last_name]));
       default:
         return [];
@@ -3521,7 +3521,7 @@ function AIItineraryBuilder({
   }, [activeAssignment, searchTerm, masterData]);
 
   const handleCopyRatePrompt = (block: InternalItineraryBlock) => {
-    if (block.type !== 'sleep' || !block.hotelId) return;
+    if (block.type !== ItineraryBlockTypes.SLEEP || !block.hotelId) return;
     const hotel = masterData.hotels.find((h: any) => h.id === block.hotelId);
     if (!hotel) return;
 
@@ -3551,49 +3551,49 @@ function AIItineraryBuilder({
 
   const getCardAccentBorder = (type: InternalItineraryBlock['type']) => {
     switch (type) {
-      case 'sleep': return 'border-l-4 border-l-amber-500';
-      case 'activity': return 'border-l-4 border-l-emerald-500';
-      case 'meal': return 'border-l-4 border-l-rose-500';
-      case 'travel': return 'border-l-4 border-l-sky-500';
-      case 'train': return 'border-l-4 border-l-purple-500';
-      case 'guide': return 'border-l-4 border-l-teal-500';
+      case ItineraryBlockTypes.SLEEP: return 'border-l-4 border-l-amber-500';
+      case ItineraryBlockTypes.ACTIVITY: return 'border-l-4 border-l-emerald-500';
+      case ItineraryBlockTypes.MEAL: return 'border-l-4 border-l-rose-500';
+      case ItineraryBlockTypes.TRAVEL: return 'border-l-4 border-l-sky-500';
+      case ItineraryBlockTypes.TRAIN: return 'border-l-4 border-l-purple-500';
+      case ItineraryBlockTypes.GUIDE: return 'border-l-4 border-l-teal-500';
       default: return 'border-l-4 border-l-neutral-400';
     }
   };
 
   const renderTypeBadge = (type: InternalItineraryBlock['type']) => {
     switch (type) {
-      case 'sleep':
+      case ItineraryBlockTypes.SLEEP:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-amber-50 text-amber-800 border border-amber-200/50 shadow-sm shrink-0">
             <BedDouble className="w-3.5 h-3.5 text-amber-600" /> Sleep
           </span>
         );
-      case 'activity':
+      case ItineraryBlockTypes.ACTIVITY:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-800 border border-emerald-200/50 shadow-sm shrink-0">
             <Compass className="w-3.5 h-3.5 text-emerald-600" /> Activity
           </span>
         );
-      case 'meal':
+      case ItineraryBlockTypes.MEAL:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-rose-50 text-rose-800 border border-rose-200/50 shadow-sm shrink-0">
             <Utensils className="w-3.5 h-3.5 text-rose-600" /> Meal
           </span>
         );
-      case 'travel':
+      case ItineraryBlockTypes.TRAVEL:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-sky-50 text-sky-800 border border-sky-200/50 shadow-sm shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-sky-50 text-sky-850 border border-sky-200/50 shadow-sm shrink-0">
             <Car className="w-3.5 h-3.5 text-sky-600" /> Travel
           </span>
         );
-      case 'train':
+      case ItineraryBlockTypes.TRAIN:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-purple-50 text-purple-800 border border-purple-200/50 shadow-sm shrink-0">
             <Compass className="w-3.5 h-3.5 text-purple-600" /> Train
           </span>
         );
-      case 'guide':
+      case ItineraryBlockTypes.GUIDE:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-teal-50 text-teal-800 border border-teal-200/50 shadow-sm shrink-0">
             <UserCheck className="w-3.5 h-3.5 text-teal-600" /> Guide
@@ -3601,8 +3601,8 @@ function AIItineraryBuilder({
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-neutral-100 text-neutral-800 border border-neutral-200/60 shadow-sm shrink-0">
-            Custom
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase bg-neutral-50 text-neutral-800 border border-neutral-200/50 shadow-sm shrink-0">
+            {type}
           </span>
         );
     }
@@ -3714,7 +3714,7 @@ function AIItineraryBuilder({
     setItinerary(prevItinerary => {
       let changed = false;
       const updated = prevItinerary.map(block => {
-        if (block.type === 'sleep') {
+        if (block.type === ItineraryBlockTypes.SLEEP) {
           const baseRate = block.baseRoomRate || block.agreedPrice || 150;
           
           const singleRate = baseRate * 0.85;
@@ -3820,26 +3820,26 @@ function AIItineraryBuilder({
     
     // 1. Hotel Cost
     const hotel = blocksForDay
-      .filter(b => b.type === 'sleep')
+      .filter(b => b.type === ItineraryBlockTypes.SLEEP)
       .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
     // 2. Pax Count
     const pax = (adults || 0) + (children || 0);
 
     // Helper to get settings keys
-    const getTierValue = (suffix: string, defaultValue: number) => {
-      if (!appSettings) return defaultValue;
+    const getTierValue = (setting: typeof TierSettingDefinitions[keyof typeof TierSettingDefinitions]) => {
+      if (!appSettings) return setting.defaultValue;
       const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
-      const fullKey = `${key}_${suffix}`;
-      return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : defaultValue;
+      const fullKey = `${key}_${setting.key}`;
+      return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
     };
 
     // 3. Meal Cost (Lunch cost per tourist * pax)
-    const lunchCostPerHead = getTierValue('lunch_cost', 15);
+    const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
     const meals = pax * lunchCostPerHead;
 
     // 4. Transport Cost
-    const kmRate = getTierValue('vehicle_km_rate', 0.50);
+    const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
     const getBlockKm = (block: InternalItineraryBlock) => {
       if (!block.distance) return 0;
       const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
@@ -3849,11 +3849,11 @@ function AIItineraryBuilder({
     const transport = km * kmRate;
 
     // 5. Concierge Cost (ticket, refreshment, seamless concierge)
-    const conciergeCostPerHead = getTierValue('concierge_cost', 40);
+    const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
     const concierge = pax * conciergeCostPerHead;
 
     // 6. Agency Fee & Tax
-    const agencyFeePercent = getTierValue('service_fee', 10);
+    const agencyFeePercent = getTierValue(TierSettingDefinitions.SERVICE_FEE);
     const subtotal = hotel + meals + transport + concierge;
     const agencyFee = subtotal * (agencyFeePercent / 100);
 
@@ -3973,7 +3973,7 @@ function AIItineraryBuilder({
           let matchedLocName: string | undefined = undefined;
           let matchedActId: number | undefined = undefined;
 
-          if (event.type === 'activity') {
+          if (event.type === ItineraryBlockTypes.ACTIVITY) {
             const act = chosenActivities.find(a => 
               String(a.id) === String(event.activityId) || 
               a.activity_name.toLowerCase() === event.name.toLowerCase()
@@ -3987,7 +3987,7 @@ function AIItineraryBuilder({
           }
 
           let sleepPrice = event.rateUsd;
-          if (event.type === 'sleep' && event.rateUsd) {
+          if (event.type === ItineraryBlockTypes.SLEEP && event.rateUsd) {
             const singleRate = event.rateUsd * 0.85;
             const doubleRate = event.rateUsd;
             const tripleRate = event.rateUsd * 1.4;
@@ -4011,11 +4011,11 @@ function AIItineraryBuilder({
             endTime: event.endTime,
             bufferMins: 15,
             durationHours: event.duration,
-            hotelName: event.type === 'sleep' ? (event.hotelName || event.name) : '',
-            roomName: event.type === 'sleep' ? (event.roomCategory || '') : '',
-            mealPlan: event.type === 'sleep' ? (event.mealPlan || 'BB') : '',
-            agreedPrice: event.type === 'sleep' ? sleepPrice : undefined,
-            baseRoomRate: event.type === 'sleep' ? event.rateUsd : undefined,
+            hotelName: event.type === ItineraryBlockTypes.SLEEP ? (event.hotelName || event.name) : '',
+            roomName: event.type === ItineraryBlockTypes.SLEEP ? (event.roomCategory || '') : '',
+            mealPlan: event.type === ItineraryBlockTypes.SLEEP ? (event.mealPlan || 'BB') : '',
+            agreedPrice: event.type === ItineraryBlockTypes.SLEEP ? sleepPrice : undefined,
+            baseRoomRate: event.type === ItineraryBlockTypes.SLEEP ? event.rateUsd : undefined,
             imageUrl: '',
             confirmationStatus: 'Pending',
             paymentStatus: 'Pending',
@@ -4055,7 +4055,7 @@ function AIItineraryBuilder({
       };
 
       nonDropped.forEach((block, index) => {
-        if (block.type === 'travel') {
+        if (block.type === ItineraryBlockTypes.TRAVEL) {
           // If a travel block is generated, resolve its destination coordinates from itself or lookahead
           let destLat = block.lat;
           let destLng = block.lng;
@@ -4063,7 +4063,7 @@ function AIItineraryBuilder({
             // Look ahead for the first block with coordinates
             for (let i = index + 1; i < nonDropped.length; i++) {
               const nextB = nonDropped[i];
-              if (nextB.type !== 'travel' && nextB.lat !== undefined && nextB.lng !== undefined) {
+              if (nextB.type !== ItineraryBlockTypes.TRAVEL && nextB.lat !== undefined && nextB.lng !== undefined) {
                 destLat = nextB.lat;
                 destLng = nextB.lng;
                 break;
@@ -4085,7 +4085,7 @@ function AIItineraryBuilder({
             if (dist > 3) { // Location changed by more than 3 km
               // Check if the immediately preceding block in postProcessedBlocks is a travel block
               const prevInProcessed = postProcessedBlocks[postProcessedBlocks.length - 1];
-              const hasPrecedingTravel = prevInProcessed && prevInProcessed.type === 'travel';
+              const hasPrecedingTravel = prevInProcessed && prevInProcessed.type === ItineraryBlockTypes.TRAVEL;
 
               if (!hasPrecedingTravel) {
                 // Insert an auto-generated travel block
@@ -4093,7 +4093,7 @@ function AIItineraryBuilder({
                 const travelBlock: InternalItineraryBlock = {
                   id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
                   dayNumber: block.dayNumber,
-                  type: 'travel',
+                  type: ItineraryBlockTypes.TRAVEL,
                   name: `Travel to ${block.locationName || block.name}`,
                   startTime: lastLocBlock.endTime || block.startTime,
                   endTime: block.startTime,
@@ -4141,7 +4141,7 @@ function AIItineraryBuilder({
           dropped.push({
             id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
             dayNumber: 0,
-            type: 'activity',
+            type: ItineraryBlockTypes.ACTIVITY,
             name: act.activity_name,
             startTime: '',
             endTime: '',
@@ -4205,7 +4205,7 @@ function AIItineraryBuilder({
     const newBlock: InternalItineraryBlock = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
       dayNumber: activeDay,
-      type: 'activity',
+      type: ItineraryBlockTypes.ACTIVITY,
       name: '',
       startTime: '09:00',
       endTime: '11:00',
@@ -4233,7 +4233,7 @@ function AIItineraryBuilder({
     setItinerary(prev => prev.map(b => {
       if (b.id === id) {
         const updated = { ...b, [field]: value };
-        if (b.type === 'sleep' && field === 'agreedPrice' && value !== undefined) {
+        if (b.type === ItineraryBlockTypes.SLEEP && field === 'agreedPrice' && value !== undefined) {
           const factor = (singleRoomsCount * 0.85) + 
                          (doubleRoomsCount * 1.0) + 
                          (tripleRoomsCount * 1.4) + 
@@ -4305,13 +4305,13 @@ function AIItineraryBuilder({
   };
 
   const blockTypes: { value: InternalItineraryBlock['type']; label: string }[] = [
-    { value: 'activity', label: 'Activity' },
-    { value: 'sleep', label: 'Hotel / Sleep' },
-    { value: 'meal', label: 'Meal' },
-    { value: 'travel', label: 'Transfer / Travel' },
-    { value: 'train', label: 'Train' },
-    { value: 'guide', label: 'Guide assignment' },
-    { value: 'custom', label: 'Custom Item' }
+    { value: ItineraryBlockTypes.ACTIVITY, label: 'Activity' },
+    { value: ItineraryBlockTypes.SLEEP, label: 'Hotel / Sleep' },
+    { value: ItineraryBlockTypes.MEAL, label: 'Meal' },
+    { value: ItineraryBlockTypes.TRAVEL, label: 'Transfer / Travel' },
+    { value: ItineraryBlockTypes.TRAIN, label: 'Train' },
+    { value: ItineraryBlockTypes.GUIDE, label: 'Guide assignment' },
+    { value: ItineraryBlockTypes.CUSTOM, label: 'Custom Item' }
   ];
 
   const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI'];  return (
@@ -4824,7 +4824,7 @@ function AIItineraryBuilder({
                       {idx + 1}
                     </span>
                     {renderTypeBadge(block.type)}
-                    {block.type === 'travel' ? (
+                    {block.type === ItineraryBlockTypes.TRAVEL ? (
                       <>
                         <span className="text-neutral-300 font-normal">|</span>
                         <span className="text-emerald-800 font-bold flex items-center gap-1.5 bg-emerald-50/60 px-2.5 py-1 rounded-lg border border-emerald-100/60 text-[11px] shadow-sm">
@@ -4970,7 +4970,7 @@ function AIItineraryBuilder({
                   </div>
 
                   {/* Sleep type specific fields */}
-                  {block.type === 'sleep' && (
+                  {block.type === ItineraryBlockTypes.SLEEP && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-dashed border-neutral-200">
                       <div>
                         <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Hotel Name</label>
@@ -5046,19 +5046,19 @@ function AIItineraryBuilder({
                         if (imgUrl === 'none') {
                           imgUrl = '';
                         } else {
-                          if (!imgUrl && block.type === 'sleep' && block.hotelId) {
+                          if (!imgUrl && block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
                             const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
                             if (h) {
                               imgUrl = (h.images && h.images.length > 0) ? h.images[0] : (h.photo_url || '');
                             }
                           }
-                          if (!imgUrl && block.type === 'meal' && block.restaurantId) {
+                          if (!imgUrl && block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
                             const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
                             if (r) {
                               imgUrl = (r.images && r.images.length > 0) ? r.images[0] : (r.photo_url || '');
                             }
                           }
-                          if (!imgUrl && block.type === 'activity') {
+                          if (!imgUrl && block.type === ItineraryBlockTypes.ACTIVITY) {
                             const resolvedActId = block.activityId;
                             const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
                             const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
@@ -5129,7 +5129,7 @@ function AIItineraryBuilder({
                       })()}
 
                       {/* Binder Control */}
-                      {['sleep', 'activity', 'meal', 'travel', 'guide'].includes(block.type) && (() => {
+                      {(BINDABLE_BLOCK_TYPES as readonly ItineraryBlockType[]).includes(block.type) && (() => {
                         const binding = getBindingDisplay(block);
                         if (!binding) {
                           return (
@@ -5163,7 +5163,7 @@ function AIItineraryBuilder({
                               <span className="truncate">{binding.name}</span>
                             </button>
 
-                            {block.type === 'sleep' && block.hotelId && (
+                            {block.type === ItineraryBlockTypes.SLEEP && block.hotelId && (
                               <button
                                 type="button"
                                 onClick={() => handleCopyRatePrompt(block)}
@@ -5397,7 +5397,7 @@ function AIItineraryBuilder({
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                {activeAssignment.type === 'sleep' && stayDate && (
+                {activeAssignment.type === ItineraryBlockTypes.SLEEP && stayDate && (
                   <div className="mt-2.5 text-[10px] text-emerald-800 font-mono bg-emerald-50 border border-emerald-100/60 p-2 rounded-xl">
                     Day {dayNumber} Stay | Date: {stayDate}
                   </div>
@@ -5408,7 +5408,7 @@ function AIItineraryBuilder({
               <div className="p-6 flex-1 overflow-y-auto space-y-5">
                 
                 {/* Search Bar (non-hotel & non-restaurant types) */}
-                {activeAssignment.type !== 'sleep' && activeAssignment.type !== 'meal' && (
+                {activeAssignment.type !== ItineraryBlockTypes.SLEEP && activeAssignment.type !== ItineraryBlockTypes.MEAL && (
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 text-neutral-400" size={16} />
                     <input
@@ -5421,7 +5421,7 @@ function AIItineraryBuilder({
                 )}
 
                 {/* Hotel Search Form */}
-                {activeAssignment.type === 'sleep' && (
+                {activeAssignment.type === ItineraryBlockTypes.SLEEP && (
                   <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -5456,7 +5456,7 @@ function AIItineraryBuilder({
                 )}
 
                 {/* Restaurant Search Form */}
-                {activeAssignment.type === 'meal' && (
+                {activeAssignment.type === ItineraryBlockTypes.MEAL && (
                   <div className="bg-neutral-50/55 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -5493,7 +5493,7 @@ function AIItineraryBuilder({
                 <div className="divide-y divide-neutral-100 border border-neutral-200/80 rounded-2xl overflow-hidden shadow-sm bg-white">
                   
                   {/* Hotel List */}
-                  {activeAssignment.type === 'sleep' && (() => {
+                  {activeAssignment.type === ItineraryBlockTypes.SLEEP && (() => {
                     const assignedHotelId = activeBlock.hotelId;
                     let dataToRender = hotelSearchResults !== null ? [...hotelSearchResults] : [];
                     if (assignedHotelId && !dataToRender.some(h => h.id === assignedHotelId)) {
@@ -5786,7 +5786,7 @@ function AIItineraryBuilder({
                   })()}
 
                   {/* Activity List */}
-                  {activeAssignment.type === 'activity' && (() => {
+                  {activeAssignment.type === ItineraryBlockTypes.ACTIVITY && (() => {
                     const resolvedActId = activeBlock.activityId;
 
                     const baseActivity = masterData.activities.find((a: any) => Number(a.id) === Number(resolvedActId));
@@ -5939,7 +5939,7 @@ function AIItineraryBuilder({
                   })()}
 
                   {/* Travel List */}
-                  {activeAssignment.type === 'travel' && (() => {
+                  {activeAssignment.type === ItineraryBlockTypes.TRAVEL && (() => {
                     const providers = (filteredMasterData as any).providers || [];
                     const drivers = (filteredMasterData as any).drivers || [];
                     
@@ -6052,7 +6052,7 @@ function AIItineraryBuilder({
                   })()}
 
                   {/* Restaurant List */}
-                  {activeAssignment.type === 'meal' && (() => {
+                  {activeAssignment.type === ItineraryBlockTypes.MEAL && (() => {
                     const assignedRestaurantId = activeBlock.restaurantId;
                     let dataToRender = restaurantSearchResults !== null ? [...restaurantSearchResults] : [];
                     if (assignedRestaurantId && !dataToRender.some(r => r.id === assignedRestaurantId)) {
@@ -6153,7 +6153,7 @@ function AIItineraryBuilder({
                   })()}
 
                   {/* Guide List */}
-                  {activeAssignment.type === 'guide' && (() => {
+                  {activeAssignment.type === ItineraryBlockTypes.GUIDE && (() => {
                     const guidesList = (filteredMasterData as any[]) || [];
                     return (
                       <div className="grid grid-cols-1 gap-4 p-4">
@@ -6195,7 +6195,7 @@ function AIItineraryBuilder({
 
                   {/* No Results Check */}
                   {(() => {
-                    const noResults = activeAssignment.type === 'travel'
+                    const noResults = activeAssignment.type === ItineraryBlockTypes.TRAVEL
                       ? (((filteredMasterData as any).providers?.length || 0) === 0 && ((filteredMasterData as any).drivers?.length || 0) === 0)
                       : ((filteredMasterData as any[]) || []).length === 0;
 
@@ -6218,7 +6218,7 @@ function AIItineraryBuilder({
                    onClick={() => {
                      const block = itinerary.find(b => b.id === activeAssignment.blockId);
                      if (block) {
-                       if (tripData && block.type === 'sleep') {
+                       if (tripData && block.type === ItineraryBlockTypes.SLEEP) {
                          const newAccs = (tripData.accommodations || []).filter(a => Number(a.nightIndex) !== Number(block.dayNumber));
                          setTripData({
                            ...tripData,

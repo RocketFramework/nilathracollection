@@ -30,6 +30,14 @@ export type FinalStep =
 export const TRAVEL_STYLES = ['Luxury', 'Ultra VIP', 'Premium', 'Regular', 'Mixed'] as const;
 export type TravelStyle = typeof TRAVEL_STYLES[number];
 
+export const TravelStylePolicyKeys: Record<Exclude<TravelStyle, 'Mixed'>, string> = {
+  'Regular': 'policy_regular',
+  'Premium': 'policy_premium',
+  'Luxury': 'policy_luxury',
+  'Ultra VIP': 'policy_ultra_vip'
+};
+
+
 export const GENDERS = ['Male', 'Female', 'Other'] as const;
 export type Gender = typeof GENDERS[number];
 
@@ -54,3 +62,29 @@ export type TripStatus =
     | 'Documents Sent'
     | 'Completed'
     | 'Archived';
+
+export const ITINERARY_BLOCK_TYPES = ['activity', 'travel', 'meal', 'sleep', 'train', 'buffer', 'wait', 'guide', 'custom'] as const;
+export type ItineraryBlockType = typeof ITINERARY_BLOCK_TYPES[number];
+
+export const BINDABLE_BLOCK_TYPES = ['sleep', 'activity', 'meal', 'travel', 'guide'] as const;
+export type BindableBlockType = typeof BINDABLE_BLOCK_TYPES[number];
+
+export const ItineraryBlockTypes = {
+  ACTIVITY: 'activity',
+  TRAVEL: 'travel',
+  MEAL: 'meal',
+  SLEEP: 'sleep',
+  TRAIN: 'train',
+  BUFFER: 'buffer',
+  WAIT: 'wait',
+  GUIDE: 'guide',
+  CUSTOM: 'custom'
+} as const;
+
+export const TierSettingDefinitions = {
+  LUNCH_COST: { key: 'lunch_cost', defaultValue: 15 },
+  VEHICLE_KM_RATE: { key: 'vehicle_km_rate', defaultValue: 0.50 },
+  CONCIERGE_COST: { key: 'concierge_cost', defaultValue: 40 },
+  SERVICE_FEE: { key: 'service_fee', defaultValue: 10 }
+} as const;
+

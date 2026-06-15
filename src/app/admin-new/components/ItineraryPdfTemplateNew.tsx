@@ -1,7 +1,7 @@
 import React from 'react';
 import { InternalItineraryBlock } from '@/other/interfaces';
 import { TouristDataDTO } from '@/dtos/tourist-data.dto';
-import { TravelStyle } from '@/types/types';
+import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys } from '@/types/types';
 
 interface ItineraryPdfTemplateNewProps {
   itinerary: InternalItineraryBlock[];
@@ -53,7 +53,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     const destinations = new Set<string>();
 
     itinerary.forEach(block => {
-      if (block.type === 'activity') activityCount++;
+      if (block.type === ItineraryBlockTypes.ACTIVITY) activityCount++;
       if (block.locationName && block.locationName.trim() !== '') {
         destinations.add(block.locationName.trim());
       }
@@ -95,26 +95,26 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       
       // 1. Hotel Cost
       const hotel = blocksForDay
-        .filter(b => b.type === 'sleep')
+        .filter(b => b.type === ItineraryBlockTypes.SLEEP)
         .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
       // 2. Pax Count
       const pax = (adults || 0) + (children || 0);
 
       // Helper to get settings keys
-      const getTierValue = (suffix: string, defaultValue: number) => {
-        if (!appSettings) return defaultValue;
+      const getTierValue = (setting: typeof TierSettingDefinitions[keyof typeof TierSettingDefinitions]) => {
+        if (!appSettings) return setting.defaultValue;
         const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
-        const fullKey = `${key}_${suffix}`;
-        return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : defaultValue;
+        const fullKey = `${key}_${setting.key}`;
+        return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
       };
 
       // 3. Meal Cost (Lunch cost per tourist * pax)
-      const lunchCostPerHead = getTierValue('lunch_cost', 15);
+      const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
       const meals = pax * lunchCostPerHead;
 
       // 4. Transport Cost
-      const kmRate = getTierValue('vehicle_km_rate', 0.50);
+      const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
       const getBlockKm = (block: InternalItineraryBlock) => {
         if (!block.distance) return 0;
         const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
@@ -124,11 +124,11 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       const transport = km * kmRate;
 
       // 5. Concierge Cost (ticket, refreshment, seamless concierge)
-      const conciergeCostPerHead = getTierValue('concierge_cost', 40);
+      const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
       const concierge = pax * conciergeCostPerHead;
 
       // 6. Agency Fee & Tax
-      const agencyFeePercent = getTierValue('service_fee', 10);
+      const agencyFeePercent = getTierValue(TierSettingDefinitions.SERVICE_FEE);
       const subtotal = hotel + meals + transport + concierge;
       const agencyFee = subtotal * (agencyFeePercent / 100);
 
@@ -149,7 +149,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     const getResolvedBindingDisplay = (block: InternalItineraryBlock) => {
       if (!masterData) return null;
 
-      if (block.type === 'sleep' && block.hotelId) {
+      if (block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
         const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
         let label = h?.name || block.hotelName || 'Linked Hotel';
         if (block.roomName) {
@@ -160,10 +160,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         }
         return {
           label,
-          type: 'Accommodation',
+          type: ItineraryBlockTypes.SLEEP,
         };
       }
-      if (block.type === 'meal' && block.restaurantId) {
+      if (block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
         const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
         let label = r?.name || 'Linked Restaurant';
         if (block.mealType) {
@@ -171,10 +171,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         }
         return {
           label,
-          type: 'Dining',
+          type: ItineraryBlockTypes.MEAL,
         };
       }
-      if (block.type === 'activity' && (block.vendorId || block.vendorActivityId || block.activityId)) {
+      if (block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.vendorActivityId || block.activityId)) {
         const v = masterData.vendors?.find((x: any) => x.id === block.vendorId);
         const resolvedActId = block.activityId;
         const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
@@ -184,10 +184,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
         return {
           label,
-          type: 'Activity',
+          type: ItineraryBlockTypes.ACTIVITY,
         };
       }
-      if (block.type === 'travel' && (block.driverId || block.transportId || block.vehicleId)) {
+      if (block.type === ItineraryBlockTypes.TRAVEL && (block.driverId || block.transportId || block.vehicleId)) {
         const d = masterData.drivers?.find((x: any) => x.id === block.driverId);
         const p = masterData.transportProviders?.find((x: any) => x.id === block.transportId);
         const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
@@ -208,14 +208,14 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         }
         return {
           label,
-          type: 'Transport',
+          type: ItineraryBlockTypes.TRAVEL,
         };
       }
-      if (block.type === 'guide' && block.guideId) {
+      if (block.type === ItineraryBlockTypes.GUIDE && block.guideId) {
         const g = masterData.guides?.find((x: any) => x.id === block.guideId);
         return {
           label: g ? `Guide: ${g.first_name} ${g.last_name}` : 'Linked Guide',
-          type: 'Guide',
+          type: ItineraryBlockTypes.GUIDE,
         };
       }
       return null;
@@ -237,7 +237,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
     // Calculate total price of hotel blocks in the skeleton itinerary
     const hotelPriceTotal = itinerary
-      .filter(b => b.type === 'sleep' && b.agreedPrice !== undefined)
+      .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.agreedPrice !== undefined)
       .reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
 
     return (
@@ -536,12 +536,12 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       
                       // Filter blocks for active day, sorted by time
                       const timeToMins = (timeStr?: string, type?: string) => {
-                        if (!timeStr || !timeStr.includes(':')) return type === 'sleep' ? 1440 : -1;
+                        if (!timeStr || !timeStr.includes(':')) return type === ItineraryBlockTypes.SLEEP ? 1440 : -1;
                         const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-                        if (!match) return type === 'sleep' ? 1440 : -1;
+                        if (!match) return type === ItineraryBlockTypes.SLEEP ? 1440 : -1;
                         let h = parseInt(match[1], 10);
                         const m = parseInt(match[2], 10);
-                        if (isNaN(h) || isNaN(m)) return type === 'sleep' ? 1440 : -1;
+                        if (isNaN(h) || isNaN(m)) return type === ItineraryBlockTypes.SLEEP ? 1440 : -1;
                         const period = match[3]?.toUpperCase();
                         if (period === 'PM' && h < 12) h += 12;
                         if (period === 'AM' && h === 12) h = 0;
@@ -555,7 +555,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       if (dayBlocks.length === 0) return null;
 
                       const weatherInfo = dayBlocks[0]?.weather;
-                      const sleepBlock = dayBlocks.find(b => b.type === 'sleep');
+                      const sleepBlock = dayBlocks.find(b => b.type === ItineraryBlockTypes.SLEEP);
 
                       return (
                         <div key={dayNum} className="print-avoid-break space-y-6">
@@ -643,19 +643,19 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     if (imgUrl === 'none') {
                                       return null;
                                     }
-                                    if (!imgUrl && block.type === 'sleep' && block.hotelId) {
+                                    if (!imgUrl && block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
                                       const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
                                       if (h) {
                                         imgUrl = (h.images && h.images.length > 0) ? h.images[0] : (h.photo_url || '');
                                       }
                                     }
-                                    if (!imgUrl && block.type === 'meal' && block.restaurantId) {
+                                    if (!imgUrl && block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
                                       const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
                                       if (r) {
                                         imgUrl = (r.images && r.images.length > 0) ? r.images[0] : (r.photo_url || '');
                                       }
                                     }
-                                    if (!imgUrl && block.type === 'activity') {
+                                    if (!imgUrl && block.type === ItineraryBlockTypes.ACTIVITY) {
                                       const resolvedActId = block.activityId;
                                       const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
                                       const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
@@ -702,11 +702,11 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       <div className="mt-1.5 px-3 py-1.5 bg-[#FAF9F6] border border-[#EBE6DC] rounded-xl flex items-center justify-between text-[10.5px] text-neutral-700 font-sans">
                                         <div className="flex items-center gap-2">
                                           <span className="text-[7.5px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
-                                            {bind.type}
+                                            {bind.type.charAt(0).toUpperCase() + bind.type.slice(1)}
                                           </span>
                                           <span className="font-semibold">{bind.label}</span>
                                         </div>
-                                        {block.agreedPrice !== undefined && block.agreedPrice !== null && block.type !== 'sleep' && !block.restaurantId && !block.vendorId && (
+                                        {block.agreedPrice !== undefined && block.agreedPrice !== null && block.type !== ItineraryBlockTypes.SLEEP && !block.restaurantId && !block.vendorId && (
                                           <span className="font-bold text-[#8C6D3F] text-[10px]">
                                             ${block.agreedPrice.toLocaleString()} USD
                                           </span>
@@ -732,7 +732,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                           Distance: {block.distance}
                                         </span>
                                       )}
-                                      {block.type === 'sleep' && block.agreedPrice !== undefined && !block.hotelId && (
+                                      {block.type === ItineraryBlockTypes.SLEEP && block.agreedPrice !== undefined && !block.hotelId && (
                                         <span className="font-extrabold text-neutral-800">
                                           Calculated Price: ${block.agreedPrice.toFixed(2)} USD
                                         </span>
@@ -762,13 +762,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                 {/* 5. POLICIES & IMPORTANT TERMS */}
                 {(() => {
                   const getTierPolicyKey = (style: string) => {
-                    switch (style) {
-                      case 'Regular': return 'policy_regular';
-                      case 'Premium': return 'policy_premium';
-                      case 'Luxury': return 'policy_luxury';
-                      case 'Ultra VIP': return 'policy_ultra_vip';
-                      default: return null;
-                    }
+                    return TravelStylePolicyKeys[style as keyof typeof TravelStylePolicyKeys] || null;
                   };
 
                   const isDraft = tripStatus?.toLowerCase() === 'draft';

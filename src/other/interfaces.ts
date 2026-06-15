@@ -1,4 +1,4 @@
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, ServiceScope, TripStatus } from '../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, ServiceScope, TripStatus, ItineraryBlockType } from '../types/types';
 import { Activity } from '@/data/activities';
 
 export interface ItineraryElements {
@@ -249,7 +249,7 @@ export interface ActivityBooking {
 export interface InternalItineraryBlock {
     id: string;
     dayNumber: number;
-    type: 'activity' | 'travel' | 'meal' | 'sleep' | 'train' | 'buffer' | 'wait' | 'guide' | 'custom';
+    type: ItineraryBlockType;
     name: string;
     startTime: string; // HH:mm
     endTime: string; // HH:mm
