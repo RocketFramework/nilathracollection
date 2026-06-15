@@ -6,7 +6,7 @@ import { CreateUserDTO, UpdateUserDTO, ResetPasswordDTO } from "@/dtos/user-vend
 
 export async function createUserAction(formData: FormData) {
     try {
-        const role = formData.get("role") as 'tourist' | 'agent' | 'agent_supervisor' | 'admin';
+        const role = formData.get("role") as 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance';
         const dto: CreateUserDTO = {
             first_name: formData.get("first_name") as string,
             last_name: formData.get("last_name") as string,
@@ -47,7 +47,7 @@ export async function resetPasswordAction(userId: string, newPassword: string) {
     }
 }
 
-export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
+export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
     try {
         const users = await AdminService.getUsersByRole(role);
         return { success: true, users };
@@ -57,7 +57,7 @@ export async function getUsersByRoleAction(role: 'tourist' | 'agent' | 'agent_su
     }
 }
 
-export async function deactivateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
+export async function deactivateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
     try {
         await AdminService.deactivateUser(userId, role);
         revalidatePath("/admin/user-management");
@@ -68,7 +68,7 @@ export async function deactivateUserAction(userId: string, role: 'tourist' | 'ag
     }
 }
 
-export async function activateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
+export async function activateUserAction(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
     try {
         await AdminService.updateUser(userId, role, { is_active: true });
         revalidatePath("/admin/user-management");

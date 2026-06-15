@@ -10,7 +10,7 @@ interface UserFormModalProps {
     onSuccess: () => void;
     user: UserProfileDTO | null;
     isEdit: boolean;
-    currentTabRole: 'admin' | 'agent' | 'agent_supervisor' | 'tourist';
+    currentTabRole: 'admin' | 'agent' | 'agent_supervisor' | 'tourist' | 'finance';
 }
 
 export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, currentTabRole }: UserFormModalProps) {
@@ -62,6 +62,7 @@ export function UserFormModal({ isOpen, onClose, onSuccess, user, isEdit, curren
 
     const getRoleLabel = (r: typeof currentTabRole) => {
         if (r === 'agent_supervisor') return 'Supervisor';
+        if (r === 'finance') return 'Finance Staff';
         return r.charAt(0).toUpperCase() + r.slice(1);
     };
 

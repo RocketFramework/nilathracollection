@@ -7,7 +7,7 @@ import { UserListTable } from "./components/UserListTable";
 import { UserFormModal } from "./components/UserFormModal";
 import { PasswordResetModal } from "./components/PasswordResetModal";
 
-type Role = 'admin' | 'agent' | 'agent_supervisor' | 'tourist';
+type Role = 'admin' | 'agent' | 'agent_supervisor' | 'tourist' | 'finance';
 
 export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState<Role>('agent');
@@ -68,11 +68,13 @@ export default function UserManagementPage() {
         { id: 'admin', label: 'Admins' },
         { id: 'agent_supervisor', label: 'Supervisors' },
         { id: 'agent', label: 'Agents' },
+        { id: 'finance', label: 'Finance' },
         { id: 'tourist', label: 'Tourists' },
     ];
 
     const getRoleLabel = (r: Role) => {
         if (r === 'agent_supervisor') return 'Supervisor';
+        if (r === 'finance') return 'Finance Staff';
         return r.charAt(0).toUpperCase() + r.slice(1);
     };
 

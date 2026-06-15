@@ -2,7 +2,7 @@
 import sharp from "sharp";
 
 import { revalidatePath } from "next/cache";
-import { AdminService } from "@/services/user.service";
+import { AdminService, UserService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { TouristService } from "@/services/tourist.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
@@ -924,6 +924,7 @@ export async function sendCustomEmailAction(formData: FormData) {
 
 export async function getEmailTemplatesAction() {
     try {
+        await enforcePermission("urn:nilathra:resource:email-templates", "scopes:email-templates:view");
         const templates = await EmailTemplateService.getTemplates();
         return { success: true, templates };
     } catch (error: any) {
@@ -933,6 +934,7 @@ export async function getEmailTemplatesAction() {
 
 export async function saveEmailTemplateAction(template: EmailTemplate) {
     try {
+        await enforcePermission("urn:nilathra:resource:email-templates", "scopes:email-templates:manage");
         await EmailTemplateService.saveTemplate(template);
         revalidatePath("/admin/email-templates");
         return { success: true };
@@ -943,6 +945,7 @@ export async function saveEmailTemplateAction(template: EmailTemplate) {
 
 export async function deleteEmailTemplateAction(id: string) {
     try {
+        await enforcePermission("urn:nilathra:resource:email-templates", "scopes:email-templates:manage");
         await EmailTemplateService.deleteTemplate(id);
         revalidatePath("/admin/email-templates");
         return { success: true };

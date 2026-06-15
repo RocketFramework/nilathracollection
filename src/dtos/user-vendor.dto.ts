@@ -4,7 +4,7 @@ export interface CreateUserDTO {
     email: string;
     phone?: string;
     password?: string; // Only for initial creation
-    role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin';
+    role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance';
     supervisor_id?: string; // Links agent to supervisor
 }
 
@@ -29,7 +29,7 @@ export interface UserProfileDTO {
     phone?: string;
     photo_url?: string;
     country?: string;
-    role?: 'tourist' | 'agent' | 'agent_supervisor' | 'admin';
+    role?: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance';
     supervisor_id?: string; // Links agent to supervisor
     is_active?: boolean;
     supervisor?: {

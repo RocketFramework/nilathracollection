@@ -6,6 +6,7 @@ import { logoutAction } from "../../actions/auth";
 import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import NotificationBell from "../components/NotificationBell";
+import { checkPermission } from "@/utils/auth-enforcer";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
     const supabase = await createClient();
@@ -14,8 +15,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     let isAdmin = false;
     let userInitials = "NC";
     let displayRole = "Guest";
+    let canViewTemplates = false;
 
     if (user) {
+        // Evaluate email templates permission dynamically
+        try {
+            canViewTemplates = await checkPermission("urn:nilathra:resource:email-templates", "scopes:email-templates:view");
+        } catch (e) {
+            console.error("Error evaluating email templates permission in layout:", e);
+        }
+
         // Broad check for admin using service role client to bypass any RLS read restrictions
         const adminSupabase = createAdminClient();
         const { data: rpcRole } = await adminSupabase.rpc('get_user_role', { user_id: user.id });
@@ -90,10 +99,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                         <InboxIcon size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
                         <span className="font-medium tracking-wide">Inbox</span>
                     </Link>
-                    <Link href="/admin/email-templates" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
-                        <LayoutTemplate size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
-                        <span className="font-medium tracking-wide">Email Templates</span>
-                    </Link>
+                    {canViewTemplates && (
+                        <Link href="/admin/email-templates" className="flex items-center gap-4 px-6 py-3 text-[#4B5563] hover:bg-[#F5F3EF] hover:text-[#2B2B2B] transition-colors rounded-r-full mr-4 group">
+                            <LayoutTemplate size={20} className="text-[#6B7280] group-hover:text-[#D4AF37] transition-colors" />
+                            <span className="font-medium tracking-wide">Email Templates</span>
+                        </Link>
+                    )}
 
                     {isAdmin && (
                         <>

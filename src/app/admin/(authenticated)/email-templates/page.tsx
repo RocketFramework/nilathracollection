@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { LayoutTemplate, Plus, Edit2, Trash2, CheckCircle, AlertCircle, RefreshCw, Code } from "lucide-react";
-import { getEmailTemplatesAction, saveEmailTemplateAction, deleteEmailTemplateAction } from "@/actions/admin.actions";
+import { getEmailTemplatesAction, saveEmailTemplateAction, deleteEmailTemplateAction, getUserRoleAction } from "@/actions/admin.actions";
 import { EmailTemplate } from "@/services/email-template.service";
 
 export default function EmailTemplatesPage() {
@@ -33,7 +33,15 @@ export default function EmailTemplatesPage() {
     };
 
     useEffect(() => {
-        fetchTemplates();
+        async function checkAccess() {
+            const roleRes = await getUserRoleAction();
+            if (!roleRes.success || roleRes.role !== 'admin') {
+                window.location.href = "/admin";
+                return;
+            }
+            fetchTemplates();
+        }
+        checkAccess();
     }, []);
 
     const handleOpenModal = (template?: EmailTemplate) => {

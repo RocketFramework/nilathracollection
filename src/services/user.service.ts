@@ -32,6 +32,10 @@ export class UserService {
         const { data: supervisor } = await adminClient.from('agent_supervisor_profiles').select('*').eq('id', user.id).maybeSingle();
         if (supervisor) return { ...supervisor, role: 'agent_supervisor' };
 
+        // Check finance profile
+        const { data: finance } = await adminClient.from('finance_profiles').select('*').eq('id', user.id).maybeSingle();
+        if (finance) return { ...finance, role: 'finance' };
+
         return { id: user.id };
     }
 
@@ -257,7 +261,7 @@ export class AdminService {
         return true;
     }
 
-    static async getUsersByRole(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
+    static async getUsersByRole(role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
         const supabaseAdmin = createAdminClient();
         const profileTable = `${role}_profiles`;
 
@@ -285,7 +289,7 @@ export class AdminService {
         });
     }
 
-    static async deactivateUser(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin') {
+    static async deactivateUser(userId: string, role: 'tourist' | 'agent' | 'agent_supervisor' | 'admin' | 'finance') {
         return this.updateUser(userId, role, { is_active: false });
     }
 
