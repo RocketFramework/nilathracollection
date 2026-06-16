@@ -122,6 +122,10 @@ export interface DBSupplierInvoice {
     amount: number;
     status: 'Pending' | 'Received' | 'Partial Paid' | 'Paid' | 'Confirmed';
     attachment_url?: string;
+    is_tallied?: boolean;
+    discrepancy_amount?: number;
+    approved_by?: string | null;
+    approved_at?: string | null;
     payments?: DBSupplierPayment[];
     created_at: string;
     updated_at: string;

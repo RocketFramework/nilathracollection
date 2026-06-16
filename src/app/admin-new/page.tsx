@@ -102,7 +102,19 @@ import {
   getEmailTemplatesAction,
   sendCustomEmailAction,
   getSharedEmailsAction,
-  logSharedEmailAction
+  logSharedEmailAction,
+  createQuotationRequestAction,
+  getQuotationRequestsForTourAction,
+  updateQuotationAction,
+  selectQuotationAction,
+  getPurchaseOrdersAction,
+  savePurchaseOrderAction,
+  saveSupplierInvoiceAction,
+  saveSupplierPaymentAction,
+  createVendorBookingAction,
+  confirmFinalVendorBookingAction,
+  cancelVendorBookingAction,
+  getVendorBookingsAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -250,6 +262,12 @@ function PlannerWizardWorkspace() {
   const [isLoadingDbActivities, setIsLoadingDbActivities] = useState<boolean>(false);
   const [dbActivitySearchQuery, setDbActivitySearchQuery] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Procurement operational states
+  const [quotationRequests, setQuotationRequests] = useState<any[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [vendorBookings, setVendorBookings] = useState<any[]>([]);
+  const [isLoadingProcurement, setIsLoadingProcurement] = useState<boolean>(false);
 
 
   // 1. Wizard Track State
@@ -1054,9 +1072,278 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  const loadProcurementData = async (tid: string) => {
+    if (!tid || tid === 'draft-tour') return;
+    setIsLoadingProcurement(true);
+    try {
+      const [quotesRes, posRes, bookingsRes] = await Promise.all([
+        getQuotationRequestsForTourAction(tid),
+        getPurchaseOrdersAction(tid),
+        getVendorBookingsAction(tid)
+      ]);
+      if (quotesRes.success && quotesRes.quotes) {
+        setQuotationRequests(quotesRes.quotes);
+      }
+      if (posRes.success && posRes.pos) {
+        setPurchaseOrders(posRes.pos);
+      }
+      if (bookingsRes.success && bookingsRes.bookings) {
+        setVendorBookings(bookingsRes.bookings);
+      }
+    } catch (err) {
+      console.error("Error loading procurement data:", err);
+    } finally {
+      setIsLoadingProcurement(false);
+    }
+  };
+
+  // Procurement flow event handlers
+  const [activeRfqActivityId, setActiveRfqActivityId] = useState<string | null>(null);
+  const [activeRfqVendorId, setActiveRfqVendorId] = useState<string>('');
+  const [isSubmittingRfq, setIsSubmittingRfq] = useState<boolean>(false);
+
+  // Quote input states
+  const [enteringQuoteId, setEnteringQuoteId] = useState<string | null>(null);
+  const [inputQuotePrice, setInputQuotePrice] = useState<string>('');
+  const [inputQuoteNotes, setInputQuoteNotes] = useState<string>('');
+  
+  // Invoice input states
+  const [enteringInvoicePoId, setEnteringInvoicePoId] = useState<string | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('');
+  const [invoiceAmount, setInvoiceAmount] = useState<string>('');
+  const [invoiceDate, setInvoiceDate] = useState<string>('');
+  const [invoiceAttachment, setInvoiceAttachment] = useState<string>('');
+
+  // Payment input states
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('Bank Transfer');
+  const [paymentRef, setPaymentRef] = useState<string>('');
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
+  const [paymentDate, setPaymentDate] = useState<string>('');
+
+  const handleSendRFQ = async (act: any, vendor: any) => {
+    if (!vendor) return;
+    setIsSubmittingRfq(true);
+    try {
+      const res = await createQuotationRequestAction({
+        tour_id: tourId,
+        itinerary_id: act.itinerary_id || act.itineraryId,
+        daily_activity_id: act.id,
+        vendor_id: vendor.id,
+        vendor_name: vendor.name,
+        to_email: vendor.email || 'supplier@nilathra.com',
+        from_email: 'concierge@nilathra.com',
+        subject: `Request for Quotation: ${act.name || act.title}`,
+        email_content: `Dear ${vendor.name},\n\nPlease provide a quote for the following experience: ${act.name || act.title} scheduled in our guest itinerary.\n\nWarm regards,\nThe Nilathra Concierge Team`,
+        activity_type: 'activity',
+        daily_activity_ids: [act.id]
+      });
+
+      if (res.success) {
+        alert("Quotation request sent successfully!");
+        loadProcurementData(tourId);
+        setActiveRfqActivityId(null);
+      } else {
+        alert("Failed to send RFQ: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSubmittingRfq(false);
+    }
+  };
+
+  const handleRecordQuoteResponse = async (quoteId: string) => {
+    const price = parseFloat(inputQuotePrice);
+    if (isNaN(price) || price <= 0) {
+      alert("Please enter a valid price.");
+      return;
+    }
+    try {
+      const res = await updateQuotationAction(quoteId, {
+        status: 'Replied',
+        quoted_price: price,
+        replied_date: new Date().toISOString(),
+        notes: inputQuoteNotes || undefined
+      });
+      if (res.success) {
+        alert("Quote response recorded successfully!");
+        setInputQuotePrice('');
+        setInputQuoteNotes('');
+        setEnteringQuoteId(null);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to record quote: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleSelectQuote = async (quoteId: string, actId: string) => {
+    try {
+      const res = await selectQuotationAction(quoteId, actId);
+      if (res.success) {
+        alert("Quote selected as finalized vendor!");
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to select quote: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleGeneratePO = async (act: any, quote: any) => {
+    try {
+      const res = await createVendorBookingAction({
+        tour_id: tourId,
+        quotation_request_id: quote.id,
+        vendor_type: 'vendor',
+        vendor_id: quote.vendor_id,
+        vendor_name: quote.vendor_name,
+        agreed_price: quote.quoted_price || 0,
+        currency: quote.currency || 'USD',
+        daily_activity_ids: [act.id]
+      });
+      if (res.success) {
+        alert("Vendor booking and parallel Draft PO generated successfully!");
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to generate PO: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleSubmitPO = async (po: any) => {
+    try {
+      const res = await savePurchaseOrderAction(
+        { ...po, status: 'Sent', sent_date: new Date().toISOString() },
+        po.items || []
+      );
+      if (res.success) {
+        alert("PO submitted successfully to supplier!");
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to submit PO: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleCancelPO = async (bookingId: string, reason: string) => {
+    if (!confirm("Are you sure you want to cancel this booking and its associated PO?")) return;
+    try {
+      const res = await cancelVendorBookingAction(bookingId, reason);
+      if (res.success) {
+        alert("Booking and Purchase Order cancelled.");
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to cancel: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleFinalizeBooking = async (bookingId: string) => {
+    try {
+      const res = await confirmFinalVendorBookingAction(bookingId);
+      if (res.success) {
+        alert("Booking finalized! Other backup bookings and POs have been automatically cancelled.");
+        loadProcurementData(tourId);
+        loadDailyActivities(tourId);
+      } else {
+        alert("Failed to finalize booking: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleReceiveInvoice = async (po: any) => {
+    const amount = parseFloat(invoiceAmount);
+    if (!invoiceNumber) {
+      alert("Please enter an invoice number.");
+      return;
+    }
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+
+    const discrepancy = amount - po.total_amount;
+    const isTallied = discrepancy === 0;
+
+    try {
+      const res = await saveSupplierInvoiceAction({
+        purchase_order_id: po.id,
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate || new Date().toISOString().split('T')[0],
+        amount: amount,
+        status: isTallied ? 'Confirmed' : 'Pending',
+        is_tallied: isTallied,
+        discrepancy_amount: discrepancy,
+        attachment_url: invoiceAttachment || undefined
+      });
+
+      if (res.success) {
+        alert(isTallied ? "Invoice tallied and auto-approved!" : "Invoice recorded with discrepancy warning.");
+        setInvoiceNumber('');
+        setInvoiceAmount('');
+        setInvoiceDate('');
+        setInvoiceAttachment('');
+        setEnteringInvoicePoId(null);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to save invoice: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleRecordPayment = async (invoiceId: string) => {
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid payment amount.");
+      return;
+    }
+
+    try {
+      const res = await saveSupplierPaymentAction({
+        supplier_invoice_id: invoiceId,
+        payment_date: paymentDate || new Date().toISOString().split('T')[0],
+        amount: amount,
+        payment_method: paymentMethod,
+        payment_reference: paymentRef || undefined,
+        notes: paymentNotes || undefined
+      });
+
+      if (res.success) {
+        alert("Payment recorded successfully!");
+        setPaymentAmount('');
+        setPaymentRef('');
+        setPaymentNotes('');
+        setPaymentDate('');
+        setPayingInvoiceId(null);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to record payment: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
   useEffect(() => {
     if (track === 'final' && tourId) {
       loadDailyActivities(tourId);
+      loadProcurementData(tourId);
     }
   }, [track, tourId]);
 
@@ -2903,6 +3190,681 @@ function PlannerWizardWorkspace() {
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
                       </div>
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'quote-request' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <MailQuestion className="w-5 h-5 text-emerald-800" />
+                        Supplier Quote Requests (RFQs)
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Dispatch quote requests to vendors, track responses, and select the winning bids for your itinerary activities.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {dbActivities
+                        .filter(act => act.activity_type === 'activity' || act.type === 'activity')
+                        .map(act => {
+                          const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
+                          const activeQuote = actQuotes.find(q => q.quotation?.selected_vendor);
+
+                          return (
+                            <div key={act.id} className="border border-neutral-200 rounded-2xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="text-[10px] bg-emerald-800/10 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Day {act.day_number || act.dayNumber}
+                                  </span>
+                                  <h4 className="text-sm font-bold text-neutral-850 mt-1 font-serif">{act.title || act.name}</h4>
+                                  <p className="text-xs text-neutral-400 mt-0.5">{act.location_name || act.locationName || 'Location not specified'}</p>
+                                </div>
+                                
+                                {activeQuote && (
+                                  <span className="px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                                    {activeQuote.quotation?.vendor_name} Finalized (${activeQuote.quotation?.quoted_price})
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Quotes list */}
+                              {actQuotes.length > 0 && (
+                                <div className="space-y-3">
+                                  <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Quotations Sent</h5>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {actQuotes.map(qMap => {
+                                      const quote = qMap.quotation;
+                                      if (!quote) return null;
+                                      const isSelected = quote.selected_vendor;
+
+                                      return (
+                                        <div key={quote.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+                                          isSelected ? 'bg-green-50/30 border-green-200 shadow-sm' : 'bg-white border-neutral-200'
+                                        }`}>
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-bold text-neutral-800">{quote.vendor_name}</span>
+                                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                                quote.status === 'Selected' ? 'bg-green-150 text-green-800' :
+                                                quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
+                                                'bg-neutral-100 text-neutral-600'
+                                              }`}>
+                                                {quote.status}
+                                              </span>
+                                            </div>
+                                            {quote.replied_date && (
+                                              <p className="text-[10px] text-neutral-400 mt-1">
+                                                Replied on: {new Date(quote.replied_date).toLocaleDateString()}
+                                              </p>
+                                            )}
+                                            {quote.notes && (
+                                              <p className="text-[10px] text-neutral-500 mt-1 italic">"{quote.notes}"</p>
+                                            )}
+                                          </div>
+
+                                          <div className="flex items-center gap-3 self-end sm:self-auto">
+                                            {quote.status === 'Sent' ? (
+                                              enteringQuoteId === quote.id ? (
+                                                <div className="flex items-center gap-2">
+                                                  <input
+                                                    type="number"
+                                                    value={inputQuotePrice}
+                                                    onChange={(e) => setInputQuotePrice(e.target.value)}
+                                                    placeholder="Price ($)"
+                                                    className="w-24 bg-white border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-800 outline-none"
+                                                  />
+                                                  <input
+                                                    type="text"
+                                                    value={inputQuoteNotes}
+                                                    onChange={(e) => setInputQuoteNotes(e.target.value)}
+                                                    placeholder="Notes"
+                                                    className="w-32 bg-white border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-800 outline-none"
+                                                  />
+                                                  <button
+                                                    onClick={() => handleRecordQuoteResponse(quote.id)}
+                                                    className="px-3 py-1 bg-emerald-850 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold"
+                                                  >
+                                                    Save
+                                                  </button>
+                                                  <button
+                                                    onClick={() => setEnteringQuoteId(null)}
+                                                    className="px-2 py-1 border border-neutral-200 text-neutral-600 rounded-lg text-xs"
+                                                  >
+                                                    Cancel
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <button
+                                                  onClick={() => {
+                                                    setEnteringQuoteId(quote.id);
+                                                    setInputQuotePrice('');
+                                                    setInputQuoteNotes('');
+                                                  }}
+                                                  className="px-3 py-1.5 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-lg text-xs font-bold transition-all shadow-sm"
+                                                >
+                                                  Enter Response
+                                                </button>
+                                              )
+                                            ) : (
+                                              <div className="flex items-center gap-3">
+                                                <span className="text-xs font-bold text-neutral-855">${quote.quoted_price}</span>
+                                                {quote.status === 'Replied' && (
+                                                  <button
+                                                    onClick={() => handleSelectQuote(quote.id, act.id)}
+                                                    className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                                  >
+                                                    Select Vendor
+                                                  </button>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Send RFQ Actions */}
+                              {activeRfqActivityId === act.id ? (
+                                <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                  <h5 className="text-xs font-bold text-neutral-700">Send New RFQ</h5>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Select Vendor</label>
+                                      <select
+                                        value={activeRfqVendorId}
+                                        onChange={(e) => setActiveRfqVendorId(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 text-neutral-850 rounded-xl p-2.5 text-xs outline-none"
+                                      >
+                                        <option value="">-- Choose Supplier --</option>
+                                        {masterData?.vendors?.map((v: any) => (
+                                          <option key={v.id} value={v.id}>{v.name}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    
+                                    <div className="flex items-end gap-2">
+                                      <button
+                                        onClick={() => {
+                                          const vendor = masterData?.vendors?.find((v: any) => v.id === activeRfqVendorId);
+                                          handleSendRFQ(act, vendor);
+                                        }}
+                                        disabled={isSubmittingRfq || !activeRfqVendorId}
+                                        className="flex-1 px-4 py-2.5 bg-emerald-800 hover:bg-emerald-955 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all disabled:opacity-50"
+                                      >
+                                        {isSubmittingRfq ? "Sending..." : "Dispatch RFQ"}
+                                      </button>
+                                      <button
+                                        onClick={() => setActiveRfqActivityId(null)}
+                                        className="px-4 py-2.5 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setActiveRfqActivityId(act.id);
+                                    setActiveRfqVendorId('');
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                >
+                                  <Plus className="w-4 h-4 text-neutral-500" />
+                                  Send RFQ to Supplier
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'po-submission' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <Send className="w-5 h-5 text-emerald-800" />
+                        Purchase Order Lifecycle & Bookings
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Generate legally-binding Purchase Orders for your finalized vendors, dispatch them, and complete operational bookings.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {dbActivities
+                        .filter(act => act.activity_type === 'activity' || act.type === 'activity')
+                        .map(act => {
+                          const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
+                          const winningQuote = actQuotes.find(q => q.quotation?.selected_vendor)?.quotation;
+                          
+                          const booking = vendorBookings.find(b => b.daily_activity_ids?.includes(act.id));
+                          const po = booking?.purchase_order_id 
+                            ? purchaseOrders.find(p => p.id === booking.purchase_order_id)
+                            : purchaseOrders.find(p => p.items?.some((item: any) => item.daily_activity_id === act.id || item.tour_itinerary_id === act.id));
+
+                          return (
+                            <div key={act.id} className="border border-neutral-200 rounded-2xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className="text-[10px] bg-emerald-800/10 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Day {act.day_number || act.dayNumber}
+                                  </span>
+                                  <h4 className="text-sm font-bold text-neutral-850 mt-1 font-serif">{act.title || act.name}</h4>
+                                  <p className="text-xs text-neutral-400 mt-0.5">{act.location_name || act.locationName || 'Location not specified'}</p>
+                                </div>
+                                
+                                {booking && (
+                                  <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
+                                    booking.status === 'Went Ahead' ? 'bg-green-100 border border-green-200 text-green-700' :
+                                    booking.status === 'Confirmed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
+                                    booking.status === 'Cancelled' ? 'bg-red-50 border border-red-200 text-red-700' :
+                                    'bg-neutral-50 border border-neutral-200 text-neutral-600'
+                                  }`}>
+                                    Booking: {booking.status}
+                                  </span>
+                                )}
+                              </div>
+
+                              {!winningQuote ? (
+                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 flex items-center gap-2">
+                                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                                  <span>No supplier quote has been selected for this activity. Please complete the **Supplier Quote Requests** step first.</span>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between text-xs bg-white border border-neutral-200 p-3 px-4 rounded-xl shadow-sm">
+                                    <div>
+                                      <span className="text-neutral-400">Selected Supplier:</span>
+                                      <span className="font-bold text-neutral-700 ml-1.5">{winningQuote.vendor_name}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-neutral-400">Contracted Rate:</span>
+                                      <span className="font-bold text-neutral-855 ml-1.5">${winningQuote.quoted_price}</span>
+                                    </div>
+                                  </div>
+
+                                  {!po ? (
+                                    <button
+                                      onClick={() => handleGeneratePO(act, winningQuote)}
+                                      className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                      Generate Purchase Order
+                                    </button>
+                                  ) : (
+                                    <div className="bg-white border border-neutral-200 rounded-xl p-4 space-y-4 shadow-sm">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-100 pb-3">
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-neutral-850 font-mono">{po.po_number}</span>
+                                            <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                              po.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                              po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
+                                              po.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                                              'bg-neutral-100 text-neutral-600'
+                                            }`}>
+                                              PO: {po.status}
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-neutral-400 mt-0.5">Created: {new Date(po.po_date).toLocaleDateString()}</p>
+                                        </div>
+                                        <span className="text-sm font-bold text-neutral-800 font-mono">${po.total_amount}</span>
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        {po.status === 'Draft' && (
+                                          <button
+                                            onClick={() => handleSubmitPO(po)}
+                                            className="px-3.5 py-1.5 bg-emerald-850 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                          >
+                                            Submit PO to Supplier
+                                          </button>
+                                        )}
+
+                                        {po.status === 'Sent' && booking && booking.status === 'Pending' && (
+                                          <button
+                                            onClick={() => handleFinalizeBooking(booking.id)}
+                                            className="px-3.5 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                                          >
+                                            <Check className="w-3.5 h-3.5" />
+                                            Confirm Booking (Final)
+                                          </button>
+                                        )}
+
+                                        {po.status !== 'Cancelled' && po.status !== 'Completed' && booking && (
+                                          <button
+                                            onClick={() => {
+                                              const reason = prompt("Enter reason for cancellation:");
+                                              if (reason !== null) handleCancelPO(booking.id, reason);
+                                            }}
+                                            className="px-3.5 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 rounded-lg text-xs font-bold transition-all shadow-sm"
+                                          >
+                                            Cancel PO & Booking
+                                          </button>
+                                        )}
+
+                                        {po.status === 'Cancelled' && (
+                                          <button
+                                            onClick={() => handleGeneratePO(act, winningQuote)}
+                                            className="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-955 text-white rounded-lg text-xs font-bold"
+                                          >
+                                            Raise New PO
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'invoice-receive' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <Receipt className="w-5 h-5 text-emerald-800" />
+                        Receive & Tally Supplier Invoices
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Record supplier invoices received post-service and verify matching totals against purchase orders.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {purchaseOrders
+                        .filter(po => po.status === 'Sent' || po.status === 'Accepted' || po.status === 'Completed')
+                        .map(po => {
+                          const invoices = po.invoices || [];
+                          
+                          return (
+                            <div key={po.id} className="border border-neutral-200 rounded-2xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-150 pb-3">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-neutral-850 font-mono">{po.po_number}</span>
+                                    <span className="text-xs font-medium text-neutral-500">({po.vendor_name})</span>
+                                  </div>
+                                  <span className="text-[10px] uppercase tracking-wider text-neutral-450 block mt-0.5">Vendor Type: {po.vendor_type}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[10px] text-neutral-400 block font-bold font-sans">PO Total</span>
+                                  <span className="text-sm font-bold text-neutral-800 font-mono">${po.total_amount}</span>
+                                </div>
+                              </div>
+
+                              {invoices.length > 0 ? (
+                                <div className="space-y-3">
+                                  <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Invoices Received</h5>
+                                  <div className="space-y-2">
+                                    {invoices.map((inv: any) => {
+                                      const diff = inv.amount - po.total_amount;
+                                      const isMatched = diff === 0;
+
+                                      return (
+                                        <div key={inv.id} className="bg-white border border-neutral-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-bold text-neutral-800">#{inv.invoice_number}</span>
+                                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                                inv.status === 'Paid' ? 'bg-green-100 text-green-800' :
+                                                inv.status === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
+                                                'bg-amber-100 text-amber-800'
+                                              }`}>
+                                                {inv.status}
+                                              </span>
+                                            </div>
+                                            <p className="text-[10px] text-neutral-400 mt-1">Date: {new Date(inv.invoice_date).toLocaleDateString()}</p>
+                                          </div>
+
+                                          <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                              <span className="text-xs font-bold text-neutral-800 block font-mono">${inv.amount}</span>
+                                              <div className="flex items-center gap-1 mt-0.5">
+                                                <span className={`w-1.5 h-1.5 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                <span className={`text-[9px] font-bold ${isMatched ? 'text-green-600' : 'text-red-600'}`}>
+                                                  {isMatched ? 'TALLIED' : `DISCREPANCY: $${diff}`}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-neutral-400 italic">No supplier invoice received yet.</p>
+                              )}
+
+                              {enteringInvoicePoId === po.id ? (
+                                <div className="p-4 bg-white border border-neutral-200 rounded-xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                                  <h5 className="text-xs font-bold text-neutral-700">Record Inbound Invoice</h5>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Number</label>
+                                      <input
+                                        type="text"
+                                        value={invoiceNumber}
+                                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                                        placeholder="INV-10291"
+                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Amount ($)</label>
+                                      <input
+                                        type="number"
+                                        value={invoiceAmount}
+                                        onChange={(e) => setInvoiceAmount(e.target.value)}
+                                        placeholder={`${po.total_amount}`}
+                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Date</label>
+                                      <input
+                                        type="date"
+                                        value={invoiceDate}
+                                        onChange={(e) => setInvoiceDate(e.target.value)}
+                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {invoiceAmount && (
+                                    (() => {
+                                      const amt = parseFloat(invoiceAmount);
+                                      if (isNaN(amt)) return null;
+                                      const diff = amt - po.total_amount;
+                                      return (
+                                        <div className={`p-3 rounded-lg border text-xs flex items-center gap-2 font-medium ${
+                                          diff === 0 
+                                            ? 'bg-green-50 border-green-200 text-green-700' 
+                                            : 'bg-red-50 border-red-200 text-red-700'
+                                        }`}>
+                                          <span className={`w-2 h-2 rounded-full ${diff === 0 ? 'bg-green-500' : 'bg-red-500'}`} />
+                                          {diff === 0 
+                                            ? "Tally Result: MATCHED ($0 discrepancy)" 
+                                            : `Tally Result: MISMATCH (Discrepancy of $${diff})`}
+                                        </div>
+                                      );
+                                    })()
+                                  )}
+
+                                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                    <button
+                                      onClick={() => handleReceiveInvoice(po)}
+                                      className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm"
+                                    >
+                                      Save Invoice
+                                    </button>
+                                    <button
+                                      onClick={() => setEnteringInvoicePoId(null)}
+                                      className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEnteringInvoicePoId(po.id);
+                                    setInvoiceNumber('');
+                                    setInvoiceAmount(`${po.total_amount}`);
+                                    setInvoiceDate(new Date().toISOString().split('T')[0]);
+                                  }}
+                                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                >
+                                  <Plus className="w-4 h-4 text-neutral-500" />
+                                  Receive Invoice
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'payment-supplier' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <CircleDollarSign className="w-5 h-5 text-emerald-800" />
+                        Disburse Supplier Payments
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Record and track payments issued to supplier bank wire details against confirmed invoices.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {purchaseOrders
+                        .filter(po => po.invoices && po.invoices.length > 0)
+                        .map(po => {
+                          return (po.invoices || []).map((inv: any) => {
+                            const payments = inv.payments || [];
+                            const totalPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                            const balance = inv.amount - totalPaid;
+
+                            return (
+                              <div key={inv.id} className="border border-neutral-200 rounded-2xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-150 pb-3">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-neutral-850">Invoice: #{inv.invoice_number}</span>
+                                      <span className="text-xs font-medium text-neutral-400 font-sans">({po.vendor_name})</span>
+                                    </div>
+                                    <span className="text-[10px] text-neutral-450 block mt-0.5 font-sans">PO Link: {po.po_number}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-[10px] text-neutral-400 block font-bold font-serif">Invoice Amount</span>
+                                    <span className="text-sm font-bold text-neutral-800 font-mono">${inv.amount}</span>
+                                  </div>
+                                </div>
+
+                                {payments.length > 0 ? (
+                                  <div className="space-y-3 bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
+                                    <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Disbursement History</h5>
+                                    <div className="divide-y divide-neutral-100 text-xs">
+                                      {payments.map((p: any) => (
+                                        <div key={p.id} className="py-2.5 flex justify-between items-center first:pt-0 last:pb-0">
+                                          <div>
+                                            <span className="font-bold text-neutral-700">{p.payment_method}</span>
+                                            {p.payment_reference && (
+                                              <span className="text-[10px] text-neutral-400 font-mono ml-2">Ref: {p.payment_reference}</span>
+                                            )}
+                                            <p className="text-[9px] text-neutral-400 mt-0.5">Paid on: {new Date(p.payment_date).toLocaleDateString()}</p>
+                                          </div>
+                                          <span className="font-bold text-neutral-800 font-mono">${p.amount}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <div className="border-t border-neutral-150 pt-3 flex justify-between items-center text-xs font-bold">
+                                      <span className="text-neutral-500">Total Paid:</span>
+                                      <span className="text-neutral-800 font-mono">${totalPaid}</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-neutral-400 italic">No disbursement recorded.</p>
+                                )}
+
+                                <div className="flex items-center justify-between text-xs p-3 px-4 bg-white border border-neutral-200 rounded-xl shadow-sm">
+                                  <span className="text-neutral-500 font-bold">Remaining Balance:</span>
+                                  <span className={`font-mono font-bold ${balance <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                                    ${balance}
+                                  </span>
+                                </div>
+
+                                {balance > 0 && (
+                                  payingInvoiceId === inv.id ? (
+                                    <div className="p-4 bg-white border border-neutral-200 rounded-xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                                      <h5 className="text-xs font-bold text-neutral-700">Record Payment</h5>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Payment Amount ($)</label>
+                                          <input
+                                            type="number"
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            placeholder={`${balance}`}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Disbursement Date</label>
+                                          <input
+                                            type="date"
+                                            value={paymentDate}
+                                            onChange={(e) => setPaymentDate(e.target.value)}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Method</label>
+                                          <select
+                                            value={paymentMethod}
+                                            onChange={(e) => setPaymentMethod(e.target.value)}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                          >
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                            <option value="Cash">Cash</option>
+                                            <option value="Card">Card</option>
+                                            <option value="Cheque">Cheque</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reference Number</label>
+                                          <input
+                                            type="text"
+                                            value={paymentRef}
+                                            onChange={(e) => setPaymentRef(e.target.value)}
+                                            placeholder="TXN-90210"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Internal Notes</label>
+                                        <input
+                                          type="text"
+                                          value={paymentNotes}
+                                          onChange={(e) => setPaymentNotes(e.target.value)}
+                                          placeholder="e.g., Wire transfer approved by operations team."
+                                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                        />
+                                      </div>
+
+                                      <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                        <button
+                                          onClick={() => handleRecordPayment(inv.id)}
+                                          className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm"
+                                        >
+                                          Record Disbursement
+                                        </button>
+                                        <button
+                                          onClick={() => setPayingInvoiceId(null)}
+                                          className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setPayingInvoiceId(inv.id);
+                                        setPaymentAmount(`${balance}`);
+                                        setPaymentDate(new Date().toISOString().split('T')[0]);
+                                        setPaymentRef('');
+                                        setPaymentNotes('');
+                                      }}
+                                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                    >
+                                      <Plus className="w-4 h-4 text-neutral-500" />
+                                      Record Payment
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            );
+                          });
+                        })}
                     </div>
                   </div>
                 ) : track === 'basic' && currentStep.id === 'ai-builder' ? (
