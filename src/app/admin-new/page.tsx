@@ -263,6 +263,31 @@ function PlannerWizardWorkspace() {
   const [dbActivitySearchQuery, setDbActivitySearchQuery] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Lifted Assignment Drawer states
+  const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: ItineraryBlockType } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
+  const [roomMarkup, setRoomMarkup] = useState<number>(10);
+  const [markups, setMarkups] = useState<Record<string, any>>({});
+  const [mounted, setMounted] = useState(false);
+  const [loadingMaster, setLoadingMaster] = useState(false);
+
+  // Hotel Search State
+  const [hotelSearchCity, setHotelSearchCity] = useState('');
+  const [hotelSearchName, setHotelSearchName] = useState('');
+  const [hotelSearchResults, setHotelSearchResults] = useState<any[] | null>(null);
+  const [isSearchingHotels, setIsSearchingHotels] = useState(false);
+
+  // Restaurant Search State
+  const [restaurantSearchCity, setRestaurantSearchCity] = useState('');
+  const [restaurantSearchName, setRestaurantSearchName] = useState('');
+  const [restaurantSearchResults, setRestaurantSearchResults] = useState<any[] | null>(null);
+  const [isSearchingRestaurants, setIsSearchingRestaurants] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Procurement operational states
   const [quotationRequests, setQuotationRequests] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
@@ -343,6 +368,85 @@ function PlannerWizardWorkspace() {
     transportProviders: [],
     activities: []
   });
+
+  const handleSearchFinalHotels = async () => {
+    if (!finalSearchCity.trim()) return;
+    setIsSearchingFinalHotels(true);
+    try {
+      const res = await searchHotelsAction(finalSearchCity, finalSearchName);
+      if (res.success && res.hotels) {
+        setFinalSearchResults(res.hotels);
+        // Merge into masterData.hotels
+        setMasterData((prev: any) => {
+          const existingIds = new Set(prev.hotels.map((h: any) => h.id));
+          const newHotels = res.hotels.filter((h: any) => !existingIds.has(h.id));
+          return { ...prev, hotels: [...prev.hotels, ...newHotels] };
+        });
+      } else {
+        setFinalSearchResults([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setFinalSearchResults([]);
+    } finally {
+      setIsSearchingFinalHotels(false);
+    }
+  };
+
+  const handleSelectFinalHotel = (newHotelId: string) => {
+    if (!finalActiveHotelChange) return;
+    const { oldHotelId, firstActId } = finalActiveHotelChange;
+    const hotel = masterData.hotels.find((h: any) => h.id === newHotelId);
+    if (!hotel) return;
+
+    const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || '');
+
+    // 1. Update all blocks in itinerary sharing the oldHotelId
+    setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && b.hotelId === oldHotelId) ? {
+      ...b,
+      hotelId: newHotelId,
+      hotelName: hotel.name,
+      imageUrl: autoImageUrl,
+      roomName: '',
+      mealPlan: 'BB'
+    } : b));
+
+    // 2. Update all activities in dbActivities sharing the oldHotelId
+    setDbActivities(prev => prev.map(act => (act.hotel_id === oldHotelId || act.id === firstActId) ? {
+      ...act,
+      hotel_id: newHotelId,
+      hotel_room_id: null,
+      quantity: 1,
+      charged_unit_price: null,
+      charged_total_price: null
+    } : act));
+
+    // 3. Update tripData accommodations sharing the oldHotelId
+    if (tripData) {
+      let newAccs = [...(tripData.accommodations || [])];
+      newAccs = newAccs.map(a => a.hotelId === oldHotelId ? {
+        ...a,
+        hotelId: hotel.id,
+        hotelName: hotel.name,
+        stayClass: hotel.hotel_class || 'Standard',
+        address: hotel.location_address || '',
+        roomId: undefined,
+        roomName: '',
+        roomStandard: '',
+        pricePerNight: 0,
+        selectedRooms: []
+      } : a);
+      setTripData({
+        ...tripData,
+        accommodations: newAccs
+      });
+    }
+
+    setFinalActiveHotelChange(null);
+    setFinalSearchCity('');
+    setFinalSearchName('');
+    setFinalSearchResults(null);
+  };
 
   // Share with Tourist email states
   const [shareEmailTo, setShareEmailTo] = useState('');
@@ -3269,6 +3373,25 @@ function PlannerWizardWorkspace() {
                           return { hotelId, hotel, activities: sortedActivities };
                         });
 
+                        // Sort the list of hotels based on the first stay date/day number
+                        clubbed.sort((a, b) => {
+                          const firstA = a.activities[0];
+                          const firstB = b.activities[0];
+                          if (!firstA) return 1;
+                          if (!firstB) return -1;
+                          
+                          const dateA = firstA.tour_itineraries?.date;
+                          const dateB = firstB.tour_itineraries?.date;
+                          
+                          if (dateA && dateB) {
+                            return dateA.localeCompare(dateB);
+                          }
+                          
+                          const dayA = firstA.tour_itineraries?.day_number || firstA.day_number || firstA.dayNumber || 0;
+                          const dayB = firstB.tour_itineraries?.day_number || firstB.day_number || firstB.dayNumber || 0;
+                          return dayA - dayB;
+                        });
+
                         if (clubbed.length === 0) {
                           return (
                             <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
@@ -3286,7 +3409,7 @@ function PlannerWizardWorkspace() {
                             <div key={hotelId} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all animate-in fade-in duration-200">
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
                                 <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="text-base font-bold text-neutral-800 font-serif">
                                       {hotel?.name || 'Loading Hotel Details...'}
                                     </h4>
@@ -3295,6 +3418,21 @@ function PlannerWizardWorkspace() {
                                         {hotel.hotel_class}
                                       </span>
                                     )}
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         const firstAct = acts[0];
+                                         if (firstAct) {
+                                           setFinalActiveHotelChange({ oldHotelId: hotelId, firstActId: firstAct.id });
+                                         }
+                                       }}
+                                       disabled={isLockedByOther}
+                                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                       title="Change Hotel"
+                                     >
+                                       <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                                       <span>Change Hotel</span>
+                                     </button>
                                   </div>
                                   <p className="text-xs text-neutral-500">
                                     {hotel?.location_address || hotel?.closest_city || 'Location Address not specified'}
@@ -3347,16 +3485,16 @@ function PlannerWizardWorkspace() {
                                           <span className="text-neutral-400">Qty:</span>
                                           <span className="text-neutral-700 font-bold">{act.quantity || 1}</span>
                                         </div>
-                                        {act.agreed_unit_price !== undefined && act.agreed_unit_price !== null && (
+                                        {act.charged_unit_price !== undefined && act.charged_unit_price !== null && (
                                           <div className="text-right">
                                             <span className="text-[9px] text-neutral-450 uppercase block font-mono">Unit Rate</span>
-                                            <span className="font-mono text-neutral-600 font-bold">${Number(act.agreed_unit_price).toFixed(2)}</span>
+                                            <span className="font-mono text-neutral-600 font-bold">${Number(act.charged_unit_price).toFixed(2)}</span>
                                           </div>
                                         )}
-                                        {act.agreed_total_price !== undefined && act.agreed_total_price !== null && (
+                                        {act.charged_total_price !== undefined && act.charged_total_price !== null && (
                                           <div className="text-right">
                                             <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate</span>
-                                            <span className="font-mono text-emerald-800 font-bold">${Number(act.agreed_total_price).toFixed(2)}</span>
+                                            <span className="font-mono text-emerald-800 font-bold">${Number(act.charged_total_price).toFixed(2)}</span>
                                           </div>
                                         )}
                                       </div>
@@ -4494,6 +4632,119 @@ function PlannerWizardWorkspace() {
           </div>
 
         </div>
+
+        {/* Final Itinerary Hotel Change Drawer */}
+        {finalActiveHotelChange && (
+          <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md h-screen bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
+              
+              {/* Header */}
+              <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-lg font-serif font-black text-emerald-900 uppercase tracking-wide">Change Hotel Specialist</h4>
+                    <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">Select an alternative hotel provider</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setFinalActiveHotelChange(null);
+                      setFinalSearchCity('');
+                      setFinalSearchName('');
+                      setFinalSearchResults(null);
+                    }} 
+                    className="p-2 hover:bg-neutral-50 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 flex-1 overflow-y-auto space-y-5">
+                
+                {/* Hotel Search Form */}
+                <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
+                      <input
+                        value={finalSearchCity}
+                        onChange={e => setFinalSearchCity(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && finalSearchCity.trim() && handleSearchFinalHotels()}
+                        placeholder="E.g. Colombo"
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Hotel Name</label>
+                      <input
+                        value={finalSearchName}
+                        onChange={e => setFinalSearchName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && finalSearchCity.trim() && handleSearchFinalHotels()}
+                        placeholder="Optional name"
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSearchFinalHotels}
+                    disabled={!finalSearchCity.trim() || isSearchingFinalHotels}
+                    className="w-full py-2 bg-emerald-800 hover:bg-emerald-950 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
+                  >
+                    {isSearchingFinalHotels ? "Searching..." : "Search Hotels"}
+                  </button>
+                </div>
+
+                <div className="divide-y divide-neutral-100 border border-neutral-200/80 rounded-2xl overflow-hidden shadow-sm bg-white">
+                  {(() => {
+                    let dataToRender = finalSearchResults !== null ? [...finalSearchResults] : [];
+                    
+                    // Also display hotels currently in masterData as initial options/suggestions
+                    const initialSuggestions = (masterData.hotels || []).filter((h: any) => finalActiveHotelChange && h.id !== finalActiveHotelChange.oldHotelId);
+                    if (dataToRender.length === 0 && finalSearchResults === null) {
+                      dataToRender = initialSuggestions;
+                    }
+
+                    if (dataToRender.length === 0) {
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view alternative hotels.</div>;
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {dataToRender.map((h: any) => {
+                          const minRate = h.base_rate || 0;
+                          return (
+                            <button 
+                              key={h.id}
+                              onClick={() => handleSelectFinalHotel(h.id)}
+                              className="w-full p-4 rounded-xl border border-neutral-200 bg-white hover:border-emerald-850 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-3"
+                            >
+                              <div className="flex justify-between items-start w-full">
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <p className="font-bold text-xs text-neutral-800 truncate">{h.name}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <MapPin size={10} className="text-neutral-400" />
+                                    <span className="text-[9px] text-neutral-500 font-medium">{h.closest_city}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right flex flex-col items-end">
+                                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Starting From</span>
+                                  <span className="text-xs font-black text-neutral-850">${minRate}</span>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

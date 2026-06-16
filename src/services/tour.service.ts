@@ -803,6 +803,17 @@ export class TourService {
                             if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
                         }
 
+                        let primaryRoomId = (acc.roomId && acc.roomId.includes('-')) ? acc.roomId : null;
+                        if (!primaryRoomId) {
+                            const firstRoom = acc.selectedRooms.find(r => r.roomId?.includes('-'));
+                            if (firstRoom) {
+                                primaryRoomId = firstRoom.roomId;
+                            }
+                        }
+                        if (basePayload.hotel_id && primaryRoomId) {
+                            basePayload.hotel_room_id = primaryRoomId;
+                        }
+
                         basePayload.charged_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
                         basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
@@ -816,6 +827,12 @@ export class TourService {
                         // Legacy single-room fallback mapping targeting standard double default
                         const assumedRoomId = acc.roomId && acc.roomId.includes('-') ? acc.roomId : null;
                         const assumedQty = acc.numberOfRooms || 1;
+                        if (!basePayload.hotel_id && acc.hotelId?.includes('-')) {
+                            basePayload.hotel_id = acc.hotelId;
+                        }
+                        if (basePayload.hotel_id && assumedRoomId) {
+                            basePayload.hotel_room_id = assumedRoomId;
+                        }
                         basePayload.double_room_id = assumedRoomId;
                         basePayload.double_room_count = assumedQty;
                         basePayload.quantity = assumedQty;
