@@ -629,7 +629,7 @@ export async function getDailyActivitiesAction(tourId: string) {
         const adminSupabase = createAdminClient();
         const { data, error } = await adminSupabase
             .from('daily_activities')
-            .select('*')
+            .select('*, tour_itineraries(day_number, date)')
             .eq('tour_id', tourId);
 
         if (error) throw error;
