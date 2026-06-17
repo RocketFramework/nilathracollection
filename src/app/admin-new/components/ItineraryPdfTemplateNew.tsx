@@ -638,6 +638,14 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             <span className="uppercase tracking-wider text-[10px] text-[#8C6D3F]">Estimated Grand Total</span>
                             <span>${overallCostSummary.total.toFixed(2)} USD</span>
                           </div>
+                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium pt-1.5 border-t border-neutral-100">
+                            <span>Per Head Cost (Trip Total — {totalPax} Pax):</span>
+                            <span className="font-semibold text-neutral-700">${(overallCostSummary.total / (totalPax || 1)).toFixed(2)} USD</span>
+                          </div>
+                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium">
+                            <span>Per Head Cost (Per Day):</span>
+                            <span className="font-semibold text-neutral-700">${(overallCostSummary.total / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -706,25 +714,41 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 </span>
                               )}
                               <div className="h-[0.5px] bg-[#E8DFD1] my-2 w-full"></div>
-                              {sleepBlock ? (
-                                <div className="text-[10px] text-neutral-600 font-sans leading-relaxed">
-                                  <div className="font-bold text-[#8C6D3F] text-[10.5px] mb-0.5">
-                                    {sleepBlock.hotelName || sleepBlock.name}
-                                  </div>
-                                  <div className="font-medium">
-                                    {sleepBlock.roomName || 'Standard Room'} &bull; {sleepBlock.mealPlan || 'HB'} Basis
-                                  </div>
-                                  {sleepBlock.locationName && (
-                                    <div className="text-neutral-400 font-bold uppercase tracking-wider text-[8px] mt-0.5">
-                                      Location: {sleepBlock.locationName}
+                              {(() => {
+                                if (!sleepBlock) {
+                                  return (
+                                    <div className="text-[10px] text-neutral-400 italic">
+                                      Accommodation: Pending Assignment
                                     </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-[10px] text-neutral-400 italic">
-                                  Accommodation: Pending Assignment
-                                </div>
-                              )}
+                                  );
+                                }
+
+                                const hotelDetail = masterData?.hotels
+                                  ? masterData.hotels.find((x: any) => 
+                                      (sleepBlock.hotelId && x.id === sleepBlock.hotelId) || 
+                                      (sleepBlock.hotelName && x.name.toLowerCase() === sleepBlock.hotelName.toLowerCase()) ||
+                                      (sleepBlock.name && x.name.toLowerCase() === sleepBlock.name.toLowerCase())
+                                    )
+                                  : null;
+                                const starClass = hotelDetail?.hotel_class;
+
+                                return (
+                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed">
+                                    <div className="font-bold text-[#8C6D3F] text-[10.5px] mb-0.5">
+                                      {sleepBlock.hotelName || sleepBlock.name}
+                                    </div>
+                                    <div className="font-medium">
+                                      {starClass ? `${starClass} • ` : ''}
+                                      {sleepBlock.roomName || 'Standard Room'} &bull; {sleepBlock.mealPlan || 'HB'} Basis
+                                    </div>
+                                    {sleepBlock.locationName && (
+                                      <div className="text-neutral-400 font-bold uppercase tracking-wider text-[8px] mt-0.5">
+                                        Location: {sleepBlock.locationName}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               {appSettings && (() => {
                                 const costData = calculateDayTotal(dayNum);
                                 return (

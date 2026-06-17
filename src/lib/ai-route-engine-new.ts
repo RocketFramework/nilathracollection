@@ -5,10 +5,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export class AdvancedAiRouteEngine {
     private genAI: GoogleGenerativeAI;
     private startLocation: GeoLocation;
+    private modelName: string;
 
-    constructor(startLocation: GeoLocation = { lat: 7.1725, lng: 79.8853, name: 'Katunayake Airport' }) {
+    constructor(
+        startLocation: GeoLocation = { lat: 7.1725, lng: 79.8853, name: 'Katunayake Airport' },
+        modelName: string = "gemini-2.5-pro"
+    ) {
         this.genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
         this.startLocation = startLocation;
+        this.modelName = modelName;
     }
 
     async generatePlan(
@@ -135,7 +140,7 @@ ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.
     `;
 
         try {
-            const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+            const model = this.genAI.getGenerativeModel({ model: this.modelName });
             const prompt = systemPrompt + "\n\n" + userPrompt;
 
             const result = await model.generateContent({
@@ -202,9 +207,10 @@ export async function generateAIRoutePlan(
     children?: number,
     infants?: number,
     guideNeeded?: boolean,
-    chauffeurNeeded?: boolean
+    chauffeurNeeded?: boolean,
+    modelName?: string
 ): Promise<RoutePlan> {
-    const engine = new AdvancedAiRouteEngine();
+    const engine = new AdvancedAiRouteEngine({ lat: 7.1725, lng: 79.8853, name: 'Katunayake Airport' }, modelName || 'gemini-2.5-pro');
     return engine.generatePlan(activities, locations, durationDays, customRules, travelStyle, arrivalDate, departureDate, adults, children, infants, guideNeeded, chauffeurNeeded);
 }
 

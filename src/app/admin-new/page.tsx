@@ -6503,6 +6503,7 @@ function AIItineraryBuilder({
   const [isSavingRules, setIsSavingRules] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showRulesConfig, setShowRulesConfig] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-pro");
 
   // Compute days list based on durationDays (default to 5 if 0 or invalid)
   const totalDays = durationDays > 0 ? durationDays : 5;
@@ -6767,7 +6768,8 @@ function AIItineraryBuilder({
         children,
         infants,
         guideNeeded,
-        chauffeurNeeded
+        chauffeurNeeded,
+        selectedModel
       );
 
       // 5. Map events to InternalItineraryBlock
@@ -7164,6 +7166,23 @@ function AIItineraryBuilder({
               {TRAVEL_STYLES.map(style => (
                 <option key={style} value={style}>{style}</option>
               ))}
+            </select>
+          </div>
+
+          {/* AI Model Dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">AI Model:</span>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              disabled={isLockedByOther}
+              className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
             </select>
           </div>
 
