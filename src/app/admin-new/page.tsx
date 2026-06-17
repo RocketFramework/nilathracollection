@@ -369,13 +369,116 @@ function PlannerWizardWorkspace() {
     activities: []
   });
 
-  const handleSearchFinalHotels = async () => {
-    if (!finalSearchCity.trim()) return;
-    setIsSearchingFinalHotels(true);
+  const filteredMasterData = useMemo(() => {
+    if (!activeAssignment) return [];
+    const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+
+    const checkMatch = (fields: (string | undefined | null)[]) => {
+      if (terms.length === 0) return true;
+      const combined = fields.filter(f => f).map(f => f!.toLowerCase()).join(' ');
+      return terms.every(t => combined.includes(t));
+    };
+
+    switch (activeAssignment.type) {
+      case ItineraryBlockTypes.SLEEP:
+        return masterData.hotels.filter((h: any) => checkMatch([h.name, h.closest_city, h.location_address]));
+      case ItineraryBlockTypes.ACTIVITY:
+        return masterData.vendors.filter((v: any) => {
+          const activityStrings = v.vendor_activities?.flatMap((va: any) => {
+            const actData = (va as any).activities || (va as any).activity;
+            return [
+              va.activity_name,
+              actData?.location_name,
+              actData?.district
+            ];
+          }) || [];
+          return checkMatch([v.name, v.address, ...activityStrings]);
+        });
+      case ItineraryBlockTypes.MEAL:
+        return masterData.restaurants.filter((r: any) => checkMatch([r.name, r.address, r.city, r.district]));
+      case ItineraryBlockTypes.TRAVEL:
+        return {
+          providers: masterData.transportProviders.filter((p: any) => checkMatch([p.name, p.address])),
+          drivers: masterData.drivers.filter((d: any) => checkMatch([d.first_name, d.last_name]))
+        };
+      case ItineraryBlockTypes.GUIDE:
+        return masterData.guides.filter((g: any) => checkMatch([g.first_name, g.last_name]));
+      default:
+        return [];
+    }
+  }, [activeAssignment, searchTerm, masterData]);
+
+  // Lock background scroll when assignment drawer is active
+  useEffect(() => {
+    const mainScrollContainer = document.getElementById('main-scroll-container');
+    if (activeAssignment) {
+      document.body.style.overflow = 'hidden';
+      if (mainScrollContainer) {
+        mainScrollContainer.style.overflow = 'hidden';
+      }
+    } else {
+      document.body.style.overflow = '';
+      if (mainScrollContainer) {
+        mainScrollContainer.style.overflow = '';
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+      if (mainScrollContainer) {
+        mainScrollContainer.style.overflow = '';
+      }
+    };
+  }, [activeAssignment]);
+
+  // Load master data on mount
+  useEffect(() => {
+    async function loadData() {
+      setLoadingMaster(true);
+      try {
+        const assignedHotelIds = itinerary
+          .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
+          .map(b => b.hotelId as string);
+
+        const [h, v, d, g, r, tp, act, markupRes] = await Promise.all([
+          getAssignedHotelsAction(assignedHotelIds),
+          getVendorsAction(),
+          getDriversAction(),
+          getTourGuidesAction(),
+          getRestaurantsAction(),
+          getTransportProvidersAction(),
+          getActivitiesAction(),
+          getAppMarkupsAction()
+        ]);
+        setMasterData({
+          hotels: h.success ? h.hotels : [],
+          vendors: v.success ? v.vendors : [],
+          drivers: d.success ? d.drivers : [],
+          guides: g.success ? g.guides : [],
+          restaurants: r.success ? r.restaurants : [],
+          transportProviders: tp.success ? tp.providers : [],
+          activities: act.success ? (act.data || (act as any).activities || []) : []
+        });
+        if (markupRes && markupRes.success && markupRes.markups) {
+          setMarkups(markupRes.markups);
+          setRoomMarkup(markupRes.markups.room_markup ?? 10);
+        }
+      } catch (err) {
+        console.error("Failed to load master data for assignment:", err);
+      } finally {
+        setLoadingMaster(false);
+      }
+    }
+    if (tourId) {
+      loadData();
+    }
+  }, [tourId]);
+
+  const handleSearchHotels = async () => {
+    setIsSearchingHotels(true);
     try {
-      const res = await searchHotelsAction(finalSearchCity, finalSearchName);
+      const res = await searchHotelsAction(hotelSearchCity, hotelSearchName);
       if (res.success && res.hotels) {
-        setFinalSearchResults(res.hotels);
+        setHotelSearchResults(res.hotels);
         // Merge into masterData.hotels
         setMasterData((prev: any) => {
           const existingIds = new Set(prev.hotels.map((h: any) => h.id));
@@ -383,69 +486,522 @@ function PlannerWizardWorkspace() {
           return { ...prev, hotels: [...prev.hotels, ...newHotels] };
         });
       } else {
-        setFinalSearchResults([]);
+        setHotelSearchResults([]);
       }
     } catch (err) {
       console.error(err);
-      setFinalSearchResults([]);
+      setHotelSearchResults([]);
     } finally {
-      setIsSearchingFinalHotels(false);
+      setIsSearchingHotels(false);
     }
   };
 
-  const handleSelectFinalHotel = (newHotelId: string) => {
-    if (!finalActiveHotelChange) return;
-    const { oldHotelId, firstActId } = finalActiveHotelChange;
-    const hotel = masterData.hotels.find((h: any) => h.id === newHotelId);
-    if (!hotel) return;
+  const handleSearchRestaurants = async () => {
+    setIsSearchingRestaurants(true);
+    try {
+      const combinedSearch = `${restaurantSearchCity} ${restaurantSearchName}`.trim();
+      const res = await searchRestaurantsAction(combinedSearch);
+      if (res.success && res.restaurants) {
+        setRestaurantSearchResults(res.restaurants);
+        // Merge into masterData.restaurants
+        setMasterData((prev: any) => {
+          const existingIds = new Set(prev.restaurants.map((r: any) => r.id));
+          const newRestaurants = res.restaurants.filter((r: any) => !existingIds.has(r.id));
+          return { ...prev, restaurants: [...prev.restaurants, ...newRestaurants] };
+        });
+      } else {
+        setRestaurantSearchResults([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setRestaurantSearchResults([]);
+    } finally {
+      setIsSearchingRestaurants(false);
+    }
+  };
 
-    const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || '');
+  const updateBlock = (id: string, fields: Partial<InternalItineraryBlock>) => {
+    setItinerary(prev => prev.map(b => b.id === id ? { ...b, ...fields } : b));
+  };
 
-    // 1. Update all blocks in itinerary sharing the oldHotelId
-    setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && b.hotelId === oldHotelId) ? {
-      ...b,
-      hotelId: newHotelId,
-      hotelName: hotel.name,
-      imageUrl: autoImageUrl,
-      roomName: '',
-      mealPlan: 'BB'
-    } : b));
+  const bindProvider = (blockId: string, field: keyof InternalItineraryBlock, value: any) => {
+    const block = itinerary.find(b => b.id === blockId);
+    if (!block) return;
 
-    // 2. Update all activities in dbActivities sharing the oldHotelId
-    setDbActivities(prev => prev.map(act => (act.hotel_id === oldHotelId || act.id === firstActId) ? {
-      ...act,
-      hotel_id: newHotelId,
-      hotel_room_id: null,
-      quantity: 1,
-      charged_unit_price: null,
-      charged_total_price: null
-    } : act));
+    // Sync logic for hotels
+    if (field === 'hotelId' && block.type === ItineraryBlockTypes.SLEEP) {
+      const hotel = masterData.hotels.find((h: any) => h.id === value);
+      if (hotel) {
+        // Auto-populate cover image if available
+        const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || block.imageUrl || '');
+        
+        const oldHotelId = block.hotelId;
 
-    // 3. Update tripData accommodations sharing the oldHotelId
-    if (tripData) {
-      let newAccs = [...(tripData.accommodations || [])];
-      newAccs = newAccs.map(a => a.hotelId === oldHotelId ? {
-        ...a,
-        hotelId: hotel.id,
-        hotelName: hotel.name,
-        stayClass: hotel.hotel_class || 'Standard',
-        address: hotel.location_address || '',
-        roomId: undefined,
-        roomName: '',
-        roomStandard: '',
-        pricePerNight: 0,
-        selectedRooms: []
-      } : a);
-      setTripData({
-        ...tripData,
-        accommodations: newAccs
-      });
+        if (track === 'final' && oldHotelId) {
+          // 1. Update all blocks in itinerary sharing the oldHotelId
+          setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && b.hotelId === oldHotelId) ? {
+            ...b,
+            hotelId: value,
+            hotelName: hotel.name,
+            imageUrl: autoImageUrl,
+            roomName: '',
+            mealPlan: 'BB'
+          } : b));
+
+          // 2. Update all activities in dbActivities sharing the oldHotelId
+          setDbActivities(prev => prev.map(act => (act.hotel_id === oldHotelId || act.id === blockId) ? {
+            ...act,
+            hotel_id: value,
+            hotel_room_id: null,
+            quantity: 1,
+            charged_unit_price: null,
+            charged_total_price: null
+          } : act));
+
+          // 3. Update tripData accommodations sharing the oldHotelId
+          if (tripData) {
+            let newAccs = [...(tripData.accommodations || [])];
+            newAccs = newAccs.map(a => a.hotelId === oldHotelId ? {
+              ...a,
+              hotelId: hotel.id,
+              hotelName: hotel.name,
+              stayClass: hotel.hotel_class || 'Standard',
+              address: hotel.location_address || '',
+              roomId: undefined,
+              roomName: '',
+              roomStandard: '',
+              pricePerNight: 0,
+              selectedRooms: []
+            } : a);
+            setTripData({
+              ...tripData,
+              accommodations: newAccs
+            });
+          }
+        } else {
+          setItinerary(prev => prev.map(b => b.id === blockId ? {
+            ...b,
+            hotelId: value,
+            hotelName: hotel.name,
+            imageUrl: autoImageUrl,
+            // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
+            ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
+          } : b));
+
+          if (tripData) {
+            let newAccs = [...(tripData.accommodations || [])];
+            const existingAccIndex = newAccs.findIndex(a => Number(a.nightIndex) === Number(block.dayNumber));
+            if (existingAccIndex >= 0) {
+              newAccs[existingAccIndex] = {
+                ...newAccs[existingAccIndex],
+                hotelId: hotel.id,
+                hotelName: hotel.name,
+                stayClass: hotel.hotel_class || newAccs[existingAccIndex].stayClass,
+                address: hotel.location_address || newAccs[existingAccIndex].address,
+                ...(newAccs[existingAccIndex].hotelId !== hotel.id ? { roomId: undefined, roomName: '', roomStandard: '', mealPlan: undefined, pricePerNight: 0, selectedRooms: [] } : {})
+              };
+            } else {
+              newAccs.push({
+                id: crypto.randomUUID(),
+                nightIndex: block.dayNumber,
+                hotelId: hotel.id,
+                hotelName: hotel.name,
+                stayClass: hotel.hotel_class || 'Standard',
+                address: hotel.location_address || '',
+                mapLink: '',
+                contactPerson: hotel.reservation_agent_name || '',
+                contactNumber: hotel.reservation_agent_contact || '',
+                email: '',
+                rateCardUrl: '',
+                roomStandard: 'Standard Room',
+                numberOfRooms: 1,
+                pricePerNight: 0,
+                mealPlan: 'BB',
+                status: 'Tentative',
+                confirmationReference: '',
+                paymentStatus: 'Pending',
+                cancellationDeadline: '',
+                beddingConfiguration: '',
+                specialRequests: '',
+                selectedRooms: []
+              });
+            }
+            setTripData({
+              ...tripData,
+              accommodations: newAccs
+            });
+          }
+        }
+      }
     }
 
-    setFinalActiveHotelChange(null);
-    setFinalSearchCity('');
-    setFinalSearchName('');
-    setFinalSearchResults(null);
+    // Sync logic for restaurants
+    else if (field === 'restaurantId' && block.type === ItineraryBlockTypes.MEAL) {
+      const restaurant = masterData.restaurants.find((r: any) => r.id === value);
+      if (restaurant) {
+        const contractedPrice = restaurant.lunch_rate_per_head || 25;
+        const markupPercent = markups.restaurant_markup ?? 10;
+        const agreedPrice = contractedPrice * (1 + markupPercent / 100);
+        
+        setItinerary(prev => prev.map(b => b.id === blockId ? { 
+          ...b, 
+          restaurantId: value,
+          contractedPrice: b.contractedPrice ?? contractedPrice,
+          agreedPrice: b.agreedPrice ?? agreedPrice
+        } : b));
+      }
+    }
+
+    else if (field === 'activityId' && block.type === ItineraryBlockTypes.ACTIVITY) {
+      const activity = masterData.activities.find((a: any) => a.id === value);
+      if (activity) {
+        const autoImageUrl = (activity.images && activity.images.length > 0) ? activity.images[0] : (block.imageUrl || '');
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
+          activityId: value,
+          imageUrl: autoImageUrl,
+          ...(b.activityId !== value ? { vendorId: undefined, vendorActivityId: undefined, contractedPrice: undefined, agreedPrice: undefined } : {})
+        } : b));
+      }
+    }
+
+    // Sync logic for activities (Vendors)
+    else if (field === 'vendorId' && block.type === ItineraryBlockTypes.ACTIVITY) {
+      const vendor = masterData.vendors.find((v: any) => v.id === value);
+      if (vendor) {
+        const blockActivityId = block.activityId || (() => {
+          if (!block.name) return undefined;
+          const cleanWords = (str: string) => {
+            return str.toLowerCase()
+              .replace(/[^\w\s]/g, '')
+              .split(/\s+/)
+              .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at'].includes(w));
+          };
+          const blockWords = cleanWords(block.name);
+          if (blockWords.length === 0) return undefined;
+
+          let bestMatch: any = null;
+          let maxOverlap = 0;
+          masterData.activities.forEach((a: any) => {
+            const actWords = cleanWords(a.activity_name);
+            const overlap = blockWords.filter(w => actWords.includes(w)).length;
+            if (overlap > maxOverlap) {
+              maxOverlap = overlap;
+              bestMatch = a;
+            }
+          });
+          return maxOverlap > 0 ? bestMatch?.id : undefined;
+        })();
+
+        const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(blockActivityId));
+        
+        // Auto-populate cover image if available
+        const activityDetail = masterData.activities.find((a: any) => Number(a.id) === Number(blockActivityId));
+        const autoImageUrl = (activityDetail?.images && activityDetail.images.length > 0) 
+          ? activityDetail.images[0] 
+          : (block.imageUrl || '');
+
+        if (va) {
+          const markupPercent = markups.vendor_activity_markup ?? 10;
+          const contractedRate = va.vendor_price || 0;
+          const agreedPrice = contractedRate * (1 + markupPercent / 100);
+
+          setItinerary(prev => prev.map(b => b.id === blockId ? {
+            ...b,
+            vendorId: value,
+            activityId: blockActivityId,
+            vendorActivityId: va.id,
+            contractedPrice: b.contractedPrice ?? contractedRate,
+            agreedPrice: b.agreedPrice ?? agreedPrice,
+            imageUrl: autoImageUrl
+          } : b));
+        } else {
+          setItinerary(prev => prev.map(b => b.id === blockId ? {
+            ...b,
+            vendorId: value,
+            activityId: blockActivityId,
+            vendorActivityId: undefined,
+            contractedPrice: b.contractedPrice,
+            agreedPrice: b.agreedPrice,
+            imageUrl: autoImageUrl
+          } : b));
+        }
+      }
+    }
+
+    // Sync logic for transport defaults
+    else if (field === 'transportId' && block.type === ItineraryBlockTypes.TRAVEL) {
+      const provider = masterData.transportProviders.find((p: any) => p.id === value);
+      if (provider) {
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
+          transportId: value,
+          transportRateType: 'day',
+          transportQuantity: 1
+        } : b));
+      }
+    }
+  };
+
+  const getBindingDisplay = (block: InternalItineraryBlock) => {
+    if (block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
+      const h = masterData.hotels.find((x: any) => x.id === block.hotelId);
+      let label = h?.name || block.hotelName || 'Linked Hotel';
+      if (block.roomName) {
+        label += ` - ${block.roomName}`;
+      }
+      if (block.mealPlan) {
+        label += ` (${block.mealPlan})`;
+      }
+      return {
+        name: label,
+        icon: <BedDouble className="w-3.5 h-3.5 text-indigo-500" />,
+        contact: h ? {
+          name: h.sales_agent_name || h.reservation_agent_name || h.gm_name || 'Reservations / Sales',
+          phone: h.sales_agent_contact || h.reservation_agent_contact || h.gm_contact || ''
+        } : undefined
+      };
+    }
+    if (block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.vendorActivityId || block.activityId)) {
+      const v = masterData.vendors.find((x: any) => x.id === block.vendorId);
+      const resolvedActId = block.activityId || (() => {
+        if (!block.name) return undefined;
+        const cleanWords = (str: string) => {
+          return str.toLowerCase()
+            .replace(/[^\w\s]/g, '')
+            .split(/\s+/)
+            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
+        };
+        const blockWords = cleanWords(block.name);
+        if (blockWords.length === 0) return undefined;
+
+        let bestMatch: any = null;
+        let maxOverlap = 0;
+        masterData.activities.forEach((a: any) => {
+          const actWords = cleanWords(a.activity_name);
+          const overlap = blockWords.filter(w => actWords.includes(w)).length;
+          if (overlap > maxOverlap) {
+            maxOverlap = overlap;
+            bestMatch = a;
+          }
+        });
+        return maxOverlap > 0 ? bestMatch?.id : undefined;
+      })();
+      const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                 v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+
+      if (v) {
+        const activityLabel = va?.activity_name || block.name || 'Activity';
+        let label = `${v.name} - ${activityLabel}`;
+        return {
+          name: label,
+          icon: <Compass className="w-3.5 h-3.5 text-orange-500" />,
+          contact: { name: 'Vendor', phone: v.phone || '' }
+        };
+      }
+
+      const activityDetail = masterData.activities.find((x: any) => Number(x.id) === Number(resolvedActId));
+      let fallbackLabel = activityDetail?.activity_name || block.name || 'Linked Activity';
+
+      return { name: fallbackLabel, icon: <Compass className="w-3.5 h-3.5 text-orange-500" /> };
+    }
+    if (block.type === ItineraryBlockTypes.TRAVEL && (block.driverId || block.transportId || block.vehicleId)) {
+      const d = masterData.drivers.find((x: any) => x.id === block.driverId);
+      const p = masterData.transportProviders.find((x: any) => x.id === block.transportId);
+      const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
+
+      let label = p?.name || 'Transport Provider';
+      let contact = undefined;
+      if (v) {
+        label = `${p?.name || ''} - ${v.make_and_model || v.vehicle_type}`;
+        if (block.transportQuantity) {
+          label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
+        }
+        if (v.with_driver) label += ' [Incl. Driver]';
+        else if (d) label += ` [Driver: ${d.first_name}]`;
+
+        if (d) contact = { name: `${d.first_name} (Driver)`, phone: d.phone || '' };
+        else if (p) contact = { name: p.name, phone: p.phone || '' };
+
+      } else if (d) {
+        label = `Driver: ${d.first_name} ${d.last_name}`;
+        contact = { name: `${d.first_name} (Driver)`, phone: d.phone || '' };
+      } else if (p) {
+        contact = { name: p.name, phone: p.phone || '' };
+      }
+
+      return { name: label, icon: <Car className="w-3.5 h-3.5 text-blue-500" />, contact };
+    }
+    if (block.type === ItineraryBlockTypes.GUIDE && block.guideId) {
+      const g = masterData.guides.find((x: any) => x.id === block.guideId);
+      return {
+        name: g ? `${g.first_name} ${g.last_name}` : 'Linked Guide',
+        icon: <UserCheck className="w-3.5 h-3.5 text-amber-500" />,
+        contact: g ? { name: g.first_name, phone: g.phone || '' } : undefined
+      };
+    }
+    if (block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
+      const r = masterData.restaurants.find((x: any) => x.id === block.restaurantId);
+      let label = r?.name || 'Linked Restaurant';
+      if (block.mealType) label += ` - ${block.mealType}`;
+      return {
+        name: label,
+        icon: <Utensils className="w-3.5 h-3.5 text-green-500" />,
+        contact: r ? { name: r.contact_name || r.name, phone: r.contact_number || '' } : undefined
+      };
+    }
+    return null;
+  };
+
+  const handleCopyRatePrompt = (block: InternalItineraryBlock) => {
+    if (block.type !== ItineraryBlockTypes.SLEEP || !block.hotelId) return;
+    const hotel = masterData.hotels.find((h: any) => h.id === block.hotelId);
+    if (!hotel) return;
+
+    let checkInStr = "<check_in_date>";
+    let checkOutStr = "<check_out_date>";
+    
+    if (touristData?.preferences?.arrival_date) {
+      const checkInDate = new Date(touristData.preferences.arrival_date);
+      checkInDate.setDate(checkInDate.getDate() + (block.dayNumber - 1));
+      
+      const checkOutDate = new Date(checkInDate);
+      checkOutDate.setDate(checkOutDate.getDate() + 1);
+
+      checkInStr = checkInDate.toISOString().split('T')[0];
+      checkOutStr = checkOutDate.toISOString().split('T')[0];
+    }
+
+    const hotelName = hotel.name || "<hotel_name>";
+    const hotelLocation = hotel.closest_city || "<hotel_location>";
+    const mealPlan = block.mealPlan || "BB";
+    const adults = touristData?.preferences?.adults || 2;
+    const children = touristData?.preferences?.children || 0;
+
+    const prompt = `Could you please provide the rate for a stay at ${hotelName} in ${hotelLocation} for ${adults} adults and ${children} children, from ${checkInStr} to ${checkOutStr}, on a ${mealPlan} basis?`;
+    
+    navigator.clipboard.writeText(prompt);
+    window.alert("Rate prompt copied to clipboard:\n\n" + prompt);
+  };
+
+  // Synchronize tripData accommodations changes back into dbActivities list in memory
+  useEffect(() => {
+    setDbActivities(prev => {
+      let changed = false;
+      const updated = prev.map(act => {
+        if (act.activity_type === 'sleep' || act.hotel_id) {
+          const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+          const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
+          if (acc) {
+            let totalRooms = 0;
+            let totalAgreedPrice = 0;
+            let mealPlan = acc.mealPlan || 'BB';
+            
+            if (acc.selectedRooms && acc.selectedRooms.length > 0) {
+              acc.selectedRooms.forEach(room => {
+                totalRooms += room.quantity;
+                totalAgreedPrice += (room.pricePerNight || 0) * room.quantity;
+                if (room.mealPlan) mealPlan = room.mealPlan;
+              });
+            } else {
+              totalRooms = acc.numberOfRooms || 1;
+              totalAgreedPrice = (acc.pricePerNight || 0) * totalRooms;
+            }
+
+            const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
+            const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
+
+            if (
+              act.hotel_id !== acc.hotelId ||
+              act.hotel_room_id !== newRoomId ||
+              act.quantity !== totalRooms ||
+              act.meal_plan !== mealPlan ||
+              act.charged_unit_price !== unitPrice ||
+              act.charged_total_price !== totalAgreedPrice
+            ) {
+              changed = true;
+              return {
+                ...act,
+                hotel_id: acc.hotelId || null,
+                hotel_room_id: newRoomId,
+                quantity: totalRooms,
+                meal_plan: mealPlan,
+                charged_unit_price: unitPrice,
+                charged_total_price: totalAgreedPrice
+              };
+            }
+          } else {
+            // No accommodation bound for this night! Clear hotel-related fields.
+            if (
+              act.hotel_id !== null ||
+              act.hotel_room_id !== null ||
+              act.quantity !== 1 ||
+              act.charged_unit_price !== null ||
+              act.charged_total_price !== null
+            ) {
+              changed = true;
+              return {
+                ...act,
+                hotel_id: null,
+                hotel_room_id: null,
+                quantity: 1,
+                charged_unit_price: null,
+                charged_total_price: null
+              };
+            }
+          }
+        }
+        return act;
+      });
+      return changed ? updated : prev;
+    });
+  }, [tripData?.accommodations]);
+
+  const handleOpenHotelDrawer = (act: any) => {
+    const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+    let matchingBlock = itinerary.find(b => b.id === act.id) || itinerary.find(b => b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === Number(dayNum));
+    if (!matchingBlock) {
+      const hotel = masterData.hotels?.find((h: any) => h.id === act.hotel_id);
+      const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+      const newBlock: InternalItineraryBlock = {
+        id: act.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9)),
+        dayNumber: dayNum,
+        type: ItineraryBlockTypes.SLEEP,
+        name: act.name || 'Overnight Stay',
+        hotelId: act.hotel_id || undefined,
+        hotelName: hotel?.name || undefined,
+        roomName: room?.room_name || undefined,
+        mealPlan: act.meal_plan || 'BB',
+        startTime: '14:00',
+        endTime: '12:00',
+        bufferMins: 0,
+        durationHours: 22,
+        internalNotes: '',
+        confirmationStatus: 'Pending',
+        paymentStatus: 'Pending'
+      };
+      setItinerary(prev => [...prev, newBlock]);
+      matchingBlock = newBlock;
+    }
+    if (matchingBlock) {
+      setActiveAssignment({ blockId: matchingBlock.id, type: ItineraryBlockTypes.SLEEP });
+    }
+    setSearchTerm('');
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   // Share with Tourist email states
@@ -3423,7 +3979,7 @@ function PlannerWizardWorkspace() {
                                        onClick={() => {
                                          const firstAct = acts[0];
                                          if (firstAct) {
-                                           setFinalActiveHotelChange({ oldHotelId: hotelId, firstActId: firstAct.id });
+                                           handleOpenHotelDrawer(firstAct);
                                          }
                                        }}
                                        disabled={isLockedByOther}
@@ -3497,6 +4053,15 @@ function PlannerWizardWorkspace() {
                                             <span className="font-mono text-emerald-800 font-bold">${Number(act.charged_total_price).toFixed(2)}</span>
                                           </div>
                                         )}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenHotelDrawer(act)}
+                                          disabled={isLockedByOther}
+                                          className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                          title="Edit Night Accommodation"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
                                       </div>
                                     </div>
                                   );
@@ -4242,6 +4807,12 @@ function PlannerWizardWorkspace() {
                     setManualFamily={setManualFamily}
                     masterData={masterData}
                     setMasterData={setMasterData}
+                    activeAssignment={activeAssignment}
+                    setActiveAssignment={setActiveAssignment}
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    getBindingDisplay={getBindingDisplay}
+                    handleCopyRatePrompt={handleCopyRatePrompt}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
                   <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -4633,118 +5204,793 @@ function PlannerWizardWorkspace() {
 
         </div>
 
-        {/* Final Itinerary Hotel Change Drawer */}
-        {finalActiveHotelChange && (
-          <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md h-screen bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
+        {/* Assignment Drawer Overlay */}
+        {activeAssignment && mounted && createPortal((() => {
+          const activeBlock = itinerary.find(b => b.id === activeAssignment.blockId);
+          if (!activeBlock) return null;
+
+          const dayNumber = activeBlock.dayNumber;
+          let stayDate = "";
+          const arrivalDate = touristData?.preferences?.arrival_date;
+          if (arrivalDate) {
+            try {
+              const d = new Date(arrivalDate);
+              d.setDate(d.getDate() + (dayNumber - 1));
+              stayDate = d.toISOString().split('T')[0];
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          const calculateRoomPrice = (hotel: any, room: any, mealPlan: string, roomType: string) => {
+            let baseRate = 0;
+            let seasonLabel = "Standard";
+            if (room.room_rates && room.room_rates.length > 0) {
+              const applicableRates = room.room_rates.filter((r: any) => {
+                if (!stayDate) return true;
+                if (r.start_date) {
+                  if (stayDate < r.start_date) return false;
+                  if (r.end_date && stayDate > r.end_date) return false;
+                  return true;
+                }
+                return true;
+              }).sort((a: any, b: any) => {
+                const aHasDates = a.start_date ? 1 : 0;
+                const bHasDates = b.start_date ? 1 : 0;
+                return bHasDates - aHasDates;
+              });
               
-              {/* Header */}
-              <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-lg font-serif font-black text-emerald-900 uppercase tracking-wide">Change Hotel Specialist</h4>
-                    <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">Select an alternative hotel provider</p>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setFinalActiveHotelChange(null);
-                      setFinalSearchCity('');
-                      setFinalSearchName('');
-                      setFinalSearchResults(null);
-                    }} 
-                    className="p-2 hover:bg-neutral-50 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+              const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
+              
+              if (ratesToSearch.length > 0) {
+                let prefix = 'dbl';
+                if (roomType === 'Single') prefix = 'sgl';
+                else if (roomType === 'Double' || roomType === 'Twin') prefix = 'dbl';
+                else if (roomType === 'Triple') prefix = 'tpl';
+                else if (roomType === 'Family') prefix = 'qud';
 
-              {/* Scrollable Content */}
-              <div className="p-6 flex-1 overflow-y-auto space-y-5">
+                const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
+                const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
                 
-                {/* Hotel Search Form */}
-                <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                if (matrixRateObj) {
+                  baseRate = matrixRateObj[fieldName];
+                  seasonLabel = matrixRateObj.season_label || "Seasonal";
+                } else {
+                  baseRate = room.base_rate || 0;
+                }
+              } else {
+                baseRate = room.base_rate || 0;
+              }
+            } else {
+              baseRate = room.base_rate || 0;
+            }
+
+            let rate = baseRate;
+            return { total: rate, seasonLabel };
+          };
+
+          const adults = touristData?.preferences?.adults || 2;
+          const children = touristData?.preferences?.children || 0;
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="w-full max-w-md h-screen bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
+                
+                {/* Header */}
+                <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
-                      <input
-                        value={finalSearchCity}
-                        onChange={e => setFinalSearchCity(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && finalSearchCity.trim() && handleSearchFinalHotels()}
-                        placeholder="E.g. Colombo"
-                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
-                      />
+                      <h4 className="text-lg font-serif font-black text-emerald-900 uppercase tracking-wide">Assign Specialist</h4>
+                      <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">Provider Database for {activeAssignment.type.toUpperCase()} segments</p>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Hotel Name</label>
-                      <input
-                        value={finalSearchName}
-                        onChange={e => setFinalSearchName(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && finalSearchCity.trim() && handleSearchFinalHotels()}
-                        placeholder="Optional name"
-                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
-                      />
-                    </div>
+                    <button 
+                      onClick={() => { setActiveAssignment(null); setSearchTerm(""); }} 
+                      className="p-2 hover:bg-neutral-50 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
-                  <button
-                    onClick={handleSearchFinalHotels}
-                    disabled={!finalSearchCity.trim() || isSearchingFinalHotels}
-                    className="w-full py-2 bg-emerald-800 hover:bg-emerald-950 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
-                  >
-                    {isSearchingFinalHotels ? "Searching..." : "Search Hotels"}
-                  </button>
+
+                  {activeAssignment.type === ItineraryBlockTypes.SLEEP && stayDate && (
+                    <span className="text-[9px] font-black tracking-widest text-amber-600 uppercase mt-2 font-mono">
+                      Stay Date: {formatDate(stayDate)}
+                    </span>
+                  )}
                 </div>
 
-                <div className="divide-y divide-neutral-100 border border-neutral-200/80 rounded-2xl overflow-hidden shadow-sm bg-white">
-                  {(() => {
-                    let dataToRender = finalSearchResults !== null ? [...finalSearchResults] : [];
+                {/* Scrollable Content */}
+                <div className="p-6 flex-1 overflow-y-auto space-y-5">
+                  
+                  {/* Search / Filter Block */}
+                  {activeAssignment.type !== ItineraryBlockTypes.SLEEP && activeAssignment.type !== ItineraryBlockTypes.MEAL && (
+                    <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Search Query</label>
+                      <input
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder={`Search ${activeAssignment.type} database...`}
+                        className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                      />
+                    </div>
+                  )}
+                  {activeAssignment.type === ItineraryBlockTypes.SLEEP && (
+                    <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
+                          <input
+                            value={hotelSearchCity}
+                            onChange={e => setHotelSearchCity(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
+                            placeholder="E.g. Colombo"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Hotel Name</label>
+                          <input
+                            value={hotelSearchName}
+                            onChange={e => setHotelSearchName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
+                            placeholder="Optional name"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSearchHotels}
+                        disabled={!hotelSearchCity.trim() || isSearchingHotels}
+                        className="w-full py-2 bg-emerald-800 hover:bg-emerald-955 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
+                      >
+                        {isSearchingHotels ? "Searching..." : "Search Hotels"}
+                      </button>
+                    </div>
+                  )}
+                  {activeAssignment.type === ItineraryBlockTypes.MEAL && (
+                    <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
+                          <input
+                            value={restaurantSearchCity}
+                            onChange={e => setRestaurantSearchCity(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
+                            placeholder="E.g. Kandy"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Restaurant Name</label>
+                          <input
+                            value={restaurantSearchName}
+                            onChange={e => setRestaurantSearchName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
+                            placeholder="Optional name"
+                            className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSearchRestaurants}
+                        disabled={!restaurantSearchCity.trim() || isSearchingRestaurants}
+                        className="w-full py-2 bg-emerald-800 hover:bg-emerald-955 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
+                      >
+                        {isSearchingRestaurants ? "Searching..." : "Search Restaurants"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hotels List */}
+                  {activeAssignment.type === ItineraryBlockTypes.SLEEP && (() => {
+                    const assignedHotelId = activeBlock.hotelId;
+                    
+                    let dataToRender = hotelSearchResults !== null ? [...hotelSearchResults] : [];
                     
                     // Also display hotels currently in masterData as initial options/suggestions
-                    const initialSuggestions = (masterData.hotels || []).filter((h: any) => finalActiveHotelChange && h.id !== finalActiveHotelChange.oldHotelId);
-                    if (dataToRender.length === 0 && finalSearchResults === null) {
+                    const initialSuggestions = (masterData.hotels || []).filter((h: any) => h.id !== assignedHotelId);
+                    if (dataToRender.length === 0 && hotelSearchResults === null) {
                       dataToRender = initialSuggestions;
                     }
 
+                    // If there is an assigned hotel, place it first in the list
+                    if (assignedHotelId) {
+                      const assignedHotel = masterData.hotels.find((h: any) => h.id === assignedHotelId);
+                      if (assignedHotel) {
+                        dataToRender = [assignedHotel, ...dataToRender.filter(h => h.id !== assignedHotelId)];
+                      }
+                    }
+
                     if (dataToRender.length === 0) {
-                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view alternative hotels.</div>;
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view hotels.</div>;
                     }
 
                     return (
-                      <div className="grid grid-cols-1 gap-4 p-4">
+                      <div className="grid grid-cols-1 gap-4">
                         {dataToRender.map((h: any) => {
+                          const isSelected = assignedHotelId === h.id;
+                          const rooms = h.hotel_rooms || [];
                           const minRate = h.base_rate || 0;
+
                           return (
-                            <button 
-                              key={h.id}
-                              onClick={() => handleSelectFinalHotel(h.id)}
-                              className="w-full p-4 rounded-xl border border-neutral-200 bg-white hover:border-emerald-850 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-3"
-                            >
-                              <div className="flex justify-between items-start w-full">
-                                <div className="flex-1 min-w-0 pr-4">
-                                  <p className="font-bold text-xs text-neutral-800 truncate">{h.name}</p>
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <MapPin size={10} className="text-neutral-400" />
-                                    <span className="text-[9px] text-neutral-500 font-medium">{h.closest_city}</span>
+                            <div key={h.id} className={`rounded-2xl border transition-all overflow-hidden bg-white shadow-sm ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
+                              <button 
+                                type="button"
+                                onClick={() => bindProvider(activeAssignment.blockId, 'hotelId', h.id)}
+                                className="w-full p-4 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-3"
+                              >
+                                <div className="flex justify-between items-start w-full">
+                                  <div className="flex-1 min-w-0 pr-4">
+                                    <p className="font-bold text-xs text-neutral-800 truncate">{h.name}</p>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <MapPin size={10} className="text-neutral-400" />
+                                      <span className="text-[9px] text-neutral-500 font-medium">{h.closest_city}</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex flex-col items-end shrink-0">
+                                    <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Starting From</span>
+                                    <span className="text-xs font-black text-neutral-850">${minRate}</span>
                                   </div>
                                 </div>
-                                <div className="text-right flex flex-col items-end">
-                                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Starting From</span>
-                                  <span className="text-xs font-black text-neutral-850">${minRate}</span>
+
+                                {isSelected && (
+                                  <div className="w-full flex items-center justify-between bg-emerald-50/20 px-3 py-1.5 rounded-xl border border-emerald-100/50">
+                                    <span className="text-[9px] font-black text-emerald-800 uppercase tracking-wide">Currently Assigned Hotel</span>
+                                    <Check className="w-3.5 h-3.5 text-emerald-800" />
+                                  </div>
+                                )}
+                              </button>
+
+                              {isSelected && (
+                                <div className="space-y-4 px-1 pb-4 pt-2 border-t border-neutral-105">
+                                  {(() => {
+                                    const roomTypes = ['Single', 'Double', 'Twin', 'Triple', 'Family'];
+                                    const currentAcc = (tripData?.accommodations || []).find(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber)) || {} as any;
+                                    const selectedRooms = currentAcc.selectedRooms || [];
+
+                                    return (
+                                      <div className="space-y-4">
+                                        {roomTypes.map((rType) => {
+                                          const reqId = rType;
+                                          const stateKey = `${activeBlock?.id}-${reqId}`;
+                                          const assignedRoom = selectedRooms.find((sr: any) => sr.reqId === reqId);
+                                          const isReqMet = !!assignedRoom;
+                                          
+                                          const pendingState = pendingRoomState[stateKey] || {};
+                                          const currentMealPlan = assignedRoom?.mealPlan || pendingState.mealPlan || 'BB';
+                                          
+                                          // Calculate a default suggestion based on travelers if not currently assigned
+                                          let defaultCount = 0;
+                                          if (!isReqMet) {
+                                            const matchTravelers = (tripData?.travelers || []).filter(t => t.roomPreference === rType);
+                                            if (matchTravelers.length > 0) {
+                                              const roomCount = matchTravelers.reduce((acc, t) => {
+                                                const validLinks = (t.sharedWithIds || []).filter(id => matchTravelers.some(mt => mt.id === id));
+                                                return acc + (1 / (1 + validLinks.length));
+                                              }, 0);
+                                              defaultCount = Math.ceil(roomCount);
+                                            }
+                                          }
+                                          const displayCount = assignedRoom?.quantity ?? pendingState.count ?? defaultCount ?? 0;
+
+                                          return (
+                                            <div key={reqId} className="border border-neutral-200 rounded-xl overflow-hidden shadow-sm bg-neutral-50/50">
+                                              <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center gap-4">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-[10px] font-bold text-neutral-600 uppercase whitespace-nowrap">{rType} Rooms</span>
+                                                  <input 
+                                                    type="number" 
+                                                    min="0" 
+                                                    value={displayCount}
+                                                    onChange={(e) => {
+                                                      const newQty = parseInt(e.target.value) || 0;
+                                                      if (assignedRoom) {
+                                                        if (newQty === 0) {
+                                                          // Remove room if qty goes to 0
+                                                          const newSelected = selectedRooms.filter((sr: any) => sr.reqId !== reqId);
+                                                          if (tripData) {
+                                                            setTripData({
+                                                              ...tripData,
+                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                            });
+                                                          }
+                                                        } else {
+                                                          // Update quantity
+                                                          const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, quantity: newQty } : sr);
+                                                          if (tripData) {
+                                                            setTripData({
+                                                              ...tripData,
+                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                            });
+                                                          }
+                                                        }
+                                                      } else {
+                                                        // Save pending quantity
+                                                        setPendingRoomState(prev => ({ ...prev, [stateKey]: { ...prev[stateKey], count: newQty } }));
+                                                      }
+                                                    }}
+                                                    className="w-16 text-xs font-bold text-center py-1 px-2 border border-neutral-300 rounded focus:border-emerald-800 outline-none bg-white text-neutral-800"
+                                                  />
+                                                </div>
+                                                {isReqMet ? (
+                                                  <span className="text-[9px] font-black text-emerald-855 px-1.5 py-0.5 bg-emerald-50 rounded tracking-tight">ASSIGNED</span>
+                                                ) : (
+                                                  <span className="text-[9px] font-bold text-neutral-450 px-1.5 py-0.5 bg-neutral-100 rounded border border-neutral-200 tracking-tight">UNASSIGNED</span>
+                                                )}
+                                              </div>
+
+                                              {displayCount > 0 && (
+                                                <div className="p-2 space-y-2">
+                                                  {/* Assigned Room Meal Plan Toggle Header */}
+                                                  <div className="flex bg-neutral-200/50 p-1 rounded-xl gap-1 mb-2">
+                                                    {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => (
+                                                      <button
+                                                        key={mp}
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          if (assignedRoom) {
+                                                            const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
+                                                            if (tripData) {
+                                                              setTripData({
+                                                                ...tripData,
+                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                              });
+                                                            }
+                                                          } else {
+                                                            // Save pending meal plan
+                                                            setPendingRoomState(prev => ({ ...prev, [stateKey]: { ...prev[stateKey], mealPlan: mp } }));
+                                                          }
+                                                        }}
+                                                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${currentMealPlan === mp ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
+                                                      >
+                                                        {mp}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+
+                                                  <div className="grid grid-cols-1 gap-2">
+                                                    {rooms.map((room: any) => {
+                                                      const isRoomSelectedHere = assignedRoom?.roomId === room.id;
+                                                      const pricing = calculateRoomPrice(h, room, currentMealPlan, rType);
+                                                      const contractedPrice = pricing.total;
+                                                      const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
+
+                                                      return (
+                                                        <button
+                                                          key={room.id}
+                                                          onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            const newSelected = [...selectedRooms.filter((sr: any) => sr.reqId !== reqId)];
+                                                            newSelected.push({
+                                                              reqId: reqId,
+                                                              roomId: room.id,
+                                                              roomName: room.room_name,
+                                                              roomStandard: room.room_standard,
+                                                              quantity: displayCount,
+                                                              contractedPrice: contractedPrice,
+                                                              pricePerNight: agreedUnitPrice,
+                                                              mealPlan: currentMealPlan
+                                                            });
+                                                            
+                                                            // Also, update the main block's roomName and mealPlan with the primary selection for simplicity
+                                                            updateBlock(activeAssignment.blockId, {
+                                                              roomName: room.room_name,
+                                                              mealPlan: currentMealPlan
+                                                            });
+
+                                                            if (tripData) {
+                                                              setTripData({
+                                                                ...tripData,
+                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? {
+                                                                  ...a,
+                                                                  selectedRooms: newSelected,
+                                                                  roomId: room.id,
+                                                                  roomName: room.room_name,
+                                                                  mealPlan: currentMealPlan
+                                                                } : a)
+                                                              });
+                                                            }
+                                                          }}
+                                                          className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
+                                                        >
+                                                          <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                              <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
+                                                              <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests} Pax</span>
+                                                            </div>
+                                                            <div className="flex flex-col mt-1 space-y-0.5">
+                                                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} &bull; {pricing.seasonLabel}</span>
+                                                            </div>
+                                                          </div>
+                                                          <div className="text-right">
+                                                            <p className="text-xs font-black text-neutral-850">${agreedUnitPrice?.toFixed(0)}</p>
+                                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tighter line-through">${contractedPrice?.toFixed(0)} Base</p>
+                                                            <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Per Night</p>
+                                                          </div>
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })()}
+                                  {rooms.length === 0 && (
+                                    <span className="text-[10px] text-neutral-450 italic px-3">No room categories configured.</span>
+                                  )}
                                 </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Activity List */}
+                  {activeAssignment.type === ItineraryBlockTypes.ACTIVITY && (() => {
+                    const resolvedActId = activeBlock.activityId;
+
+                    const baseActivity = masterData.activities.find((a: any) => Number(a.id) === Number(resolvedActId));
+
+                    return (
+                      <div className="space-y-4">
+                        {baseActivity && (
+                          <div className="bg-neutral-50 border border-neutral-200 p-4 rounded-2xl shadow-sm">
+                            <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider mb-1">Assigned Activity Category</p>
+                            <p className="text-xs font-bold text-neutral-800">{baseActivity.activity_name}</p>
+                            {baseActivity.description && (
+                              <p className="text-[10px] text-neutral-400 mt-1 leading-relaxed line-clamp-3">{baseActivity.description}</p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          {filteredMasterData.map((v: any) => {
+                            const isSelected = activeBlock.vendorId === v.id;
+                            const va = v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
+
+                            return (
+                              <div key={v.id} className={`border rounded-2xl bg-white shadow-sm overflow-hidden transition-all ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
+                                <button 
+                                  type="button"
+                                  onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
+                                  className="w-full p-4 text-left hover:bg-emerald-50/5 transition-all flex flex-col gap-2.5"
+                                >
+                                  <div className="flex justify-between items-start w-full">
+                                    <div className="flex-1 min-w-0 pr-4">
+                                      <p className="font-bold text-xs text-neutral-800 truncate">{v.name}</p>
+                                      <p className="text-[10px] text-neutral-400 font-medium truncate mt-0.5">{v.address || 'Address not specified'}</p>
+                                    </div>
+                                    
+                                    {va && (
+                                      <div className="text-right">
+                                        <span className="text-[8px] font-black text-amber-600 uppercase block tracking-tighter">Starting From</span>
+                                        <span className="text-xs font-black text-neutral-850">${va.vendor_price || 0}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {isSelected && (
+                                    <div className="w-full flex items-center justify-between bg-emerald-50/20 px-3 py-1.5 rounded-xl border border-emerald-100/50">
+                                      <span className="text-[9px] font-black text-emerald-808 uppercase tracking-wide">Currently Assigned Vendor</span>
+                                      <Check className="w-3.5 h-3.5 text-emerald-808" />
+                                    </div>
+                                  )}
+                                </button>
                               </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Travel List */}
+                  {activeAssignment.type === ItineraryBlockTypes.TRAVEL && (() => {
+                    const providers = (filteredMasterData as any).providers || [];
+                    const drivers = (filteredMasterData as any).drivers || [];
+
+                    return (
+                      <div className="space-y-6">
+                        
+                        {/* Providers section */}
+                        <div className="space-y-3">
+                          <h5 className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Fleet Providers</h5>
+                          {providers.map((tp: any) => {
+                            const isSelected = activeBlock.transportId === tp.id;
+                            return (
+                              <div key={tp.id} className={`border rounded-2xl bg-white shadow-sm overflow-hidden transition-all ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-805/10' : 'border-neutral-200'}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => bindProvider(activeAssignment.blockId, 'transportId', tp.id)}
+                                  className="w-full p-4 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-2"
+                                >
+                                  <p className="font-bold text-xs text-neutral-800 truncate">{tp.name}</p>
+                                  {tp.phone && <p className="text-[10px] text-neutral-455 font-mono">{tp.phone}</p>}
+                                </button>
+
+                                {isSelected && tp.transport_vehicles && tp.transport_vehicles.length > 0 && (
+                                  <div className="p-3 bg-neutral-50/80 border-t border-neutral-150 space-y-2">
+                                    <span className="text-[8px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Select Active Vehicle</span>
+                                    <div className="grid grid-cols-1 gap-2">
+                                      {tp.transport_vehicles.map((v: any) => {
+                                        const isVehicleSelected = activeBlock.vehicleId === v.id;
+                                        return (
+                                          <button
+                                            key={v.id}
+                                            type="button"
+                                            onClick={() => {
+                                              const updates: Partial<InternalItineraryBlock> = {
+                                                vehicleId: v.id,
+                                                transportId: tp.id,
+                                                transportRateType: 'day',
+                                                transportQuantity: 1,
+                                                contractedPrice: v.day_rate || 0,
+                                                agreedPrice: (v.day_rate || 0) * 1.1 // fallback markup
+                                              };
+                                              if (v.with_driver) {
+                                                updates.driverId = undefined;
+                                              }
+                                              updateBlock(activeAssignment.blockId, updates);
+                                            }}
+                                            className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isVehicleSelected ? 'border-emerald-800 bg-emerald-50/5 shadow-sm' : 'border-neutral-200 hover:border-neutral-350'}`}
+                                          >
+                                            <div>
+                                              <p className="text-xs font-bold text-neutral-800">{v.make_and_model || v.vehicle_type}</p>
+                                              <p className="text-[9px] text-neutral-400 font-medium uppercase tracking-tight mt-0.5">{v.vehicle_type} &bull; {v.with_driver ? 'Driver Included' : 'No Driver'}</p>
+                                            </div>
+                                            <div className="text-right">
+                                              <p className="text-xs font-black text-neutral-850">${v.contracted_price || 0}</p>
+                                              <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tight">Per Day</p>
+                                            </div>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Drivers section */}
+                        {!activeBlock.vehicleId || !masterData.transportProviders.find((p: any) => p.id === activeBlock.transportId)?.transport_vehicles?.find((v: any) => v.id === activeBlock.vehicleId)?.with_driver ? (
+                          <div className="space-y-3">
+                            <h5 className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Independent Drivers</h5>
+                            {drivers.map((d: any) => {
+                              const isSelected = activeBlock.driverId === d.id;
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  onClick={() => updateBlock(activeAssignment.blockId, { driverId: d.id })}
+                                  className={`w-full p-4 border rounded-2xl bg-white shadow-sm hover:shadow-md hover:border-emerald-800 text-left transition-all flex justify-between items-center gap-4 ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}
+                                >
+                                  <div>
+                                    <p className="font-bold text-xs text-neutral-800">{d.first_name} {d.last_name}</p>
+                                    {d.phone && <p className="text-[10px] text-neutral-455 font-mono mt-0.5">{d.phone}</p>}
+                                  </div>
+                                  {isSelected && <Check className="w-4 h-4 text-emerald-800 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+
+                      </div>
+                    );
+                  })()}
+
+                  {/* Restaurant List */}
+                  {activeAssignment.type === ItineraryBlockTypes.MEAL && (() => {
+                    const assignedRestaurantId = activeBlock.restaurantId;
+                    
+                    let dataToRender = restaurantSearchResults !== null ? [...restaurantSearchResults] : [];
+                    
+                    // Also display restaurants currently in masterData as initial options/suggestions
+                    const initialSuggestions = (masterData.restaurants || []).filter((r: any) => r.id !== assignedRestaurantId);
+                    if (dataToRender.length === 0 && restaurantSearchResults === null) {
+                      dataToRender = initialSuggestions;
+                    }
+
+                    if (assignedRestaurantId) {
+                      const assignedRestaurant = masterData.restaurants.find((r: any) => r.id === assignedRestaurantId);
+                      if (assignedRestaurant) {
+                        dataToRender = [assignedRestaurant, ...dataToRender.filter(r => r.id !== assignedRestaurantId)];
+                      }
+                    }
+
+                    if (dataToRender.length === 0) {
+                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view restaurants.</div>;
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 gap-4">
+                        {dataToRender.map((r: any) => {
+                          const isSelected = assignedRestaurantId === r.id;
+                          return (
+                            <div key={r.id} className={`rounded-2xl border transition-all overflow-hidden bg-white shadow-sm ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
+                              <button 
+                                type="button"
+                                onClick={() => bindProvider(activeAssignment.blockId, 'restaurantId', r.id)}
+                                className="w-full p-4 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-2.5"
+                              >
+                                <div className="flex justify-between items-start w-full">
+                                  <div className="flex-1 min-w-0 pr-4">
+                                    <p className="font-bold text-xs text-neutral-800 truncate">{r.name}</p>
+                                    <p className="text-[10px] text-neutral-400 font-medium truncate mt-0.5">{r.city || 'Location not specified'}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-[8px] font-black text-amber-600 uppercase block tracking-tighter">Lunch Rate</span>
+                                    <span className="text-xs font-black text-neutral-850">${r.lunch_rate_per_head || 25}</span>
+                                  </div>
+                                </div>
+
+                                {isSelected && (
+                                  <div className="w-full flex items-center justify-between bg-emerald-50/20 px-3 py-1.5 rounded-xl border border-emerald-100/50">
+                                    <span className="text-[9px] font-black text-emerald-808 uppercase tracking-wide">Currently Assigned Restaurant</span>
+                                    <Check className="w-3.5 h-3.5 text-emerald-808" />
+                                  </div>
+                                )}
+                              </button>
+
+                              {isSelected && (
+                                <div className="p-4 border-t border-neutral-100 bg-neutral-50/50 space-y-4">
+                                  <div className="flex items-center justify-between gap-4">
+                                    <span className="text-[10px] font-bold text-neutral-600 uppercase">Covers/Quantity</span>
+                                    <input 
+                                      type="number" 
+                                      min="1"
+                                      value={activeBlock.restaurantQuantity || adults || 1}
+                                      onChange={(e) => updateBlock(activeAssignment.blockId, { restaurantQuantity: parseInt(e.target.value) || 1 })}
+                                      className="w-20 text-xs font-bold text-center py-1.5 px-3 border border-neutral-350 rounded-xl focus:border-emerald-805 outline-none bg-white text-neutral-808"
+                                    />
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">Meal Selection</span>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      {([
+                                        { label: 'Breakfast', rate: r.breakfast_rate_per_head || 15 },
+                                        { label: 'Lunch', rate: r.lunch_rate_per_head || 25 },
+                                        { label: 'Dinner', rate: r.dinner_rate_per_head || 35 }
+                                      ]).map(meal => {
+                                        const contractedRate = meal.rate;
+                                        const agreedPrice = contractedRate * 1.1; // 10% markup
+                                        const isMealSelected = activeBlock.mealType === meal.label;
+
+                                        return (
+                                          <button
+                                            key={meal.label}
+                                            type="button"
+                                            onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}
+                                            className={`p-2.5 rounded-xl border text-center transition-all bg-white ${isMealSelected ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
+                                          >
+                                            <p className="text-[10px] font-bold text-neutral-800">{meal.label}</p>
+                                            <p className="text-[11px] font-black text-emerald-808 mt-1">${agreedPrice.toFixed(0)}</p>
+                                            <p className="text-[8px] text-neutral-455 font-bold uppercase tracking-tighter line-through">${contractedRate.toFixed(0)} Base</p>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Guide List */}
+                  {activeAssignment.type === ItineraryBlockTypes.GUIDE && (() => {
+                    const guidesList = (filteredMasterData as any[]) || [];
+                    return (
+                      <div className="space-y-3">
+                        {guidesList.map((g: any) => {
+                          const isSelected = activeBlock.guideId === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => bindProvider(activeAssignment.blockId, 'guideId', g.id)}
+                              className={`w-full p-4 border rounded-2xl bg-white shadow-sm hover:shadow-md hover:border-emerald-800 text-left transition-all flex justify-between items-center gap-4 ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}
+                            >
+                              <div>
+                                <p className="font-bold text-xs text-neutral-800">{g.first_name} {g.last_name}</p>
+                                {g.phone && <p className="text-[10px] text-neutral-455 font-mono mt-0.5">{g.phone}</p>}
+                              </div>
+                              {isSelected && <Check className="w-4 h-4 text-emerald-800 shrink-0" />}
                             </button>
                           );
                         })}
                       </div>
                     );
                   })()}
+
+                  {/* Empty State */}
+                  {(() => {
+                    const noResults = activeAssignment.type === ItineraryBlockTypes.TRAVEL
+                      ? (((filteredMasterData as any).providers?.length || 0) === 0 && ((filteredMasterData as any).drivers?.length || 0) === 0)
+                      : ((filteredMasterData as any[]) || []).length === 0;
+
+                    if (noResults && searchTerm.trim() !== '') {
+                      return (
+                        <div className="p-8 text-center text-neutral-400 text-xs font-medium">
+                          No results match your search term.
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                </div>
+
+                {/* Finish Drawer Footer */}
+                <div className="p-6 sticky bottom-0 bg-white border-t border-neutral-100 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const block = itinerary.find(b => b.id === activeAssignment.blockId);
+                      if (block) {
+                        if (tripData && block.type === ItineraryBlockTypes.SLEEP) {
+                          const newAccs = (tripData.accommodations || []).filter(a => Number(a.nightIndex) !== Number(block.dayNumber));
+                          setTripData({
+                            ...tripData,
+                            accommodations: newAccs
+                          });
+                        }
+                      }
+                      updateBlock(activeAssignment.blockId, {
+                        hotelId: undefined,
+                        hotelName: undefined,
+                        roomName: undefined,
+                        mealPlan: 'BB',
+                        baseRoomRate: undefined,
+                        agreedPrice: undefined,
+                        vendorId: undefined,
+                        activityId: undefined,
+                        vendorActivityId: undefined,
+                        contractedPrice: undefined,
+                        transportId: undefined,
+                        vehicleId: undefined,
+                        driverId: undefined,
+                        guideId: undefined,
+                        restaurantId: undefined,
+                        restaurantQuantity: undefined,
+                        mealType: undefined,
+                        transportRateType: undefined,
+                        transportQuantity: undefined,
+                        imageUrl: ''
+                      });
+                      setActiveAssignment(null);
+                      setSearchTerm("");
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 text-red-500 hover:text-red-700 text-[10px] font-extrabold uppercase tracking-widest hover:bg-red-50/80 rounded-xl transition-all border border-red-100"
+                  >
+                    <Link2Off size={14} /> Clear Assignment
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
+                    className="flex-1 py-3 bg-emerald-800 hover:bg-emerald-950 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={18} /> Finish Assignment
+                  </button>
                 </div>
 
               </div>
-
             </div>
-          </div>
-        )}
+          );
+        })(), document.body)}
 
       </div>
     </div>
@@ -4793,6 +6039,12 @@ interface AIItineraryBuilderProps {
   setManualFamily: React.Dispatch<React.SetStateAction<number>>;
   masterData: any;
   setMasterData: React.Dispatch<React.SetStateAction<any>>;
+  activeAssignment: { blockId: string, type: ItineraryBlockType } | null;
+  setActiveAssignment: React.Dispatch<React.SetStateAction<{ blockId: string, type: ItineraryBlockType } | null>>;
+  searchTerm: string;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+  getBindingDisplay: (block: InternalItineraryBlock) => { name: string; icon: React.ReactNode; contact?: { name: string; phone: string } } | null | undefined;
+  handleCopyRatePrompt: (block: InternalItineraryBlock) => void;
 }
 
 function AIItineraryBuilder({
@@ -4832,7 +6084,13 @@ function AIItineraryBuilder({
   manualFamily,
   setManualFamily,
   masterData,
-  setMasterData
+  setMasterData,
+  activeAssignment,
+  setActiveAssignment,
+  searchTerm,
+  setSearchTerm,
+  getBindingDisplay,
+  handleCopyRatePrompt
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
@@ -4841,32 +6099,8 @@ function AIItineraryBuilder({
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
 
-  const [loadingMaster, setLoadingMaster] = useState(false);
-  const [activeAssignment, setActiveAssignment] = useState<{ blockId: string, type: ItineraryBlockType } | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [pendingRoomState, setPendingRoomState] = useState<Record<string, { count?: number, mealPlan?: string }>>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roomMarkup, setRoomMarkup] = useState<number>(10);
-  const [markups, setMarkups] = useState<Record<string, any>>({});
-
-  // Hotel Search State
-  const [hotelSearchCity, setHotelSearchCity] = useState('');
-  const [hotelSearchName, setHotelSearchName] = useState('');
-  const [hotelSearchResults, setHotelSearchResults] = useState<any[] | null>(null);
-  const [isSearchingHotels, setIsSearchingHotels] = useState(false);
-
-  // Restaurant Search State
-  const [restaurantSearchCity, setRestaurantSearchCity] = useState('');
-  const [restaurantSearchName, setRestaurantSearchName] = useState('');
-  const [restaurantSearchResults, setRestaurantSearchResults] = useState<any[] | null>(null);
-  const [isSearchingRestaurants, setIsSearchingRestaurants] = useState(false);
-
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Lock background scroll when assignment drawer is active
-  useEffect(() => {
+    // Lock background scroll when assignment drawer is active
     const mainScrollContainer = document.getElementById('main-scroll-container');
     if (activeAssignment) {
       document.body.style.overflow = 'hidden';
@@ -4886,96 +6120,6 @@ function AIItineraryBuilder({
       }
     };
   }, [activeAssignment]);
-
-  // Load master data on mount
-  useEffect(() => {
-    async function loadData() {
-      setLoadingMaster(true);
-      try {
-        const assignedHotelIds = itinerary
-          .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
-          .map(b => b.hotelId as string);
-
-        const [h, v, d, g, r, tp, act, markupRes] = await Promise.all([
-          getAssignedHotelsAction(assignedHotelIds),
-          getVendorsAction(),
-          getDriversAction(),
-          getTourGuidesAction(),
-          getRestaurantsAction(),
-          getTransportProvidersAction(),
-          getActivitiesAction(),
-          getAppMarkupsAction()
-        ]);
-        setMasterData({
-          hotels: h.success ? h.hotels : [],
-          vendors: v.success ? v.vendors : [],
-          drivers: d.success ? d.drivers : [],
-          guides: g.success ? g.guides : [],
-          restaurants: r.success ? r.restaurants : [],
-          transportProviders: tp.success ? tp.providers : [],
-          activities: act.success ? (act.data || (act as any).activities || []) : []
-        });
-        if (markupRes && markupRes.success && markupRes.markups) {
-          setMarkups(markupRes.markups);
-          setRoomMarkup(markupRes.markups.room_markup ?? 10);
-        }
-      } catch (err) {
-        console.error("Failed to load master data for assignment:", err);
-      } finally {
-        setLoadingMaster(false);
-      }
-    }
-    if (tourId) {
-      loadData();
-    }
-  }, [tourId]);
-
-  const handleSearchHotels = async () => {
-    setIsSearchingHotels(true);
-    try {
-      const res = await searchHotelsAction(hotelSearchCity, hotelSearchName);
-      if (res.success && res.hotels) {
-        setHotelSearchResults(res.hotels);
-        // Merge into masterData.hotels
-        setMasterData((prev: any) => {
-          const existingIds = new Set(prev.hotels.map((h: any) => h.id));
-          const newHotels = res.hotels.filter((h: any) => !existingIds.has(h.id));
-          return { ...prev, hotels: [...prev.hotels, ...newHotels] };
-        });
-      } else {
-        setHotelSearchResults([]);
-      }
-    } catch (err) {
-      console.error(err);
-      setHotelSearchResults([]);
-    } finally {
-      setIsSearchingHotels(false);
-    }
-  };
-
-  const handleSearchRestaurants = async () => {
-    setIsSearchingRestaurants(true);
-    try {
-      const combinedSearch = `${restaurantSearchCity} ${restaurantSearchName}`.trim();
-      const res = await searchRestaurantsAction(combinedSearch);
-      if (res.success && res.restaurants) {
-        setRestaurantSearchResults(res.restaurants);
-        // Merge into masterData.restaurants
-        setMasterData((prev: any) => {
-          const existingIds = new Set(prev.restaurants.map((r: any) => r.id));
-          const newRestaurants = res.restaurants.filter((r: any) => !existingIds.has(r.id));
-          return { ...prev, restaurants: [...prev.restaurants, ...newRestaurants] };
-        });
-      } else {
-        setRestaurantSearchResults([]);
-      }
-    } catch (err) {
-      console.error(err);
-      setRestaurantSearchResults([]);
-    } finally {
-      setIsSearchingRestaurants(false);
-    }
-  };
 
   const updateBlock = (id: string, fields: Partial<InternalItineraryBlock>) => {
     setItinerary(prev => prev.map(b => b.id === id ? { ...b, ...fields } : b));
@@ -5052,7 +6196,7 @@ function AIItineraryBuilder({
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
         const contractedRate = restaurant.lunch_rate_per_head || 25;
-        const markupPercent = markups.restaurant_markup ?? 10;
+        const markupPercent = 10;
         const agreedPrice = contractedRate * (1 + markupPercent / 100);
         
         setItinerary(prev => prev.map(b => b.id === blockId ? { 
@@ -5114,7 +6258,7 @@ function AIItineraryBuilder({
           : (block.imageUrl || '');
 
         if (va) {
-          const markupPercent = markups.vendor_activity_markup ?? 10;
+          const markupPercent = 10;
           const contractedRate = va.vendor_price || 0;
           const agreedPrice = contractedRate * (1 + markupPercent / 100);
 
@@ -5153,184 +6297,6 @@ function AIItineraryBuilder({
         } : b));
       }
     }
-  };
-
-  const getBindingDisplay = (block: InternalItineraryBlock) => {
-    if (block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
-      const h = masterData.hotels.find((x: any) => x.id === block.hotelId);
-      let label = h?.name || block.hotelName || 'Linked Hotel';
-      if (block.roomName) {
-        label += ` - ${block.roomName}`;
-      }
-      if (block.mealPlan) {
-        label += ` (${block.mealPlan})`;
-      }
-      return {
-        name: label,
-        icon: <BedDouble className="w-3.5 h-3.5 text-indigo-500" />,
-        contact: h ? {
-          name: h.sales_agent_name || h.reservation_agent_name || h.gm_name || 'Reservations / Sales',
-          phone: h.sales_agent_contact || h.reservation_agent_contact || h.gm_contact || ''
-        } : undefined
-      };
-    }
-    if (block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.vendorActivityId || block.activityId)) {
-      const v = masterData.vendors.find((x: any) => x.id === block.vendorId);
-      const resolvedActId = block.activityId || (() => {
-        if (!block.name) return undefined;
-        const cleanWords = (str: string) => {
-          return str.toLowerCase()
-            .replace(/[^\w\s]/g, '')
-            .split(/\s+/)
-            .filter(w => w.length > 2 && !['visit', 'explore', 'climb', 'tour', 'the', 'and', 'for', 'with', 'to', 'in', 'at', 'relax', 'unwind', 'leisure', 'hotel', 'stay', 'free', 'day', 'rest', 'evening', 'morning', 'afternoon', 'safari', 'hike', 'walk', 'trek', 'ride', 'drive', 'boat', 'boating', 'cruise', 'beach', 'lake', 'river', 'park', 'national', 'temple', 'fort', 'gardens', 'garden', 'waterfall', 'waterfalls', 'sightseeing', 'city', 'shopping', 'dinner', 'lunch', 'breakfast', 'meal', 'meals', 'transfer', 'transfers', 'arrival', 'departure', 'flight', 'flights', 'activity', 'activities', 'attraction', 'attractions'].includes(w));
-        };
-        const blockWords = cleanWords(block.name);
-        if (blockWords.length === 0) return undefined;
-
-        let bestMatch: any = null;
-        let maxOverlap = 0;
-        masterData.activities.forEach((a: any) => {
-          const actWords = cleanWords(a.activity_name);
-          const overlap = blockWords.filter(w => actWords.includes(w)).length;
-          if (overlap > maxOverlap) {
-            maxOverlap = overlap;
-            bestMatch = a;
-          }
-        });
-        return maxOverlap > 0 ? bestMatch?.id : undefined;
-      })();
-      const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                 v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
-
-      if (v) {
-        const activityLabel = va?.activity_name || block.name || 'Activity';
-        let label = `${v.name} - ${activityLabel}`;
-        return {
-          name: label,
-          icon: <Compass className="w-3.5 h-3.5 text-orange-500" />,
-          contact: { name: 'Vendor', phone: v.phone || '' }
-        };
-      }
-
-      const activityDetail = masterData.activities.find((x: any) => Number(x.id) === Number(resolvedActId));
-      let fallbackLabel = activityDetail?.activity_name || block.name || 'Linked Activity';
-
-      return { name: fallbackLabel, icon: <Compass className="w-3.5 h-3.5 text-orange-500" /> };
-    }
-    if (block.type === ItineraryBlockTypes.TRAVEL && (block.driverId || block.transportId || block.vehicleId)) {
-      const d = masterData.drivers.find((x: any) => x.id === block.driverId);
-      const p = masterData.transportProviders.find((x: any) => x.id === block.transportId);
-      const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
-
-      let label = p?.name || 'Transport Provider';
-      let contact = undefined;
-      if (v) {
-        label = `${p?.name || ''} - ${v.make_and_model || v.vehicle_type}`;
-        if (block.transportQuantity) {
-          label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
-        }
-        if (v.with_driver) label += ' [Incl. Driver]';
-        else if (d) label += ` [Driver: ${d.first_name}]`;
-
-        if (d) contact = { name: `${d.first_name} (Driver)`, phone: d.phone || '' };
-        else if (p) contact = { name: p.name, phone: p.phone || '' };
-
-      } else if (d) {
-        label = `Driver: ${d.first_name} ${d.last_name}`;
-        contact = { name: `${d.first_name} (Driver)`, phone: d.phone || '' };
-      } else if (p) {
-        contact = { name: p.name, phone: p.phone || '' };
-      }
-
-      return { name: label, icon: <Car className="w-3.5 h-3.5 text-blue-500" />, contact };
-    }
-    if (block.type === ItineraryBlockTypes.GUIDE && block.guideId) {
-      const g = masterData.guides.find((x: any) => x.id === block.guideId);
-      return {
-        name: g ? `${g.first_name} ${g.last_name}` : 'Linked Guide',
-        icon: <UserCheck className="w-3.5 h-3.5 text-amber-500" />,
-        contact: g ? { name: g.first_name, phone: g.phone || '' } : undefined
-      };
-    }
-    if (block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
-      const r = masterData.restaurants.find((x: any) => x.id === block.restaurantId);
-      let label = r?.name || 'Linked Restaurant';
-      if (block.mealType) label += ` - ${block.mealType}`;
-      return {
-        name: label,
-        icon: <Utensils className="w-3.5 h-3.5 text-green-500" />,
-        contact: r ? { name: r.contact_name || r.name, phone: r.contact_number || '' } : undefined
-      };
-    }
-    return null;
-  };
-
-  const filteredMasterData = useMemo(() => {
-    if (!activeAssignment) return [];
-    const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
-
-    const checkMatch = (fields: (string | undefined | null)[]) => {
-      if (terms.length === 0) return true;
-      const combined = fields.filter(f => f).map(f => f!.toLowerCase()).join(' ');
-      return terms.every(t => combined.includes(t));
-    };
-
-    switch (activeAssignment.type) {
-      case ItineraryBlockTypes.SLEEP:
-        return masterData.hotels.filter((h: any) => checkMatch([h.name, h.closest_city, h.location_address]));
-      case ItineraryBlockTypes.ACTIVITY:
-        return masterData.vendors.filter((v: any) => {
-          const activityStrings = v.vendor_activities?.flatMap((va: any) => {
-            const actData = (va as any).activities || (va as any).activity;
-            return [
-              va.activity_name,
-              actData?.location_name,
-              actData?.district
-            ];
-          }) || [];
-          return checkMatch([v.name, v.address, ...activityStrings]);
-        });
-      case ItineraryBlockTypes.MEAL:
-        return masterData.restaurants.filter((r: any) => checkMatch([r.name, r.address, r.city, r.district]));
-      case ItineraryBlockTypes.TRAVEL:
-        return {
-          providers: masterData.transportProviders.filter((p: any) => checkMatch([p.name, p.address])),
-          drivers: masterData.drivers.filter((d: any) => checkMatch([d.first_name, d.last_name]))
-        };
-      case ItineraryBlockTypes.GUIDE:
-        return masterData.guides.filter((g: any) => checkMatch([g.first_name, g.last_name]));
-      default:
-        return [];
-    }
-  }, [activeAssignment, searchTerm, masterData]);
-
-  const handleCopyRatePrompt = (block: InternalItineraryBlock) => {
-    if (block.type !== ItineraryBlockTypes.SLEEP || !block.hotelId) return;
-    const hotel = masterData.hotels.find((h: any) => h.id === block.hotelId);
-    if (!hotel) return;
-
-    let checkInStr = "<check_in_date>";
-    let checkOutStr = "<check_out_date>";
-    
-    if (arrivalDate) {
-      const checkInDate = new Date(arrivalDate);
-      checkInDate.setDate(checkInDate.getDate() + (block.dayNumber - 1));
-      
-      const checkOutDate = new Date(checkInDate);
-      checkOutDate.setDate(checkOutDate.getDate() + 1);
-
-      checkInStr = checkInDate.toISOString().split('T')[0];
-      checkOutStr = checkOutDate.toISOString().split('T')[0];
-    }
-
-    const hotelName = hotel.name || "<hotel_name>";
-    const hotelLocation = hotel.closest_city || "<hotel_location>";
-    const mealPlan = block.mealPlan || "BB";
-
-    const prompt = `Could you please provide the rate for a stay at ${hotelName} in ${hotelLocation} for ${adults} adults and ${children} children, from ${checkInStr} to ${checkOutStr}, on a ${mealPlan} basis?`;
-    
-    navigator.clipboard.writeText(prompt);
-    window.alert("Rate prompt copied to clipboard:\n\n" + prompt);
   };
 
   const getCardAccentBorder = (type: InternalItineraryBlock['type']) => {
@@ -7177,975 +8143,8 @@ function AIItineraryBuilder({
           tripStatus={tripData?.status}
           dayCostOverrides={tripData?.dayCostOverrides}
         />
+
       </div>
-
-      {/* Assignment Drawer Overlay */}
-      {activeAssignment && mounted && createPortal((() => {
-        const activeBlock = itinerary.find(b => b.id === activeAssignment.blockId);
-        if (!activeBlock) return null;
-
-        const dayNumber = activeBlock.dayNumber;
-        let stayDate = "";
-        if (arrivalDate) {
-          try {
-            const d = new Date(arrivalDate);
-            d.setDate(d.getDate() + (dayNumber - 1));
-            stayDate = d.toISOString().split('T')[0];
-          } catch (e) {
-            console.error(e);
-          }
-        }
-
-        const calculateRoomPrice = (hotel: any, room: any, mealPlan: string, roomType: string) => {
-          let baseRate = 0;
-          let seasonLabel = "Standard";
-          if (room.room_rates && room.room_rates.length > 0) {
-            const applicableRates = room.room_rates.filter((r: any) => {
-              if (!stayDate) return true;
-              if (r.start_date) {
-                if (stayDate < r.start_date) return false;
-                if (r.end_date && stayDate > r.end_date) return false;
-                return true;
-              }
-              return true;
-            }).sort((a: any, b: any) => {
-              const aHasDates = a.start_date ? 1 : 0;
-              const bHasDates = b.start_date ? 1 : 0;
-              return bHasDates - aHasDates;
-            });
-            
-            const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
-            
-            if (ratesToSearch.length > 0) {
-              let prefix = 'dbl';
-              if (roomType === 'Single') prefix = 'sgl';
-              else if (roomType === 'Double' || roomType === 'Twin') prefix = 'dbl';
-              else if (roomType === 'Triple') prefix = 'tpl';
-              else if (roomType === 'Family') prefix = 'qud';
-
-              const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
-              const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
-              
-              if (matrixRateObj) {
-                baseRate = matrixRateObj[fieldName];
-                if (matrixRateObj.start_date) seasonLabel = `Rate applied`;
-              } else {
-                const fallbackFields = [`${prefix}_bb_rate`, `${prefix}_hb_rate`, `${prefix}_fb_rate`, `${prefix}_ai_rate`];
-                let lowestRate = Infinity;
-                let foundDate = false;
-                
-                ratesToSearch.forEach((r: any) => {
-                  fallbackFields.forEach(ff => {
-                    if (r[ff] !== undefined && r[ff] !== null && r[ff] > 0) {
-                      if (r[ff] < lowestRate) {
-                        lowestRate = r[ff];
-                        if (r.start_date) foundDate = true;
-                      }
-                    }
-                  });
-                });
-                
-                if (lowestRate !== Infinity) {
-                  baseRate = lowestRate;
-                  if (foundDate) seasonLabel = `Rate applied`;
-                } else {
-                  baseRate = 0;
-                }
-              }
-            }
-          }
-          return { total: baseRate, seasonLabel };
-        };
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md h-screen bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
-              
-              {/* Header */}
-              <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-lg font-serif font-black text-emerald-900 uppercase tracking-wide">Assign Specialist</h4>
-                    <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">Provider Database for {activeAssignment.type.toUpperCase()} segments</p>
-                  </div>
-                  <button 
-                    onClick={() => { setActiveAssignment(null); setSearchTerm(""); }} 
-                    className="p-2 hover:bg-neutral-50 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                {activeAssignment.type === ItineraryBlockTypes.SLEEP && stayDate && (
-                  <div className="mt-2.5 text-[10px] text-emerald-800 font-mono bg-emerald-50 border border-emerald-100/60 p-2 rounded-xl">
-                    Day {dayNumber} Stay | Date: {stayDate}
-                  </div>
-                )}
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="p-6 flex-1 overflow-y-auto space-y-5">
-                
-                {/* Search Bar (non-hotel & non-restaurant types) */}
-                {activeAssignment.type !== ItineraryBlockTypes.SLEEP && activeAssignment.type !== ItineraryBlockTypes.MEAL && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 text-neutral-400" size={16} />
-                    <input
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      placeholder={`Search ${activeAssignment.type} database...`}
-                      className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-bold focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-inner"
-                    />
-                  </div>
-                )}
-
-                {/* Hotel Search Form */}
-                {activeAssignment.type === ItineraryBlockTypes.SLEEP && (
-                  <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
-                        <input
-                          value={hotelSearchCity}
-                          onChange={e => setHotelSearchCity(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
-                          placeholder="E.g. Colombo"
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Hotel Name</label>
-                        <input
-                          value={hotelSearchName}
-                          onChange={e => setHotelSearchName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && hotelSearchCity.trim() && handleSearchHotels()}
-                          placeholder="Optional name"
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleSearchHotels}
-                      disabled={!hotelSearchCity.trim() || isSearchingHotels}
-                      className="w-full py-2 bg-emerald-800 hover:bg-emerald-950 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
-                    >
-                      {isSearchingHotels ? "Searching..." : "Search Hotels"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Restaurant Search Form */}
-                {activeAssignment.type === ItineraryBlockTypes.MEAL && (
-                  <div className="bg-neutral-50/55 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
-                        <input
-                          value={restaurantSearchCity}
-                          onChange={e => setRestaurantSearchCity(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
-                          placeholder="E.g. Colombo"
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Restaurant Name</label>
-                        <input
-                          value={restaurantSearchName}
-                          onChange={e => setRestaurantSearchName(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && restaurantSearchCity.trim() && handleSearchRestaurants()}
-                          placeholder="Optional name"
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleSearchRestaurants}
-                      disabled={!restaurantSearchCity.trim() || isSearchingRestaurants}
-                      className="w-full py-2 bg-emerald-800 hover:bg-emerald-955 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
-                    >
-                      {isSearchingRestaurants ? "Searching..." : "Search Restaurants"}
-                    </button>
-                  </div>
-                )}
-
-                <div className="divide-y divide-neutral-100 border border-neutral-200/80 rounded-2xl overflow-hidden shadow-sm bg-white">
-                  
-                  {/* Hotel List */}
-                  {activeAssignment.type === ItineraryBlockTypes.SLEEP && (() => {
-                    const assignedHotelId = activeBlock.hotelId;
-                    let dataToRender = hotelSearchResults !== null ? [...hotelSearchResults] : [];
-                    if (assignedHotelId && !dataToRender.some(h => h.id === assignedHotelId)) {
-                      const currentHotel = masterData.hotels.find((h: any) => h.id === assignedHotelId);
-                      if (currentHotel) {
-                        dataToRender = [currentHotel, ...dataToRender];
-                      }
-                    }
-
-                    if (hotelSearchResults === null && !assignedHotelId) {
-                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view available hotels.</div>;
-                    }
-
-                    if (dataToRender.length === 0) {
-                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">No hotels found. Try adjusting your search.</div>;
-                    }
-
-                    return (
-                      <div className="grid grid-cols-1 gap-4 p-4">
-                        {dataToRender.map((h: any) => {
-                          const isSelected = assignedHotelId === h.id;
-                          const rooms = h.hotel_rooms || [];
-                          
-                          const applicableRates = rooms.flatMap((r: any) => {
-                            if (!r.room_rates || r.room_rates.length === 0) return [];
-                            return r.room_rates.filter((rr: any) => {
-                              if (!stayDate) return true;
-                              if (rr.start_date) {
-                                if (stayDate < rr.start_date) return false;
-                                if (rr.end_date && stayDate > rr.end_date) return false;
-                                return true;
-                              }
-                              return true;
-                            }).sort((a: any, b: any) => {
-                              const aHasDates = a.start_date ? 1 : 0;
-                              const bHasDates = b.start_date ? 1 : 0;
-                              return bHasDates - aHasDates;
-                            }).flatMap((rr: any) => {
-                              return [
-                                rr.sgl_bb_rate, rr.sgl_hb_rate, rr.sgl_fb_rate, rr.sgl_ai_rate,
-                                rr.dbl_bb_rate, rr.dbl_hb_rate, rr.dbl_fb_rate, rr.dbl_ai_rate,
-                                rr.tpl_bb_rate, rr.tpl_hb_rate, rr.tpl_fb_rate, rr.tpl_ai_rate,
-                                rr.qud_bb_rate, rr.qud_hb_rate, rr.qud_fb_rate, rr.qud_ai_rate
-                              ].filter(v => v && v > 0);
-                            });
-                          }).filter((rate: any) => rate && rate > 0);
-
-                          const minRate = applicableRates.length > 0 ? Math.min(...applicableRates) : (h.base_rate || 0);
-
-                          const amenities = [
-                            { key: 'internet', icon: <Wifi className="w-3 h-3 text-neutral-400" />, label: 'WiFi' },
-                            { key: 'outdoor_pool', icon: <Waves className="w-3 h-3 text-neutral-400" />, label: 'Pool' },
-                            { key: 'wellness', icon: <HeartPulse className="w-3 h-3 text-neutral-400" />, label: 'Spa' },
-                            { key: 'business_facility', icon: <Briefcase className="w-3 h-3 text-neutral-400" />, label: 'Business' },
-                            { key: 'airport_shuttle', icon: <Plane className="w-3 h-3 text-neutral-400" />, label: 'Shuttle' },
-                            { key: 'parking', icon: <Car className="w-3 h-3 text-neutral-400" />, label: 'Parking' },
-                          ].filter(a => h[a.key]);
-
-                          return (
-                            <div key={h.id} className="space-y-3">
-                              <button 
-                                onClick={() => bindProvider(activeAssignment.blockId, 'hotelId', h.id)}
-                                className={`w-full p-4 rounded-xl border text-left transition-all flex flex-col gap-3 ${
-                                  isSelected 
-                                    ? 'border-emerald-800 bg-emerald-50/10 shadow-sm ring-2 ring-emerald-800/10' 
-                                    : 'border-neutral-200 bg-white hover:border-emerald-800/50'
-                                }`}
-                              >
-                                <div className="flex justify-between items-start w-full">
-                                  <div className="flex-1 min-w-0 pr-4">
-                                    <p className="font-bold text-xs text-neutral-800 truncate">{h.name}</p>
-                                    <div className="flex items-center gap-1 mt-0.5">
-                                      <MapPin size={10} className="text-neutral-400" />
-                                      <span className="text-[9px] text-neutral-500 font-medium">{h.closest_city}</span>
-                                    </div>
-                                  </div>
-                                  <div className="text-right flex flex-col items-end">
-                                    <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Starting From</span>
-                                    <span className="text-xs font-black text-neutral-800">${minRate}</span>
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-wrap gap-1.5">
-                                  {amenities.map(a => (
-                                    <div key={a.key} className="flex items-center gap-1 px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100">
-                                      {a.icon}
-                                      <span className="text-[8px] font-bold text-neutral-500">{a.label}</span>
-                                    </div>
-                                  ))}
-                                </div>
-
-                                {isSelected && (
-                                  <div className="w-full flex items-center justify-center gap-1.5 py-1 bg-emerald-50/60 rounded-lg border border-emerald-250/20">
-                                    <CheckCircle2 size={12} className="text-emerald-800" />
-                                    <span className="text-[9px] font-black text-emerald-800 uppercase">Currently Assigned</span>
-                                  </div>
-                                )}
-                              </button>
-
-                              {isSelected && (
-                                <div className="space-y-4 px-1 pb-4 pt-2">
-                                  {(() => {
-                                    const roomTypes = ['Single', 'Double', 'Twin', 'Triple', 'Family'];
-                                    const currentAcc = (tripData?.accommodations || []).find(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber)) || {} as any;
-                                    const selectedRooms = currentAcc.selectedRooms || [];
-
-                                    return (
-                                      <div className="space-y-4">
-                                        {roomTypes.map((rType) => {
-                                          const reqId = rType;
-                                          const stateKey = `${activeBlock?.id}-${reqId}`;
-                                          const assignedRoom = selectedRooms.find((sr: any) => sr.reqId === reqId);
-                                          const isReqMet = !!assignedRoom;
-                                          
-                                          const pendingState = pendingRoomState[stateKey] || {};
-                                          const currentMealPlan = assignedRoom?.mealPlan || pendingState.mealPlan || 'BB';
-                                          
-                                          // Calculate a default suggestion based on travelers if not currently assigned
-                                          let defaultCount = 0;
-                                          if (!isReqMet) {
-                                            const matchTravelers = (tripData?.travelers || []).filter(t => t.roomPreference === rType);
-                                            if (matchTravelers.length > 0) {
-                                              const roomCount = matchTravelers.reduce((acc, t) => {
-                                                const validLinks = (t.sharedWithIds || []).filter(id => matchTravelers.some(mt => mt.id === id));
-                                                return acc + (1 / (1 + validLinks.length));
-                                              }, 0);
-                                              defaultCount = Math.ceil(roomCount);
-                                            }
-                                          }
-                                          const displayCount = assignedRoom?.quantity ?? pendingState.count ?? defaultCount ?? 0;
-
-                                          return (
-                                            <div key={reqId} className="border border-neutral-200 rounded-xl overflow-hidden shadow-sm bg-neutral-50/50">
-                                              <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center gap-4">
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-[10px] font-bold text-neutral-600 uppercase whitespace-nowrap">{rType} Rooms</span>
-                                                  <input 
-                                                    type="number" 
-                                                    min="0" 
-                                                    value={displayCount}
-                                                    onChange={(e) => {
-                                                      const newQty = parseInt(e.target.value) || 0;
-                                                      if (assignedRoom) {
-                                                        if (newQty === 0) {
-                                                          // Remove room if qty goes to 0
-                                                          const newSelected = selectedRooms.filter((sr: any) => sr.reqId !== reqId);
-                                                          if (tripData) {
-                                                            setTripData({
-                                                              ...tripData,
-                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
-                                                            });
-                                                          }
-                                                        } else {
-                                                          // Update quantity
-                                                          const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, quantity: newQty } : sr);
-                                                          if (tripData) {
-                                                            setTripData({
-                                                              ...tripData,
-                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
-                                                            });
-                                                          }
-                                                        }
-                                                      } else {
-                                                        // Save pending quantity
-                                                        setPendingRoomState(prev => ({ ...prev, [stateKey]: { ...prev[stateKey], count: newQty } }));
-                                                      }
-                                                    }}
-                                                    className="w-16 text-xs font-bold text-center py-1 px-2 border border-neutral-300 rounded focus:border-emerald-800 outline-none bg-white text-neutral-800"
-                                                  />
-                                                </div>
-                                                {isReqMet ? (
-                                                  <span className="text-[9px] font-black text-emerald-855 px-1.5 py-0.5 bg-emerald-50 rounded tracking-tight">ASSIGNED</span>
-                                                ) : (
-                                                  <span className="text-[9px] font-bold text-neutral-450 px-1.5 py-0.5 bg-neutral-100 rounded border border-neutral-200 tracking-tight">UNASSIGNED</span>
-                                                )}
-                                              </div>
-
-                                              {displayCount > 0 && (
-                                                <div className="p-2 space-y-2">
-                                                  {/* Assigned Room Meal Plan Toggle Header */}
-                                                  <div className="flex bg-neutral-200/50 p-1 rounded-xl gap-1 mb-2">
-                                                    {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => (
-                                                      <button
-                                                        key={mp}
-                                                        onClick={(e) => {
-                                                          e.preventDefault();
-                                                          e.stopPropagation();
-                                                          if (assignedRoom) {
-                                                            const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
-                                                            if (tripData) {
-                                                              setTripData({
-                                                                ...tripData,
-                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
-                                                              });
-                                                            }
-                                                          } else {
-                                                            // Save pending meal plan
-                                                            setPendingRoomState(prev => ({ ...prev, [stateKey]: { ...prev[stateKey], mealPlan: mp } }));
-                                                          }
-                                                        }}
-                                                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${currentMealPlan === mp ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
-                                                      >
-                                                        {mp}
-                                                      </button>
-                                                    ))}
-                                                  </div>
-
-                                                  <div className="grid grid-cols-1 gap-2">
-                                                    {rooms.map((room: any) => {
-                                                      const isRoomSelectedHere = assignedRoom?.roomId === room.id;
-                                                      const pricing = calculateRoomPrice(h, room, currentMealPlan, rType);
-                                                      const contractedPrice = pricing.total;
-                                                      const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
-
-                                                      return (
-                                                        <button
-                                                          key={room.id}
-                                                          onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            const newSelected = [...selectedRooms.filter((sr: any) => sr.reqId !== reqId)];
-                                                            newSelected.push({
-                                                              reqId: reqId,
-                                                              roomId: room.id,
-                                                              roomName: room.room_name,
-                                                              roomStandard: room.room_standard,
-                                                              quantity: displayCount,
-                                                              contractedPrice: contractedPrice,
-                                                              pricePerNight: agreedUnitPrice,
-                                                              mealPlan: currentMealPlan
-                                                            });
-                                                            
-                                                            // Also, update the main block's roomName and mealPlan with the primary selection for simplicity
-                                                            updateBlock(activeAssignment.blockId, {
-                                                              roomName: room.room_name,
-                                                              mealPlan: currentMealPlan
-                                                            });
-
-                                                            if (tripData) {
-                                                              setTripData({
-                                                                ...tripData,
-                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? {
-                                                                  ...a,
-                                                                  selectedRooms: newSelected,
-                                                                  roomId: room.id,
-                                                                  roomName: room.room_name,
-                                                                  mealPlan: currentMealPlan
-                                                                } : a)
-                                                              });
-                                                            }
-                                                          }}
-                                                          className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
-                                                        >
-                                                          <div className="flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                              <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
-                                                              <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests} Pax</span>
-                                                            </div>
-                                                            <div className="flex flex-col mt-1 space-y-0.5">
-                                                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} &bull; {pricing.seasonLabel}</span>
-                                                            </div>
-                                                          </div>
-                                                          <div className="text-right">
-                                                            <p className="text-xs font-black text-neutral-850">${agreedUnitPrice?.toFixed(0)}</p>
-                                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tighter line-through">${contractedPrice?.toFixed(0)} Base</p>
-                                                            <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Per Night</p>
-                                                          </div>
-                                                        </button>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
-                                              )}
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    );
-                                  })()}
-                                  {rooms.length === 0 && (
-                                    <span className="text-[10px] text-neutral-400 italic">No room categories configured.</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Activity List */}
-                  {activeAssignment.type === ItineraryBlockTypes.ACTIVITY && (() => {
-                    const resolvedActId = activeBlock.activityId;
-
-                    const baseActivity = masterData.activities.find((a: any) => Number(a.id) === Number(resolvedActId));
-
-                    const matchedActivities = searchTerm.trim()
-                      ? masterData.activities.filter((act: any) => {
-                          const actName = act.activity_name?.toLowerCase() || '';
-                          const locName = act.location_name?.toLowerCase() || '';
-                          const dist = act.district?.toLowerCase() || '';
-                          const searchLower = searchTerm.toLowerCase();
-                          return actName.includes(searchLower) || locName.includes(searchLower) || dist.includes(searchLower);
-                        })
-                      : [];
-
-                    const specializedVendorsUnfiltered = masterData.vendors.filter((v: any) =>
-                      v.vendor_activities?.some((va: any) => 
-                        (activeBlock.vendorActivityId && va.id === activeBlock.vendorActivityId) ||
-                        (resolvedActId && Number(va.activity_id) === Number(resolvedActId))
-                      )
-                    );
-
-                    const specializedVendors = specializedVendorsUnfiltered.filter((v: any) =>
-                      (filteredMasterData as any[]).some((fv: any) => fv.id === v.id)
-                    );
-
-                    const otherVendors = (filteredMasterData as any[]).filter((v: any) =>
-                      !specializedVendorsUnfiltered.some((sv: any) => sv.id === v.id)
-                    );
-
-                    return (
-                      <>
-                        {baseActivity && (
-                          <div className="mx-4 mt-4 p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
-                            <div className="flex items-start gap-3">
-                              <div className="p-2 bg-white rounded-xl shadow-sm border border-neutral-100">
-                                <Compass className="w-5 h-5 text-emerald-800" />
-                              </div>
-                              <div className="flex-1">
-                                <h5 className="text-xs font-bold text-neutral-800">{baseActivity.activity_name}</h5>
-                                <p className="text-[9px] text-neutral-500 font-bold mt-0.5 flex items-center gap-1">
-                                  <MapPin size={10} /> {baseActivity.location_name}, {baseActivity.district}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {matchedActivities.length > 0 && (
-                          <>
-                            <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-4">
-                              Matching Activities ({matchedActivities.length})
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 p-4">
-                              {matchedActivities.map((act: any) => {
-                                const isActSelected = activeBlock.activityId === act.id;
-                                return (
-                                  <button
-                                    key={'act-' + act.id}
-                                    type="button"
-                                    onClick={() => {
-                                      bindProvider(activeAssignment.blockId, 'activityId', act.id);
-                                    }}
-                                    className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                                      isActSelected
-                                        ? 'border-orange-500 bg-orange-50/10'
-                                        : 'border-neutral-200 bg-white hover:border-orange-300'
-                                    }`}
-                                  >
-                                    <div className="flex-1">
-                                      <p className="font-bold text-xs text-neutral-800">{act.activity_name}</p>
-                                      <p className="text-[9px] font-bold text-neutral-400 mt-1 flex items-center gap-1">
-                                        <MapPin size={10} /> {act.location_name}, {act.district}
-                                      </p>
-                                    </div>
-                                    <div className="text-[8px] uppercase font-extrabold text-orange-600 px-2 py-1 bg-orange-50 rounded-md">
-                                      {isActSelected ? 'Linked' : 'Link Activity'}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </>
-                        )}
-
-                        <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-4">
-                          Specialist Vendors ({specializedVendors.length})
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 p-4">
-                          {specializedVendors.map((v: any) => {
-                            const isSelected = activeBlock.vendorId === v.id;
-                            const va = v.vendor_activities?.find((a: any) => a.id === activeBlock.vendorActivityId) ||
-                                       v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
-                            return (
-                              <button 
-                                key={v.id} 
-                                type="button"
-                                onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
-                                className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'border-emerald-800 bg-emerald-50/10' 
-                                    : 'border-neutral-200 bg-white hover:border-emerald-800/30'
-                                }`}
-                              >
-                                <div className="flex-1">
-                                  <p className="font-bold text-xs text-neutral-800">{v.name}</p>
-                                  {va && <p className="text-[10px] font-extrabold text-emerald-800 mt-1">${va.vendor_price?.toLocaleString()}</p>}
-                                </div>
-                                <ChevronRight size={16} className={isSelected ? 'text-emerald-800' : 'text-neutral-300'} />
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {otherVendors.length > 0 && (
-                          <>
-                            <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-2">
-                              Other Matching Vendors ({otherVendors.length})
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 p-4">
-                              {otherVendors.map((v: any) => {
-                                const isSelected = activeBlock.vendorId === v.id;
-                                const va = v.vendor_activities?.find((a: any) => a.id === activeBlock.vendorActivityId) ||
-                                           v.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(resolvedActId));
-                                return (
-                                  <button 
-                                    key={'other-' + v.id} 
-                                    type="button"
-                                    onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
-                                    className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between opacity-80 hover:opacity-100 ${
-                                      isSelected 
-                                        ? 'border-emerald-800 bg-emerald-50/10' 
-                                        : 'border-neutral-200 bg-white hover:border-emerald-800/30'
-                                    }`}
-                                  >
-                                    <div className="flex-1">
-                                      <p className="font-bold text-xs text-neutral-800">{v.name}</p>
-                                      {va && <p className="text-[10px] font-extrabold text-emerald-800 mt-1">${va.vendor_price?.toLocaleString()}</p>}
-                                      <p className="text-[9px] font-bold text-neutral-400 mt-1 flex items-center gap-1"><MapPin size={10} /> {v.address || 'Address Unknown'}</p>
-                                    </div>
-                                    <div className="text-[8px] uppercase font-extrabold text-neutral-400 px-2 py-1 bg-neutral-100 rounded-md">General</div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-
-                  {/* Travel List */}
-                  {activeAssignment.type === ItineraryBlockTypes.TRAVEL && (() => {
-                    const providers = (filteredMasterData as any).providers || [];
-                    const drivers = (filteredMasterData as any).drivers || [];
-                    
-                    return (
-                      <>
-                        <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-b">
-                          Transport Providers
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 p-4">
-                          {providers.map((tp: any) => {
-                            const isSelected = activeBlock.transportId === tp.id;
-                            return (
-                              <div key={tp.id} className="space-y-2">
-                                <button 
-                                  type="button"
-                                  onClick={() => bindProvider(activeAssignment.blockId, 'transportId', tp.id)}
-                                  className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                                    isSelected 
-                                      ? 'border-sky-600 bg-sky-50/30 ring-1 ring-sky-500/10' 
-                                      : 'border-neutral-200 bg-white hover:border-sky-450'
-                                  }`}
-                                >
-                                  <div>
-                                    <p className="font-bold text-xs text-neutral-805">{tp.name}</p>
-                                    <p className="text-[9px] text-neutral-400 uppercase font-bold tracking-tight">{tp.transport_vehicles?.length || 0} Assets Available</p>
-                                  </div>
-                                  {isSelected && <div className="w-2 h-2 bg-sky-550 rounded-full" />}
-                                </button>
-
-                                {isSelected && tp.transport_vehicles && tp.transport_vehicles.length > 0 && (
-                                  <div className="bg-neutral-50 rounded-2xl p-3 space-y-3 border border-neutral-200 mx-1 shadow-inner">
-                                    <div className="grid grid-cols-1 gap-2">
-                                      {tp.transport_vehicles.map((v: any) => {
-                                        const isVehicleSelected = activeBlock.vehicleId === v.id;
-                                        return (
-                                          <button
-                                            key={v.id}
-                                            type="button"
-                                            onClick={() => {
-                                              const updates: Partial<InternalItineraryBlock> = {
-                                                vehicleId: v.id,
-                                                transportId: tp.id,
-                                                transportRateType: 'day',
-                                                transportQuantity: 1
-                                              };
-                                              if (v.with_driver) {
-                                                updates.driverId = undefined;
-                                              }
-                                              updateBlock(activeAssignment.blockId, updates);
-                                            }}
-                                            className={`w-full p-3 rounded-xl border text-left transition-all flex flex-col gap-2 shadow-sm ${
-                                              isVehicleSelected
-                                                ? 'bg-white border-sky-500 ring-1 ring-sky-500/10'
-                                                : 'bg-white/70 border-neutral-100 hover:border-sky-400/30'
-                                            }`}
-                                          >
-                                            <div className="flex justify-between items-start w-full">
-                                              <div className="flex-1">
-                                                <p className="text-xs font-bold text-neutral-800">{v.make_and_model || v.vehicle_type}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                  <span className="text-[9px] bg-neutral-150 px-1.5 py-0.5 rounded text-neutral-500 font-bold uppercase tracking-wider">{v.vehicle_number}</span>
-                                                  {v.with_driver && <span className="text-[9px] bg-green-50 px-1.5 py-0.5 rounded text-green-600 font-bold uppercase">Incl. Driver</span>}
-                                                </div>
-                                              </div>
-                                              <div className="text-right shrink-0">
-                                                <p className="text-[10px] font-extrabold text-emerald-805">${v.day_rate?.toLocaleString()}<span className="text-[9px] text-neutral-400 font-normal">/day</span></p>
-                                              </div>
-                                            </div>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="p-3 bg-neutral-50 text-[9px] font-bold text-neutral-400 uppercase tracking-widest border-y mt-2">
-                          Chauffeur Database
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 p-4">
-                          {drivers.map((d: any) => {
-                            const isSelected = activeBlock.driverId === d.id;
-                            return (
-                              <button 
-                                key={d.id} 
-                                type="button"
-                                onClick={() => updateBlock(activeAssignment.blockId, { driverId: d.id })}
-                                className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'border-sky-500 bg-sky-50/20' 
-                                    : 'border-neutral-200 bg-white hover:border-sky-400'
-                                }`}
-                              >
-                                <div>
-                                  <p className="font-bold text-xs text-neutral-800">{d.first_name} {d.last_name}</p>
-                                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight">Professional Driver</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[10px] font-extrabold text-emerald-805">${d.per_day_rate?.toLocaleString()}<span className="text-[9px] text-neutral-400 font-normal">/day</span></p>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    );
-                  })()}
-
-                  {/* Restaurant List */}
-                  {activeAssignment.type === ItineraryBlockTypes.MEAL && (() => {
-                    const assignedRestaurantId = activeBlock.restaurantId;
-                    let dataToRender = restaurantSearchResults !== null ? [...restaurantSearchResults] : [];
-                    if (assignedRestaurantId && !dataToRender.some(r => r.id === assignedRestaurantId)) {
-                      const currentRestaurant = masterData.restaurants.find((r: any) => r.id === assignedRestaurantId);
-                      if (currentRestaurant) {
-                        dataToRender = [currentRestaurant, ...dataToRender];
-                      }
-                    }
-
-                    if (restaurantSearchResults === null && !assignedRestaurantId) {
-                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view available restaurants.</div>;
-                    }
-
-                    if (dataToRender.length === 0) {
-                      return <div className="p-8 text-center text-neutral-400 text-xs font-medium">No restaurants found. Try adjusting your search.</div>;
-                    }
-                    
-                    return (
-                      <div className="grid grid-cols-1 gap-4 p-4">
-                        {dataToRender.map((r: any) => {
-                          const isSelected = assignedRestaurantId === r.id;
-                          return (
-                            <div key={r.id} className="space-y-3">
-                              <button 
-                                type="button"
-                                onClick={() => bindProvider(activeAssignment.blockId, 'restaurantId', r.id)}
-                                className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
-                                  isSelected 
-                                    ? 'border-emerald-800 bg-emerald-50/10' 
-                                    : 'border-neutral-200 bg-white hover:border-emerald-800/30'
-                                }`}
-                              >
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-bold text-xs text-neutral-800">{r.name}</p>
-                                    {r.city && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-500 rounded text-[8px] uppercase font-bold tracking-tight">{r.city}</span>}
-                                  </div>
-                                  <div className="text-[9px] text-neutral-400 font-bold uppercase tracking-tight mt-1 flex flex-wrap gap-2 items-center">
-                                    <span>{r.cuisine_type || 'General'} Cuisine</span>
-                                    <span>&bull;</span>
-                                    <span>{r.is_buffet ? 'Buffet Available' : 'A La Carte Only'}</span>
-                                    {r.total_capacity && (
-                                      <>
-                                        <span>&bull;</span>
-                                        <span>{r.total_capacity} Pax Capacity</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                {isSelected && <div className="w-2 h-2 bg-emerald-800 rounded-full" />}
-                              </button>
-                              
-                              {isSelected && (
-                                <div className="bg-neutral-50 rounded-2xl p-3 grid grid-cols-1 gap-3 border border-neutral-100 mx-1">
-                                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-neutral-100">
-                                    <span className="text-xs font-bold text-neutral-600 px-2">Pax Count</span>
-                                    <input 
-                                      type="number" 
-                                      min="1"
-                                      className="w-16 text-center text-xs font-bold bg-neutral-50 border border-neutral-200 rounded-md py-1 outline-none focus:border-emerald-800"
-                                      value={activeBlock.restaurantQuantity || adults || 1}
-                                      onChange={(e) => updateBlock(activeAssignment.blockId, { restaurantQuantity: parseInt(e.target.value) || 1 })}
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-1 gap-2">
-                                    {[
-                                      { id: 'breakfast', label: 'Breakfast', active: r.has_breakfast, price: r.breakfast_rate_per_head },
-                                      { id: 'lunch', label: 'Lunch', active: r.has_lunch, price: r.lunch_rate_per_head },
-                                      { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head }
-                                    ].filter(m => m.active).map(meal => {
-                                      const contractedRate = meal.price || 0;
-                                      const markupPercent = markups.restaurant_markup ?? 10;
-                                      const agreedPrice = contractedRate * (1 + markupPercent / 100);
-                                      return (
-                                        <button 
-                                          key={meal.id} 
-                                          type="button"
-                                          onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}
-                                          className={`p-3 rounded-xl flex items-center justify-between text-xs font-bold ${
-                                            activeBlock.mealType === meal.label 
-                                              ? 'bg-white border-emerald-800 border shadow-sm' 
-                                              : 'bg-white/50 border-transparent hover:border-neutral-200 border'
-                                          }`}
-                                        >
-                                          <span>{meal.label}</span>
-                                          <span className="text-emerald-800">${agreedPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Guide List */}
-                  {activeAssignment.type === ItineraryBlockTypes.GUIDE && (() => {
-                    const guidesList = (filteredMasterData as any[]) || [];
-                    return (
-                      <div className="grid grid-cols-1 gap-4 p-4">
-                        {guidesList.map((g: any) => {
-                          const isSelected = activeBlock.guideId === g.id;
-                          return (
-                            <button 
-                              key={g.id} 
-                              type="button"
-                              onClick={() => bindProvider(activeAssignment.blockId, 'guideId', g.id)}
-                              className={`p-4 rounded-xl border text-left transition-all flex flex-col gap-2 ${
-                                isSelected 
-                                  ? 'border-amber-500 bg-amber-50/10' 
-                                  : 'border-neutral-200 bg-white hover:border-amber-400'
-                              }`}
-                            >
-                              <div className="flex justify-between items-start w-full">
-                                <div>
-                                  <p className="font-bold text-xs text-neutral-800">{g.first_name} {g.last_name}</p>
-                                  <p className="text-[9px] text-neutral-500 font-mono mt-0.5">{g.license_id ? `Lic: ${g.license_id}` : 'Professional Guide'}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[10px] font-extrabold text-emerald-850">${g.per_day_rate || 0}<span className="text-[9px] text-neutral-400 font-normal">/day</span></p>
-                                </div>
-                              </div>
-                              {g.languages && g.languages.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {g.languages.map((l: string) => (
-                                    <span key={l} className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded text-[8px] font-bold uppercase tracking-tight">{l}</span>
-                                  ))}
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {/* No Results Check */}
-                  {(() => {
-                    const noResults = activeAssignment.type === ItineraryBlockTypes.TRAVEL
-                      ? (((filteredMasterData as any).providers?.length || 0) === 0 && ((filteredMasterData as any).drivers?.length || 0) === 0)
-                      : ((filteredMasterData as any[]) || []).length === 0;
-
-                    if (noResults) {
-                      return (
-                        <div className="p-12 text-center text-neutral-400 italic text-xs">
-                          No providers found matching "{searchTerm}"
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              </div>
- 
-               {/* Finish Drawer Footer */}
-               <div className="p-6 sticky bottom-0 bg-white border-t border-neutral-100 flex gap-3">
-                 <button
-                   type="button"
-                   onClick={() => {
-                     const block = itinerary.find(b => b.id === activeAssignment.blockId);
-                     if (block) {
-                       if (tripData && block.type === ItineraryBlockTypes.SLEEP) {
-                         const newAccs = (tripData.accommodations || []).filter(a => Number(a.nightIndex) !== Number(block.dayNumber));
-                         setTripData({
-                           ...tripData,
-                           accommodations: newAccs
-                         });
-                       }
-                     }
-                     updateBlock(activeAssignment.blockId, {
-                       hotelId: undefined,
-                       hotelName: undefined,
-                       roomName: undefined,
-                       mealPlan: 'BB',
-                       baseRoomRate: undefined,
-                       agreedPrice: undefined,
-                       vendorId: undefined,
-                       activityId: undefined,
-                       vendorActivityId: undefined,
-                       contractedPrice: undefined,
-                       transportId: undefined,
-                       vehicleId: undefined,
-                       driverId: undefined,
-                       guideId: undefined,
-                       restaurantId: undefined,
-                       restaurantQuantity: undefined,
-                       mealType: undefined,
-                       transportRateType: undefined,
-                       transportQuantity: undefined,
-                       imageUrl: ''
-                     });
-                     setActiveAssignment(null);
-                     setSearchTerm("");
-                   }}
-                   className="flex-1 flex items-center justify-center gap-2 py-3 text-red-500 hover:text-red-700 text-[10px] font-extrabold uppercase tracking-widest hover:bg-red-50/80 rounded-xl transition-all border border-red-100"
-                 >
-                   <Link2Off size={14} /> Clear Assignment
-                 </button>
-                 <button 
-                   type="button"
-                   onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
-                   className="flex-1 py-3 bg-emerald-800 hover:bg-emerald-950 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-                 >
-                   <CheckCircle2 size={18} /> Finish Assignment
-                 </button>
-               </div>
-
-            </div>
-          </div>
-        );
-      })(), document.body)}
     </div>
   );
 }
