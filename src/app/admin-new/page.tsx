@@ -4775,6 +4775,7 @@ function PlannerWizardWorkspace() {
                     tripData={tripData}
                     setTripData={setTripData}
                     durationDays={touristData?.preferences?.duration_days || 0}
+                    onDurationDaysChange={(days) => handlePreferenceChange('duration_days', days)}
                     tourId={tourId}
                     selectedActivities={selectedActivities}
                     travelStyle={touristData?.preferences?.travel_style || 'Luxury'}
@@ -6007,6 +6008,7 @@ interface AIItineraryBuilderProps {
   tripData: TripData | null;
   setTripData: React.Dispatch<React.SetStateAction<TripData | null>>;
   durationDays: number;
+  onDurationDaysChange: (days: number) => void;
   tourId: string;
   selectedActivities: TouristActivity[];
   travelStyle: TravelStyle;
@@ -6053,6 +6055,7 @@ function AIItineraryBuilder({
   tripData,
   setTripData,
   durationDays,
+  onDurationDaysChange,
   tourId,
   selectedActivities,
   travelStyle,
@@ -7113,6 +7116,115 @@ function AIItineraryBuilder({
     setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
   };
 
+  const handleAddDay = () => {
+    onDurationDaysChange(durationDays + 1);
+  };
+
+  const handleInsertDay = () => {
+    // Shift itinerary dayNumbers for all blocks >= activeDay
+    setItinerary(prev => prev.map(b => b.dayNumber >= activeDay ? { ...b, dayNumber: b.dayNumber + 1 } : b));
+
+    // Shift dayCostOverrides for day >= activeDay
+    setTripData(prev => {
+      if (!prev) return prev;
+      const dayCostOverrides = prev.dayCostOverrides || {};
+      const newOverrides: Record<number, any> = {};
+      Object.entries(dayCostOverrides).forEach(([k, v]) => {
+        const dNum = Number(k);
+        if (dNum >= activeDay) {
+          newOverrides[dNum + 1] = v;
+        } else {
+          newOverrides[dNum] = v;
+        }
+      });
+      return {
+        ...prev,
+        dayCostOverrides: newOverrides
+      };
+    });
+
+    onDurationDaysChange(durationDays + 1);
+  };
+
+  const handleDeleteDay = () => {
+    if (durationDays <= 1) {
+      alert("Itinerary must contain at least 1 day.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete Day ${activeDay}? All activities on this day will be deleted.`)) {
+      return;
+    }
+
+    // Delete Day blocks and shift subsequent day blocks
+    setItinerary(prev => prev
+      .filter(b => b.dayNumber !== activeDay)
+      .map(b => b.dayNumber > activeDay ? { ...b, dayNumber: b.dayNumber - 1 } : b)
+    );
+
+    // Shift dayCostOverrides
+    setTripData(prev => {
+      if (!prev) return prev;
+      const dayCostOverrides = prev.dayCostOverrides || {};
+      const newOverrides: Record<number, any> = {};
+      Object.entries(dayCostOverrides).forEach(([k, v]) => {
+        const dNum = Number(k);
+        if (dNum > activeDay) {
+          newOverrides[dNum - 1] = v;
+        } else if (dNum < activeDay) {
+          newOverrides[dNum] = v;
+        }
+      });
+      return {
+        ...prev,
+        dayCostOverrides: newOverrides
+      };
+    });
+
+    onDurationDaysChange(durationDays - 1);
+    setActiveDay(Math.max(1, activeDay - 1));
+  };
+
+  const handleShiftDay = (direction: 'left' | 'right') => {
+    const targetDay = direction === 'left' ? activeDay - 1 : activeDay + 1;
+    if (targetDay < 1 || targetDay > durationDays) return;
+
+    // Swap dayNumbers for all blocks on activeDay and targetDay
+    setItinerary(prev => prev.map(b => {
+      if (b.dayNumber === activeDay) {
+        return { ...b, dayNumber: targetDay };
+      }
+      if (b.dayNumber === targetDay) {
+        return { ...b, dayNumber: activeDay };
+      }
+      return b;
+    }));
+
+    // Swap dayCostOverrides
+    setTripData(prev => {
+      if (!prev) return prev;
+      const dayCostOverrides = prev.dayCostOverrides || {};
+      const newOverrides = { ...dayCostOverrides };
+      const temp = newOverrides[activeDay];
+      if (newOverrides[targetDay] !== undefined) {
+        newOverrides[activeDay] = newOverrides[targetDay];
+      } else {
+        delete newOverrides[activeDay];
+      }
+      if (temp !== undefined) {
+        newOverrides[targetDay] = temp;
+      } else {
+        delete newOverrides[targetDay];
+      }
+      return {
+        ...prev,
+        dayCostOverrides: newOverrides
+      };
+    });
+
+    setActiveDay(targetDay);
+  };
+
   const blockTypes: { value: InternalItineraryBlock['type']; label: string }[] = [
     { value: ItineraryBlockTypes.ACTIVITY, label: 'Activity' },
     { value: ItineraryBlockTypes.SLEEP, label: 'Hotel / Sleep' },
@@ -7519,22 +7631,82 @@ function AIItineraryBuilder({
         </div>
       )}
 
-      {/* Days Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 border-b border-neutral-100">
-        <div className="flex items-center gap-1.5 bg-neutral-100/80 p-1.5 rounded-2xl border border-neutral-200/30 shrink-0">
-          {daysArray.map(day => (
-            <button
-              key={day}
-              onClick={() => setActiveDay(day)}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 shrink-0 ${
-                activeDay === day
-                  ? 'bg-white text-emerald-900 border border-neutral-200/60 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40'
-              }`}
-            >
-              Day {day}
-            </button>
-          ))}
+      {/* Days Tabs and Management */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-100">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 bg-neutral-100/80 p-1.5 rounded-2xl border border-neutral-200/30 shrink-0">
+            {daysArray.map(day => (
+              <button
+                key={day}
+                onClick={() => setActiveDay(day)}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 shrink-0 ${
+                  activeDay === day
+                    ? 'bg-white text-emerald-900 border border-neutral-200/60 shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40'
+                }`}
+              >
+                Day {day}
+              </button>
+            ))}
+          </div>
+          
+          {/* Append Day Button */}
+          <button
+            onClick={handleAddDay}
+            disabled={isLockedByOther}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-dashed border-neutral-300 hover:border-emerald-805 hover:bg-emerald-50/20 text-neutral-500 hover:text-emerald-900 transition-all text-xs font-extrabold shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Append Day at the end of itinerary"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Day</span>
+          </button>
+        </div>
+
+        {/* Day Management Toolbar */}
+        <div className="flex items-center gap-1 bg-neutral-50 p-1.5 rounded-2xl border border-neutral-200/30 shrink-0">
+          <button
+            onClick={() => handleShiftDay('left')}
+            disabled={activeDay === 1 || isLockedByOther}
+            className="p-2 text-neutral-500 hover:text-emerald-900 hover:bg-white rounded-xl disabled:opacity-35 disabled:hover:bg-transparent transition-all"
+            title="Move Day Left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          <span className="text-[10px] font-extrabold text-neutral-450 uppercase tracking-wide px-1 select-none">
+            Day {activeDay} Actions:
+          </span>
+
+          <button
+            onClick={() => handleShiftDay('right')}
+            disabled={activeDay === durationDays || isLockedByOther}
+            className="p-2 text-neutral-500 hover:text-emerald-900 hover:bg-white rounded-xl disabled:opacity-35 disabled:hover:bg-transparent transition-all"
+            title="Move Day Right"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-4 bg-neutral-200 mx-1" />
+
+          <button
+            onClick={handleInsertDay}
+            disabled={isLockedByOther}
+            className="flex items-center gap-1 px-3 py-2 text-neutral-500 hover:text-emerald-900 hover:bg-white rounded-xl transition-all text-xs font-bold"
+            title="Insert a blank day at this position"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Insert Day</span>
+          </button>
+
+          <button
+            onClick={handleDeleteDay}
+            disabled={durationDays <= 1 || isLockedByOther}
+            className="flex items-center gap-1 px-3 py-2 text-neutral-500 hover:text-rose-600 hover:bg-white rounded-xl transition-all text-xs font-bold disabled:opacity-35"
+            title="Delete this day and shift later days"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Day</span>
+          </button>
         </div>
       </div>
 
