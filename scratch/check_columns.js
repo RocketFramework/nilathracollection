@@ -32,8 +32,8 @@ console.log('Service Role Key starts with:', key ? key.substring(0, 10) + '...' 
 const supabase = createClient(url, key);
 
 async function check() {
-    console.log('Querying one record from draft_itinerary_versions...');
-    const { data, error } = await supabase.from('draft_itinerary_versions').select('*').limit(1);
+    console.log('Querying one record from daily_activities...');
+    const { data, error } = await supabase.from('daily_activities').select('*').limit(1);
     if (error) {
         console.error('Error querying:', error.message);
     } else {

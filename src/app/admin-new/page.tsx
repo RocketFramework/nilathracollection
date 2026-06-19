@@ -555,7 +555,9 @@ function PlannerWizardWorkspace() {
             hotel_room_id: null,
             quantity: 1,
             charged_unit_price: null,
-            charged_total_price: null
+            charged_total_price: null,
+            contracted_price: null,
+            contracted_total_price: null
           } : act));
 
           // 3. Update tripData accommodations sharing the oldHotelId
@@ -895,20 +897,24 @@ function PlannerWizardWorkspace() {
           if (acc) {
             let totalRooms = 0;
             let totalAgreedPrice = 0;
+            let totalContractedPrice = 0;
             let mealPlan = acc.mealPlan || 'BB';
             
             if (acc.selectedRooms && acc.selectedRooms.length > 0) {
               acc.selectedRooms.forEach(room => {
                 totalRooms += room.quantity;
                 totalAgreedPrice += (room.pricePerNight || 0) * room.quantity;
+                totalContractedPrice += (room.contractedPrice || room.pricePerNight || 0) * room.quantity;
                 if (room.mealPlan) mealPlan = room.mealPlan;
               });
             } else {
               totalRooms = acc.numberOfRooms || 1;
               totalAgreedPrice = (acc.pricePerNight || 0) * totalRooms;
+              totalContractedPrice = ((acc as any).contractedPrice || acc.pricePerNight || 0) * totalRooms;
             }
 
             const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
+            const contractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
             const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
 
             if (
@@ -917,7 +923,9 @@ function PlannerWizardWorkspace() {
               act.quantity !== totalRooms ||
               act.meal_plan !== mealPlan ||
               act.charged_unit_price !== unitPrice ||
-              act.charged_total_price !== totalAgreedPrice
+              act.charged_total_price !== totalAgreedPrice ||
+              act.contracted_price !== contractedUnitPrice ||
+              act.contracted_total_price !== totalContractedPrice
             ) {
               changed = true;
               return {
@@ -927,7 +935,9 @@ function PlannerWizardWorkspace() {
                 quantity: totalRooms,
                 meal_plan: mealPlan,
                 charged_unit_price: unitPrice,
-                charged_total_price: totalAgreedPrice
+                charged_total_price: totalAgreedPrice,
+                contracted_price: contractedUnitPrice,
+                contracted_total_price: totalContractedPrice
               };
             }
           } else {
@@ -937,7 +947,9 @@ function PlannerWizardWorkspace() {
               act.hotel_room_id !== null ||
               act.quantity !== 1 ||
               act.charged_unit_price !== null ||
-              act.charged_total_price !== null
+              act.charged_total_price !== null ||
+              act.contracted_price !== null ||
+              act.contracted_total_price !== null
             ) {
               changed = true;
               return {
@@ -946,7 +958,9 @@ function PlannerWizardWorkspace() {
                 hotel_room_id: null,
                 quantity: 1,
                 charged_unit_price: null,
-                charged_total_price: null
+                charged_total_price: null,
+                contracted_price: null,
+                contracted_total_price: null
               };
             }
           }
@@ -4041,16 +4055,16 @@ function PlannerWizardWorkspace() {
                                           <span className="text-neutral-400">Qty:</span>
                                           <span className="text-neutral-700 font-bold">{act.quantity || 1}</span>
                                         </div>
-                                        {act.charged_unit_price !== undefined && act.charged_unit_price !== null && (
+                                        {(act.contracted_price ?? act.charged_unit_price) !== undefined && (act.contracted_price ?? act.charged_unit_price) !== null && (
                                           <div className="text-right">
                                             <span className="text-[9px] text-neutral-450 uppercase block font-mono">Unit Rate</span>
-                                            <span className="font-mono text-neutral-600 font-bold">${Number(act.charged_unit_price).toFixed(2)}</span>
+                                            <span className="font-mono text-neutral-600 font-bold">${Number(act.contracted_price ?? act.charged_unit_price).toFixed(2)}</span>
                                           </div>
                                         )}
-                                        {act.charged_total_price !== undefined && act.charged_total_price !== null && (
+                                        {(act.contracted_total_price ?? act.charged_total_price) !== undefined && (act.contracted_total_price ?? act.charged_total_price) !== null && (
                                           <div className="text-right">
                                             <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate</span>
-                                            <span className="font-mono text-emerald-800 font-bold">${Number(act.charged_total_price).toFixed(2)}</span>
+                                            <span className="font-mono text-emerald-800 font-bold">${Number(act.contracted_total_price ?? act.charged_total_price).toFixed(2)}</span>
                                           </div>
                                         )}
                                         <button
