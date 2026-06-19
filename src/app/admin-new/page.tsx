@@ -5601,12 +5601,18 @@ function PlannerWizardWorkspace() {
                                                               <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests} Pax</span>
                                                             </div>
                                                             <div className="flex flex-col mt-1 space-y-0.5">
-                                                              <span className="text-[9px] text-neutral-400 font-medium uppercase tracking-tighter">{room.room_standard} &bull; {pricing.seasonLabel}</span>
+                                                              <span className="text-[9px] text-neutral-450 font-medium uppercase tracking-tighter">{room.room_standard} &bull; {pricing.seasonLabel}</span>
                                                             </div>
                                                           </div>
                                                           <div className="text-right">
-                                                            <p className="text-xs font-black text-neutral-850">${agreedUnitPrice?.toFixed(0)}</p>
-                                                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tighter line-through">${contractedPrice?.toFixed(0)} Base</p>
+                                                            {currentStep?.id === 'ai-builder' ? (
+                                                              <>
+                                                                <p className="text-xs font-black text-neutral-850">${agreedUnitPrice?.toFixed(0)}</p>
+                                                                <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-tighter line-through">${contractedPrice?.toFixed(0)} Base</p>
+                                                              </>
+                                                            ) : (
+                                                              <p className="text-xs font-black text-neutral-855">${contractedPrice?.toFixed(0)}</p>
+                                                            )}
                                                             <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Per Night</p>
                                                           </div>
                                                         </button>
