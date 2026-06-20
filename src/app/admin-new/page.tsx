@@ -337,6 +337,18 @@ function PlannerWizardWorkspace() {
   const [customRateTotal, setCustomRateTotal] = useState<string>('');
   const [customRateNote, setCustomRateNote] = useState<string>('');
 
+  // Change Hotel Drawer States (Local Only)
+  const [isChangeHotelDrawerOpen, setIsChangeHotelDrawerOpen] = useState(false);
+  const [changeHotelDrawerAct, setChangeHotelDrawerAct] = useState<any | null>(null);
+  const [changeHotelSelectedHotelId, setChangeHotelSelectedHotelId] = useState<string | null>(null);
+  const [changeHotelSelectedRooms, setChangeHotelSelectedRooms] = useState<any[]>([]);
+  const [changeHotelPendingRoomState, setChangeHotelPendingRoomState] = useState<Record<string, { count?: number; mealPlan?: string }>>({});
+  const [changeHotelSearchCity, setChangeHotelSearchCity] = useState('');
+  const [changeHotelSearchName, setChangeHotelSearchName] = useState('');
+  const [changeHotelIsSearching, setChangeHotelIsSearching] = useState(false);
+  const [changeHotelSearchResults, setChangeHotelSearchResults] = useState<any[] | null>(null);
+  const [changeHotelStays, setChangeHotelStays] = useState<any[]>([]);
+
   // 1. Wizard Track State
   const [track, setTrack] = useState<TrackType>('basic');
 
@@ -1262,6 +1274,52 @@ function PlannerWizardWorkspace() {
       setActiveAssignment({ blockId: matchingBlock.id, type: ItineraryBlockTypes.SLEEP });
     }
     setSearchTerm('');
+  };
+
+  const handleOpenChangeHotelDrawer = (act: any, stays: any[] = []) => {
+    setChangeHotelDrawerAct(act);
+    setChangeHotelStays(stays);
+    setChangeHotelSelectedHotelId(act.hotel_id || null);
+    
+    // Initialize search city with act's location if available
+    const hotel = masterData.hotels?.find((h: any) => h.id === act.hotel_id);
+    setChangeHotelSearchCity(hotel?.closest_city || act.location_name || '');
+    setChangeHotelSearchName('');
+    setChangeHotelSearchResults(null);
+
+    // Initialize selectedRooms from tripData accommodations if possible
+    const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+    const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
+    if (acc) {
+      setChangeHotelSelectedRooms(acc.selectedRooms || []);
+    } else {
+      setChangeHotelSelectedRooms([]);
+    }
+    setChangeHotelPendingRoomState({});
+    setIsChangeHotelDrawerOpen(true);
+  };
+
+  const handleSearchChangeHotels = async () => {
+    setChangeHotelIsSearching(true);
+    try {
+      const res = await searchHotelsAction(changeHotelSearchCity, changeHotelSearchName);
+      if (res.success && res.hotels) {
+        setChangeHotelSearchResults(res.hotels);
+        // Merge into masterData.hotels so details are available
+        setMasterData((prev: any) => {
+          const existingIds = new Set(prev.hotels.map((h: any) => h.id));
+          const newHotels = res.hotels.filter((h: any) => !existingIds.has(h.id));
+          return { ...prev, hotels: [...prev.hotels, ...newHotels] };
+        });
+      } else {
+        setChangeHotelSearchResults([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setChangeHotelSearchResults([]);
+    } finally {
+      setChangeHotelIsSearching(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -4597,7 +4655,7 @@ function PlannerWizardWorkspace() {
                                            onClick={() => {
                                              const firstAct = standardStays[0];
                                              if (firstAct) {
-                                               handleOpenHotelDrawer(firstAct);
+                                               handleOpenChangeHotelDrawer(firstAct, standardStays);
                                              }
                                            }}
                                            disabled={isLockedByOther}
@@ -6962,6 +7020,467 @@ function PlannerWizardWorkspace() {
                   </button>
                 </div>
 
+              </div>
+            </div>
+          );
+        })(), document.body)}
+
+        {/* Change Hotel Drawer Overlay (Local Only) */}
+        {isChangeHotelDrawerOpen && mounted && createPortal((() => {
+          if (!changeHotelDrawerAct) return null;
+
+          const dayNumber = changeHotelDrawerAct.tour_itineraries?.day_number || changeHotelDrawerAct.day_number || changeHotelDrawerAct.dayNumber || 0;
+          let stayDate = "";
+          const arrivalDate = touristData?.preferences?.arrival_date;
+          if (arrivalDate) {
+            try {
+              const d = new Date(arrivalDate);
+              d.setDate(d.getDate() + (dayNumber - 1));
+              stayDate = d.toISOString().split('T')[0];
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          const calculateRoomPrice = (hotel: any, room: any, mealPlan: string, roomType: string) => {
+            let baseRate = 0;
+            let seasonLabel = "Standard";
+            if (room.room_rates && room.room_rates.length > 0) {
+              const applicableRates = room.room_rates.filter((r: any) => {
+                if (!stayDate) return true;
+                if (r.start_date) {
+                  if (stayDate < r.start_date) return false;
+                  if (r.end_date && stayDate > r.end_date) return false;
+                  return true;
+                }
+                return true;
+              }).sort((a: any, b: any) => {
+                const aHasDates = a.start_date ? 1 : 0;
+                const bHasDates = b.start_date ? 1 : 0;
+                return bHasDates - aHasDates;
+              });
+              
+              const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
+              
+              if (ratesToSearch.length > 0) {
+                let prefix = 'dbl';
+                if (roomType === 'Single') prefix = 'sgl';
+                else if (roomType === 'Double' || roomType === 'Twin') prefix = 'dbl';
+                else if (roomType === 'Triple') prefix = 'tpl';
+                else if (roomType === 'Family') prefix = 'qud';
+
+                const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
+                const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
+                
+                if (matrixRateObj) {
+                  baseRate = matrixRateObj[fieldName];
+                  seasonLabel = matrixRateObj.season_label || "Seasonal";
+                } else {
+                  baseRate = room.base_rate || 0;
+                }
+              } else {
+                baseRate = room.base_rate || 0;
+              }
+            } else {
+              baseRate = room.base_rate || 0;
+            }
+            return { total: baseRate, seasonLabel };
+          };
+
+          let dataToRender = changeHotelSearchResults !== null ? [...changeHotelSearchResults] : [];
+          
+          const initialSuggestions = (masterData.hotels || []).filter((h: any) => h.id !== changeHotelSelectedHotelId);
+          if (dataToRender.length === 0 && changeHotelSearchResults === null) {
+            dataToRender = initialSuggestions;
+          }
+
+          if (changeHotelSelectedHotelId) {
+            const selectedHotel = masterData.hotels.find((h: any) => h.id === changeHotelSelectedHotelId);
+            if (selectedHotel) {
+              dataToRender = [selectedHotel, ...dataToRender.filter(h => h.id !== changeHotelSelectedHotelId)];
+            }
+          }
+
+          return (
+            <div className="fixed inset-0 z-[80] overflow-hidden flex justify-end">
+              <div 
+                className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
+                onClick={() => { setIsChangeHotelDrawerOpen(false); }}
+              />
+
+              <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-350 ease-out">
+                <div className="p-6 border-b border-neutral-150 flex items-center justify-between shrink-0 bg-neutral-50/50">
+                  <div>
+                    <h3 className="text-base font-serif font-bold text-neutral-800">Change Hotel (Final Stays)</h3>
+                    <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">
+                      Configure Stay for {stayDate ? formatDate(stayDate) : `Day ${dayNumber}`}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setIsChangeHotelDrawerOpen(false); }} 
+                    className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 border-b border-neutral-150 shrink-0 space-y-4">
+                  <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">City (Required)</label>
+                        <input
+                          value={changeHotelSearchCity}
+                          onChange={e => setChangeHotelSearchCity(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && changeHotelSearchCity.trim() && handleSearchChangeHotels()}
+                          placeholder="E.g. Colombo"
+                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1 block">Hotel Name</label>
+                        <input
+                          value={changeHotelSearchName}
+                          onChange={e => setChangeHotelSearchName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && changeHotelSearchCity.trim() && handleSearchChangeHotels()}
+                          placeholder="Optional name"
+                          className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-neutral-800"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSearchChangeHotels}
+                      disabled={!changeHotelSearchCity.trim() || changeHotelIsSearching}
+                      className="w-full py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                      {changeHotelIsSearching ? "Searching..." : "Search Hotels"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  {dataToRender.length === 0 ? (
+                    <div className="p-8 text-center text-neutral-400 text-xs font-medium">Please search for a city to view hotels.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {dataToRender.map((h: any) => {
+                        const isSelected = changeHotelSelectedHotelId === h.id;
+                        const rooms = h.hotel_rooms || [];
+                        const minRate = h.base_rate || 0;
+
+                        return (
+                          <div key={h.id} className={`rounded-2xl border transition-all overflow-hidden bg-white shadow-sm ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setChangeHotelSelectedHotelId(h.id);
+                                setChangeHotelSelectedRooms([]);
+                                setChangeHotelPendingRoomState({});
+
+                                // 1. Update only the hotel id in dbActivities table state for activities in this block
+                                const stayIds = new Set(changeHotelStays.map(s => s.id));
+                                setDbActivities(prev => prev.map(act => {
+                                  if (stayIds.has(act.id)) {
+                                    return {
+                                      ...act,
+                                      hotel_id: h.id,
+                                      location_name: h.closest_city || h.location_address || act.location_name || ''
+                                    };
+                                  }
+                                  return act;
+                                }));
+
+                                // 2. Update itinerary blocks corresponding to these stays
+                                const stayDays = new Set(changeHotelStays.map(s => {
+                                  return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
+                                }));
+                                setItinerary(prev => prev.map(b => {
+                                  const dayNum = Number(b.dayNumber);
+                                  if (b.type === ItineraryBlockTypes.SLEEP && stayDays.has(dayNum)) {
+                                    return {
+                                      ...b,
+                                      hotelId: h.id,
+                                      hotelName: h.name,
+                                      locationName: h.closest_city || h.location_address || ''
+                                    };
+                                  }
+                                  return b;
+                                }));
+
+                                // 3. Update tripData accommodations corresponding to these stays
+                                if (tripData) {
+                                  let newAccs = [...(tripData.accommodations || [])];
+                                  newAccs = newAccs.map(a => {
+                                    const nightIdx = Number(a.nightIndex);
+                                    if (stayDays.has(nightIdx)) {
+                                      return {
+                                        ...a,
+                                        hotelId: h.id,
+                                        hotelName: h.name,
+                                        stayClass: h.hotel_class || a.stayClass || 'Standard',
+                                        address: h.location_address || a.address || '',
+                                      };
+                                    }
+                                    return a;
+                                  });
+                                  setTripData({
+                                    ...tripData,
+                                    accommodations: newAccs
+                                  });
+                                }
+                              }}
+                              className="w-full p-4 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-3"
+                            >
+                              <div className="flex justify-between items-start w-full">
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <p className="font-bold text-xs text-neutral-800 truncate">{h.name}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <MapPin size={10} className="text-neutral-400" />
+                                    <span className="text-[9px] text-neutral-500 font-medium">{h.closest_city}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right flex flex-col items-end shrink-0">
+                                  <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Starting From</span>
+                                  <span className="text-xs font-black text-neutral-855">${minRate}</span>
+                                </div>
+                              </div>
+
+                              {isSelected && (
+                                <div className="w-full flex items-center justify-between bg-emerald-50/20 px-3 py-1.5 rounded-xl border border-emerald-100/50">
+                                  <span className="text-[9px] font-black text-emerald-800 uppercase tracking-wide">Selected Hotel</span>
+                                  <Check className="w-3.5 h-3.5 text-emerald-800" />
+                                </div>
+                              )}
+                            </button>
+
+                            {isSelected && (
+                              <div className="space-y-4 px-3 pb-4 pt-2 border-t border-neutral-100">
+                                {(() => {
+                                  const roomTypes = ['Single', 'Double', 'Twin', 'Triple', 'Family'];
+
+                                  return (
+                                    <div className="space-y-4">
+                                      {roomTypes.map((rType) => {
+                                        const reqId = rType;
+                                        const stateKey = `${changeHotelDrawerAct.id}-${reqId}`;
+                                        const assignedRoom = changeHotelSelectedRooms.find((sr: any) => sr.reqId === reqId);
+                                        const isReqMet = !!assignedRoom;
+                                        
+                                        const pendingState = changeHotelPendingRoomState[stateKey] || {};
+                                        const currentMealPlan = assignedRoom?.mealPlan || pendingState.mealPlan || 'BB';
+                                        
+                                        const displayCount = assignedRoom?.quantity ?? pendingState.count ?? 0;
+
+                                        return (
+                                          <div key={reqId} className="border border-neutral-200 rounded-xl overflow-hidden shadow-sm bg-neutral-50/50">
+                                            <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center gap-4">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold text-neutral-600 uppercase whitespace-nowrap">{rType} Rooms</span>
+                                                <input 
+                                                  type="number" 
+                                                  min="0" 
+                                                  value={displayCount}
+                                                  onChange={(e) => {
+                                                    const newQty = parseInt(e.target.value) || 0;
+                                                    let updatedSelected = [...changeHotelSelectedRooms];
+                                                    if (assignedRoom) {
+                                                      if (newQty === 0) {
+                                                        updatedSelected = changeHotelSelectedRooms.filter((sr: any) => sr.reqId !== reqId);
+                                                      } else {
+                                                        updatedSelected = changeHotelSelectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, quantity: newQty } : sr);
+                                                      }
+                                                      setChangeHotelSelectedRooms(updatedSelected);
+                                                      
+                                                      if (tripData) {
+                                                        const stayDays = new Set(changeHotelStays.map(s => Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0)));
+                                                        setTripData({
+                                                          ...tripData,
+                                                          accommodations: tripData.accommodations.map(a => {
+                                                            const matches = stayDays.has(Number(a.nightIndex));
+                                                            return matches ? { ...a, selectedRooms: updatedSelected } : a;
+                                                          })
+                                                        });
+                                                      }
+                                                    } else {
+                                                      setChangeHotelPendingRoomState(prev => ({
+                                                        ...prev,
+                                                        [stateKey]: { ...prev[stateKey], count: newQty }
+                                                      }));
+                                                    }
+                                                  }}
+                                                  className="w-16 text-xs font-bold text-center py-1 px-2 border border-neutral-300 rounded focus:border-emerald-800 outline-none bg-white text-neutral-800"
+                                                />
+                                              </div>
+                                              {isReqMet ? (
+                                                <span className="text-[9px] font-black text-emerald-855 px-1.5 py-0.5 bg-emerald-50 rounded tracking-tight">SELECTED</span>
+                                              ) : (
+                                                <span className="text-[9px] font-bold text-neutral-450 px-1.5 py-0.5 bg-neutral-100 rounded border border-neutral-200 tracking-tight">UNSELECTED</span>
+                                              )}
+                                            </div>
+
+                                            {displayCount > 0 && (
+                                              <div className="p-2 space-y-2">
+                                                <div className="flex bg-neutral-200/50 p-1 rounded-xl gap-1 mb-2">
+                                                  {(['BB', 'HB', 'FB', 'AI'] as const).map(mp => (
+                                                    <button
+                                                      key={mp}
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        if (assignedRoom) {
+                                                          const updatedSelected = changeHotelSelectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
+                                                          setChangeHotelSelectedRooms(updatedSelected);
+                                                          
+                                                          if (tripData) {
+                                                            const stayDays = new Set(changeHotelStays.map(s => Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0)));
+                                                            setTripData({
+                                                              ...tripData,
+                                                              accommodations: tripData.accommodations.map(a => {
+                                                                const matches = stayDays.has(Number(a.nightIndex));
+                                                                return matches ? { ...a, selectedRooms: updatedSelected } : a;
+                                                              })
+                                                            });
+                                                          }
+                                                        } else {
+                                                          setChangeHotelPendingRoomState(prev => ({
+                                                            ...prev,
+                                                            [stateKey]: { ...prev[stateKey], mealPlan: mp }
+                                                          }));
+                                                        }
+                                                      }}
+                                                      className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all ${currentMealPlan === mp ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-black/5' : 'text-neutral-500 hover:text-neutral-700'}`}
+                                                    >
+                                                      {mp}
+                                                    </button>
+                                                  ))}
+                                                </div>
+
+                                                <div className="grid grid-cols-1 gap-2">
+                                                  {rooms.map((room: any) => {
+                                                    const isRoomSelectedHere = assignedRoom?.roomId === room.id;
+                                                    const pricing = calculateRoomPrice(h, room, currentMealPlan, rType);
+                                                    const contractedPrice = pricing.total;
+                                                    const agreedUnitPrice = contractedPrice * (1 + roomMarkup / 100);
+
+                                                    return (
+                                                      <button
+                                                        key={room.id}
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          
+                                                          const newSelected = [...changeHotelSelectedRooms.filter((sr: any) => sr.reqId !== reqId)];
+                                                          const roomData = {
+                                                            reqId: reqId,
+                                                            roomId: room.id,
+                                                            roomName: room.room_name,
+                                                            roomStandard: room.room_standard,
+                                                            quantity: displayCount,
+                                                            contractedPrice: contractedPrice,
+                                                            pricePerNight: agreedUnitPrice,
+                                                            mealPlan: currentMealPlan
+                                                          };
+                                                          newSelected.push(roomData);
+
+                                                          setChangeHotelSelectedRooms(newSelected);
+
+                                                          // 1. Update hotel_room_id in dbActivities state for activities in this block
+                                                          const stayIds = new Set(changeHotelStays.map(s => s.id));
+                                                          setDbActivities(prev => prev.map(act => {
+                                                            if (stayIds.has(act.id)) {
+                                                              return {
+                                                                ...act,
+                                                                hotel_room_id: room.id
+                                                              };
+                                                            }
+                                                            return act;
+                                                          }));
+
+                                                          // 2. Update roomName and mealPlan in itinerary blocks corresponding to these stays
+                                                          const stayDays = new Set(changeHotelStays.map(s => {
+                                                            return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
+                                                          }));
+                                                          setItinerary(prev => prev.map(b => {
+                                                            const dayNum = Number(b.dayNumber);
+                                                            if (b.type === ItineraryBlockTypes.SLEEP && stayDays.has(dayNum)) {
+                                                              return {
+                                                                ...b,
+                                                                roomName: room.room_name,
+                                                                mealPlan: currentMealPlan
+                                                              };
+                                                            }
+                                                            return b;
+                                                          }));
+
+                                                          // 3. Update accommodations in tripData state corresponding to these stays
+                                                          if (tripData) {
+                                                            let newAccs = [...(tripData.accommodations || [])];
+                                                            newAccs = newAccs.map(a => {
+                                                              const nightIdx = Number(a.nightIndex);
+                                                              if (stayDays.has(nightIdx)) {
+                                                                return {
+                                                                  ...a,
+                                                                  selectedRooms: newSelected,
+                                                                  roomId: room.id,
+                                                                  roomName: room.room_name,
+                                                                  mealPlan: currentMealPlan
+                                                                };
+                                                              }
+                                                              return a;
+                                                            });
+                                                            setTripData({
+                                                              ...tripData,
+                                                              accommodations: newAccs
+                                                            });
+                                                          }
+                                                        }}
+                                                        className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
+                                                      >
+                                                        <div className="flex-1">
+                                                          <div className="flex items-center gap-2">
+                                                            <p className="text-xs font-bold text-neutral-800">{room.room_name}</p>
+                                                            <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-bold uppercase tracking-tighter">Max {room.max_guests} Pax</span>
+                                                          </div>
+                                                          <div className="flex flex-col mt-1 space-y-0.5">
+                                                            <span className="text-[9px] text-neutral-450 font-medium uppercase tracking-tighter">{room.room_standard} &bull; {pricing.seasonLabel}</span>
+                                                          </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                          <p className="text-xs font-black text-neutral-855">${contractedPrice?.toFixed(0)}</p>
+                                                          <p className="text-[8px] font-bold text-neutral-400 uppercase tracking-tighter">Per Night</p>
+                                                        </div>
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
+                                {rooms.length === 0 && (
+                                  <span className="text-[10px] text-neutral-450 italic px-3">No room categories configured.</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6 border-t border-neutral-150 bg-neutral-50 flex items-center justify-end gap-3 shrink-0">
+                  <button 
+                    onClick={() => { setIsChangeHotelDrawerOpen(false); }}
+                    className="px-5 py-2.5 bg-neutral-800 hover:bg-neutral-900 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
+                  >
+                    Close Selection
+                  </button>
+                </div>
               </div>
             </div>
           );
