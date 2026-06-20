@@ -55,11 +55,13 @@ export interface Hotel {
     description?: string;
     sales_agent_name?: string;
     sales_agent_contact?: string;
+    sales_email?: string;
     reservation_agent_name?: string;
     reservation_agent_contact?: string;
     reservation_email?: string;
     gm_name?: string;
     gm_contact?: string;
+    gm_email?: string;
     hotel_class?: string;
     number_of_rooms?: number;
     disable_support?: 'none' | 'some areas' | 'full access';

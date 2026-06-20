@@ -1947,7 +1947,11 @@ function PlannerWizardWorkspace() {
         const checkOutDateFormatted = formatDate(checkOutDate);
 
         const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-        const roomCategories = sortedStays.flatMap(act => {
+        const roomsByDate = sortedStays.map(act => {
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+
             const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
             const activeRooms = sizes.map(size => {
                 const count = (act as any)[`${size}_count`] || 0;
@@ -1956,13 +1960,23 @@ function PlannerWizardWorkspace() {
                 return { type: displayType, count };
             }).filter(r => r.count > 0);
 
+            let reqStr = '';
             if (activeRooms.length === 0) {
                 const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
-                return [`${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`];
+                reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
+            } else {
+                reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
             }
-            return activeRooms.map(r => `${r.count} x ${r.type}`);
+
+            return { displayDate, reqStr };
         });
-        const uniqueRooms = Array.from(new Set(roomCategories)).join(', ');
+
+        let roomsRequiredText = '';
+        if (roomsByDate.length === 1) {
+            roomsRequiredText = `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
+        } else {
+            roomsRequiredText = roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
+        }
 
         const adults = touristData?.preferences?.adults || 2;
         const children = touristData?.preferences?.children || 0;
@@ -1998,7 +2012,7 @@ function PlannerWizardWorkspace() {
         });
 
         bodyHtml = bodyHtml.replace(/{{X}}/g, String(nightsCount));
-        bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, uniqueRooms);
+        bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, roomsRequiredText);
         bodyHtml = bodyHtml.replace(/{{e.g., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
         bodyHtml = bodyHtml.replace(/{{e\.g\.,.*}}/gi, occupancyStr);
         bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/g, uniqueMealPlans || 'BB');

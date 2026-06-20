@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
-// Manually parse .env.local
+// Parse .env.local
 try {
     const envPath = path.join(__dirname, '../.env.local');
     if (fs.existsSync(envPath)) {
@@ -27,18 +27,18 @@ try {
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-console.log('URL:', url);
-console.log('Service Role Key starts with:', key ? key.substring(0, 10) + '...' : 'undefined');
 const supabase = createClient(url, key);
 
-async function check() {
-    console.log('Querying one record from hotels...');
-    const { data, error } = await supabase.from('hotels').select('*').limit(1);
+async function run() {
+    console.log('Running migration: ALTER TABLE hotels ADD COLUMN IF NOT EXISTS gm_email VARCHAR(255);');
+    const { error } = await supabase.rpc('run_sql', { 
+        sql_query: 'ALTER TABLE hotels ADD COLUMN IF NOT EXISTS gm_email VARCHAR(255);' 
+    });
     if (error) {
-        console.error('Error querying:', error.message);
+        console.error('Migration failed:', error.message);
     } else {
-        console.log('Query success! Record structure:', data);
+        console.log('Migration completed successfully!');
     }
 }
 
-check();
+run();

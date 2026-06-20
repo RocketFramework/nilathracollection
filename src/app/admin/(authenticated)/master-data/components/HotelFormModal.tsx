@@ -49,10 +49,13 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
         has_contracted_price: true,
         sales_agent_name: "",
         sales_agent_contact: "",
+        sales_email: "",
         reservation_agent_name: "",
         reservation_agent_contact: "",
+        reservation_email: "",
         gm_name: "",
         gm_contact: "",
+        gm_email: "",
         disable_support: "none",
         outdoor_pool: false,
         wellness: false,
@@ -80,8 +83,9 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                     name: "", location_address: "", closest_city: "", location_coordinates: "", description: "", hotel_class: "", number_of_rooms: 0,
                     free_cancellation_weeks: undefined, admin_approved: false, vat_registered: false, is_suspended: false,
                     has_contracted_price: true,
-                    sales_agent_name: "", sales_agent_contact: "", reservation_agent_name: "", reservation_agent_contact: "",
-                    gm_name: "", gm_contact: "", disable_support: "none", outdoor_pool: false, wellness: false,
+                    sales_agent_name: "", sales_agent_contact: "", sales_email: "", reservation_agent_name: "", reservation_agent_contact: "",
+                    reservation_email: "",
+                    gm_name: "", gm_contact: "", gm_email: "", disable_support: "none", outdoor_pool: false, wellness: false,
                     business_facility: false, parking: false, internet: false, airport_shuttle: false,
                     child_free_until_age: 6, child_half_price_until_age: 12, child_half_price_percentage: 50, child_policy_notes: "",
                     rooms: [], recreations: [], payment_details: {}
@@ -392,6 +396,10 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Contact</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.sales_agent_contact || ''} onChange={e => handleChange('sales_agent_contact', e.target.value)} />
                             </div>
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Email</label>
+                                <input type="email" className="w-full outline-none text-brand-charcoal font-medium" value={formData.sales_email || ''} onChange={e => handleChange('sales_email', e.target.value)} />
+                            </div>
 
                             {/* Reservation Agent */}
                             <div className="col-span-2 text-sm font-bold text-[#2B2B2B] bg-neutral-100 p-3 rounded-lg mt-4">Reservation Agent</div>
@@ -403,6 +411,10 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Contact</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.reservation_agent_contact || ''} onChange={e => handleChange('reservation_agent_contact', e.target.value)} />
                             </div>
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Email (For RFQ Requests)</label>
+                                <input type="email" className="w-full outline-none text-brand-charcoal font-medium" value={formData.reservation_email || ''} onChange={e => handleChange('reservation_email', e.target.value)} />
+                            </div>
 
                             {/* GM */}
                             <div className="col-span-2 text-sm font-bold text-[#2B2B2B] bg-neutral-100 p-3 rounded-lg mt-4">General Manager</div>
@@ -413,6 +425,10 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Contact</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.gm_contact || ''} onChange={e => handleChange('gm_contact', e.target.value)} />
+                            </div>
+                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Email</label>
+                                <input type="email" className="w-full outline-none text-brand-charcoal font-medium" value={formData.gm_email || ''} onChange={e => handleChange('gm_email', e.target.value)} />
                             </div>
                         </div>
                     )}
