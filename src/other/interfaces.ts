@@ -275,6 +275,21 @@ export interface InternalItineraryBlock {
     guideId?: string;
     restaurantId?: string;
     restaurantQuantity?: number;
+    quantity?: number;
+    contractedTotalPrice?: number;
+    isCustomPO?: boolean;
+
+    // Room Standard Sizes & Counts
+    single_room_id?: string;
+    single_room_count?: number;
+    double_room_id?: string;
+    double_room_count?: number;
+    twin_room_id?: string;
+    twin_room_count?: number;
+    triple_room_id?: string;
+    triple_room_count?: number;
+    family_room_id?: string;
+    family_room_count?: number;
 
     // Negotiation Flags
     driverMealIncluded?: boolean;

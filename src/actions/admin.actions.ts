@@ -27,6 +27,7 @@ import { ItineraryDraftService } from "@/services/itinerary-draft.service";
 import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from "@/other/interfaces";
 import { TourSharedEmailService } from "@/services/tour-shared-email.service";
 import { enforcePermission } from "@/utils/auth-enforcer";
+import { AppSettingsService } from "@/services/app-settings.service";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -1034,9 +1035,7 @@ export async function saveRoomMarkupAction(markup: number) {
 
 export async function getAppMarkupsAction() {
     try {
-        const adminSupabase = createAdminClient();
-        const { data, error } = await adminSupabase.from('app_settings').select('setting_key, setting_value');
-        if (error) throw error;
+        const data = await AppSettingsService.getAppSettings();
         
         const markups = {
             room_markup: 10,
@@ -1078,12 +1077,14 @@ export async function getAppMarkupsAction() {
             policy_luxury: "",
             policy_ultra_vip: "",
             policy_draft: "",
+            address: "Nilathra Hotel Management (Pvt) Ltd, 145/1 Vajira Rd, Colombo 00500",
+            company_logo: "",
         };
 
         if (data) {
             data.forEach(item => {
                 if (item.setting_key in markups) {
-                    if (item.setting_key.startsWith('policy_')) {
+                    if (item.setting_key.startsWith('policy_') || item.setting_key === 'address' || item.setting_key === 'company_logo') {
                         (markups as any)[item.setting_key] = item.setting_value || "";
                     } else {
                         (markups as any)[item.setting_key] = Number(item.setting_value);
@@ -1134,19 +1135,19 @@ export async function getAppMarkupsAction() {
             policy_luxury: "",
             policy_ultra_vip: "",
             policy_draft: "",
+            address: "Nilathra Hotel Management (Pvt) Ltd, 145/1 Vajira Rd, Colombo 00500",
+            company_logo: "",
         } };
     }
 }
 
 export async function saveAppMarkupsAction(markups: Record<string, any>) {
     try {
-        const adminSupabase = createAdminClient();
         const updates = Object.entries(markups).map(([key, value]) => ({
             setting_key: key,
             setting_value: value !== undefined && value !== null ? value.toString() : ""
         }));
-        const { error } = await adminSupabase.from('app_settings').upsert(updates);
-        if (error) throw error;
+        await AppSettingsService.saveAppSettings(updates);
         return { success: true };
     } catch (error: any) {
         console.error("Error saving markups:", error);
@@ -1508,6 +1509,96 @@ export async function getSharedEmailsAction(tourId: string) {
     } catch (error: any) {
         console.error("Error in getSharedEmailsAction:", error);
         return { success: false, error: error.message || "Failed to fetch shared emails." };
+    }
+}
+
+export async function getHotelRfqTemplateAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('email_templates')
+            .select('*')
+            .eq('name', 'Request For Quote')
+            .maybeSingle();
+        if (error) throw error;
+        return { success: true, template: data };
+    } catch (error: any) {
+        console.error("Error fetching RFQ template:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function sendHotelRfqEmailAction(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+    pdfBase64?: string;
+    pdfFilename?: string;
+    quotationRequestId?: string;
+}) {
+    try {
+        const { to, from, subject, body, pdfBase64, pdfFilename, quotationRequestId } = options;
+        if (!to) {
+            return { success: false, error: "Recipient email is required." };
+        }
+        const apiKey = process.env.RESEND_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: "Resend API key is not configured in .env.local" };
+        }
+
+        const isHtml = /<[a-z][\s\S]*>/i.test(body);
+        const contentHtml = `
+              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;${isHtml ? '' : 'white-space:pre-wrap;'}">${body}</div>
+              
+              <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
+              </p>
+        `;
+        const html = emailService.generateEmailHtml('Request for Quotation', 'Request for Quotation', contentHtml);
+        const sender = from || process.env.EMAIL_FROM || 'concierge@nilathra.com';
+
+        const attachments = [];
+        if (pdfBase64 && pdfFilename) {
+            attachments.push({
+                filename: pdfFilename,
+                content: pdfBase64
+            });
+        }
+
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                from: sender,
+                to: to,
+                subject: subject,
+                html: html,
+                attachments
+            })
+        });
+
+        const resJson = await res.json();
+        if (!res.ok) {
+            console.error("Resend email delivery failed:", resJson);
+            return { success: false, error: resJson.message || "Failed to send email via Resend." };
+        }
+
+        if (quotationRequestId) {
+            const adminSupabase = createAdminClient();
+            await adminSupabase
+                .from('quotation_request')
+                .update({ status: 'Sent', updated_at: new Date().toISOString() })
+                .eq('id', quotationRequestId);
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in sendHotelRfqEmailAction:", error);
+        return { success: false, error: error.message || "An unexpected error occurred." };
     }
 }
 

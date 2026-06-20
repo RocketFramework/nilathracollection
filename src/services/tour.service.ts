@@ -573,7 +573,7 @@ export class TourService {
 
             // Look up the matching hotel for this day (nightIndex === day)
             const matchingHotel = tripData.accommodations?.find(h => h.nightIndex === day);
-            let dbHotelId = (matchingHotel?.hotelId && matchingHotel.hotelId.includes('-')) ? matchingHotel.hotelId : null;
+            let dbHotelId = (matchingHotel?.hotelId && isUuid(matchingHotel.hotelId)) ? matchingHotel.hotelId : null;
 
             // If a UUID was provided, double check it actually exists in the 'hotels' table to prevent ghost ID key errors
             if (dbHotelId) {
@@ -631,7 +631,7 @@ export class TourService {
 
             for (const b of blocks) {
                 // Safeguard: Ensure block ID is a valid UUID
-                if (!b.id || !b.id.includes('-')) {
+                if (!b.id || !isUuid(b.id)) {
                     console.warn("Skipping invalid block ID during relational save:", b.id, b.name);
                     continue;
                 }
@@ -640,12 +640,12 @@ export class TourService {
                 let vendorId = b.vendorId || null;
 
                 // UUID Validation for vendorId
-                if (vendorId && !vendorId.includes('-')) {
+                if (vendorId && !isUuid(vendorId)) {
                     vendorId = null; // Prevent DB error if it's a legacy name string instead of UUID
                 }
 
                 if (!vendorId && b.linkedSupplierId && typeof b.linkedSupplierId === 'string') {
-                    if (!b.linkedSupplierId.includes('-')) {
+                    if (!isUuid(b.linkedSupplierId)) {
                         // Looks like a name, not a UUID, let's try to grab the real UUID
                         const { data: vendorMatches } = await supabaseAdmin
                             .from('vendors')
@@ -741,12 +741,12 @@ export class TourService {
                     contracted_price: b.contractedPrice,
                     charged_unit_price: b.agreedPrice,
                     charged_total_price: b.agreedPrice,
-                    transport_id: (b.transportId && b.transportId.includes('-')) ? b.transportId : (tripData.defaultTransportId || null),
-                    vehicle_id: (b.vehicleId && b.vehicleId.includes('-')) ? b.vehicleId : (tripData.defaultVehicleId || null),
-                    driver_id: (b.driverId && b.driverId.includes('-')) ? b.driverId : (tripData.defaultDriverId || null),
-                    guide_id: (b.guideId && b.guideId.includes('-')) ? b.guideId : (tripData.defaultGuideId || null),
-                    restaurant_id: (b.restaurantId && b.restaurantId.includes('-')) ? b.restaurantId : null,
-                    hotel_id: (b.hotelId && b.hotelId.includes('-')) ? b.hotelId : null,
+                    transport_id: (b.transportId && isUuid(b.transportId)) ? b.transportId : (tripData.defaultTransportId || null),
+                    vehicle_id: (b.vehicleId && isUuid(b.vehicleId)) ? b.vehicleId : (tripData.defaultVehicleId || null),
+                    driver_id: (b.driverId && isUuid(b.driverId)) ? b.driverId : (tripData.defaultDriverId || null),
+                    guide_id: (b.guideId && isUuid(b.guideId)) ? b.guideId : (tripData.defaultGuideId || null),
+                    restaurant_id: (b.restaurantId && isUuid(b.restaurantId)) ? b.restaurantId : null,
+                    hotel_id: (b.hotelId && isUuid(b.hotelId)) ? b.hotelId : null,
                     driver_meal_included: b.driverMealIncluded || false,
                     driver_acc_included: b.driverAccIncluded || false,
                     guide_room_discount: b.guideRoomDiscount || null,
@@ -762,13 +762,13 @@ export class TourService {
                         let totalRooms = 0;
                         let mealPlan = null;
 
-                        if (!basePayload.hotel_id && acc.hotelId?.includes('-')) {
+                        if (!basePayload.hotel_id && isUuid(acc.hotelId)) {
                             basePayload.hotel_id = acc.hotelId;
                         }
 
                         for (const room of acc.selectedRooms) {
                             const reqType = (room as any).reqId?.split('-')[0]; // Extract 'Single', 'Double', 'Family' etc.
-                            const validRoomId = room.roomId?.includes('-') ? room.roomId : null;
+                            const validRoomId = isUuid(room.roomId) ? room.roomId : null;
                             totalRooms += room.quantity;
 
                             if (reqType === 'Single') {
@@ -803,9 +803,9 @@ export class TourService {
                             if (room.mealPlan && !mealPlan) mealPlan = room.mealPlan;
                         }
 
-                        let primaryRoomId = (acc.roomId && acc.roomId.includes('-')) ? acc.roomId : null;
+                        let primaryRoomId = (acc.roomId && isUuid(acc.roomId)) ? acc.roomId : null;
                         if (!primaryRoomId) {
-                            const firstRoom = acc.selectedRooms.find(r => r.roomId?.includes('-'));
+                            const firstRoom = acc.selectedRooms.find(r => isUuid(r.roomId));
                             if (firstRoom) {
                                 primaryRoomId = firstRoom.roomId;
                             }
@@ -825,9 +825,9 @@ export class TourService {
                         activitiesToInsert.push(basePayload);
                     } else if (acc) {
                         // Legacy single-room fallback mapping targeting standard double default
-                        const assumedRoomId = acc.roomId && acc.roomId.includes('-') ? acc.roomId : null;
+                        const assumedRoomId = acc.roomId && isUuid(acc.roomId) ? acc.roomId : null;
                         const assumedQty = acc.numberOfRooms || 1;
-                        if (!basePayload.hotel_id && acc.hotelId?.includes('-')) {
+                        if (!basePayload.hotel_id && isUuid(acc.hotelId)) {
                             basePayload.hotel_id = acc.hotelId;
                         }
                         if (basePayload.hotel_id && assumedRoomId) {
@@ -844,6 +844,11 @@ export class TourService {
                         b.agreedPrice = basePayload.charged_total_price ?? undefined;
                         activitiesToInsert.push(basePayload);
                     } else {
+                        basePayload.quantity = b.quantity || 1;
+                        basePayload.contracted_price = b.contractedPrice || 0;
+                        basePayload.contracted_total_price = b.contractedTotalPrice || ((b.contractedPrice || 0) * basePayload.quantity);
+                        basePayload.charged_unit_price = b.agreedPrice || 0;
+                        basePayload.charged_total_price = (b.agreedPrice || 0) * basePayload.quantity;
                         activitiesToInsert.push(basePayload);
                     }
                 } else {
@@ -875,7 +880,7 @@ export class TourService {
                         
                         if (distanceNum > 0) {
                             let dynamicVehicleKmRate = vehicleKmRate; // Fallback to global settings
-                            const effectiveVehicleId = (b.vehicleId && b.vehicleId.includes('-')) ? b.vehicleId : (tripData.defaultVehicleId || null);
+                             const effectiveVehicleId = (b.vehicleId && isUuid(b.vehicleId)) ? b.vehicleId : (tripData.defaultVehicleId || null);
                             
                             if (effectiveVehicleId) {
                                 const { data: vData } = await supabaseAdmin
@@ -937,6 +942,7 @@ export class TourService {
             }
 
             if (activitiesToInsert.length > 0) {
+                console.log("activitiesToInsert payload for Day " + day + ":", JSON.stringify(activitiesToInsert, null, 2));
                 const { error: actErr } = await supabaseAdmin.from('daily_activities').insert(activitiesToInsert);
                 if (actErr) {
                     console.error("Failed to insert activities for day", day, actErr);

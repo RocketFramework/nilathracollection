@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { getAppMarkupsAction, saveAppMarkupsAction } from '@/actions/admin.actions';
-import { Save, Loader2 } from 'lucide-react';
+import { getAppMarkupsAction, saveAppMarkupsAction, uploadHotelPhotoAction } from '@/actions/admin.actions';
+import { Save, Loader2, Upload } from 'lucide-react';
 
 export default function SettingsPage() {
     const [markups, setMarkups] = useState({
@@ -45,10 +45,38 @@ export default function SettingsPage() {
         policy_luxury: "",
         policy_ultra_vip: "",
         policy_draft: "",
+        address: "",
+        company_logo: "",
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingLogo(true);
+        setMessage(null);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await uploadHotelPhotoAction(formData);
+            if (res.success && res.url) {
+                setMarkups(prev => ({ ...prev, company_logo: res.url }));
+                setMessage({ text: 'Logo uploaded successfully! Remember to save settings.', type: 'success' });
+            } else {
+                setMessage({ text: res.error || 'Failed to upload logo', type: 'error' });
+            }
+        } catch (err: any) {
+            setMessage({ text: err.message || 'Error uploading file', type: 'error' });
+        } finally {
+            setUploadingLogo(false);
+            setTimeout(() => setMessage(null), 3000);
+        }
+    };
 
     useEffect(() => {
         getAppMarkupsAction().then(res => {
@@ -88,6 +116,109 @@ export default function SettingsPage() {
     return (
         <div className="p-8 max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold font-playfair text-[#2B2B2B] mb-8">System Settings</h1>
+
+            {/* General Settings */}
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mb-8 animate-fade-in">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">General Settings</h2>
+                        <p className="text-sm text-neutral-500">Configure global company profile details and branding.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Company Address</label>
+                        <textarea
+                            rows={3}
+                            value={markups.address || ""}
+                            onChange={(e) => setMarkups({ ...markups, address: e.target.value })}
+                            placeholder="Enter company address..."
+                            className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Company Logo</label>
+                        <div className="flex items-center gap-6">
+                            {markups.company_logo ? (
+                                <div className="relative w-24 h-24 border border-neutral-200 rounded-xl overflow-hidden bg-neutral-50 flex items-center justify-center">
+                                    <img
+                                        src={markups.company_logo}
+                                        alt="Company Logo Preview"
+                                        className="object-contain w-full h-full p-2"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setMarkups({ ...markups, company_logo: "" })}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-sm"
+                                        title="Remove Logo"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="w-24 h-24 border-2 border-dashed border-neutral-300 rounded-xl bg-neutral-50 flex flex-col items-center justify-center text-neutral-400 text-xs gap-1">
+                                    <Upload size={20} className="text-neutral-400" />
+                                    <span>No Logo</span>
+                                </div>
+                            )}
+
+                            <div className="flex-1 max-w-md">
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoUpload}
+                                        disabled={uploadingLogo}
+                                        id="logo-upload"
+                                        className="hidden"
+                                    />
+                                    <label
+                                        htmlFor="logo-upload"
+                                        className={`flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 rounded-xl font-bold text-sm cursor-pointer hover:bg-neutral-50 transition-colors select-none ${uploadingLogo ? 'opacity-50 pointer-events-none' : ''}`}
+                                    >
+                                        {uploadingLogo ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin text-neutral-500" />
+                                                <span>Uploading Logo...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload size={16} className="text-neutral-600" />
+                                                <span>Choose Image file</span>
+                                            </>
+                                        )}
+                                    </label>
+                                </div>
+                                <p className="text-xs text-neutral-500 mt-2">
+                                    Upload a company logo (PNG, JPG, SVG, etc.). It will be converted to WebP and hosted on the server.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving || uploadingLogo}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden">
                 <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">

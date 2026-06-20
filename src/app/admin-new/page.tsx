@@ -57,6 +57,7 @@ import {
   Image,
   CloudSun,
   Download,
+  FileText,
   Wifi,
   Waves,
   HeartPulse,
@@ -70,7 +71,7 @@ import {
   Train,
   Pencil
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
@@ -114,13 +115,16 @@ import {
   createVendorBookingAction,
   confirmFinalVendorBookingAction,
   cancelVendorBookingAction,
-  getVendorBookingsAction
+  getVendorBookingsAction,
+  getHotelRfqTemplateAction,
+  sendHotelRfqEmailAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
 import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
+import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 
 interface StepItem {
   id: string;
@@ -129,6 +133,19 @@ interface StepItem {
   icon: React.ComponentType<any>;
   isSubStep?: boolean;
 }
+
+const isUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 const MOCK_TOURIST_DATA: TouristDataDTO = {
   profile: {
@@ -290,6 +307,26 @@ function PlannerWizardWorkspace() {
 
   // Procurement operational states
   const [quotationRequests, setQuotationRequests] = useState<any[]>([]);
+  const [appSettings, setAppSettings] = useState<any>(null);
+
+  // RFQ Email Modal State
+  const [showRfqModal, setShowRfqModal] = useState(false);
+  const [selectedRfqHotel, setSelectedRfqHotel] = useState<any>(null);
+  const [selectedRfqStays, setSelectedRfqStays] = useState<any[]>([]);
+  const [rfqEmailTo, setRfqEmailTo] = useState('');
+  const [rfqEmailSubject, setRfqEmailSubject] = useState('');
+  const [rfqEmailBody, setRfqEmailBody] = useState('');
+  const [rfqEmailBodyOriginal, setRfqEmailBodyOriginal] = useState('');
+  const [showRfqHtml, setShowRfqHtml] = useState(false);
+  const rfqEditorRef = React.useRef<HTMLDivElement>(null);
+  const [isSendingRfq, setIsSendingRfq] = useState(false);
+  const [rfqAttachPdf, setRfqAttachPdf] = useState(true);
+
+  // Checkboxes for special requests
+  const [rfqAdjacentRooms, setRfqAdjacentRooms] = useState(false);
+  const [rfqBuggyCars, setRfqBuggyCars] = useState(false);
+  const [rfqHeliPad, setRfqHeliPad] = useState(false);
+
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [vendorBookings, setVendorBookings] = useState<any[]>([]);
   const [isLoadingProcurement, setIsLoadingProcurement] = useState<boolean>(false);
@@ -891,7 +928,8 @@ function PlannerWizardWorkspace() {
     setDbActivities(prev => {
       let changed = false;
       const updated = prev.map(act => {
-        if (act.activity_type === 'sleep' || act.hotel_id) {
+        const isCustom = act.isCustomPO || !act.hotel_room_id;
+        if ((act.activity_type === 'sleep' || act.hotel_id) && !isCustom) {
           const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
           const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
           if (acc) {
@@ -978,7 +1016,7 @@ function PlannerWizardWorkspace() {
       const hotel = masterData.hotels?.find((h: any) => h.id === act.hotel_id);
       const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
       const newBlock: InternalItineraryBlock = {
-        id: act.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9)),
+        id: act.id || generateUUID(),
         dayNumber: dayNum,
         type: ItineraryBlockTypes.SLEEP,
         name: act.name || 'Overnight Stay',
@@ -1047,6 +1085,7 @@ function PlannerWizardWorkspace() {
         const res = await getAppMarkupsAction();
         if (res.success && res.markups) {
           const settings = res.markups as any;
+          setAppSettings(settings);
           if (settings.activity_travel_prep_time !== undefined) {
             setActivityTravelPrepTime(Number(settings.activity_travel_prep_time));
           }
@@ -1736,6 +1775,40 @@ function PlannerWizardWorkspace() {
       const res = await getDailyActivitiesAction(tid);
       if (res.success && res.activities) {
         setDbActivities(res.activities);
+        
+        // Restore custom POs to the itinerary state if they exist in daily activities but not in itinerary yet
+        const customPOs = res.activities.filter((a: any) => a.hotel_id && !a.hotel_room_id);
+        if (customPOs.length > 0) {
+          setItinerary(prevItin => {
+            const updatedItin = [...prevItin];
+            let changed = false;
+            customPOs.forEach((po: any) => {
+              if (!updatedItin.some(b => b.id === po.id)) {
+                changed = true;
+                updatedItin.push({
+                  id: po.id,
+                  dayNumber: po.tour_itineraries?.day_number || po.day_number || po.dayNumber || 1,
+                  type: 'sleep',
+                  name: po.title || '',
+                  hotelId: po.hotel_id,
+                  startTime: '00:00',
+                  endTime: '00:00',
+                  bufferMins: 0,
+                  durationHours: 22,
+                  internalNotes: '',
+                  confirmationStatus: 'Pending',
+                  paymentStatus: 'Pending',
+                  contractedPrice: po.contracted_price || 0,
+                  agreedPrice: po.contracted_price || po.charged_unit_price || 0,
+                  quantity: po.quantity || 1,
+                  contractedTotalPrice: po.contracted_total_price || 0,
+                  isCustomPO: true
+                });
+              }
+            });
+            return changed ? updatedItin : prevItin;
+          });
+        }
       } else {
         console.error("Failed to load daily activities:", res.error);
       }
@@ -1776,7 +1849,7 @@ function PlannerWizardWorkspace() {
     if (dbActivities && dbActivities.length > 0) {
       const hotelIds = Array.from(new Set(
         dbActivities
-          .filter(a => a.hotel_id)
+          .filter(a => a.hotel_id && isUuid(a.hotel_id))
           .map(a => a.hotel_id as string)
       ));
       if (hotelIds.length > 0) {
@@ -1820,6 +1893,275 @@ function PlannerWizardWorkspace() {
   const [paymentRef, setPaymentRef] = useState<string>('');
   const [paymentNotes, setPaymentNotes] = useState<string>('');
   const [paymentDate, setPaymentDate] = useState<string>('');
+
+  const handleOpenRfqModal = async (hotel: any, stays: any[]) => {
+    setSelectedRfqHotel(hotel);
+    setSelectedRfqStays(stays);
+    setRfqAdjacentRooms(false);
+    setRfqBuggyCars(false);
+    setRfqHeliPad(false);
+    setRfqEmailTo(hotel?.reservation_email || '');
+    setRfqEmailSubject('');
+    setRfqEmailBody('');
+    setRfqEmailBodyOriginal('');
+    setShowRfqHtml(false);
+    setRfqAttachPdf(true);
+    setShowRfqModal(true);
+    
+    try {
+      const res = await getHotelRfqTemplateAction();
+      if (res.success && res.template) {
+        const template = res.template;
+        
+        const sortedStays = [...stays].sort((a, b) => {
+            const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+            const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
+            return dayA - dayB;
+        });
+
+        const checkInDate = sortedStays[0]?.tour_itineraries?.date || '';
+        const nightsCount = sortedStays.length;
+        let checkOutDate = '';
+        if (checkInDate) {
+            const d = new Date(checkInDate);
+            d.setDate(d.getDate() + nightsCount);
+            checkOutDate = d.toISOString().split('T')[0];
+        }
+
+        const formatDate = (dateStr: string) => {
+            if (!dateStr) return '-';
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                return d.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+            } catch (e) {
+                return dateStr;
+            }
+        };
+
+        const checkInDateFormatted = formatDate(checkInDate);
+        const checkOutDateFormatted = formatDate(checkOutDate);
+
+        const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+        const roomCategories = sortedStays.flatMap(act => {
+            const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+            const activeRooms = sizes.map(size => {
+                const count = (act as any)[`${size}_count`] || 0;
+                const label = size.split('_')[0];
+                const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                return { type: displayType, count };
+            }).filter(r => r.count > 0);
+
+            if (activeRooms.length === 0) {
+                const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
+                return [`${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`];
+            }
+            return activeRooms.map(r => `${r.count} x ${r.type}`);
+        });
+        const uniqueRooms = Array.from(new Set(roomCategories)).join(', ');
+
+        const adults = touristData?.preferences?.adults || 2;
+        const children = touristData?.preferences?.children || 0;
+        const infants = touristData?.preferences?.infants || 0;
+        let occupancyStr = `${adults} Adults`;
+        if (children > 0) occupancyStr += ` / ${children} Children`;
+        if (infants > 0) occupancyStr += ` / ${infants} Infants`;
+
+        const uniqueMealPlans = Array.from(new Set(sortedStays.map(act => act.meal_plan).filter(Boolean))).join(' / ');
+
+        let agentName = 'Your Concierge Team';
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+        }
+
+        let subject = template.subject || '';
+        subject = subject.replace(/{{Hotel Name}}/g, hotel?.name || '');
+        subject = subject.replace(/{{from-Dates}}/g, checkInDateFormatted);
+        subject = subject.replace(/{{to-Date}}/g, checkOutDateFormatted);
+        setRfqEmailSubject(subject);
+
+        let bodyHtml = template.body_html || '';
+        bodyHtml = bodyHtml.replace(/{{Hotel Name}}/g, hotel?.name || '');
+        bodyHtml = bodyHtml.replace(/{{from-Dates}}/g, checkInDateFormatted);
+        bodyHtml = bodyHtml.replace(/{{to-Date}}/g, checkOutDateFormatted);
+        
+        let occurrence = 0;
+        bodyHtml = bodyHtml.replace(/{{DD MMM YYYY}}/g, () => {
+            occurrence++;
+            return occurrence === 1 ? checkInDateFormatted : checkOutDateFormatted;
+        });
+
+        bodyHtml = bodyHtml.replace(/{{X}}/g, String(nightsCount));
+        bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, uniqueRooms);
+        bodyHtml = bodyHtml.replace(/{{e.g., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
+        bodyHtml = bodyHtml.replace(/{{e\.g\.,.*}}/gi, occupancyStr);
+        bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/g, uniqueMealPlans || 'BB');
+        bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+
+        setRfqEmailBodyOriginal(bodyHtml);
+        const initialProcessed = getProcessedEmailBody(bodyHtml, {
+          adjacentRooms: false,
+          buggyCars: false,
+          heliPad: false
+        });
+        setRfqEmailBody(initialProcessed);
+
+        // Sync editor HTML after DOM mounts
+        setTimeout(() => {
+          if (rfqEditorRef.current) {
+            rfqEditorRef.current.innerHTML = initialProcessed;
+          }
+        }, 150);
+      }
+    } catch (err) {
+      console.error("Failed to load RFQ email template:", err);
+    }
+  };
+
+  const updateRfqEmailBody = (
+    baseHtml: string,
+    options: { adjacentRooms: boolean; buggyCars: boolean; heliPad: boolean }
+  ) => {
+    const processed = getProcessedEmailBody(baseHtml, options);
+    setRfqEmailBody(processed);
+    if (rfqEditorRef.current && !showRfqHtml) {
+      rfqEditorRef.current.innerHTML = processed;
+    }
+  };
+
+  const getProcessedEmailBody = (html: string, options: { adjacentRooms: boolean; buggyCars: boolean; heliPad: boolean }) => {
+    let result = html;
+    if (!options.adjacentRooms) {
+      result = result.replace(/<li[^>]*>Availability of Adjacent Rooms<\/li>/gi, '');
+    }
+    if (!options.buggyCars) {
+      result = result.replace(/<li[^>]*>Availability of Buggy Cars\/ Electric Vehicles<\/li>/gi, '');
+    }
+    if (!options.heliPad) {
+      result = result.replace(/<li[^>]*>Availability of a Heli-Pad<\/li>/gi, '');
+    }
+    return result;
+  };
+
+  const handleDownloadHotelRfq = async (hotel: any, stays: any[]) => {
+    try {
+      let agentName = 'Your Concierge Team';
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+      }
+
+      const doc = await generateHotelRfqPdf(
+        hotel,
+        stays,
+        appSettings,
+        agentName,
+        touristData,
+        {
+          adjacentRooms: rfqAdjacentRooms,
+          buggyCars: rfqBuggyCars,
+          heliPad: rfqHeliPad
+        }
+      );
+      
+      if (doc) {
+        doc.save(`RFQ_${hotel.name.replace(/\s+/g, '_')}.pdf`);
+      }
+    } catch (e) {
+      console.error("Failed to download RFQ PDF:", e);
+      alert("Error generating RFQ PDF. Please check settings.");
+    }
+  };
+
+  const handleSendRfqEmail = async () => {
+    if (!rfqEmailTo) {
+      alert("Please enter a valid recipient email.");
+      return;
+    }
+    setIsSendingRfq(true);
+    try {
+      const firstStay = selectedRfqStays[0];
+      const resDb = await createQuotationRequestAction({
+        tour_id: tourId,
+        itinerary_id: firstStay.itinerary_id || firstStay.itineraryId,
+        daily_activity_id: firstStay.id,
+        vendor_id: selectedRfqHotel.id,
+        vendor_name: selectedRfqHotel.name,
+        to_email: rfqEmailTo,
+        from_email: 'concierge@nilathra.com',
+        subject: rfqEmailSubject,
+        email_content: rfqEmailBody,
+        activity_type: 'hotel',
+        daily_activity_ids: selectedRfqStays.map(s => s.id)
+      });
+
+      if (!resDb.success || !resDb.quote) {
+        throw new Error(resDb.error || "Failed to log RFQ in database");
+      }
+
+      let agentName = 'Your Concierge Team';
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+      }
+
+      let pdfBase64: string | undefined = undefined;
+      let pdfFilename: string | undefined = undefined;
+
+      if (rfqAttachPdf) {
+        const doc = await generateHotelRfqPdf(
+          selectedRfqHotel,
+          selectedRfqStays,
+          appSettings,
+          agentName,
+          touristData,
+          {
+            adjacentRooms: rfqAdjacentRooms,
+            buggyCars: rfqBuggyCars,
+            heliPad: rfqHeliPad
+          }
+        );
+        pdfBase64 = doc.output('datauristring').split(',')[1];
+        pdfFilename = `RFQ_${selectedRfqHotel.name.replace(/\s+/g, '_')}.pdf`;
+      }
+
+      const processedBody = getProcessedEmailBody(rfqEmailBody, {
+        adjacentRooms: rfqAdjacentRooms,
+        buggyCars: rfqBuggyCars,
+        heliPad: rfqHeliPad
+      });
+
+      const resEmail = await sendHotelRfqEmailAction({
+        to: rfqEmailTo,
+        from: 'concierge@nilathra.com',
+        subject: rfqEmailSubject,
+        body: processedBody,
+        pdfBase64,
+        pdfFilename,
+        quotationRequestId: resDb.quote.id
+      });
+
+      if (resEmail.success) {
+        alert("Request for Quotation sent successfully!");
+        setShowRfqModal(false);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to send RFQ email: " + resEmail.error);
+      }
+    } catch (err: any) {
+      alert("Error sending RFQ: " + err.message);
+    } finally {
+      setIsSendingRfq(false);
+    }
+  };
 
   const handleSendRFQ = async (act: any, vendor: any) => {
     if (!vendor) return;
@@ -1899,7 +2241,7 @@ function PlannerWizardWorkspace() {
       const res = await createVendorBookingAction({
         tour_id: tourId,
         quotation_request_id: quote.id,
-        vendor_type: 'vendor',
+        vendor_type: act.isCustomPO && act.hotel_id ? 'hotel' : 'vendor',
         vendor_id: quote.vendor_id,
         vendor_name: quote.vendor_name,
         agreed_price: quote.quoted_price || 0,
@@ -3907,6 +4249,20 @@ function PlannerWizardWorkspace() {
                       {(() => {
                         const sleepActivities = dbActivities.filter(a => a.activity_type === 'sleep' || a.hotel_id);
                         
+                        const numDays = touristData?.preferences?.duration_days || 5;
+                        const daysList = Array.from({ length: numDays }, (_, idx) => {
+                          const dayNum = idx + 1;
+                          let dateStr = '';
+                          if (touristData?.preferences?.arrival_date) {
+                            try {
+                              const d = new Date(touristData.preferences.arrival_date);
+                              d.setDate(d.getDate() + idx);
+                              dateStr = d.toISOString().split('T')[0];
+                            } catch (e) {}
+                          }
+                          return { dayNum, dateStr };
+                        });
+                        
                         // Group by hotel_id
                         const groups: Record<string, any[]> = {};
                         sleepActivities.forEach(act => {
@@ -3945,8 +4301,8 @@ function PlannerWizardWorkspace() {
 
                         // Sort the list of hotels based on the first stay date/day number
                         clubbed.sort((a, b) => {
-                          const firstA = a.activities[0];
-                          const firstB = b.activities[0];
+                          const firstA = a.activities.find((x: any) => x.hotel_room_id !== null && !x.isCustomPO) || a.activities[0];
+                          const firstB = b.activities.find((x: any) => x.hotel_room_id !== null && !x.isCustomPO) || b.activities[0];
                           if (!firstA) return 1;
                           if (!firstB) return -1;
                           
@@ -3975,6 +4331,9 @@ function PlannerWizardWorkspace() {
                         }
 
                         return clubbed.map(({ hotelId, hotel, activities: acts }) => {
+                          const standardStays = acts.filter(act => act.hotel_room_id !== null && !act.isCustomPO);
+                          const customPOs = acts.filter(act => act.hotel_room_id === null || act.isCustomPO);
+
                           return (
                             <div key={hotelId} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all animate-in fade-in duration-200">
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
@@ -3988,21 +4347,35 @@ function PlannerWizardWorkspace() {
                                         {hotel.hotel_class}
                                       </span>
                                     )}
-                                     <button
-                                       type="button"
-                                       onClick={() => {
-                                         const firstAct = acts[0];
-                                         if (firstAct) {
-                                           handleOpenHotelDrawer(firstAct);
-                                         }
-                                       }}
-                                       disabled={isLockedByOther}
-                                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
-                                       title="Change Hotel"
-                                     >
-                                       <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
-                                       <span>Change Hotel</span>
-                                     </button>
+                                     {standardStays.length > 0 && (
+                                       <div className="flex items-center gap-2">
+                                         <button
+                                           type="button"
+                                           onClick={() => {
+                                             const firstAct = standardStays[0];
+                                             if (firstAct) {
+                                               handleOpenHotelDrawer(firstAct);
+                                             }
+                                           }}
+                                           disabled={isLockedByOther}
+                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                           title="Change Hotel"
+                                         >
+                                           <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                                           <span>Change Hotel</span>
+                                         </button>
+                                         <button
+                                           type="button"
+                                           onClick={() => handleOpenRfqModal(hotel, standardStays)}
+                                           disabled={isLockedByOther}
+                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                           title="Request Quote"
+                                         >
+                                           <Mail className="w-3.5 h-3.5 text-emerald-800" />
+                                           <span>Request Quote</span>
+                                         </button>
+                                       </div>
+                                     )}
                                   </div>
                                   <p className="text-xs text-neutral-500">
                                     {hotel?.location_address || hotel?.closest_city || 'Location Address not specified'}
@@ -4010,76 +4383,329 @@ function PlannerWizardWorkspace() {
                                 </div>
                                 <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm self-start md:self-auto shrink-0">
                                   <span>Total Nights:</span>
-                                  <span className="text-emerald-800 font-extrabold text-xs">{acts.length}</span>
+                                  <span className="text-emerald-800 font-extrabold text-xs">{standardStays.length}</span>
                                 </div>
                               </div>
 
                               {/* Nights Detail Rows */}
-                              <div className="divide-y divide-neutral-150">
-                                {acts.map((act) => {
-                                  const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-                                  const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-                                  const dateVal = act.tour_itineraries?.date;
-                                  return (
-                                    <div key={act.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
-                                      <div className="flex items-start gap-3">
-                                        <div className="px-2.5 py-1 bg-emerald-800 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
-                                          {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
-                                        </div>
-                                        <div>
-                                          <span className="text-xs font-bold text-neutral-800 block">
-                                            {room?.room_name || 'Room Name Not Specified'}
-                                          </span>
-                                          {act.title && (
-                                            <span className="text-[10px] text-neutral-400 block mt-0.5">
-                                              {act.title}
+                              {standardStays.length > 0 && (
+                                <div className="divide-y divide-neutral-150">
+                                  {standardStays.map((act) => {
+                                    const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+                                    const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+                                    const dateVal = act.tour_itineraries?.date;
+                                    return (
+                                      <div key={act.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
+                                        <div className="flex items-start gap-3">
+                                          <div className="px-2.5 py-1 bg-emerald-800 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                            {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
+                                          </div>
+                                          <div>
+                                            <span className="text-xs font-bold text-neutral-800 block">
+                                              {room?.room_name || 'Room Name Not Specified'}
                                             </span>
+                                            {act.title && (
+                                              <span className="text-[10px] text-neutral-400 block mt-0.5">
+                                                {act.title}
+                                              </span>
+                                            )}
+                                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                                              {(() => {
+                                                const sizes: any[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+                                                const activeRooms = sizes.map(size => {
+                                                  const count = (act as any)[`${size}_count`] || 0;
+                                                  const label = size.split('_')[0];
+                                                  const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                                                  return { type: displayType, count };
+                                                }).filter(r => r.count > 0);
+                                                
+                                                if (activeRooms.length === 0) {
+                                                  return room?.room_standard ? (
+                                                    <span className="px-2 py-0.5 bg-amber-55 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                      {room.room_standard}
+                                                    </span>
+                                                  ) : null;
+                                                }
+                                                
+                                                return activeRooms.map(r => (
+                                                  <span key={r.type} className="px-2 py-0.5 bg-amber-55 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                    {r.count} x {r.type}
+                                                  </span>
+                                                ));
+                                              })()}
+                                              {act.meal_plan && (
+                                                <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                  {act.meal_plan}
+                                                </span>
+                                              )}
+                                              {room?.breakfast_included && (
+                                                <span className="px-2 py-0.5 bg-green-50 border border-green-150 text-green-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                  Breakfast Incl.
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between sm:justify-end gap-6 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
+                                          <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
+                                            <span className="text-neutral-400">Qty:</span>
+                                            <span className="text-neutral-700 font-bold">{act.quantity || 1}</span>
+                                          </div>
+                                          {(act.contracted_price ?? act.charged_unit_price) !== undefined && (act.contracted_price ?? act.charged_unit_price) !== null && (
+                                            <div className="text-right">
+                                              <span className="text-[9px] text-neutral-455 uppercase block font-mono">Unit Rate</span>
+                                              <span className="font-mono text-neutral-600 font-bold">${Number(act.contracted_price ?? act.charged_unit_price).toFixed(2)}</span>
+                                            </div>
                                           )}
-                                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                                            {act.meal_plan && (
-                                              <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-700 font-bold rounded text-[9px] uppercase tracking-wider">
-                                                {act.meal_plan}
-                                              </span>
-                                            )}
-                                            {room?.breakfast_included && (
-                                              <span className="px-2 py-0.5 bg-green-50 border border-green-150 text-green-700 font-bold rounded text-[9px] uppercase tracking-wider">
-                                                Breakfast Incl.
-                                              </span>
-                                            )}
-                                          </div>
+                                          {(act.contracted_total_price ?? act.charged_total_price) !== undefined && (act.contracted_total_price ?? act.charged_total_price) !== null && (
+                                            <div className="text-right">
+                                              <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate</span>
+                                              <span className="font-mono text-emerald-800 font-bold">${Number(act.contracted_total_price ?? act.charged_total_price).toFixed(2)}</span>
+                                            </div>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenHotelDrawer(act)}
+                                            disabled={isLockedByOther}
+                                            className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                            title="Edit Night Accommodation"
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
                                       </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Custom Hotel PO Items List */}
+                              {customPOs.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                  <h5 className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
+                                    Custom Hotel PO & Quote Items
+                                  </h5>
+                                  <div className="space-y-3">
+                                    {customPOs.map((act) => {
+                                      const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
+                                      const activeQuote = actQuotes.find(q => q.quotation?.selected_vendor)?.quotation || actQuotes[0]?.quotation;
                                       
-                                      <div className="flex items-center justify-between sm:justify-end gap-6 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
-                                        <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
-                                          <span className="text-neutral-400">Qty:</span>
-                                          <span className="text-neutral-700 font-bold">{act.quantity || 1}</span>
+                                      const booking = vendorBookings.find(b => b.daily_activity_ids?.includes(act.id));
+                                      const po = booking?.purchase_order_id 
+                                        ? purchaseOrders.find(p => p.id === booking.purchase_order_id)
+                                        : purchaseOrders.find(p => p.items?.some((item: any) => item.daily_activity_id === act.id || item.tour_itinerary_id === act.id));
+
+                                      return (
+                                        <div key={act.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col lg:flex-row lg:items-center gap-4 justify-between transition-all hover:shadow-md">
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold">Item Description / Text</label>
+                                              <div className="flex items-center gap-1.5">
+                                                {po && (
+                                                  <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
+                                                    po.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                                    po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
+                                                    po.status === 'Cancelled' ? 'bg-red-105 text-red-800' :
+                                                    'bg-neutral-100 text-neutral-600'
+                                                  }`}>
+                                                    PO: {po.status}
+                                                  </span>
+                                                )}
+                                                {activeQuote && !po && (
+                                                  <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
+                                                    activeQuote.status === 'Selected' ? 'bg-green-150 text-green-800' :
+                                                    activeQuote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
+                                                    'bg-neutral-100 text-neutral-600'
+                                                  }`}>
+                                                    RFQ: {activeQuote.status}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <input
+                                              type="text"
+                                              value={act.title || ''}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, title: val } : item));
+                                                setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, name: val } : item));
+                                              }}
+                                              className="w-full text-xs font-bold text-neutral-800 hover:bg-neutral-50/50 focus:bg-white border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-3 py-1.5 transition-all"
+                                              placeholder="Description (e.g. Early Check-in Fee / Extra Meal)"
+                                            />
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-4 self-stretch lg:self-auto justify-between lg:justify-end">
+                                            <div className="flex flex-col min-w-[120px]">
+                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono font-bold mb-1">Service Date</span>
+                                              <select
+                                                value={act.day_number || act.dayNumber || 1}
+                                                onChange={(e) => {
+                                                  const dayNum = parseInt(e.target.value) || 1;
+                                                  const targetDay = daysList.find(d => d.dayNum === dayNum);
+                                                  const dateStr = targetDay?.dateStr || '';
+                                                  
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    day_number: dayNum,
+                                                    dayNumber: dayNum,
+                                                    tour_itineraries: {
+                                                      day_number: dayNum,
+                                                      date: dateStr
+                                                    }
+                                                  } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    dayNumber: dayNum
+                                                  } : item));
+                                                }}
+                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700 cursor-pointer"
+                                              >
+                                                {daysList.map(({ dayNum, dateStr }) => (
+                                                  <option key={dayNum} value={dayNum}>
+                                                    Day {dayNum} {dateStr ? `(${formatDate(dateStr)})` : ''}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                            <div className="flex flex-col min-w-[50px]">
+                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono font-bold mb-1">Qty</span>
+                                              <input
+                                                type="number"
+                                                min="1"
+                                                value={act.quantity || 1}
+                                                onChange={(e) => {
+                                                  const qty = parseInt(e.target.value) || 1;
+                                                  const unitPrice = act.contracted_price || 0;
+                                                  const total = qty * unitPrice;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    quantity: qty,
+                                                    contracted_total_price: total,
+                                                    charged_total_price: total
+                                                  } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    quantity: qty,
+                                                    contractedTotalPrice: total,
+                                                    agreedPrice: unitPrice
+                                                  } : item));
+                                                }}
+                                                className="w-12 text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
+                                              />
+                                            </div>
+                                            <div className="flex flex-col min-w-[90px]">
+                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono font-bold mb-1">Unit Rate ($)</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={act.contracted_price || 0}
+                                                onChange={(e) => {
+                                                  const price = parseFloat(e.target.value) || 0;
+                                                  const qty = act.quantity || 1;
+                                                  const total = qty * price;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    contracted_price: price,
+                                                    contracted_total_price: total,
+                                                    charged_unit_price: price,
+                                                    charged_total_price: total
+                                                  } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    contractedPrice: price,
+                                                    agreedPrice: price,
+                                                    contractedTotalPrice: total
+                                                  } : item));
+                                                }}
+                                                className="w-20 text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
+                                              />
+                                            </div>
+                                            <div className="text-right min-w-[80px] self-end pb-1.5">
+                                              <span className="text-[8px] text-emerald-600 uppercase block font-mono">Total Rate</span>
+                                              <span className="font-mono text-emerald-800 font-extrabold text-xs">${Number(act.contracted_total_price || 0).toFixed(2)}</span>
+                                            </div>
+                                            <div className="self-end pb-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setDbActivities(prev => prev.filter(item => item.id !== act.id));
+                                                  setItinerary(prev => prev.filter(item => item.id !== act.id));
+                                                }}
+                                                className="p-1.5 rounded-xl border border-neutral-200 hover:border-red-300 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all shadow-sm shrink-0"
+                                                title="Delete Item"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          </div>
                                         </div>
-                                        {(act.contracted_price ?? act.charged_unit_price) !== undefined && (act.contracted_price ?? act.charged_unit_price) !== null && (
-                                          <div className="text-right">
-                                            <span className="text-[9px] text-neutral-450 uppercase block font-mono">Unit Rate</span>
-                                            <span className="font-mono text-neutral-600 font-bold">${Number(act.contracted_price ?? act.charged_unit_price).toFixed(2)}</span>
-                                          </div>
-                                        )}
-                                        {(act.contracted_total_price ?? act.charged_total_price) !== undefined && (act.contracted_total_price ?? act.charged_total_price) !== null && (
-                                          <div className="text-right">
-                                            <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate</span>
-                                            <span className="font-mono text-emerald-800 font-bold">${Number(act.contracted_total_price ?? act.charged_total_price).toFixed(2)}</span>
-                                          </div>
-                                        )}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenHotelDrawer(act)}
-                                          disabled={isLockedByOther}
-                                          className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800 transition-all shadow-sm shrink-0 disabled:opacity-40"
-                                          title="Edit Night Accommodation"
-                                        >
-                                          <Pencil className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Add Custom Record for this Hotel */}
+                              <div className="flex justify-end pt-2 border-t border-neutral-100/60">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const defaultDay = 1;
+                                    const targetDay = daysList.find(d => d.dayNum === defaultDay);
+                                    const dateStr = targetDay?.dateStr || '';
+                                    const newPOId = generateUUID();
+                                    
+                                    const newPO = {
+                                      id: newPOId,
+                                      tour_id: tourId,
+                                      title: '',
+                                      quantity: 1,
+                                      contracted_price: 0,
+                                      contracted_total_price: 0,
+                                      charged_unit_price: 0,
+                                      charged_total_price: 0,
+                                      activity_type: 'sleep',
+                                      hotel_id: hotelId,
+                                      hotel_room_id: null,
+                                      day_number: defaultDay,
+                                      dayNumber: defaultDay,
+                                      tour_itineraries: {
+                                        day_number: defaultDay,
+                                        date: dateStr
+                                      },
+                                      isCustomPO: true
+                                    };
+
+                                    const newBlock: InternalItineraryBlock = {
+                                      id: newPOId,
+                                      dayNumber: defaultDay,
+                                      type: 'sleep',
+                                      name: '',
+                                      hotelId: hotelId,
+                                      startTime: '00:00',
+                                      endTime: '00:00',
+                                      bufferMins: 0,
+                                      durationHours: 22,
+                                      internalNotes: '',
+                                      confirmationStatus: 'Pending',
+                                      paymentStatus: 'Pending',
+                                      contractedPrice: 0,
+                                      agreedPrice: 0,
+                                      quantity: 1,
+                                      contractedTotalPrice: 0,
+                                      isCustomPO: true
+                                    };
+
+                                    setDbActivities(prev => [...prev, newPO]);
+                                                    setItinerary(prev => [...prev, newBlock]);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold shadow-sm hover:shadow-md transition-all uppercase tracking-wider"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Add Custom Hotel Item</span>
+                                </button>
                               </div>
 
                               {hotel && (hotel.reservation_agent_name || hotel.reservation_email || hotel.reservation_agent_contact) && (
@@ -4121,7 +4747,7 @@ function PlannerWizardWorkspace() {
 
                     <div className="space-y-6">
                       {dbActivities
-                        .filter(act => act.activity_type === 'activity' || act.type === 'activity')
+                        .filter(act => act.activity_type === 'activity' || act.type === 'activity' || (act.isCustomPO && act.hotel_id))
                         .map(act => {
                           const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
                           const activeQuote = actQuotes.find(q => q.quotation?.selected_vendor);
@@ -4133,8 +4759,12 @@ function PlannerWizardWorkspace() {
                                   <span className="text-[10px] bg-emerald-800/10 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                                     Day {act.day_number || act.dayNumber}
                                   </span>
-                                  <h4 className="text-sm font-bold text-neutral-850 mt-1 font-serif">{act.title || act.name}</h4>
-                                  <p className="text-xs text-neutral-400 mt-0.5">{act.location_name || act.locationName || 'Location not specified'}</p>
+                                  <h4 className="text-sm font-bold text-neutral-850 mt-1 font-serif">{act.title || act.name || 'Custom Hotel Item'}</h4>
+                                  <p className="text-xs text-neutral-400 mt-0.5">
+                                    {act.isCustomPO && act.hotel_id
+                                      ? `Hotel: ${masterData.hotels.find((h: any) => h.id === act.hotel_id)?.name || 'Loading Hotel...'}`
+                                      : act.location_name || act.locationName || 'Location not specified'}
+                                  </p>
                                 </div>
                                 
                                 {activeQuote && (
@@ -4251,25 +4881,43 @@ function PlannerWizardWorkspace() {
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                       <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Select Vendor</label>
-                                      <select
-                                        value={activeRfqVendorId}
-                                        onChange={(e) => setActiveRfqVendorId(e.target.value)}
-                                        className="w-full bg-white border border-neutral-200 text-neutral-850 rounded-xl p-2.5 text-xs outline-none"
-                                      >
-                                        <option value="">-- Choose Supplier --</option>
-                                        {masterData?.vendors?.map((v: any) => (
-                                          <option key={v.id} value={v.id}>{v.name}</option>
-                                        ))}
-                                      </select>
+                                      {act.isCustomPO && act.hotel_id ? (
+                                        <div className="text-xs font-bold text-neutral-800 p-2.5 bg-neutral-100 rounded-xl">
+                                          Hotel: {masterData.hotels.find((h: any) => h.id === act.hotel_id)?.name || 'Loading Hotel...'}
+                                        </div>
+                                      ) : (
+                                        <select
+                                          value={activeRfqVendorId}
+                                          onChange={(e) => setActiveRfqVendorId(e.target.value)}
+                                          className="w-full bg-white border border-neutral-200 text-neutral-850 rounded-xl p-2.5 text-xs outline-none"
+                                        >
+                                          <option value="">-- Choose Supplier --</option>
+                                          {masterData?.vendors?.map((v: any) => (
+                                            <option key={v.id} value={v.id}>{v.name}</option>
+                                          ))}
+                                        </select>
+                                      )}
                                     </div>
                                     
                                     <div className="flex items-end gap-2">
                                       <button
                                         onClick={() => {
-                                          const vendor = masterData?.vendors?.find((v: any) => v.id === activeRfqVendorId);
-                                          handleSendRFQ(act, vendor);
+                                          if (act.isCustomPO && act.hotel_id) {
+                                            const hotel = masterData.hotels.find((h: any) => h.id === act.hotel_id);
+                                            if (hotel) {
+                                              handleSendRFQ(act, {
+                                                id: hotel.id,
+                                                name: hotel.name,
+                                                email: hotel.reservation_email || 'reservation@hotel.com',
+                                                isHotel: true
+                                              });
+                                            }
+                                          } else {
+                                            const vendor = masterData?.vendors?.find((v: any) => v.id === activeRfqVendorId);
+                                            handleSendRFQ(act, vendor);
+                                          }
                                         }}
-                                        disabled={isSubmittingRfq || !activeRfqVendorId}
+                                        disabled={isSubmittingRfq || (!activeRfqVendorId && !(act.isCustomPO && act.hotel_id))}
                                         className="flex-1 px-4 py-2.5 bg-emerald-800 hover:bg-emerald-955 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all disabled:opacity-50"
                                       >
                                         {isSubmittingRfq ? "Sending..." : "Dispatch RFQ"}
@@ -4292,7 +4940,7 @@ function PlannerWizardWorkspace() {
                                   className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold transition-all shadow-sm"
                                 >
                                   <Plus className="w-4 h-4 text-neutral-500" />
-                                  Send RFQ to Supplier
+                                  {act.isCustomPO && act.hotel_id ? "Send RFQ to Hotel" : "Send RFQ to Supplier"}
                                 </button>
                               )}
                             </div>
@@ -4314,7 +4962,7 @@ function PlannerWizardWorkspace() {
 
                     <div className="space-y-6">
                       {dbActivities
-                        .filter(act => act.activity_type === 'activity' || act.type === 'activity')
+                        .filter(act => act.activity_type === 'activity' || act.type === 'activity' || (act.isCustomPO && act.hotel_id))
                         .map(act => {
                           const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
                           const winningQuote = actQuotes.find(q => q.quotation?.selected_vendor)?.quotation;
@@ -4331,8 +4979,12 @@ function PlannerWizardWorkspace() {
                                   <span className="text-[10px] bg-emerald-800/10 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                                     Day {act.day_number || act.dayNumber}
                                   </span>
-                                  <h4 className="text-sm font-bold text-neutral-850 mt-1 font-serif">{act.title || act.name}</h4>
-                                  <p className="text-xs text-neutral-400 mt-0.5">{act.location_name || act.locationName || 'Location not specified'}</p>
+                                  <h4 className="text-sm font-bold text-neutral-855 mt-1 font-serif">{act.title || act.name || 'Custom Hotel Item'}</h4>
+                                  <p className="text-xs text-neutral-400 mt-0.5">
+                                    {act.isCustomPO && act.hotel_id
+                                      ? `Hotel: ${masterData.hotels.find((h: any) => h.id === act.hotel_id)?.name || 'Loading Hotel...'}`
+                                      : act.location_name || act.locationName || 'Location not specified'}
+                                  </p>
                                 </div>
                                 
                                 {booking && (
@@ -6012,6 +6664,264 @@ function PlannerWizardWorkspace() {
             </div>
           );
         })(), document.body)}
+
+        {/* Send RFQ Modal */}
+        {showRfqModal && selectedRfqHotel && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-neutral-800">
+                    Request for Quotation (RFQ)
+                  </h3>
+                  <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                    Hotel Stay: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Nights
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowRfqModal(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Workspace */}
+              <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Left Column: Form Controls */}
+                <div className="lg:col-span-5 space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Recipient (Reservation Email)
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. reservations@hotel.com"
+                        value={rfqEmailTo}
+                        onChange={(e) => setRfqEmailTo(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      />
+                      <span className="text-[9px] text-neutral-400 mt-1 block">
+                        {selectedRfqHotel.reservation_email ? "Prefilled from hotel reservation email." : "Hotel email not configured. Please enter recipient address manually."}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Subject Line
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="RFQ Subject"
+                        value={rfqEmailSubject}
+                        onChange={(e) => setRfqEmailSubject(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-neutral-100">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                      Special Requests & Services
+                    </span>
+                    
+                    {/* Checkbox 1 */}
+                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={rfqAdjacentRooms}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setRfqAdjacentRooms(checked);
+                          updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            adjacentRooms: checked,
+                            buggyCars: rfqBuggyCars,
+                            heliPad: rfqHeliPad
+                          });
+                        }}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-neutral-800">Adjacent / Connecting Rooms</span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">Request adjacent accommodation placement</span>
+                      </div>
+                    </label>
+
+                    {/* Checkbox 2 */}
+                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={rfqBuggyCars}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setRfqBuggyCars(checked);
+                          updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            adjacentRooms: rfqAdjacentRooms,
+                            buggyCars: checked,
+                            heliPad: rfqHeliPad
+                          });
+                        }}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-neutral-800">Buggy Cars on Property</span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">Request electric buggy transport availability</span>
+                      </div>
+                    </label>
+
+                    {/* Checkbox 3 */}
+                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={rfqHeliPad}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setRfqHeliPad(checked);
+                          updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            adjacentRooms: rfqAdjacentRooms,
+                            buggyCars: rfqBuggyCars,
+                            heliPad: checked
+                          });
+                        }}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-neutral-800">Heli-Pad Access</span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">Inquire landing coordinates & permissions</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Email Attachment Options */}
+                  <div className="space-y-2 pt-2 border-t border-neutral-100">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                      Attachments Settings
+                    </span>
+                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={rfqAttachPdf}
+                        onChange={(e) => setRfqAttachPdf(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-neutral-800">Attach Request for Quote PDF</span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">Include the generated formal RFQ PDF in this email</span>
+                      </div>
+                    </label>
+                  </div>
+
+                </div>
+
+                {/* Right Column: Email Body Preview & Editor */}
+                <div className="lg:col-span-7 flex flex-col space-y-2 h-[480px]">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-emerald-800" /> Email Message Preview
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextShowHtml = !showRfqHtml;
+                        setShowRfqHtml(nextShowHtml);
+                        if (!nextShowHtml) {
+                          setTimeout(() => {
+                            if (rfqEditorRef.current) {
+                              rfqEditorRef.current.innerHTML = rfqEmailBody;
+                            }
+                          }, 50);
+                        }
+                      }}
+                      className="text-[10px] flex items-center gap-1 text-neutral-500 hover:text-neutral-800 transition-colors uppercase font-bold tracking-wider"
+                    >
+                      <span>{showRfqHtml ? "View Formatted" : "View HTML Source"}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden flex flex-col border border-neutral-200 rounded-2xl bg-[#FBFBFA]">
+                    {showRfqHtml ? (
+                      <textarea
+                        required
+                        value={rfqEmailBody}
+                        onChange={(e) => {
+                          setRfqEmailBody(e.target.value);
+                          if (rfqEditorRef.current) {
+                            rfqEditorRef.current.innerHTML = e.target.value;
+                          }
+                        }}
+                        className="w-full h-full p-4 bg-transparent outline-none text-xs font-mono text-neutral-800 resize-none overflow-y-auto"
+                      />
+                    ) : (
+                      <div
+                        ref={rfqEditorRef}
+                        contentEditable
+                        onInput={() => {
+                          if (rfqEditorRef.current) {
+                            setRfqEmailBody(rfqEditorRef.current.innerHTML);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (rfqEditorRef.current) {
+                            setRfqEmailBody(rfqEditorRef.current.innerHTML);
+                          }
+                        }}
+                        className="w-full h-full p-4 bg-transparent outline-none text-xs text-neutral-800 overflow-y-auto prose prose-sm max-w-none min-h-[380px]"
+                      />
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex flex-wrap gap-3 items-center justify-between shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadHotelRfq(selectedRfqHotel, selectedRfqStays)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-300 hover:border-neutral-400 text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-all shadow-sm"
+                >
+                  <Download className="w-4 h-4 text-neutral-500" />
+                  <span>Download PDF Quote Request</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowRfqModal(false)}
+                    className="px-4 py-2.5 rounded-xl hover:bg-neutral-150 text-xs font-bold text-neutral-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendRfqEmail}
+                    disabled={isSendingRfq || !rfqEmailTo}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+                  >
+                    {isSendingRfq ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 text-white" />
+                        <span>Send RFQ Email</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

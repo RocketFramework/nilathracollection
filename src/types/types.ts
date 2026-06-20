@@ -88,3 +88,5 @@ export const TierSettingDefinitions = {
   SERVICE_FEE: { key: 'service_fee', defaultValue: 10 }
 } as const;
 
+export type RoomSizeName = 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
+
