@@ -817,9 +817,24 @@ export class TourService {
                         basePayload.charged_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
                         basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
-                        basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
-                        basePayload.contracted_total_price = totalContractedPrice > 0 ? totalContractedPrice : null;
+
+                        // Apply custom contracted overrides if present (e.g. special buying rates)
+                        if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
+                            const overriddenUnit = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice ? acc.customContractedTotalPrice / (totalRooms || 1) : null);
+                            const overriddenTotal = acc.customContractedTotalPrice ?? (acc.customContractedUnitPrice ? acc.customContractedUnitPrice * (totalRooms || 1) : null);
+                            
+                            basePayload.contracted_price = overriddenUnit;
+                            basePayload.contracted_total_price = overriddenTotal;
+                        } else {
+                            basePayload.contracted_price = totalContractedPrice > 0 && totalRooms > 0 ? totalContractedPrice / totalRooms : null;
+                            basePayload.contracted_total_price = totalContractedPrice > 0 ? totalContractedPrice : null;
+                        }
+
                         basePayload.meal_plan = mealPlan;
+
+                        if (acc.customRateNote) {
+                            basePayload.description = acc.customRateNote;
+                        }
                         
                         b.agreedPrice = basePayload.charged_total_price ?? undefined;
                         activitiesToInsert.push(basePayload);
@@ -838,8 +853,24 @@ export class TourService {
                         basePayload.quantity = assumedQty;
                         basePayload.charged_unit_price = acc.pricePerNight || null;
                         basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
-                        basePayload.contracted_total_price = (b.contractedPrice != null && assumedQty != null) ? b.contractedPrice * assumedQty : null;
+                        
+                        // Apply custom contracted overrides if present (e.g. special buying rates)
+                        if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
+                            const overriddenUnit = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice ? acc.customContractedTotalPrice / (assumedQty || 1) : null);
+                            const overriddenTotal = acc.customContractedTotalPrice ?? (acc.customContractedUnitPrice ? acc.customContractedUnitPrice * (assumedQty || 1) : null);
+                            
+                            basePayload.contracted_price = overriddenUnit;
+                            basePayload.contracted_total_price = overriddenTotal;
+                        } else {
+                            basePayload.contracted_price = b.contractedPrice || null;
+                            basePayload.contracted_total_price = (b.contractedPrice != null && assumedQty != null) ? b.contractedPrice * assumedQty : null;
+                        }
+
                         basePayload.meal_plan = acc.mealPlan || null;
+
+                        if (acc.customRateNote) {
+                            basePayload.description = acc.customRateNote;
+                        }
                         
                         b.agreedPrice = basePayload.charged_total_price ?? undefined;
                         activitiesToInsert.push(basePayload);

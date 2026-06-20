@@ -331,6 +331,11 @@ function PlannerWizardWorkspace() {
   const [vendorBookings, setVendorBookings] = useState<any[]>([]);
   const [isLoadingProcurement, setIsLoadingProcurement] = useState<boolean>(false);
 
+  // Rate Override Modal State
+  const [editingCustomRateAct, setEditingCustomRateAct] = useState<any | null>(null);
+  const [customRateUnit, setCustomRateUnit] = useState<string>('');
+  const [customRateTotal, setCustomRateTotal] = useState<string>('');
+  const [customRateNote, setCustomRateNote] = useState<string>('');
 
   // 1. Wizard Track State
   const [track, setTrack] = useState<TrackType>('basic');
@@ -576,12 +581,40 @@ function PlannerWizardWorkspace() {
 
         if (track === 'final' && oldHotelId) {
           const newLocationName = hotel.closest_city || hotel.location_address || '';
-          const dayNumbersToUpdate = itinerary
-            .filter(b => b.type === ItineraryBlockTypes.SLEEP && (b.hotelId === oldHotelId || b.id === blockId))
-            .map(b => Number(b.dayNumber));
+          
+          // Find contiguous stay days around the current block's day number
+          const currentDay = Number(block.dayNumber);
+          const contiguousDays = new Set<number>([currentDay]);
 
-          // 1. Update all blocks in itinerary sharing the oldHotelId
-          setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && (b.hotelId === oldHotelId || b.id === blockId)) ? {
+          // Scan backwards
+          let checkDay = currentDay - 1;
+          while (checkDay >= 1) {
+            const prevBlock = itinerary.find(b => b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === checkDay);
+            if (prevBlock && prevBlock.hotelId === oldHotelId) {
+              contiguousDays.add(checkDay);
+              checkDay--;
+            } else {
+              break;
+            }
+          }
+
+          // Scan forwards
+          checkDay = currentDay + 1;
+          const maxDays = touristData?.preferences?.duration_days || 30;
+          while (checkDay <= maxDays) {
+            const nextBlock = itinerary.find(b => b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === checkDay);
+            if (nextBlock && nextBlock.hotelId === oldHotelId) {
+              contiguousDays.add(checkDay);
+              checkDay++;
+            } else {
+              break;
+            }
+          }
+
+          const dayNumbersToUpdate = Array.from(contiguousDays);
+
+          // 1. Update all blocks in itinerary sharing the oldHotelId in the contiguous range
+          setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && dayNumbersToUpdate.includes(Number(b.dayNumber))) ? {
             ...b,
             hotelId: value,
             hotelName: hotel.name,
@@ -591,11 +624,11 @@ function PlannerWizardWorkspace() {
             mealPlan: 'BB'
           } : b));
 
-          // 2. Update all activities in dbActivities sharing the oldHotelId
+          // 2. Update all activities in dbActivities sharing the oldHotelId in the contiguous range
           setDbActivities(prev => prev.map(act => {
             const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
             const matchesDay = dayNumbersToUpdate.includes(Number(dayNum));
-            return (act.hotel_id === oldHotelId || act.id === blockId || matchesDay) ? {
+            return matchesDay ? {
               ...act,
               hotel_id: value,
               hotel_room_id: null,
@@ -618,10 +651,10 @@ function PlannerWizardWorkspace() {
             } : act;
           }));
 
-          // 3. Update tripData accommodations sharing the oldHotelId
+          // 3. Update tripData accommodations sharing the oldHotelId in the contiguous range
           if (tripData) {
             let newAccs = [...(tripData.accommodations || [])];
-            newAccs = newAccs.map(a => (a.hotelId === oldHotelId || dayNumbersToUpdate.includes(Number(a.nightIndex))) ? {
+            newAccs = newAccs.map(a => dayNumbersToUpdate.includes(Number(a.nightIndex)) ? {
               ...a,
               hotelId: hotel.id,
               hotelName: hotel.name,
@@ -1006,58 +1039,68 @@ function PlannerWizardWorkspace() {
               double_room_count = totalRooms;
             }
 
-            const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
-            const contractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
-            const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
+             const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
+             const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
 
-            const hotel = masterData.hotels?.find((h: any) => h.id === acc.hotelId);
-            const newLocationName = hotel ? (hotel.closest_city || hotel.location_address || '') : '';
+             let finalContractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
+             let finalContractedPrice = totalContractedPrice;
+             if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
+               finalContractedUnitPrice = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice ? acc.customContractedTotalPrice / (totalRooms || 1) : 0);
+               finalContractedPrice = acc.customContractedTotalPrice ?? (finalContractedUnitPrice * totalRooms);
+             }
 
-            if (
-              act.hotel_id !== acc.hotelId ||
-              act.hotel_room_id !== newRoomId ||
-              act.quantity !== totalRooms ||
-              act.meal_plan !== mealPlan ||
-              act.charged_unit_price !== unitPrice ||
-              act.charged_total_price !== totalAgreedPrice ||
-              act.contracted_price !== contractedUnitPrice ||
-              act.contracted_total_price !== totalContractedPrice ||
-              act.location_name !== newLocationName ||
-              act.single_room_id !== single_room_id ||
-              act.single_room_count !== single_room_count ||
-              act.double_room_id !== double_room_id ||
-              act.double_room_count !== double_room_count ||
-              act.twin_room_id !== twin_room_id ||
-              act.twin_room_count !== twin_room_count ||
-              act.triple_room_id !== triple_room_id ||
-              act.triple_room_count !== triple_room_count ||
-              act.family_room_id !== family_room_id ||
-              act.family_room_count !== family_room_count
-            ) {
-              changed = true;
-              return {
-                ...act,
-                hotel_id: acc.hotelId || null,
-                hotel_room_id: newRoomId,
-                quantity: totalRooms,
-                meal_plan: mealPlan,
-                charged_unit_price: unitPrice,
-                charged_total_price: totalAgreedPrice,
-                contracted_price: contractedUnitPrice,
-                contracted_total_price: totalContractedPrice,
-                location_name: newLocationName,
-                single_room_id,
-                single_room_count,
-                double_room_id,
-                double_room_count,
-                twin_room_id,
-                twin_room_count,
-                triple_room_id,
-                triple_room_count,
-                family_room_id,
-                family_room_count
-              };
-            }
+             const expectedDescription = acc.customRateNote || null;
+ 
+             const hotel = masterData.hotels?.find((h: any) => h.id === acc.hotelId);
+             const newLocationName = hotel ? (hotel.closest_city || hotel.location_address || '') : '';
+ 
+             if (
+               act.hotel_id !== acc.hotelId ||
+               act.hotel_room_id !== newRoomId ||
+               act.quantity !== totalRooms ||
+               act.meal_plan !== mealPlan ||
+               act.charged_unit_price !== unitPrice ||
+               act.charged_total_price !== totalAgreedPrice ||
+               act.contracted_price !== finalContractedUnitPrice ||
+               act.contracted_total_price !== finalContractedPrice ||
+               act.location_name !== newLocationName ||
+               act.description !== expectedDescription ||
+               act.single_room_id !== single_room_id ||
+               act.single_room_count !== single_room_count ||
+               act.double_room_id !== double_room_id ||
+               act.double_room_count !== double_room_count ||
+               act.twin_room_id !== twin_room_id ||
+               act.twin_room_count !== twin_room_count ||
+               act.triple_room_id !== triple_room_id ||
+               act.triple_room_count !== triple_room_count ||
+               act.family_room_id !== family_room_id ||
+               act.family_room_count !== family_room_count
+             ) {
+               changed = true;
+               return {
+                 ...act,
+                 hotel_id: acc.hotelId || null,
+                 hotel_room_id: newRoomId,
+                 quantity: totalRooms,
+                 meal_plan: mealPlan,
+                 charged_unit_price: unitPrice,
+                 charged_total_price: totalAgreedPrice,
+                 contracted_price: finalContractedUnitPrice,
+                 contracted_total_price: finalContractedPrice,
+                 location_name: newLocationName,
+                 description: expectedDescription,
+                 single_room_id,
+                 single_room_count,
+                 double_room_id,
+                 double_room_count,
+                 twin_room_id,
+                 twin_room_count,
+                 triple_room_id,
+                 triple_room_count,
+                 family_room_id,
+                 family_room_count
+               };
+             }
           } else {
             // No accommodation bound for this night! Clear hotel-related fields.
             if (
@@ -1108,6 +1151,86 @@ function PlannerWizardWorkspace() {
       return changed ? updated : prev;
     });
   }, [tripData?.accommodations, masterData.hotels]);
+
+  const handleCustomRateUnitChange = (unitValStr: string, qty: number) => {
+    setCustomRateUnit(unitValStr);
+    const unitVal = parseFloat(unitValStr);
+    if (!isNaN(unitVal)) {
+      setCustomRateTotal((unitVal * qty).toFixed(2));
+    } else {
+      setCustomRateTotal('');
+    }
+  };
+
+  const handleCustomRateTotalChange = (totalValStr: string, qty: number) => {
+    setCustomRateTotal(totalValStr);
+    const totalVal = parseFloat(totalValStr);
+    if (!isNaN(totalVal) && qty > 0) {
+      setCustomRateUnit((totalVal / qty).toFixed(2));
+    } else {
+      setCustomRateUnit('');
+    }
+  };
+
+  const handleApplyCustomRateOverride = () => {
+    if (!editingCustomRateAct || !tripData) return;
+    const dayNum = editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || editingCustomRateAct.dayNumber || 0;
+    
+    const parsedUnit = parseFloat(customRateUnit);
+    const parsedTotal = parseFloat(customRateTotal);
+    const unitPrice = isNaN(parsedUnit) ? undefined : parsedUnit;
+    const totalPrice = isNaN(parsedTotal) ? undefined : parsedTotal;
+    const note = customRateNote.trim() || undefined;
+
+    setTripData({
+      ...tripData,
+      accommodations: tripData.accommodations.map(a => {
+        if (Number(a.nightIndex) === Number(dayNum)) {
+          return {
+            ...a,
+            customContractedUnitPrice: unitPrice,
+            customContractedTotalPrice: totalPrice,
+            customRateNote: note,
+          };
+        }
+        return a;
+      })
+    });
+    setEditingCustomRateAct(null);
+  };
+
+  const handleResetCustomRateOverride = () => {
+    if (!editingCustomRateAct || !tripData) return;
+    const dayNum = editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || editingCustomRateAct.dayNumber || 0;
+
+    setTripData({
+      ...tripData,
+      accommodations: tripData.accommodations.map(a => {
+        if (Number(a.nightIndex) === Number(dayNum)) {
+          const { customContractedUnitPrice, customContractedTotalPrice, customRateNote, ...rest } = a as any;
+          return rest;
+        }
+        return a;
+      })
+    });
+    setEditingCustomRateAct(null);
+  };
+
+  const handleOpenCustomRateModal = (act: any) => {
+    const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+    const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
+    
+    setEditingCustomRateAct(act);
+    if (acc) {
+      setCustomRateUnit(acc.customContractedUnitPrice !== undefined ? String(acc.customContractedUnitPrice) : String(act.contracted_price ?? ''));
+      setCustomRateTotal(acc.customContractedTotalPrice !== undefined ? String(acc.customContractedTotalPrice) : String(act.contracted_total_price ?? ''));
+      setCustomRateNote(acc.customRateNote || '');
+    } else {
+      setCustomRateUnit(String(act.contracted_price ?? ''));
+      setCustomRateTotal(String(act.contracted_total_price ?? ''));
+      setCustomRateNote('');
+    }
+  };
 
   const handleOpenHotelDrawer = (act: any) => {
     const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
@@ -1877,7 +2000,13 @@ function PlannerWizardWorkspace() {
         setDbActivities(res.activities);
         
         // Restore custom POs to the itinerary state if they exist in daily activities but not in itinerary yet
-        const customPOs = res.activities.filter((a: any) => a.hotel_id && !a.hotel_room_id);
+        const customPOs = res.activities.filter((a: any) => {
+          if (!a.hotel_id || a.hotel_room_id) return false;
+          const dayNum = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+          const isStandardStayAcc = tripData?.accommodations?.some(acc => Number(acc.nightIndex) === Number(dayNum));
+          const isStandardStayItin = itinerary?.some(b => b.type === 'sleep' && Number(b.dayNumber) === Number(dayNum) && !b.isCustomPO);
+          return !isStandardStayAcc && !isStandardStayItin;
+        });
         if (customPOs.length > 0) {
           setItinerary(prevItin => {
             const updatedItin = [...prevItin];
@@ -4415,8 +4544,8 @@ function PlannerWizardWorkspace() {
 
                         // Sort the list of hotels based on the first stay date/day number
                         clubbed.sort((a, b) => {
-                          const firstA = a.activities.find((x: any) => x.hotel_room_id !== null && !x.isCustomPO) || a.activities[0];
-                          const firstB = b.activities.find((x: any) => x.hotel_room_id !== null && !x.isCustomPO) || b.activities[0];
+                          const firstA = a.activities.find((x: any) => !x.isCustomPO) || a.activities[0];
+                          const firstB = b.activities.find((x: any) => !x.isCustomPO) || b.activities[0];
                           if (!firstA) return 1;
                           if (!firstB) return -1;
                           
@@ -4445,8 +4574,8 @@ function PlannerWizardWorkspace() {
                         }
 
                         return clubbed.map(({ hotelId, hotel, activities: acts }) => {
-                          const standardStays = acts.filter(act => act.hotel_room_id !== null && !act.isCustomPO);
-                          const customPOs = acts.filter(act => act.hotel_room_id === null || act.isCustomPO);
+                          const standardStays = acts.filter(act => !act.isCustomPO);
+                          const customPOs = acts.filter(act => act.isCustomPO);
 
                           return (
                             <div key={hotelId} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all animate-in fade-in duration-200">
@@ -4508,6 +4637,8 @@ function PlannerWizardWorkspace() {
                                     const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
                                     const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
                                     const dateVal = act.tour_itineraries?.date;
+                                    const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
+                                    const hasCustomRate = acc && (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined);
                                     return (
                                       <div key={act.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
                                         <div className="flex items-start gap-3">
@@ -4521,6 +4652,11 @@ function PlannerWizardWorkspace() {
                                             {act.title && (
                                               <span className="text-[10px] text-neutral-400 block mt-0.5">
                                                 {act.title}
+                                              </span>
+                                            )}
+                                            {(acc?.customRateNote || act.description) && (
+                                              <span className="text-[10px] text-amber-600 italic block mt-0.5 font-medium">
+                                                Note: {acc?.customRateNote || act.description}
                                               </span>
                                             )}
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -4557,6 +4693,12 @@ function PlannerWizardWorkspace() {
                                                   Breakfast Incl.
                                                 </span>
                                               )}
+                                              {hasCustomRate && (
+                                                <span className="px-2 py-0.5 bg-amber-100 border border-amber-300 text-amber-800 font-bold rounded text-[9px] uppercase tracking-wider flex items-center gap-1">
+                                                  <CircleDollarSign className="w-3 h-3 text-amber-700" />
+                                                  Custom Buying Rate
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                         </div>
@@ -4568,16 +4710,29 @@ function PlannerWizardWorkspace() {
                                           </div>
                                           {(act.contracted_price ?? act.charged_unit_price) !== undefined && (act.contracted_price ?? act.charged_unit_price) !== null && (
                                             <div className="text-right">
-                                              <span className="text-[9px] text-neutral-455 uppercase block font-mono">Unit Rate</span>
+                                              <span className="text-[9px] text-neutral-450 uppercase block font-mono">Unit Rate (Cost)</span>
                                               <span className="font-mono text-neutral-600 font-bold">${Number(act.contracted_price ?? act.charged_unit_price).toFixed(2)}</span>
                                             </div>
                                           )}
                                           {(act.contracted_total_price ?? act.charged_total_price) !== undefined && (act.contracted_total_price ?? act.charged_total_price) !== null && (
                                             <div className="text-right">
-                                              <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate</span>
+                                              <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate (Cost)</span>
                                               <span className="font-mono text-emerald-800 font-bold">${Number(act.contracted_total_price ?? act.charged_total_price).toFixed(2)}</span>
                                             </div>
                                           )}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenCustomRateModal(act)}
+                                            disabled={isLockedByOther}
+                                            className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${
+                                              hasCustomRate 
+                                                ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50" 
+                                                : "border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800"
+                                            }`}
+                                            title="Override Contracted Rates"
+                                          >
+                                            <CircleDollarSign className="w-3.5 h-3.5" />
+                                          </button>
                                           <button
                                             type="button"
                                             onClick={() => handleOpenHotelDrawer(act)}
@@ -6811,6 +6966,140 @@ function PlannerWizardWorkspace() {
             </div>
           );
         })(), document.body)}
+
+        {/* Custom Rate Override Modal */}
+        {editingCustomRateAct && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-neutral-800">
+                    Override Contracted Rate
+                  </h3>
+                  <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                    {(() => {
+                      const dayNum = editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || editingCustomRateAct.dayNumber || 0;
+                      const dateVal = editingCustomRateAct.tour_itineraries?.date;
+                      if (!dateVal) return `Day ${dayNum} stay`;
+                      try {
+                        const d = new Date(dateVal);
+                        if (!isNaN(d.getTime())) {
+                          return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} stay`;
+                        }
+                      } catch (e) {}
+                      return `${dateVal} stay`;
+                    })()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditingCustomRateAct(null)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Workspace */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Contracted Unit Rate ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 150.00"
+                      value={customRateUnit}
+                      onChange={(e) => handleCustomRateUnitChange(e.target.value, editingCustomRateAct.quantity || 1)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Contracted Total Rate ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 450.00"
+                      value={customRateTotal}
+                      onChange={(e) => handleCustomRateTotalChange(e.target.value, editingCustomRateAct.quantity || 1)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-neutral-400 bg-neutral-50 p-3 rounded-xl border border-neutral-200 flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span>Standard Unit Rate (Cost):</span>
+                    <span className="font-mono">${Number(editingCustomRateAct.contracted_price ?? editingCustomRateAct.charged_unit_price ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>Standard Total Rate (Cost):</span>
+                    <span className="font-mono">${Number(editingCustomRateAct.contracted_total_price ?? editingCustomRateAct.charged_total_price ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between mt-1 pt-1 border-t border-neutral-200 text-emerald-855 font-semibold">
+                    <span>Room Quantity (Qty):</span>
+                    <span className="font-bold">{editingCustomRateAct.quantity || 1}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                    Change Note / Reason
+                  </label>
+                  <textarea
+                    required
+                    placeholder="Provide a reason for overriding this rate (e.g., Special promotion rate negotiated directly with the GM)..."
+                    value={customRateNote}
+                    onChange={(e) => setCustomRateNote(e.target.value)}
+                    className="w-full h-24 text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm resize-none"
+                  />
+                  <span className="text-[9px] text-neutral-400 mt-1 block">
+                    This note will be saved as reference in the activity description.
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetCustomRateOverride}
+                  className="px-4 py-2.5 rounded-xl border border-rose-200 hover:bg-rose-50 text-xs font-bold text-rose-600 transition-colors"
+                >
+                  Reset to Standard
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCustomRateAct(null)}
+                    className="px-4 py-2.5 rounded-xl hover:bg-neutral-150 text-xs font-bold text-neutral-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyCustomRateOverride}
+                    disabled={!customRateNote.trim()}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+                    title={!customRateNote.trim() ? "A justification note is required to save rate changes" : ""}
+                  >
+                    <span>Apply Override</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* Send RFQ Modal */}
         {showRfqModal && selectedRfqHotel && (

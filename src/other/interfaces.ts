@@ -187,6 +187,11 @@ export interface AccommodationBooking {
     cancellationDeadline: string;
     beddingConfiguration: string;
     specialRequests: string;
+
+    // Custom Contracted overrides
+    customContractedUnitPrice?: number;
+    customContractedTotalPrice?: number;
+    customRateNote?: string;
 }
 
 export interface TransportBooking {
