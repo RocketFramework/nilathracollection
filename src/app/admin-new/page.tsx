@@ -575,32 +575,53 @@ function PlannerWizardWorkspace() {
         const oldHotelId = block.hotelId;
 
         if (track === 'final' && oldHotelId) {
+          const newLocationName = hotel.closest_city || hotel.location_address || '';
+          const dayNumbersToUpdate = itinerary
+            .filter(b => b.type === ItineraryBlockTypes.SLEEP && (b.hotelId === oldHotelId || b.id === blockId))
+            .map(b => Number(b.dayNumber));
+
           // 1. Update all blocks in itinerary sharing the oldHotelId
-          setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && b.hotelId === oldHotelId) ? {
+          setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && (b.hotelId === oldHotelId || b.id === blockId)) ? {
             ...b,
             hotelId: value,
             hotelName: hotel.name,
             imageUrl: autoImageUrl,
+            locationName: newLocationName,
             roomName: '',
             mealPlan: 'BB'
           } : b));
 
           // 2. Update all activities in dbActivities sharing the oldHotelId
-          setDbActivities(prev => prev.map(act => (act.hotel_id === oldHotelId || act.id === blockId) ? {
-            ...act,
-            hotel_id: value,
-            hotel_room_id: null,
-            quantity: 1,
-            charged_unit_price: null,
-            charged_total_price: null,
-            contracted_price: null,
-            contracted_total_price: null
-          } : act));
+          setDbActivities(prev => prev.map(act => {
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const matchesDay = dayNumbersToUpdate.includes(Number(dayNum));
+            return (act.hotel_id === oldHotelId || act.id === blockId || matchesDay) ? {
+              ...act,
+              hotel_id: value,
+              hotel_room_id: null,
+              location_name: newLocationName,
+              quantity: 1,
+              charged_unit_price: null,
+              charged_total_price: null,
+              contracted_price: null,
+              contracted_total_price: null,
+              single_room_id: null,
+              single_room_count: 0,
+              double_room_id: null,
+              double_room_count: 0,
+              twin_room_id: null,
+              twin_room_count: 0,
+              triple_room_id: null,
+              triple_room_count: 0,
+              family_room_id: null,
+              family_room_count: 0
+            } : act;
+          }));
 
           // 3. Update tripData accommodations sharing the oldHotelId
           if (tripData) {
             let newAccs = [...(tripData.accommodations || [])];
-            newAccs = newAccs.map(a => a.hotelId === oldHotelId ? {
+            newAccs = newAccs.map(a => (a.hotelId === oldHotelId || dayNumbersToUpdate.includes(Number(a.nightIndex))) ? {
               ...a,
               hotelId: hotel.id,
               hotelName: hotel.name,
@@ -928,7 +949,7 @@ function PlannerWizardWorkspace() {
     setDbActivities(prev => {
       let changed = false;
       const updated = prev.map(act => {
-        const isCustom = act.isCustomPO || !act.hotel_room_id;
+        const isCustom = !!act.isCustomPO;
         if ((act.activity_type === 'sleep' || act.hotel_id) && !isCustom) {
           const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
           const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
@@ -937,23 +958,60 @@ function PlannerWizardWorkspace() {
             let totalAgreedPrice = 0;
             let totalContractedPrice = 0;
             let mealPlan = acc.mealPlan || 'BB';
-            
+
+            let single_room_id = null;
+            let single_room_count = 0;
+            let double_room_id = null;
+            let double_room_count = 0;
+            let twin_room_id = null;
+            let twin_room_count = 0;
+            let triple_room_id = null;
+            let triple_room_count = 0;
+            let family_room_id = null;
+            let family_room_count = 0;
+
             if (acc.selectedRooms && acc.selectedRooms.length > 0) {
               acc.selectedRooms.forEach(room => {
                 totalRooms += room.quantity;
                 totalAgreedPrice += (room.pricePerNight || 0) * room.quantity;
                 totalContractedPrice += (room.contractedPrice || room.pricePerNight || 0) * room.quantity;
                 if (room.mealPlan) mealPlan = room.mealPlan;
+
+                const reqType = room.reqId?.split('-')[0];
+                if (reqType === 'Single') {
+                  single_room_id = room.roomId || null;
+                  single_room_count = room.quantity;
+                } else if (reqType === 'Double') {
+                  double_room_id = room.roomId || null;
+                  double_room_count = room.quantity;
+                } else if (reqType === 'Twin') {
+                  twin_room_id = room.roomId || null;
+                  twin_room_count = room.quantity;
+                } else if (reqType === 'Triple') {
+                  triple_room_id = room.roomId || null;
+                  triple_room_count = room.quantity;
+                } else if (reqType === 'Family') {
+                  family_room_id = room.roomId || null;
+                  family_room_count = room.quantity;
+                }
               });
             } else {
               totalRooms = acc.numberOfRooms || 1;
               totalAgreedPrice = (acc.pricePerNight || 0) * totalRooms;
               totalContractedPrice = ((acc as any).contractedPrice || acc.pricePerNight || 0) * totalRooms;
+
+              // Fallback to double room mapping if single roomId is present on accommodation
+              const assumedRoomId = acc.roomId || null;
+              double_room_id = assumedRoomId;
+              double_room_count = totalRooms;
             }
 
             const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
             const contractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
             const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
+
+            const hotel = masterData.hotels?.find((h: any) => h.id === acc.hotelId);
+            const newLocationName = hotel ? (hotel.closest_city || hotel.location_address || '') : '';
 
             if (
               act.hotel_id !== acc.hotelId ||
@@ -963,7 +1021,18 @@ function PlannerWizardWorkspace() {
               act.charged_unit_price !== unitPrice ||
               act.charged_total_price !== totalAgreedPrice ||
               act.contracted_price !== contractedUnitPrice ||
-              act.contracted_total_price !== totalContractedPrice
+              act.contracted_total_price !== totalContractedPrice ||
+              act.location_name !== newLocationName ||
+              act.single_room_id !== single_room_id ||
+              act.single_room_count !== single_room_count ||
+              act.double_room_id !== double_room_id ||
+              act.double_room_count !== double_room_count ||
+              act.twin_room_id !== twin_room_id ||
+              act.twin_room_count !== twin_room_count ||
+              act.triple_room_id !== triple_room_id ||
+              act.triple_room_count !== triple_room_count ||
+              act.family_room_id !== family_room_id ||
+              act.family_room_count !== family_room_count
             ) {
               changed = true;
               return {
@@ -975,7 +1044,18 @@ function PlannerWizardWorkspace() {
                 charged_unit_price: unitPrice,
                 charged_total_price: totalAgreedPrice,
                 contracted_price: contractedUnitPrice,
-                contracted_total_price: totalContractedPrice
+                contracted_total_price: totalContractedPrice,
+                location_name: newLocationName,
+                single_room_id,
+                single_room_count,
+                double_room_id,
+                double_room_count,
+                twin_room_id,
+                twin_room_count,
+                triple_room_id,
+                triple_room_count,
+                family_room_id,
+                family_room_count
               };
             }
           } else {
@@ -987,7 +1067,17 @@ function PlannerWizardWorkspace() {
               act.charged_unit_price !== null ||
               act.charged_total_price !== null ||
               act.contracted_price !== null ||
-              act.contracted_total_price !== null
+              act.contracted_total_price !== null ||
+              act.single_room_id !== null ||
+              act.single_room_count !== 0 ||
+              act.double_room_id !== null ||
+              act.double_room_count !== 0 ||
+              act.twin_room_id !== null ||
+              act.twin_room_count !== 0 ||
+              act.triple_room_id !== null ||
+              act.triple_room_count !== 0 ||
+              act.family_room_id !== null ||
+              act.family_room_count !== 0
             ) {
               changed = true;
               return {
@@ -998,7 +1088,17 @@ function PlannerWizardWorkspace() {
                 charged_unit_price: null,
                 charged_total_price: null,
                 contracted_price: null,
-                contracted_total_price: null
+                contracted_total_price: null,
+                single_room_id: null,
+                single_room_count: 0,
+                double_room_id: null,
+                double_room_count: 0,
+                twin_room_id: null,
+                twin_room_count: 0,
+                triple_room_id: null,
+                triple_room_count: 0,
+                family_room_id: null,
+                family_room_count: 0
               };
             }
           }
@@ -1007,7 +1107,7 @@ function PlannerWizardWorkspace() {
       });
       return changed ? updated : prev;
     });
-  }, [tripData?.accommodations]);
+  }, [tripData?.accommodations, masterData.hotels]);
 
   const handleOpenHotelDrawer = (act: any) => {
     const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
@@ -6169,18 +6269,30 @@ function PlannerWizardWorkspace() {
                                                           // Remove room if qty goes to 0
                                                           const newSelected = selectedRooms.filter((sr: any) => sr.reqId !== reqId);
                                                           if (tripData) {
+                                                            const stayDays = (track === 'final' && activeBlock?.hotelId)
+                                                              ? itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId === activeBlock.hotelId).map(b => Number(b.dayNumber))
+                                                              : [Number(activeBlock?.dayNumber)];
                                                             setTripData({
                                                               ...tripData,
-                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                              accommodations: tripData.accommodations.map(a => {
+                                                                const matches = stayDays.includes(Number(a.nightIndex));
+                                                                return matches ? { ...a, selectedRooms: newSelected } : a;
+                                                              })
                                                             });
                                                           }
                                                         } else {
                                                           // Update quantity
                                                           const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, quantity: newQty } : sr);
                                                           if (tripData) {
+                                                            const stayDays = (track === 'final' && activeBlock?.hotelId)
+                                                              ? itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId === activeBlock.hotelId).map(b => Number(b.dayNumber))
+                                                              : [Number(activeBlock?.dayNumber)];
                                                             setTripData({
                                                               ...tripData,
-                                                              accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                              accommodations: tripData.accommodations.map(a => {
+                                                                const matches = stayDays.includes(Number(a.nightIndex));
+                                                                return matches ? { ...a, selectedRooms: newSelected } : a;
+                                                              })
                                                             });
                                                           }
                                                         }
@@ -6212,9 +6324,15 @@ function PlannerWizardWorkspace() {
                                                           if (assignedRoom) {
                                                             const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
                                                             if (tripData) {
+                                                              const stayDays = (track === 'final' && activeBlock?.hotelId)
+                                                                ? itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId === activeBlock.hotelId).map(b => Number(b.dayNumber))
+                                                                : [Number(activeBlock?.dayNumber)];
                                                               setTripData({
                                                                 ...tripData,
-                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? { ...a, selectedRooms: newSelected } : a)
+                                                                accommodations: tripData.accommodations.map(a => {
+                                                                  const matches = stayDays.includes(Number(a.nightIndex));
+                                                                  return matches ? { ...a, selectedRooms: newSelected } : a;
+                                                                })
                                                               });
                                                             }
                                                           } else {
@@ -6255,21 +6373,36 @@ function PlannerWizardWorkspace() {
                                                             });
                                                             
                                                             // Also, update the main block's roomName and mealPlan with the primary selection for simplicity
-                                                            updateBlock(activeAssignment.blockId, {
-                                                              roomName: room.room_name,
-                                                              mealPlan: currentMealPlan
-                                                            });
+                                                            if (track === 'final' && activeBlock?.hotelId) {
+                                                              setItinerary(prev => prev.map(b => (b.type === ItineraryBlockTypes.SLEEP && b.hotelId === activeBlock.hotelId) ? {
+                                                                ...b,
+                                                                roomName: room.room_name,
+                                                                mealPlan: currentMealPlan
+                                                              } : b));
+                                                            } else {
+                                                              updateBlock(activeAssignment.blockId, {
+                                                                roomName: room.room_name,
+                                                                mealPlan: currentMealPlan
+                                                              });
+                                                            }
 
                                                             if (tripData) {
+                                                              const stayDays = (track === 'final' && activeBlock?.hotelId)
+                                                                ? itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId === activeBlock.hotelId).map(b => Number(b.dayNumber))
+                                                                : [Number(activeBlock?.dayNumber)];
                                                               setTripData({
                                                                 ...tripData,
-                                                                accommodations: tripData.accommodations.map(a => Number(a.nightIndex) === Number(activeBlock?.dayNumber) ? {
-                                                                  ...a,
-                                                                  selectedRooms: newSelected,
-                                                                  roomId: room.id,
-                                                                  roomName: room.room_name,
-                                                                  mealPlan: currentMealPlan
-                                                                } : a)
+                                                                accommodations: tripData.accommodations.map(a => {
+                                                                  const matches = stayDays.includes(Number(a.nightIndex));
+                                                                  return matches ? {
+                                                                    ...a,
+                                                                    hotelId: activeBlock?.hotelId,
+                                                                    selectedRooms: newSelected,
+                                                                    roomId: room.id,
+                                                                    roomName: room.room_name,
+                                                                    mealPlan: currentMealPlan
+                                                                  } : a;
+                                                                })
                                                               });
                                                             }
                                                           }}
