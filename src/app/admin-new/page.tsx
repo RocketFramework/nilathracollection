@@ -271,6 +271,53 @@ const uploadItineraryImage = async (file: File): Promise<string> => {
   return data.publicUrl;
 };
 
+const parseTimeToMinutes = (timeStr: string): number => {
+  if (!timeStr) return 9999;
+  const cleanStr = timeStr.trim().toUpperCase();
+  
+  // Try to parse AM/PM format first (e.g., "10:30 AM", "09:00 PM")
+  const ampmMatch = cleanStr.match(/^(\d+):(\d+)\s*(AM|PM)$/);
+  if (ampmMatch) {
+    let hours = parseInt(ampmMatch[1], 10);
+    const minutes = parseInt(ampmMatch[2], 10);
+    const period = ampmMatch[3];
+    
+    if (period === 'PM' && hours < 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    return hours * 60 + minutes;
+  }
+  
+  // Try to parse standard 24-hour format "HH:MM"
+  const standardMatch = cleanStr.match(/^(\d+):(\d+)$/);
+  if (standardMatch) {
+    const hours = parseInt(standardMatch[1], 10);
+    const minutes = parseInt(standardMatch[2], 10);
+    return hours * 60 + minutes;
+  }
+  
+  // Fallback: if it's just a number, treat as hour
+  const hourOnly = parseInt(cleanStr, 10);
+  if (!isNaN(hourOnly)) {
+    return hourOnly * 60;
+  }
+  
+  return 9999; // Empty/unparseable times go to the end of the day
+};
+
+const sortItineraryChronologically = (blocks: InternalItineraryBlock[]): InternalItineraryBlock[] => {
+  return [...blocks].sort((a, b) => {
+    if (a.dayNumber !== b.dayNumber) {
+      return a.dayNumber - b.dayNumber;
+    }
+    const minutesA = parseTimeToMinutes(a.startTime);
+    const minutesB = parseTimeToMinutes(b.startTime);
+    return minutesA - minutesB;
+  });
+};
+
 function PlannerWizardWorkspace() {
   const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
   const STORAGE_KEY = `nilathra_planner_wizard_state_${tourId}`;
@@ -332,6 +379,7 @@ function PlannerWizardWorkspace() {
   const [showCustomHotelItemModal, setShowCustomHotelItemModal] = useState(false);
   const [customHotelItemBaseHotel, setCustomHotelItemBaseHotel] = useState<any>(null);
   const [customHotelItemStays, setCustomHotelItemStays] = useState<any[]>([]);
+  const [editingCustomHotelItem, setEditingCustomHotelItem] = useState<any>(null);
 
   // Custom Hotel PO Item Form State
   const [customHotelItemType, setCustomHotelItemType] = useState<'meal' | 'activity' | 'travel'>('activity');
@@ -1493,7 +1541,7 @@ function PlannerWizardWorkspace() {
       try {
         const res = await getDraftVersionAction(version.id);
         if (res.success && res.version) {
-          setItinerary(res.version.itinerary_data);
+          setItinerary(sortItineraryChronologically(res.version.itinerary_data || []));
 
           // Fetch any assigned hotels and restaurants to populate masterData
           const hotelIds = (res.version.itinerary_data || [])
@@ -1856,7 +1904,7 @@ function PlannerWizardWorkspace() {
           if (tourRes.success && tourRes.data) {
             const fullTripData = tourRes.data.tripData as TripData;
             setTripData(fullTripData);
-            setItinerary(fullTripData.itinerary || []);
+            setItinerary(sortItineraryChronologically(fullTripData.itinerary || []));
             if (fullTripData.manualSingle !== undefined) setManualSingle(fullTripData.manualSingle);
             if (fullTripData.manualDouble !== undefined) setManualDouble(fullTripData.manualDouble);
             if (fullTripData.manualTriple !== undefined) setManualTriple(fullTripData.manualTriple);
@@ -1923,7 +1971,11 @@ function PlannerWizardWorkspace() {
 
           getDailyActivitiesAction(activeTourId).then(daRes => {
             if (daRes.success && daRes.activities) {
-              setDbActivities(daRes.activities);
+              const mapped = daRes.activities.map((a: any) => ({
+                ...a,
+                isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+              }));
+              setDbActivities(mapped);
             }
           });
         }
@@ -2042,7 +2094,11 @@ function PlannerWizardWorkspace() {
     try {
       const res = await getDailyActivitiesAction(tid);
       if (res.success && res.activities) {
-        setDbActivities(res.activities);
+        const mapped = res.activities.map((a: any) => ({
+          ...a,
+          isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+        }));
+        setDbActivities(mapped);
         
         // Restore custom POs to the itinerary state if they exist in daily activities but not in itinerary yet
         const customPOs = res.activities.filter((a: any) => {
@@ -2080,7 +2136,7 @@ function PlannerWizardWorkspace() {
                 });
               }
             });
-            return changed ? updatedItin : prevItin;
+            return changed ? sortItineraryChronologically(updatedItin) : prevItin;
           });
         }
       } else {
@@ -4838,18 +4894,47 @@ function PlannerWizardWorkspace() {
                                                 </span>
                                               )}
                                             </div>
-                                            
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setDbActivities(prev => prev.filter(item => item.id !== act.id));
-                                                setItinerary(prev => prev.filter(item => item.id !== act.id));
-                                              }}
-                                              className="p-1.5 rounded-xl border border-neutral-200 hover:border-red-300 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all shadow-sm shrink-0"
-                                              title="Delete Item"
-                                            >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setCustomHotelItemBaseHotel(hotel);
+                                                  setCustomHotelItemStays(standardStays);
+                                                  setEditingCustomHotelItem(act);
+                                                  
+                                                  // Prefill all modal form states
+                                                  setCustomHotelItemType(act.activity_type || act.type || 'activity');
+                                                  setCustomHotelItemDayNum(act.day_number || act.dayNumber || 1);
+                                                  setCustomHotelItemTitle(act.title || act.name || '');
+                                                  setCustomHotelItemDescription(act.description || act.internalNotes || '');
+                                                  setCustomHotelItemLocation(act.location_name || act.locationName || '');
+                                                  setCustomHotelItemDistance(act.distance || '');
+                                                  setCustomHotelItemTimeStart(act.time_start || act.startTime || '00:00');
+                                                  setCustomHotelItemTimeEnd(act.time_end || act.endTime || '00:00');
+                                                  setCustomHotelItemContractedPrice(act.contracted_price || 0);
+                                                  setCustomHotelItemChargedUnitPrice(act.charged_unit_price || act.agreedPrice || 0);
+                                                  setCustomHotelItemQuantity(act.quantity || 1);
+                                                  
+                                                  setShowCustomHotelItemModal(true);
+                                                }}
+                                                className="p-1.5 rounded-xl border border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800 transition-all shadow-sm shrink-0"
+                                                title="Edit Custom Item"
+                                              >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                              </button>
+                                              
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setDbActivities(prev => prev.filter(item => item.id !== act.id));
+                                                  setItinerary(prev => prev.filter(item => item.id !== act.id));
+                                                }}
+                                                className="p-1.5 rounded-xl border border-neutral-200 hover:border-red-300 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all shadow-sm shrink-0"
+                                                title="Delete Item"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
                                           </div>
 
                                           {/* Form Grid Row 1 */}
@@ -5110,6 +5195,7 @@ function PlannerWizardWorkspace() {
                                   onClick={() => {
                                     setCustomHotelItemBaseHotel(hotel);
                                     setCustomHotelItemStays(standardStays);
+                                    setEditingCustomHotelItem(null);
                                     
                                     const firstStay = standardStays[0];
                                     const initialDay = firstStay ? (firstStay.tour_itineraries?.day_number || firstStay.day_number || firstStay.dayNumber || 1) : 1;
@@ -8117,7 +8203,7 @@ function PlannerWizardWorkspace() {
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
                   <h3 className="text-lg font-serif font-bold text-neutral-800">
-                    Add Custom Hotel Item
+                    {editingCustomHotelItem ? 'Edit Custom Hotel Item' : 'Add Custom Hotel Item'}
                   </h3>
                   <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
                     Associated Hotel: {customHotelItemBaseHotel.name}
@@ -8380,7 +8466,8 @@ function PlannerWizardWorkspace() {
                       return;
                     }
                     
-                    const newPOId = generateUUID();
+                    const isEditing = !!editingCustomHotelItem;
+                    const newPOId = isEditing ? editingCustomHotelItem.id : generateUUID();
                     const numDays = touristData?.preferences?.duration_days || 5;
                     const calculatedDaysList = Array.from({ length: numDays }, (_, idx) => {
                       const dayNum = idx + 1;
@@ -8435,8 +8522,8 @@ function PlannerWizardWorkspace() {
                       bufferMins: 0,
                       durationHours: 2,
                       internalNotes: customHotelItemDescription || '',
-                      confirmationStatus: 'Pending',
-                      paymentStatus: 'Pending',
+                      confirmationStatus: isEditing ? (editingCustomHotelItem.confirmationStatus || 'Pending') : 'Pending',
+                      paymentStatus: isEditing ? (editingCustomHotelItem.paymentStatus || 'Pending') : 'Pending',
                       contractedPrice: customHotelItemContractedPrice,
                       agreedPrice: customHotelItemChargedUnitPrice,
                       quantity: customHotelItemQuantity,
@@ -8446,13 +8533,20 @@ function PlannerWizardWorkspace() {
                       isCustomPO: true
                     };
 
-                    setDbActivities(prev => [...prev, newPO]);
-                    setItinerary(prev => [...prev, newBlock]);
+                    if (isEditing) {
+                      setDbActivities(prev => prev.map(item => item.id === newPOId ? { ...item, ...newPO } : item));
+                      setItinerary(prev => prev.map(item => item.id === newPOId ? { ...item, ...newBlock } : item));
+                    } else {
+                      setDbActivities(prev => [...prev, newPO]);
+                      setItinerary(prev => [...prev, newBlock]);
+                    }
+                    
+                    setEditingCustomHotelItem(null);
                     setShowCustomHotelItemModal(false);
                   }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95"
                 >
-                  <span>Add Custom Item</span>
+                  <span>{editingCustomHotelItem ? 'Save Changes' : 'Add Custom Item'}</span>
                 </button>
               </div>
 

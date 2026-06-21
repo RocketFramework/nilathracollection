@@ -1243,6 +1243,18 @@ export class TourService {
             }
         }
 
+        // B2. Update custom PO daily activities on the same days under the old hotel
+        if (firstStay?.hotel_id) {
+            const { error: customDaErr } = await supabaseAdmin
+                .from('daily_activities')
+                .update({ hotel_id: newHotelId })
+                .eq('tour_id', tourId)
+                .eq('hotel_id', firstStay.hotel_id)
+                .in('day_number', dayNumbers)
+                .is('hotel_room_id', null);
+            if (customDaErr) console.error("Error updating custom PO daily activities:", customDaErr);
+        }
+
         // C. Update tours planner_data JSON structure
         const { data: tourRecord } = await supabaseAdmin
             .from('tours')
@@ -1264,6 +1276,13 @@ export class TourService {
                             agreedPrice: avgChargedPriceAcrossStays * totalRoomsAcrossStays,
                             contractedPrice: avgContractedPriceAcrossStays,
                             description: `${oldHotelName} changed due to ${newHotel.name} due to availability`
+                        };
+                    }
+                    if (b.isCustomPO && b.hotelId === firstStay?.hotel_id && dayNumbers.includes(Number(b.dayNumber))) {
+                        return {
+                            ...b,
+                            hotelId: newHotelId,
+                            hotelName: newHotel.name
                         };
                     }
                     return b;
