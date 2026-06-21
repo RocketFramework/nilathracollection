@@ -6792,6 +6792,9 @@ function PlannerWizardWorkspace() {
                                                                 console.error("Failed to sync edited night accommodation to DB:", err);
                                                               });
 
+                                                              const oldHotelId = currentStay?.hotel_id;
+                                                              const dayNum = Number(currentStay?.day_number || currentStay?.dayNumber || activeBlock?.dayNumber || 0);
+
                                                               // 1. Update only this activity in dbActivities
                                                               setDbActivities(prev => prev.map(act => {
                                                                 if (act.id === activeAssignment.blockId) {
@@ -6819,20 +6822,40 @@ function PlannerWizardWorkspace() {
                                                                     family_room_count: roomsMap.Family?.quantity || null
                                                                   };
                                                                 }
+                                                                const actDay = Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0);
+                                                                if (act.isCustomPO && act.hotel_id === oldHotelId && actDay === dayNum) {
+                                                                  return {
+                                                                    ...act,
+                                                                    hotel_id: h.id
+                                                                  };
+                                                                }
                                                                 return act;
                                                               }));
 
                                                               // 2. Update only this block in itinerary
-                                                              setItinerary(prev => prev.map(b => b.id === activeAssignment.blockId ? {
-                                                                ...b,
-                                                                hotelId: h.id,
-                                                                hotelName: h.name,
-                                                                roomName: room.room_name,
-                                                                mealPlan: currentMealPlan,
-                                                                agreedPrice: totalAgreedVal,
-                                                                contractedPrice: avgContracted,
-                                                                description: `${oldHotelName} changed due to ${h.name} due to availability`
-                                                              } : b));
+                                                              setItinerary(prev => prev.map(b => {
+                                                                if (b.id === activeAssignment.blockId) {
+                                                                  return {
+                                                                    ...b,
+                                                                    hotelId: h.id,
+                                                                    hotelName: h.name,
+                                                                    roomName: room.room_name,
+                                                                    mealPlan: currentMealPlan,
+                                                                    agreedPrice: totalAgreedVal,
+                                                                    contractedPrice: avgContracted,
+                                                                    description: `${oldHotelName} changed due to ${h.name} due to availability`
+                                                                  };
+                                                                }
+                                                                const blockDay = Number(b.dayNumber);
+                                                                if (b.isCustomPO && b.hotelId === oldHotelId && blockDay === dayNum) {
+                                                                  return {
+                                                                    ...b,
+                                                                    hotelId: h.id,
+                                                                    hotelName: h.name
+                                                                  };
+                                                                }
+                                                                return b;
+                                                              }));
 
                                                               // 3. Update only this accommodation in tripData
                                                               if (tripData) {
@@ -7435,8 +7458,13 @@ function PlannerWizardWorkspace() {
                                 setChangeHotelSelectedRooms([]);
                                 setChangeHotelPendingRoomState({});
 
-                                // 1. Update only the hotel id in dbActivities table state for activities in this block
+                                const oldHotelId = changeHotelDrawerAct?.hotel_id;
                                 const stayIds = new Set(changeHotelStays.map(s => s.id));
+                                const stayDays = new Set(changeHotelStays.map(s => {
+                                  return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
+                                }));
+
+                                // 1. Update only the hotel id in dbActivities table state for activities in this block
                                 setDbActivities(prev => prev.map(act => {
                                   if (stayIds.has(act.id)) {
                                     return {
@@ -7445,13 +7473,17 @@ function PlannerWizardWorkspace() {
                                       location_name: h.closest_city || h.location_address || act.location_name || ''
                                     };
                                   }
+                                  const actDay = Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0);
+                                  if (act.isCustomPO && act.hotel_id === oldHotelId && stayDays.has(actDay)) {
+                                    return {
+                                      ...act,
+                                      hotel_id: h.id
+                                    };
+                                  }
                                   return act;
                                 }));
 
                                 // 2. Update itinerary blocks corresponding to these stays
-                                const stayDays = new Set(changeHotelStays.map(s => {
-                                  return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
-                                }));
                                 setItinerary(prev => prev.map(b => {
                                   const dayNum = Number(b.dayNumber);
                                   if (b.type === ItineraryBlockTypes.SLEEP && stayDays.has(dayNum)) {
@@ -7461,6 +7493,13 @@ function PlannerWizardWorkspace() {
                                       hotelName: h.name,
                                       locationName: h.closest_city || h.location_address || '',
                                       ...(b.hotelId !== h.id ? { roomName: '', mealPlan: 'BB' } : {})
+                                    };
+                                  }
+                                  if (b.isCustomPO && b.hotelId === oldHotelId && stayDays.has(dayNum)) {
+                                    return {
+                                      ...b,
+                                      hotelId: h.id,
+                                      hotelName: h.name
                                     };
                                   }
                                   return b;
@@ -7660,6 +7699,7 @@ function PlannerWizardWorkspace() {
 
                                                           const oldHotel = masterData.hotels?.find((x: any) => x.id === changeHotelDrawerAct.hotel_id);
                                                           const oldHotelName = oldHotel?.name || "Originally planned hotel";
+                                                          const oldHotelId = changeHotelDrawerAct?.hotel_id;
 
                                                           const roomsMap: Record<string, any> = {};
                                                           newSelected.forEach((r: any) => {
@@ -7668,6 +7708,9 @@ function PlannerWizardWorkspace() {
 
                                                           const stayIds = changeHotelStays.map(s => s.id);
                                                           const stayIdsSet = new Set(stayIds);
+                                                          const stayDays = new Set(changeHotelStays.map(s => {
+                                                            return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
+                                                          }));
 
                                                           // Sync to Database immediately
                                                           changeHotelDatabaseAction(tourId, stayIds, h.id, newSelected).catch(err => {
@@ -7701,13 +7744,17 @@ function PlannerWizardWorkspace() {
                                                                 family_room_count: roomsMap.Family?.quantity || null
                                                               };
                                                             }
+                                                            const actDay = Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0);
+                                                            if (act.isCustomPO && act.hotel_id === oldHotelId && stayDays.has(actDay)) {
+                                                              return {
+                                                                ...act,
+                                                                hotel_id: h.id
+                                                              };
+                                                            }
                                                             return act;
                                                           }));
 
                                                           // 2. Update roomName and mealPlan in itinerary blocks corresponding to these stays
-                                                          const stayDays = new Set(changeHotelStays.map(s => {
-                                                            return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
-                                                          }));
                                                           setItinerary(prev => prev.map(b => {
                                                             const dayNum = Number(b.dayNumber);
                                                             if (b.type === ItineraryBlockTypes.SLEEP && stayDays.has(dayNum)) {
@@ -7720,6 +7767,13 @@ function PlannerWizardWorkspace() {
                                                                 agreedPrice: totalAgreedVal,
                                                                 contractedPrice: avgContracted,
                                                                 description: `${oldHotelName} changed due to ${h.name} due to availability`
+                                                              };
+                                                            }
+                                                            if (b.isCustomPO && b.hotelId === oldHotelId && stayDays.has(dayNum)) {
+                                                              return {
+                                                                ...b,
+                                                                hotelId: h.id,
+                                                                hotelName: h.name
                                                               };
                                                             }
                                                             return b;
