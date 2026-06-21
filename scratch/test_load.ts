@@ -15,6 +15,11 @@ async function run() {
     console.log("  Adults Count:", tripData.profile?.adults);
     console.log("  Children Count:", tripData.profile?.children);
     console.log("  Infants Count:", tripData.profile?.infants);
+    console.log("Itinerary Sleep Blocks:");
+    const sleepBlocks = (tripData.itinerary || []).filter((b: any) => b.type === 'sleep');
+    sleepBlocks.forEach((b: any) => {
+      console.log(`  Day ${b.dayNumber}: Hotel ID: ${b.hotelId}, Hotel Name: ${b.hotelName}, Room Name: ${b.roomName}`);
+    });
   } catch (err) {
     console.error("Error loading tour data:", err);
   }

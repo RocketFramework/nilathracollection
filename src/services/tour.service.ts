@@ -343,23 +343,34 @@ export class TourService {
             .maybeSingle();
 
         if (latestDraft && latestDraft.itinerary_data) {
-            tripData.itinerary = latestDraft.itinerary_data;
-            if (latestDraft.adults !== null && latestDraft.adults !== undefined) {
-                if (!tripData.profile) tripData.profile = {} as any;
-                tripData.profile.adults = latestDraft.adults;
+            const draftTime = latestDraft.created_at ? new Date(latestDraft.created_at).getTime() : 0;
+            const tourTime = tourMsg.updated_at ? new Date(tourMsg.updated_at).getTime() : 0;
+
+            if (draftTime >= tourTime) {
+                tripData.itinerary = latestDraft.itinerary_data;
+                if (latestDraft.adults !== null && latestDraft.adults !== undefined) {
+                    if (!tripData.profile) tripData.profile = {} as any;
+                    tripData.profile.adults = latestDraft.adults;
+                }
+                if (latestDraft.children !== null && latestDraft.children !== undefined) {
+                    if (!tripData.profile) tripData.profile = {} as any;
+                    tripData.profile.children = latestDraft.children;
+                }
+                if (latestDraft.infants !== null && latestDraft.infants !== undefined) {
+                    if (!tripData.profile) tripData.profile = {} as any;
+                    tripData.profile.infants = latestDraft.infants;
+                }
+                tripData.manualSingle = latestDraft.single_rooms ?? 0;
+                tripData.manualDouble = latestDraft.double_rooms ?? 1;
+                tripData.manualTriple = latestDraft.triple_rooms ?? 0;
+                tripData.manualFamily = latestDraft.family_rooms ?? 0;
+            } else if (plannerData) {
+                // Restore manual rooms if they were saved in tours.planner_data
+                tripData.manualSingle = plannerData.manualSingle ?? 0;
+                tripData.manualDouble = plannerData.manualDouble ?? 1;
+                tripData.manualTriple = plannerData.manualTriple ?? 0;
+                tripData.manualFamily = plannerData.manualFamily ?? 0;
             }
-            if (latestDraft.children !== null && latestDraft.children !== undefined) {
-                if (!tripData.profile) tripData.profile = {} as any;
-                tripData.profile.children = latestDraft.children;
-            }
-            if (latestDraft.infants !== null && latestDraft.infants !== undefined) {
-                if (!tripData.profile) tripData.profile = {} as any;
-                tripData.profile.infants = latestDraft.infants;
-            }
-            tripData.manualSingle = latestDraft.single_rooms ?? 0;
-            tripData.manualDouble = latestDraft.double_rooms ?? 1;
-            tripData.manualTriple = latestDraft.triple_rooms ?? 0;
-            tripData.manualFamily = latestDraft.family_rooms ?? 0;
         } else if (plannerData) {
             // Restore manual rooms if they were saved in tours.planner_data
             tripData.manualSingle = plannerData.manualSingle ?? 0;

@@ -7201,7 +7201,8 @@ function PlannerWizardWorkspace() {
                                       ...b,
                                       hotelId: h.id,
                                       hotelName: h.name,
-                                      locationName: h.closest_city || h.location_address || ''
+                                      locationName: h.closest_city || h.location_address || '',
+                                      ...(b.hotelId !== h.id ? { roomName: '', mealPlan: 'BB' } : {})
                                     };
                                   }
                                   return b;
@@ -7213,12 +7214,21 @@ function PlannerWizardWorkspace() {
                                   newAccs = newAccs.map(a => {
                                     const nightIdx = Number(a.nightIndex);
                                     if (stayDays.has(nightIdx)) {
+                                      const isHotelChanging = a.hotelId !== h.id;
                                       return {
                                         ...a,
                                         hotelId: h.id,
                                         hotelName: h.name,
                                         stayClass: h.hotel_class || a.stayClass || 'Standard',
                                         address: h.location_address || a.address || '',
+                                        ...(isHotelChanging ? {
+                                          roomId: undefined,
+                                          roomName: '',
+                                          roomStandard: '',
+                                          mealPlan: undefined,
+                                          pricePerNight: 0,
+                                          selectedRooms: []
+                                        } : {})
                                       };
                                     }
                                     return a;
