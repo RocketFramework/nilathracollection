@@ -765,6 +765,50 @@ export class TourService {
                     price_finalized: b.priceFinalized || false
                 };
 
+                if (b.isCustomPO) {
+                    basePayload.vendor_id = null;
+                    basePayload.transport_id = null;
+                    basePayload.driver_id = null;
+                    basePayload.guide_id = null;
+                    basePayload.activity_id = null;
+                    basePayload.restaurant_id = null;
+                    basePayload.vehicle_id = null;
+                    basePayload.vendor_activity_id = null;
+                    basePayload.hotel_room_id = null;
+                    basePayload.meal_plan = null;
+                    basePayload.single_room_id = null;
+                    basePayload.single_room_count = null;
+                    basePayload.double_room_id = null;
+                    basePayload.double_room_count = null;
+                    basePayload.twin_room_id = null;
+                    basePayload.twin_room_count = null;
+                    basePayload.triple_room_id = null;
+                    basePayload.triple_room_count = null;
+                    basePayload.family_room_id = null;
+                    basePayload.family_room_count = null;
+                    
+                    basePayload.hotel_id = b.hotelId || null;
+
+                    const quantity = b.quantity || 1;
+                    const contractedPrice = b.contractedPrice || 0;
+                    const agreedUnitPrice = b.agreedPrice || 0;
+                    const agreedTotalPrice = agreedUnitPrice * quantity;
+
+                    b.contractedPrice = contractedPrice;
+                    b.agreedPrice = agreedUnitPrice;
+
+                    activitiesToInsert.push({
+                        ...basePayload,
+                        quantity: quantity,
+                        contracted_price: contractedPrice,
+                        contracted_total_price: contractedPrice * quantity,
+                        charged_unit_price: agreedUnitPrice,
+                        charged_total_price: agreedTotalPrice,
+                        meal_plan: null
+                    });
+                    continue;
+                }
+
                 if (b.type === 'sleep') {
                     const acc = tripData.accommodations?.find(a => a.nightIndex === day);
                     if (acc && acc.selectedRooms && acc.selectedRooms.length > 0) {

@@ -328,6 +328,24 @@ function PlannerWizardWorkspace() {
   const [rfqBuggyCars, setRfqBuggyCars] = useState(false);
   const [rfqHeliPad, setRfqHeliPad] = useState(false);
 
+  // Custom Hotel PO Item Modal State
+  const [showCustomHotelItemModal, setShowCustomHotelItemModal] = useState(false);
+  const [customHotelItemBaseHotel, setCustomHotelItemBaseHotel] = useState<any>(null);
+  const [customHotelItemStays, setCustomHotelItemStays] = useState<any[]>([]);
+
+  // Custom Hotel PO Item Form State
+  const [customHotelItemType, setCustomHotelItemType] = useState<'meal' | 'activity' | 'travel'>('activity');
+  const [customHotelItemDayNum, setCustomHotelItemDayNum] = useState<number>(1);
+  const [customHotelItemTitle, setCustomHotelItemTitle] = useState('');
+  const [customHotelItemDescription, setCustomHotelItemDescription] = useState('');
+  const [customHotelItemLocation, setCustomHotelItemLocation] = useState('');
+  const [customHotelItemDistance, setCustomHotelItemDistance] = useState('');
+  const [customHotelItemTimeStart, setCustomHotelItemTimeStart] = useState('00:00');
+  const [customHotelItemTimeEnd, setCustomHotelItemTimeEnd] = useState('00:00');
+  const [customHotelItemContractedPrice, setCustomHotelItemContractedPrice] = useState<number>(0);
+  const [customHotelItemChargedUnitPrice, setCustomHotelItemChargedUnitPrice] = useState<number>(0);
+  const [customHotelItemQuantity, setCustomHotelItemQuantity] = useState<number>(1);
+
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [vendorBookings, setVendorBookings] = useState<any[]>([]);
   const [isLoadingProcurement, setIsLoadingProcurement] = useState<boolean>(false);
@@ -4793,47 +4811,68 @@ function PlannerWizardWorkspace() {
                                         : purchaseOrders.find(p => p.items?.some((item: any) => item.daily_activity_id === act.id || item.tour_itinerary_id === act.id));
 
                                       return (
-                                        <div key={act.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col lg:flex-row lg:items-center gap-4 justify-between transition-all hover:shadow-md">
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between mb-1">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold">Item Description / Text</label>
-                                              <div className="flex items-center gap-1.5">
-                                                {po && (
-                                                  <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
-                                                    po.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                    po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
-                                                    po.status === 'Cancelled' ? 'bg-red-105 text-red-800' :
-                                                    'bg-neutral-100 text-neutral-600'
-                                                  }`}>
-                                                    PO: {po.status}
-                                                  </span>
-                                                )}
-                                                {activeQuote && !po && (
-                                                  <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
-                                                    activeQuote.status === 'Selected' ? 'bg-green-150 text-green-800' :
-                                                    activeQuote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
-                                                    'bg-neutral-100 text-neutral-600'
-                                                  }`}>
-                                                    RFQ: {activeQuote.status}
-                                                  </span>
-                                                )}
-                                              </div>
+                                        <div key={act.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col gap-4 transition-all hover:shadow-md">
+                                          {/* Header / Meta Row */}
+                                          <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[10px] bg-emerald-800/10 text-emerald-805 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                {act.activity_type || act.type || 'activity'}
+                                              </span>
+                                              {po && (
+                                                <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
+                                                  po.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                                  po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
+                                                  po.status === 'Cancelled' ? 'bg-red-105 text-red-800' :
+                                                  'bg-neutral-100 text-neutral-600'
+                                                }`}>
+                                                  PO: {po.status}
+                                                </span>
+                                              )}
+                                              {activeQuote && !po && (
+                                                <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
+                                                  activeQuote.status === 'Selected' ? 'bg-green-150 text-green-800' :
+                                                  activeQuote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
+                                                  'bg-neutral-100 text-neutral-600'
+                                                }`}>
+                                                  RFQ: {activeQuote.status}
+                                                </span>
+                                              )}
                                             </div>
-                                            <input
-                                              type="text"
-                                              value={act.title || ''}
-                                              onChange={(e) => {
-                                                const val = e.target.value;
-                                                setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, title: val } : item));
-                                                setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, name: val } : item));
+                                            
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setDbActivities(prev => prev.filter(item => item.id !== act.id));
+                                                setItinerary(prev => prev.filter(item => item.id !== act.id));
                                               }}
-                                              className="w-full text-xs font-bold text-neutral-800 hover:bg-neutral-50/50 focus:bg-white border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-3 py-1.5 transition-all"
-                                              placeholder="Description (e.g. Early Check-in Fee / Extra Meal)"
-                                            />
+                                              className="p-1.5 rounded-xl border border-neutral-200 hover:border-red-300 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all shadow-sm shrink-0"
+                                              title="Delete Item"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
                                           </div>
-                                          <div className="flex flex-wrap items-center gap-4 self-stretch lg:self-auto justify-between lg:justify-end">
-                                            <div className="flex flex-col min-w-[120px]">
-                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono font-bold mb-1">Service Date</span>
+
+                                          {/* Form Grid Row 1 */}
+                                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                                            {/* Title */}
+                                            <div className="md:col-span-3 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Item Title</label>
+                                              <input
+                                                type="text"
+                                                value={act.title || act.name || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, title: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, name: val } : item));
+                                                }}
+                                                className="w-full text-xs font-bold text-neutral-800 border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
+                                                placeholder="e.g. Jeep Tour"
+                                              />
+                                            </div>
+
+                                            {/* Service Date */}
+                                            <div className="md:col-span-2 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Service Date</label>
                                               <select
                                                 value={act.day_number || act.dayNumber || 1}
                                                 onChange={(e) => {
@@ -4864,8 +4903,28 @@ function PlannerWizardWorkspace() {
                                                 ))}
                                               </select>
                                             </div>
-                                            <div className="flex flex-col min-w-[50px]">
-                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono font-bold mb-1">Qty</span>
+
+                                            {/* Type Dropdown */}
+                                            <div className="md:col-span-2 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Type</label>
+                                              <select
+                                                value={act.activity_type || act.type || 'activity'}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, activity_type: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, type: val as any } : item));
+                                                }}
+                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700 cursor-pointer"
+                                              >
+                                                <option value="activity">Activity</option>
+                                                <option value="meal">Meal</option>
+                                                <option value="travel">Travel</option>
+                                              </select>
+                                            </div>
+
+                                            {/* Qty */}
+                                            <div className="md:col-span-1 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Qty</label>
                                               <input
                                                 type="number"
                                                 min="1"
@@ -4873,25 +4932,27 @@ function PlannerWizardWorkspace() {
                                                 onChange={(e) => {
                                                   const qty = parseInt(e.target.value) || 1;
                                                   const unitPrice = act.contracted_price || 0;
-                                                  const total = qty * unitPrice;
+                                                  const chargedPrice = act.charged_unit_price || 0;
                                                   setDbActivities(prev => prev.map(item => item.id === act.id ? {
                                                     ...item,
                                                     quantity: qty,
-                                                    contracted_total_price: total,
-                                                    charged_total_price: total
+                                                    contracted_total_price: qty * unitPrice,
+                                                    charged_total_price: qty * chargedPrice
                                                   } : item));
                                                   setItinerary(prev => prev.map(item => item.id === act.id ? {
                                                     ...item,
                                                     quantity: qty,
-                                                    contractedTotalPrice: total,
-                                                    agreedPrice: unitPrice
+                                                    contractedTotalPrice: qty * unitPrice,
+                                                    agreedPrice: chargedPrice
                                                   } : item));
                                                 }}
-                                                className="w-12 text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
+                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
                                               />
                                             </div>
-                                            <div className="flex flex-col min-w-[90px]">
-                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono font-bold mb-1">Unit Rate ($)</span>
+
+                                            {/* Contracted Price (Unit Cost) */}
+                                            <div className="md:col-span-2 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Unit Cost ($)</label>
                                               <input
                                                 type="number"
                                                 min="0"
@@ -4900,40 +4961,139 @@ function PlannerWizardWorkspace() {
                                                 onChange={(e) => {
                                                   const price = parseFloat(e.target.value) || 0;
                                                   const qty = act.quantity || 1;
-                                                  const total = qty * price;
                                                   setDbActivities(prev => prev.map(item => item.id === act.id ? {
                                                     ...item,
                                                     contracted_price: price,
-                                                    contracted_total_price: total,
-                                                    charged_unit_price: price,
-                                                    charged_total_price: total
+                                                    contracted_total_price: qty * price
                                                   } : item));
                                                   setItinerary(prev => prev.map(item => item.id === act.id ? {
                                                     ...item,
                                                     contractedPrice: price,
-                                                    agreedPrice: price,
-                                                    contractedTotalPrice: total
+                                                    contractedTotalPrice: qty * price
                                                   } : item));
                                                 }}
-                                                className="w-20 text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
+                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
                                               />
                                             </div>
-                                            <div className="text-right min-w-[80px] self-end pb-1.5">
-                                              <span className="text-[8px] text-emerald-600 uppercase block font-mono">Total Rate</span>
-                                              <span className="font-mono text-emerald-800 font-extrabold text-xs">${Number(act.contracted_total_price || 0).toFixed(2)}</span>
-                                            </div>
-                                            <div className="self-end pb-1">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setDbActivities(prev => prev.filter(item => item.id !== act.id));
-                                                  setItinerary(prev => prev.filter(item => item.id !== act.id));
+
+                                            {/* Charged Unit Price (Unit Sell) */}
+                                            <div className="md:col-span-2 flex flex-col">
+                                              <label className="text-[9px] text-neutral-450 uppercase font-mono font-bold mb-1">Unit Sell ($)</label>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={act.charged_unit_price || act.agreedPrice || 0}
+                                                onChange={(e) => {
+                                                  const price = parseFloat(e.target.value) || 0;
+                                                  const qty = act.quantity || 1;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    charged_unit_price: price,
+                                                    charged_total_price: qty * price
+                                                  } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
+                                                    ...item,
+                                                    agreedPrice: price
+                                                  } : item));
                                                 }}
-                                                className="p-1.5 rounded-xl border border-neutral-200 hover:border-red-300 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all shadow-sm shrink-0"
-                                                title="Delete Item"
-                                              >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                              </button>
+                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {/* Form Grid Row 2 */}
+                                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-neutral-100">
+                                            {/* Location */}
+                                            <div className="md:col-span-3 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Location</label>
+                                              <input
+                                                type="text"
+                                                value={act.location_name || act.locationName || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, location_name: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, locationName: val } : item));
+                                                }}
+                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
+                                                placeholder="e.g. Hotel Beach"
+                                              />
+                                            </div>
+
+                                            {/* Distance */}
+                                            <div className="md:col-span-1 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Distance</label>
+                                              <input
+                                                type="text"
+                                                value={act.distance || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, distance: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, distance: val } : item));
+                                                }}
+                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
+                                                placeholder="e.g. 10 km"
+                                              />
+                                            </div>
+
+                                            {/* Start Time */}
+                                            <div className="md:col-span-1 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Start Time</label>
+                                              <input
+                                                type="text"
+                                                value={act.time_start || act.startTime || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, time_start: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, startTime: val } : item));
+                                                }}
+                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
+                                                placeholder="09:00"
+                                              />
+                                            </div>
+
+                                            {/* End Time */}
+                                            <div className="md:col-span-1 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">End Time</label>
+                                              <input
+                                                type="text"
+                                                value={act.time_end || act.endTime || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, time_end: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, endTime: val } : item));
+                                                }}
+                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
+                                                placeholder="17:00"
+                                              />
+                                            </div>
+
+                                            {/* Description */}
+                                            <div className="md:col-span-6 flex flex-col">
+                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Description / Comment</label>
+                                              <input
+                                                type="text"
+                                                value={act.description || act.internalNotes || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, description: val } : item));
+                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, internalNotes: val } : item));
+                                                }}
+                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
+                                                placeholder="Details..."
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {/* Totals Summary */}
+                                          <div className="flex justify-end gap-6 bg-neutral-50 p-2.5 rounded-xl border border-neutral-150 text-[10px] font-bold">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-neutral-450 font-medium">Total Cost:</span>
+                                              <span className="text-neutral-700 font-mono font-extrabold">${Number(act.contracted_total_price || 0).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-emerald-600 font-medium">Total Sell:</span>
+                                              <span className="text-emerald-800 font-mono font-extrabold">${Number(act.charged_total_price || 0).toFixed(2)}</span>
                                             </div>
                                           </div>
                                         </div>
@@ -4948,54 +5108,25 @@ function PlannerWizardWorkspace() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const defaultDay = 1;
-                                    const targetDay = daysList.find(d => d.dayNum === defaultDay);
-                                    const dateStr = targetDay?.dateStr || '';
-                                    const newPOId = generateUUID();
+                                    setCustomHotelItemBaseHotel(hotel);
+                                    setCustomHotelItemStays(standardStays);
                                     
-                                    const newPO = {
-                                      id: newPOId,
-                                      tour_id: tourId,
-                                      title: '',
-                                      quantity: 1,
-                                      contracted_price: 0,
-                                      contracted_total_price: 0,
-                                      charged_unit_price: 0,
-                                      charged_total_price: 0,
-                                      activity_type: 'sleep',
-                                      hotel_id: hotelId,
-                                      hotel_room_id: null,
-                                      day_number: defaultDay,
-                                      dayNumber: defaultDay,
-                                      tour_itineraries: {
-                                        day_number: defaultDay,
-                                        date: dateStr
-                                      },
-                                      isCustomPO: true
-                                    };
-
-                                    const newBlock: InternalItineraryBlock = {
-                                      id: newPOId,
-                                      dayNumber: defaultDay,
-                                      type: 'sleep',
-                                      name: '',
-                                      hotelId: hotelId,
-                                      startTime: '00:00',
-                                      endTime: '00:00',
-                                      bufferMins: 0,
-                                      durationHours: 22,
-                                      internalNotes: '',
-                                      confirmationStatus: 'Pending',
-                                      paymentStatus: 'Pending',
-                                      contractedPrice: 0,
-                                      agreedPrice: 0,
-                                      quantity: 1,
-                                      contractedTotalPrice: 0,
-                                      isCustomPO: true
-                                    };
-
-                                    setDbActivities(prev => [...prev, newPO]);
-                                                    setItinerary(prev => [...prev, newBlock]);
+                                    const firstStay = standardStays[0];
+                                    const initialDay = firstStay ? (firstStay.tour_itineraries?.day_number || firstStay.day_number || firstStay.dayNumber || 1) : 1;
+                                    
+                                    setCustomHotelItemType('activity');
+                                    setCustomHotelItemDayNum(initialDay);
+                                    setCustomHotelItemTitle('');
+                                    setCustomHotelItemDescription('');
+                                    setCustomHotelItemLocation('');
+                                    setCustomHotelItemDistance('');
+                                    setCustomHotelItemTimeStart('00:00');
+                                    setCustomHotelItemTimeEnd('00:00');
+                                    setCustomHotelItemContractedPrice(0);
+                                    setCustomHotelItemChargedUnitPrice(0);
+                                    setCustomHotelItemQuantity(1);
+                                    
+                                    setShowCustomHotelItemModal(true);
                                   }}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold shadow-sm hover:shadow-md transition-all uppercase tracking-wider"
                                 >
@@ -7971,6 +8102,358 @@ function PlannerWizardWorkspace() {
                     )}
                   </button>
                 </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Add Custom Hotel Item Modal */}
+        {showCustomHotelItemModal && customHotelItemBaseHotel && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-neutral-800">
+                    Add Custom Hotel Item
+                  </h3>
+                  <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                    Associated Hotel: {customHotelItemBaseHotel.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCustomHotelItemModal(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Form */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Hotel Name (Shown, Non-Editable) */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Hotel (Locked)
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={customHotelItemBaseHotel.name}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-neutral-100 text-neutral-500 font-medium cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Activity Type Dropdown */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Activity Type
+                    </label>
+                    <select
+                      value={customHotelItemType}
+                      onChange={(e) => setCustomHotelItemType(e.target.value as any)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    >
+                      <option value="activity">Activity</option>
+                      <option value="meal">Meal</option>
+                      <option value="travel">Travel</option>
+                    </select>
+                  </div>
+
+                  {/* Service Date Dropdown */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Service Date / Day
+                    </label>
+                    <select
+                      value={customHotelItemDayNum}
+                      onChange={(e) => setCustomHotelItemDayNum(parseInt(e.target.value) || 1)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    >
+                      {(() => {
+                        // Deduplicate dates/days
+                        const hotelDaysMap = new globalThis.Map();
+                        customHotelItemStays.forEach((act: any) => {
+                          const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber;
+                          if (dayNum) {
+                            const dateStr = act.tour_itineraries?.date || act.date;
+                            hotelDaysMap.set(dayNum, { dayNum, dateStr });
+                          }
+                        });
+                        const sortedDays = Array.from(hotelDaysMap.values()).sort((a: any, b: any) => a.dayNum - b.dayNum);
+                        
+                        // If no stays, fallback to tour preferences duration
+                        if (sortedDays.length === 0) {
+                          const numDays = touristData?.preferences?.duration_days || 5;
+                          const fallbackDays = Array.from({ length: numDays }, (_, idx) => {
+                            const dayNum = idx + 1;
+                            let dateStr = '';
+                            if (touristData?.preferences?.arrival_date) {
+                              try {
+                                const d = new Date(touristData.preferences.arrival_date);
+                                d.setDate(d.getDate() + idx);
+                                dateStr = d.toISOString().split('T')[0];
+                              } catch (e) {}
+                            }
+                            return { dayNum, dateStr };
+                          });
+                          return fallbackDays.map(({ dayNum, dateStr }) => (
+                            <option key={dayNum} value={dayNum}>
+                              Day {dayNum} {dateStr ? `(${formatDate(dateStr)})` : ''}
+                            </option>
+                          ));
+                        }
+
+                        return sortedDays.map(({ dayNum, dateStr }: any) => (
+                          <option key={dayNum} value={dayNum}>
+                            Day {dayNum} {dateStr ? `(${formatDate(dateStr)})` : ''}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+
+                  {/* Title Input */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Jeep Tour in National Park / Private Seafood Dinner"
+                      value={customHotelItemTitle}
+                      onChange={(e) => setCustomHotelItemTitle(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-bold"
+                    />
+                  </div>
+
+                  {/* Description / Internal Notes TextArea */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Description / Comments
+                    </label>
+                    <textarea
+                      placeholder="Enter details, special requests or confirmation remarks..."
+                      value={customHotelItemDescription}
+                      onChange={(e) => setCustomHotelItemDescription(e.target.value)}
+                      rows={3}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Location Name */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Location Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Hotel Beach / Yala Park"
+                      value={customHotelItemLocation}
+                      onChange={(e) => setCustomHotelItemLocation(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Distance */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Distance (if applicable)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 15 km"
+                      value={customHotelItemDistance}
+                      onChange={(e) => setCustomHotelItemDistance(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Start Time */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Start Time
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 09:00"
+                      value={customHotelItemTimeStart}
+                      onChange={(e) => setCustomHotelItemTimeStart(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* End Time */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      End Time
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 13:00"
+                      value={customHotelItemTimeEnd}
+                      onChange={(e) => setCustomHotelItemTimeEnd(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Quantity */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={customHotelItemQuantity}
+                      onChange={(e) => setCustomHotelItemQuantity(parseInt(e.target.value) || 1)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Contracted Unit Price (Buying Rate) */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Contracted Unit Price (Cost, $)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={customHotelItemContractedPrice}
+                      onChange={(e) => setCustomHotelItemContractedPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Charged Unit Price (Selling Rate) */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Charged Unit Price (Selling, $)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={customHotelItemChargedUnitPrice}
+                      onChange={(e) => setCustomHotelItemChargedUnitPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Totals Summary */}
+                  <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl p-4 flex justify-between items-center col-span-1 sm:col-span-2 mt-2">
+                    <div>
+                      <span className="text-[9px] text-neutral-450 uppercase block font-mono font-bold">Total Cost (Contracted)</span>
+                      <span className="font-mono text-neutral-700 font-extrabold text-base">
+                        ${(customHotelItemQuantity * customHotelItemContractedPrice).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] text-emerald-600 uppercase block font-mono font-bold">Total Charged (Selling)</span>
+                      <span className="font-mono text-emerald-800 font-extrabold text-base">
+                        ${(customHotelItemQuantity * customHotelItemChargedUnitPrice).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomHotelItemModal(false)}
+                  className="px-4 py-2.5 rounded-xl hover:bg-neutral-150 text-xs font-bold text-neutral-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!customHotelItemTitle.trim()) {
+                      alert("Please enter a title for the custom item.");
+                      return;
+                    }
+                    
+                    const newPOId = generateUUID();
+                    const numDays = touristData?.preferences?.duration_days || 5;
+                    const calculatedDaysList = Array.from({ length: numDays }, (_, idx) => {
+                      const dayNum = idx + 1;
+                      let dateStr = '';
+                      if (touristData?.preferences?.arrival_date) {
+                        try {
+                          const d = new Date(touristData.preferences.arrival_date);
+                          d.setDate(d.getDate() + idx);
+                          dateStr = d.toISOString().split('T')[0];
+                        } catch (e) {}
+                      }
+                      return { dayNum, dateStr };
+                    });
+
+                    const targetDay = calculatedDaysList.find(d => d.dayNum === customHotelItemDayNum);
+                    const dateStr = targetDay?.dateStr || '';
+
+                    const newPO = {
+                      id: newPOId,
+                      tour_id: tourId,
+                      title: customHotelItemTitle,
+                      quantity: customHotelItemQuantity,
+                      contracted_price: customHotelItemContractedPrice,
+                      contracted_total_price: customHotelItemContractedPrice * customHotelItemQuantity,
+                      charged_unit_price: customHotelItemChargedUnitPrice,
+                      charged_total_price: customHotelItemChargedUnitPrice * customHotelItemQuantity,
+                      activity_type: customHotelItemType,
+                      hotel_id: customHotelItemBaseHotel.id,
+                      hotel_room_id: null,
+                      day_number: customHotelItemDayNum,
+                      dayNumber: customHotelItemDayNum,
+                      location_name: customHotelItemLocation || null,
+                      distance: customHotelItemDistance || null,
+                      description: customHotelItemDescription || '',
+                      time_start: customHotelItemTimeStart || null,
+                      time_end: customHotelItemTimeEnd || null,
+                      tour_itineraries: {
+                        day_number: customHotelItemDayNum,
+                        date: dateStr
+                      },
+                      isCustomPO: true
+                    };
+
+                    const newBlock: InternalItineraryBlock = {
+                      id: newPOId,
+                      dayNumber: customHotelItemDayNum,
+                      type: customHotelItemType,
+                      name: customHotelItemTitle,
+                      hotelId: customHotelItemBaseHotel.id,
+                      startTime: customHotelItemTimeStart || '00:00',
+                      endTime: customHotelItemTimeEnd || '00:00',
+                      bufferMins: 0,
+                      durationHours: 2,
+                      internalNotes: customHotelItemDescription || '',
+                      confirmationStatus: 'Pending',
+                      paymentStatus: 'Pending',
+                      contractedPrice: customHotelItemContractedPrice,
+                      agreedPrice: customHotelItemChargedUnitPrice,
+                      quantity: customHotelItemQuantity,
+                      contractedTotalPrice: customHotelItemContractedPrice * customHotelItemQuantity,
+                      locationName: customHotelItemLocation || '',
+                      distance: customHotelItemDistance || '',
+                      isCustomPO: true
+                    };
+
+                    setDbActivities(prev => [...prev, newPO]);
+                    setItinerary(prev => [...prev, newBlock]);
+                    setShowCustomHotelItemModal(false);
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95"
+                >
+                  <span>Add Custom Item</span>
+                </button>
               </div>
 
             </div>
