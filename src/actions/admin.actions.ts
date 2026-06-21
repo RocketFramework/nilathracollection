@@ -1602,5 +1602,21 @@ export async function sendHotelRfqEmailAction(options: {
     }
 }
 
+export async function changeHotelDatabaseAction(
+    tourId: string,
+    stayIds: string[],
+    newHotelId: string,
+    selectedRooms: any[]
+) {
+    try {
+        await TourService.updateChangedHotel(tourId, stayIds, newHotelId, selectedRooms);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in changeHotelDatabaseAction:", error);
+        return { success: false, error: error.message || "Failed to update changed hotel details." };
+    }
+}
+
+
 
 

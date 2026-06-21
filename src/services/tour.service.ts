@@ -1006,4 +1006,278 @@ export class TourService {
             planner_data: { ...tripData, id: tourId }
         }).eq('id', tourId);
     }
+
+    static async updateChangedHotel(
+        tourId: string,
+        stayIds: string[],
+        newHotelId: string,
+        selectedRooms: any[]
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Fetch new hotel details
+        const { data: newHotel, error: newHotelErr } = await supabaseAdmin
+            .from('hotels')
+            .select('name, location_address')
+            .eq('id', newHotelId)
+            .single();
+        if (newHotelErr || !newHotel) throw new Error("New hotel not found: " + newHotelErr?.message);
+
+        // 2. Fetch room rates for selected rooms
+        const selectedRoomIds = selectedRooms.map(r => r.roomId).filter(Boolean);
+        let ratesData: any[] = [];
+        if (selectedRoomIds.length > 0) {
+            const { data: rData, error: ratesErr } = await supabaseAdmin
+                .from('room_rates')
+                .select('*')
+                .in('hotel_room_id', selectedRoomIds);
+            if (!ratesErr && rData) {
+                ratesData = rData;
+            }
+        }
+
+        // 3. Fetch first stay to find the old hotel name
+        const { data: firstStay } = await supabaseAdmin
+            .from('daily_activities')
+            .select('hotel_id')
+            .in('id', stayIds)
+            .limit(1)
+            .single();
+
+        let oldHotelName = "Originally planned hotel";
+        if (firstStay?.hotel_id) {
+            const { data: oldHotel } = await supabaseAdmin
+                .from('hotels')
+                .select('name')
+                .eq('id', firstStay.hotel_id)
+                .single();
+            if (oldHotel?.name) {
+                oldHotelName = oldHotel.name;
+            }
+        }
+
+        // 4. Fetch room markup setting
+        const { data: markupSetting } = await supabaseAdmin
+            .from('app_settings')
+            .select('setting_value')
+            .eq('setting_key', 'room_markup')
+            .single();
+        const markup = markupSetting ? Number(markupSetting.setting_value) || 10 : 10;
+
+        // 5. Fetch stays and their itinerary header to resolve day dates and day numbers
+        const { data: stays } = await supabaseAdmin
+            .from('daily_activities')
+            .select('id, itinerary_id')
+            .in('id', stayIds);
+        if (!stays || stays.length === 0) throw new Error("No stays found matching provided IDs");
+
+        const itinIds = stays.map(s => s.itinerary_id).filter(Boolean);
+        const { data: itineraries } = await supabaseAdmin
+            .from('tour_itineraries')
+            .select('id, day_number, date')
+            .in('id', itinIds);
+
+        const dayNumbers: number[] = [];
+        let avgContractedPriceAcrossStays = 0;
+        let avgChargedPriceAcrossStays = 0;
+        let totalRoomsAcrossStays = 0;
+
+        // 6. Update each stay
+        for (const stay of stays) {
+            const itin = itineraries?.find(i => i.id === stay.itinerary_id);
+            const stayDate = itin?.date || null;
+            if (itin?.day_number) {
+                dayNumbers.push(Number(itin.day_number));
+            }
+
+            let totalContracted = 0;
+            let totalRooms = 0;
+
+            const roomUpdatePayload: any = {
+                hotel_id: newHotelId,
+                location_name: newHotel.location_address || '',
+                description: `${oldHotelName} changed due to ${newHotel.name} due to availability`,
+                single_room_id: null,
+                single_room_count: null,
+                double_room_id: null,
+                double_room_count: null,
+                twin_room_id: null,
+                twin_room_count: null,
+                triple_room_id: null,
+                triple_room_count: null,
+                family_room_id: null,
+                family_room_count: null,
+                meal_plan: selectedRooms[0]?.mealPlan || 'BB'
+            };
+
+            for (const room of selectedRooms) {
+                const reqType = room.reqId; // 'Single', 'Double', 'Twin', 'Triple', 'Family'
+                totalRooms += room.quantity;
+
+                if (reqType === 'Single') {
+                    roomUpdatePayload.single_room_id = room.roomId;
+                    roomUpdatePayload.single_room_count = room.quantity;
+                } else if (reqType === 'Double') {
+                    roomUpdatePayload.double_room_id = room.roomId;
+                    roomUpdatePayload.double_room_count = room.quantity;
+                } else if (reqType === 'Twin') {
+                    roomUpdatePayload.twin_room_id = room.roomId;
+                    roomUpdatePayload.twin_room_count = room.quantity;
+                } else if (reqType === 'Triple') {
+                    roomUpdatePayload.triple_room_id = room.roomId;
+                    roomUpdatePayload.triple_room_count = room.quantity;
+                } else if (reqType === 'Family') {
+                    roomUpdatePayload.family_room_id = room.roomId;
+                    roomUpdatePayload.family_room_count = room.quantity;
+                }
+
+                // Find applicable rate for stay date
+                const roomRates = ratesData?.filter(r => r.hotel_room_id === room.roomId) || [];
+                let baseRate = room.contractedPrice || 0;
+                const stayDateStr = stayDate ? String(stayDate) : "";
+
+                const applicableRates = roomRates.filter((r: any) => {
+                    if (!stayDateStr) return true;
+                    if (r.start_date) {
+                        if (stayDateStr < r.start_date) return false;
+                        if (r.end_date && stayDateStr > r.end_date) return false;
+                        return true;
+                    }
+                    return true;
+                }).sort((a: any, b: any) => {
+                    const aHasDates = a.start_date ? 1 : 0;
+                    const bHasDates = b.start_date ? 1 : 0;
+                    return bHasDates - aHasDates;
+                });
+
+                const ratesToSearch = applicableRates.length > 0 ? applicableRates : roomRates;
+                if (ratesToSearch.length > 0) {
+                    let prefix = 'dbl';
+                    if (reqType === 'Single') prefix = 'sgl';
+                    else if (reqType === 'Double' || reqType === 'Twin') prefix = 'dbl';
+                    else if (reqType === 'Triple') prefix = 'tpl';
+                    else if (reqType === 'Family') prefix = 'qud';
+
+                    const fieldName = `${prefix}_${room.mealPlan.toLowerCase()}_rate`;
+                    const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
+                    if (matrixRateObj) {
+                        baseRate = matrixRateObj[fieldName];
+                    }
+                }
+
+                totalContracted += baseRate * room.quantity;
+            }
+
+            const avgContracted = totalRooms > 0 ? totalContracted / totalRooms : 0;
+            const chargedUnit = avgContracted * (1 + markup / 100);
+
+            roomUpdatePayload.hotel_room_id = selectedRooms[0]?.roomId || null;
+            roomUpdatePayload.quantity = totalRooms;
+            roomUpdatePayload.contracted_price = avgContracted;
+            roomUpdatePayload.contracted_total_price = totalContracted;
+            roomUpdatePayload.charged_unit_price = chargedUnit;
+            roomUpdatePayload.charged_total_price = chargedUnit * totalRooms;
+
+            avgContractedPriceAcrossStays = avgContracted;
+            avgChargedPriceAcrossStays = chargedUnit;
+            totalRoomsAcrossStays = totalRooms;
+
+            // A. Update daily_activities record in DB
+            const { error: daUpdateErr } = await supabaseAdmin
+                .from('daily_activities')
+                .update(roomUpdatePayload)
+                .eq('id', stay.id);
+            if (daUpdateErr) throw daUpdateErr;
+
+            // B. Update tour_itineraries header hotel_id
+            if (stay.itinerary_id) {
+                const { error: itinUpdateErr } = await supabaseAdmin
+                    .from('tour_itineraries')
+                    .update({ hotel_id: newHotelId })
+                    .eq('id', stay.itinerary_id);
+                if (itinUpdateErr) throw itinUpdateErr;
+            }
+        }
+
+        // C. Update tours planner_data JSON structure
+        const { data: tourRecord } = await supabaseAdmin
+            .from('tours')
+            .select('planner_data')
+            .eq('id', tourId)
+            .single();
+
+        if (tourRecord && tourRecord.planner_data) {
+            const pData = tourRecord.planner_data as any;
+            if (Array.isArray(pData.itinerary)) {
+                pData.itinerary = pData.itinerary.map((b: any) => {
+                    if (b.type === 'sleep' && dayNumbers.includes(Number(b.dayNumber))) {
+                        return {
+                            ...b,
+                            hotelId: newHotelId,
+                            hotelName: newHotel.name,
+                            roomName: selectedRooms[0]?.roomName || '',
+                            mealPlan: selectedRooms[0]?.mealPlan || 'BB',
+                            agreedPrice: avgChargedPriceAcrossStays * totalRoomsAcrossStays,
+                            contractedPrice: avgContractedPriceAcrossStays,
+                            description: `${oldHotelName} changed due to ${newHotel.name} due to availability`
+                        };
+                    }
+                    return b;
+                });
+            }
+            if (Array.isArray(pData.accommodations)) {
+                pData.accommodations = pData.accommodations.map((a: any) => {
+                    if (dayNumbers.includes(Number(a.nightIndex))) {
+                        return {
+                            ...a,
+                            hotelId: newHotelId,
+                            hotelName: newHotel.name,
+                            selectedRooms: selectedRooms,
+                            roomId: selectedRooms[0]?.roomId || '',
+                            roomName: selectedRooms[0]?.roomName || '',
+                            mealPlan: selectedRooms[0]?.mealPlan || 'BB',
+                            pricePerNight: avgChargedPriceAcrossStays
+                        };
+                    }
+                    return a;
+                });
+            }
+            await supabaseAdmin
+                .from('tours')
+                .update({ planner_data: pData })
+                .eq('id', tourId);
+        }
+
+        // D. Update latest draft version in draft_itinerary_versions table
+        const { data: latestDraft } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('id, itinerary_data')
+            .eq('tour_id', tourId)
+            .order('version_number', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (latestDraft && Array.isArray(latestDraft.itinerary_data)) {
+            const updatedDraftItinerary = latestDraft.itinerary_data.map((b: any) => {
+                if (b.type === 'sleep' && dayNumbers.includes(Number(b.dayNumber))) {
+                    return {
+                        ...b,
+                        hotelId: newHotelId,
+                        hotelName: newHotel.name,
+                        roomName: selectedRooms[0]?.roomName || '',
+                        mealPlan: selectedRooms[0]?.mealPlan || 'BB',
+                        agreedPrice: avgChargedPriceAcrossStays * totalRoomsAcrossStays,
+                        contractedPrice: avgContractedPriceAcrossStays,
+                        description: `${oldHotelName} changed due to ${newHotel.name} due to availability`
+                    };
+                }
+                return b;
+            });
+            await supabaseAdmin
+                .from('draft_itinerary_versions')
+                .update({ itinerary_data: updatedDraftItinerary })
+                .eq('id', latestDraft.id);
+        }
+    }
 }
+
