@@ -10,6 +10,9 @@ export interface CreateVendorBookingDTO {
     cancellation_policy?: string | null;
     notes?: string | null;
     daily_activity_ids: string[];
+    po_number?: string;
+    discount?: number;
+    tax?: number;
 }
 
 export interface ConfirmFinalBookingDTO {

@@ -58,7 +58,6 @@ export interface DBPurchaseOrder {
     subtotal: number;
     discount: number;
     tax: number;
-    service_charge: number;
     total_amount: number;
     advance_paid: number;
     balance_payable: number;

@@ -427,6 +427,7 @@ export interface TourRfqEmail {
     sent_at: string;
     sent_by?: string;
     quotation_request_id?: string;
+    quotation?: any;
 }
 
 export interface TourRfpEmail {

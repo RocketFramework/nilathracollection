@@ -5,53 +5,13 @@ import { FinanceService } from './finance.service';
 
 export class VendorBookingService {
     /**
-     * Creates a service booking request, links it to multiple daily activities,
-     * and automatically generates a parallel Draft Purchase Order.
+     * Creates a service booking request directly as a Draft Purchase Order with high-fidelity items.
      */
     static async createBookingRequest(dto: CreateVendorBookingDTO): Promise<VendorBooking> {
         const supabase = createAdminClient();
         const { daily_activity_ids, ...bookingData } = dto;
 
-        // 1. Insert the parallel booking record
-        const { data: booking, error: bError } = await supabase
-            .from('vendor_bookings')
-            .insert([{
-                tour_id: bookingData.tour_id,
-                quotation_request_id: bookingData.quotation_request_id || null,
-                vendor_type: bookingData.vendor_type,
-                vendor_id: bookingData.vendor_id,
-                vendor_name: bookingData.vendor_name,
-                agreed_price: bookingData.agreed_price,
-                currency: bookingData.currency || 'USD',
-                cancellation_deadline: bookingData.cancellation_deadline || null,
-                cancellation_policy: bookingData.cancellation_policy || null,
-                notes: bookingData.notes || null,
-                status: 'Pending'
-            }])
-            .select()
-            .single();
-
-        if (bError) throw bError;
-
-        // 2. Link to daily activities
-        if (daily_activity_ids && daily_activity_ids.length > 0) {
-            const mappings = daily_activity_ids.map(actId => ({
-                vendor_booking_id: booking.id,
-                daily_activity_id: actId
-            }));
-
-            const { error: mError } = await supabase
-                .from('vendor_booked_activities')
-                .insert(mappings);
-
-            if (mError) {
-                // Rollback booking if mappings fail
-                await supabase.from('vendor_bookings').delete().eq('id', booking.id);
-                throw mError;
-            }
-        }
-
-        // 3. Fetch vendor contact info from master tables to populate PO header
+        // 1. Fetch vendor contact info from master tables to populate PO header
         let vendorAddress = '';
         let vendorPhone = '';
         let vendorEmail = '';
@@ -100,48 +60,75 @@ export class VendorBookingService {
             console.error("Failed to load vendor details for PO creation:", err);
         }
 
-        // 4. Retrieve linked daily activities to create PO items
+        // 2. Retrieve linked daily activities to create PO items (with itinerary dates joined!)
         const poItems: any[] = [];
         let calculatedSubtotal = 0;
 
         if (daily_activity_ids && daily_activity_ids.length > 0) {
-            const { data: activities } = await supabase
+            const { data: activities, error: actErr } = await supabase
                 .from('daily_activities')
-                .select('*')
+                .select('*, tour_itineraries(date, day_number)')
                 .in('id', daily_activity_ids);
 
+            if (actErr) throw actErr;
+
             if (activities && activities.length > 0) {
-                // Distribute the price evenly across linked activities for unit prices
-                const pricePerActivity = Number((bookingData.agreed_price / activities.length).toFixed(2));
+                activities.forEach((act) => {
+                    const itin = (act as any).tour_itineraries;
+                    const checkInDate = itin?.date || act.created_at ? new Date(itin?.date || act.created_at).toISOString().split('T')[0] : null;
+                    const dayNum = itin?.day_number || act.day_number || act.dayNumber || null;
 
-                activities.forEach((act, idx) => {
-                    const itemQty = act.quantity || 1;
-                    const itemPrice = pricePerActivity;
-                    const itemTotal = itemQty * itemPrice;
-                    calculatedSubtotal += itemTotal;
+                    let checkOutDate: string | null = null;
+                    if (checkInDate) {
+                        const checkIn = new Date(checkInDate);
+                        const checkOut = new Date(checkIn);
+                        checkOut.setDate(checkOut.getDate() + 1);
+                        checkOutDate = checkOut.toISOString().split('T')[0];
+                    }
 
-                    // Derive service date from itinerary if possible
-                    let serviceDate = act.created_at ? new Date(act.created_at).toISOString().split('T')[0] : null;
+                    // Check if negotiated price/quantity columns are missing or empty
+                    if (
+                        act.quantity === null || act.quantity === undefined ||
+                        act.contracted_price === null || act.contracted_price === undefined ||
+                        act.contracted_total_price === null || act.contracted_total_price === undefined
+                    ) {
+                        throw new Error(`Missing negotiated price/quantity for activity "${act.title || 'Service Booking'}". Every service must have quantity, contracted unit price, and contracted total price set.`);
+                    }
+
+                    const qty = Number(act.quantity);
+                    const unitPrice = Number(act.contracted_price);
+                    const totalPrice = Number(act.contracted_total_price);
+
+                    calculatedSubtotal += totalPrice;
 
                     poItems.push({
                         id: crypto.randomUUID(),
                         daily_activity_id: act.id,
-                        description: `${bookingData.vendor_name} - ${act.title || 'Service Booking'}`,
-                        service_date: serviceDate,
-                        quantity: itemQty,
-                        unit_price: itemPrice,
-                        total_price: itemTotal,
-                        room_type: act.room_type || undefined,
+                        description: `${bookingData.vendor_name} - ${act.title || 'Accommodation'}`,
+                        service_date: checkInDate,
+                        check_in_date: bookingData.vendor_type === 'hotel' ? checkInDate : undefined,
+                        check_out_date: bookingData.vendor_type === 'hotel' ? checkOutDate : undefined,
+                        quantity: qty,
+                        unit_price: unitPrice,
+                        total_price: totalPrice,
+                        room_type: bookingData.vendor_type === 'hotel' ? (act.room_type || 'Accommodation') : undefined,
                         meal_plan: act.meal_plan || undefined,
-                        special_notes: `Linked to parallel booking: ${booking.id}`
+                        number_of_nights: bookingData.vendor_type === 'hotel' ? 1 : undefined,
+                        day_number: dayNum,
+                        special_notes: act.isCustomPO ? 'Custom PO Service item' : undefined
                     });
                 });
             }
         }
 
-        // 5. Generate and save the Draft PO
-        const poNumber = `PO-${bookingData.vendor_type.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const discount = bookingData.discount || 0;
+        const tax = bookingData.tax || 0;
+        const totalAmount = calculatedSubtotal + tax - discount;
+
+        // 3. Generate and save the PO
+        const poNumber = bookingData.po_number || `PO-${bookingData.vendor_type.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
         const poPayload: any = {
+            id: crypto.randomUUID(),
             tour_id: bookingData.tour_id,
             po_number: poNumber,
             po_date: new Date().toISOString().split('T')[0],
@@ -152,18 +139,17 @@ export class VendorBookingService {
             vendor_email: vendorEmail || undefined,
             currency: bookingData.currency || 'USD',
             status: 'Draft',
-            subtotal: calculatedSubtotal || bookingData.agreed_price,
-            total_amount: bookingData.agreed_price,
-            discount: 0,
-            tax: 0,
-            service_charge: 0,
+            subtotal: calculatedSubtotal,
+            total_amount: totalAmount,
+            discount: discount,
+            tax: tax,
             advance_paid: 0,
-            balance_payable: bookingData.agreed_price,
-            vendor_booking_id: booking.id,
-            cancellation_policy: bookingData.cancellation_policy || undefined
+            balance_payable: totalAmount,
+            cancellation_policy: bookingData.cancellation_policy || undefined,
+            vendor_notes: bookingData.notes || undefined,
+            quotation_request_id: bookingData.quotation_request_id || null
         };
 
-        // Specific vendor foreign key links
         if (bookingData.vendor_type === 'hotel') poPayload.hotel_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'vendor') poPayload.activity_vendor_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'transport_provider') poPayload.transport_provider_id = bookingData.vendor_id;
@@ -171,43 +157,44 @@ export class VendorBookingService {
         else if (bookingData.vendor_type === 'driver') poPayload.driver_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'restaurant') poPayload.restaurant_id = bookingData.vendor_id;
 
-        try {
-            const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);
-            
-            // 6. Update the booking with the generated PO ID
-            const { error: updErr } = await supabase
-                .from('vendor_bookings')
-                .update({ purchase_order_id: savedPOId })
-                .eq('id', booking.id);
-            if (updErr) throw updErr;
+        const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);
 
-            booking.purchase_order_id = savedPOId;
-        } catch (poErr) {
-            console.error("Failed to generate parallel PO for booking:", poErr);
-        }
-
-        // 7. Update the quotation request status if this was initiated from a quote
+        // 4. Update the quotation request status if this was initiated from a quote
         if (bookingData.quotation_request_id) {
             await supabase
                 .from('quotation_request')
                 .update({ status: 'Selected', selected_vendor: true })
                 .eq('id', bookingData.quotation_request_id);
         }
-        
-        return booking;
+
+        return {
+            id: savedPOId,
+            purchase_order_id: savedPOId,
+            tour_id: bookingData.tour_id,
+            quotation_request_id: bookingData.quotation_request_id || null,
+            vendor_type: bookingData.vendor_type,
+            vendor_id: bookingData.vendor_id,
+            vendor_name: bookingData.vendor_name,
+            agreed_price: totalAmount,
+            currency: bookingData.currency || 'USD',
+            cancellation_policy: bookingData.cancellation_policy || null,
+            notes: bookingData.notes || null,
+            status: 'Pending',
+            daily_activity_ids: daily_activity_ids
+        } as any;
     }
 
     /**
-     * Fetches all bookings and their mapped activities for a given tour.
+     * Fetches all purchase orders and constructs them as operational bookings for compatibility.
      */
     static async getBookingsForTour(tourId: string) {
         const supabase = createAdminClient();
 
         const { data, error } = await supabase
-            .from('vendor_bookings')
+            .from('purchase_orders')
             .select(`
                 *,
-                activities:vendor_booked_activities(
+                items:purchase_order_items(
                     daily_activity_id
                 )
             `)
@@ -215,167 +202,173 @@ export class VendorBookingService {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        
-        return (data || []).map((booking: any) => ({
-            ...booking,
-            daily_activity_ids: (booking.activities || []).map((a: any) => a.daily_activity_id)
-        }));
+
+        return (data || []).map((po: any) => {
+            let bookingStatus = 'Pending';
+            if (po.status === 'Accepted' || po.status === 'Completed') {
+                bookingStatus = 'Went Ahead';
+            } else if (po.status === 'Sent') {
+                bookingStatus = 'Confirmed';
+            } else if (po.status === 'Cancelled') {
+                bookingStatus = 'Cancelled';
+            }
+
+            let vType = po.vendor_type;
+            if (vType === 'transport') vType = 'transport_provider';
+            else if (vType === 'guide') vType = 'tour_guide';
+
+            const vendorId = po.hotel_id || po.activity_vendor_id || po.transport_provider_id || po.guide_id || po.driver_id || po.restaurant_id || '';
+
+            return {
+                id: po.id,
+                purchase_order_id: po.id,
+                tour_id: po.tour_id,
+                quotation_request_id: po.quotation_request_id || null,
+                vendor_type: vType,
+                vendor_id: vendorId,
+                vendor_name: po.vendor_name,
+                agreed_price: po.total_amount,
+                currency: po.currency,
+                cancellation_policy: po.cancellation_policy || null,
+                notes: po.vendor_notes || po.internal_notes || null,
+                status: bookingStatus,
+                daily_activity_ids: (po.items || [])
+                    .map((item: any) => item.daily_activity_id)
+                    .filter((id: any) => !!id)
+            };
+        });
     }
 
     /**
-     * Updates booking status (e.g. Confirmed, Cancelled).
+     * Updates booking (PO) status.
      */
-    static async updateBookingStatus(dto: UpdateBookingStatusDTO): Promise<VendorBooking> {
+    static async updateBookingStatus(dto: UpdateBookingStatusDTO): Promise<any> {
         const supabase = createAdminClient();
         const { booking_id, status, booking_reference } = dto;
 
-        const updateData: any = { status, updated_at: new Date().toISOString() };
+        let poStatus = 'Draft';
+        if (status === 'Confirmed') poStatus = 'Sent';
+        else if (status === 'Went Ahead') poStatus = 'Accepted';
+        else if (status === 'Cancelled') poStatus = 'Cancelled';
+
+        const updateData: any = { status: poStatus, updated_at: new Date().toISOString() };
         if (booking_reference !== undefined) {
-            updateData.booking_reference = booking_reference;
+            updateData.sent_email = booking_reference;
         }
 
         const { data, error } = await supabase
-            .from('vendor_bookings')
+            .from('purchase_orders')
             .update(updateData)
             .eq('id', booking_id)
             .select()
             .single();
 
         if (error) throw error;
-        return data;
+        
+        return {
+            ...data,
+            purchase_order_id: data.id,
+            status: status
+        };
     }
 
     /**
-     * Cancels a booking and its associated Purchase Order.
+     * Cancels a booking (PO).
      */
     static async cancelBooking(bookingId: string, reason?: string): Promise<boolean> {
         const supabase = createAdminClient();
 
-        // Fetch the booking first to check if there is a PO
-        const { data: booking, error: fError } = await supabase
-            .from('vendor_bookings')
-            .select('*')
-            .eq('id', bookingId)
-            .single();
-
-        if (fError) throw fError;
-
-        // Update status of the booking to Cancelled
-        const { error: uError } = await supabase
-            .from('vendor_bookings')
-            .update({ status: 'Cancelled', updated_at: new Date().toISOString() })
+        const { error } = await supabase
+            .from('purchase_orders')
+            .update({ 
+                status: 'Cancelled', 
+                internal_notes: `Cancelled booking. Reason: ${reason || 'Backup vendor deselected.'}`,
+                updated_at: new Date().toISOString() 
+            })
             .eq('id', bookingId);
 
-        if (uError) throw uError;
-
-        // Cancel the PO if exists
-        if (booking.purchase_order_id) {
-            const { error: poError } = await supabase
-                .from('purchase_orders')
-                .update({ 
-                    status: 'Cancelled', 
-                    internal_notes: `Cancelled booking. Reason: ${reason || 'Backup vendor deselected.'}` 
-                })
-                .eq('id', booking.purchase_order_id);
-                
-            if (poError) throw poError;
-        }
-
+        if (error) throw error;
         return true;
     }
 
     /**
-     * Finalizes one vendor booking for the associated daily activities:
-     * - Marks this booking as 'Went Ahead'
+     * Finalizes one vendor booking:
+     * - Marks the PO as 'Accepted' (Went Ahead)
+     * - Cancels parallel backup POs for the same activities
      * - Updates all linked daily_activities records with this vendor's details
-     * - Automatically cancels parallel backup bookings for the same activities & their corresponding POs
      */
     static async confirmFinalVendor(bookingId: string): Promise<boolean> {
         const supabase = createAdminClient();
 
-        // 1. Retrieve the target booking details
-        const { data: targetBooking, error: tbError } = await supabase
-            .from('vendor_bookings')
-            .select('*')
+        const { data: targetPO, error: poErr } = await supabase
+            .from('purchase_orders')
+            .select(`
+                *,
+                items:purchase_order_items(
+                    daily_activity_id
+                )
+            `)
             .eq('id', bookingId)
             .single();
 
-        if (tbError) throw tbError;
+        if (poErr) throw poErr;
 
-        const { id: targetBookingId, vendor_id, vendor_type, agreed_price } = targetBooking;
+        const { id: targetPOId, vendor_type } = targetPO;
+        const vendor_id = targetPO.hotel_id || targetPO.activity_vendor_id || targetPO.transport_provider_id || targetPO.guide_id || targetPO.driver_id || targetPO.restaurant_id;
 
-        // 2. Retrieve all activity IDs linked to this booking
-        const { data: linkedActs, error: laError } = await supabase
-            .from('vendor_booked_activities')
-            .select('daily_activity_id')
-            .eq('vendor_booking_id', targetBookingId);
+        const activityIds = (targetPO.items || [])
+            .map((item: any) => item.daily_activity_id)
+            .filter((id: any) => !!id);
 
-        if (laError) throw laError;
-
-        const activityIds = linkedActs.map((la: any) => la.daily_activity_id);
         if (activityIds.length === 0) {
-            throw new Error("No daily activities linked to this booking.");
+            throw new Error("No daily activities linked to this Purchase Order.");
         }
 
-        // 3. Find other bookings linked to the same activities
-        const { data: otherMappings, error: omError } = await supabase
-            .from('vendor_booked_activities')
-            .select('vendor_booking_id')
+        const { data: otherItems, error: itemsErr } = await supabase
+            .from('purchase_order_items')
+            .select('purchase_order_id')
             .in('daily_activity_id', activityIds)
-            .neq('vendor_booking_id', targetBookingId);
+            .neq('purchase_order_id', targetPOId);
 
-        if (omError) throw omError;
+        if (itemsErr) throw itemsErr;
 
-        const otherBookingIds = Array.from(new Set(otherMappings.map((m: any) => m.vendor_booking_id)));
+        const otherPOIds = Array.from(new Set(otherItems.map((item: any) => item.purchase_order_id)));
 
-        // 4. Cancel backup bookings & POs
-        if (otherBookingIds.length > 0) {
-            const { data: backups, error: buError } = await supabase
-                .from('vendor_bookings')
-                .select('*')
-                .in('id', otherBookingIds)
+        if (otherPOIds.length > 0) {
+            await supabase
+                .from('purchase_orders')
+                .update({ 
+                    status: 'Cancelled', 
+                    internal_notes: 'Automatically cancelled - backup vendor deselected.',
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', otherPOIds)
                 .neq('status', 'Cancelled');
-
-            if (buError) throw buError;
-
-            for (const backup of backups) {
-                // Set status to Cancelled
-                await supabase
-                    .from('vendor_bookings')
-                    .update({ status: 'Cancelled', updated_at: new Date().toISOString() })
-                    .eq('id', backup.id);
-
-                // Cancel the associated PO
-                if (backup.purchase_order_id) {
-                    await supabase
-                        .from('purchase_orders')
-                        .update({ 
-                            status: 'Cancelled', 
-                            internal_notes: 'Automatically cancelled - backup vendor deselected.' 
-                        })
-                        .eq('id', backup.purchase_order_id);
-                }
-            }
         }
 
-        // 5. Update the selected booking to 'Went Ahead'
         await supabase
-            .from('vendor_bookings')
-            .update({ status: 'Went Ahead', updated_at: new Date().toISOString() })
-            .eq('id', targetBookingId);
+            .from('purchase_orders')
+            .update({ 
+                status: 'Accepted', 
+                updated_at: new Date().toISOString() 
+            })
+            .eq('id', targetPOId);
 
-        // 6. Update daily_activities records with the selected vendor details for itinerary display
+        let vType = vendor_type;
+        if (vType === 'transport') vType = 'transport_provider';
+        else if (vType === 'guide') vType = 'tour_guide';
+
         const dailyActivityUpdates: any = {
-            contracted_price: agreed_price,
-            contracted_total_price: agreed_price
+            contracted_price: targetPO.total_amount,
+            contracted_total_price: targetPO.total_amount
         };
 
-        if (vendor_type === 'hotel') dailyActivityUpdates.hotel_id = vendor_id;
-        else if (vendor_type === 'vendor') dailyActivityUpdates.vendor_id = vendor_id;
-        else if (vendor_type === 'transport_provider') dailyActivityUpdates.transport_id = vendor_id;
-        else if (vendor_type === 'tour_guide') dailyActivityUpdates.guide_id = vendor_id;
-        else if (vendor_type === 'driver') dailyActivityUpdates.driver_id = vendor_id;
-        else if (vendor_type === 'restaurant') dailyActivityUpdates.restaurant_id = vendor_id;
+        if (vType === 'hotel') dailyActivityUpdates.hotel_id = vendor_id;
+        else if (vType === 'vendor') dailyActivityUpdates.vendor_id = vendor_id;
+        else if (vType === 'transport_provider') dailyActivityUpdates.transport_id = vendor_id;
+        else if (vType === 'tour_guide') dailyActivityUpdates.guide_id = vendor_id;
+        else if (vType === 'driver') dailyActivityUpdates.driver_id = vendor_id;
+        else if (vType === 'restaurant') dailyActivityUpdates.restaurant_id = vendor_id;
 
         const { error: daError } = await supabase
             .from('daily_activities')

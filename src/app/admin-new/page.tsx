@@ -124,7 +124,8 @@ import {
   logRfqEmailAction,
   getRfqEmailsForTourAction,
   logRfpEmailAction,
-  getRfpEmailsForTourAction
+  getRfpEmailsForTourAction,
+  updatePurchaseOrderAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -389,6 +390,31 @@ function PlannerWizardWorkspace() {
   const poEditorRef = React.useRef<HTMLDivElement>(null);
   const [isSendingPo, setIsSendingPo] = useState(false);
   const [poAttachPdf, setPoAttachPdf] = useState(true);
+  const [poDiscount, setPoDiscount] = useState<number>(0);
+  const [poTax, setPoTax] = useState<number>(0);
+  const [poVendorNotes, setPoVendorNotes] = useState<string>('');
+
+  // Edit PO Details Modal state
+  const [showEditPoModal, setShowEditPoModal] = useState(false);
+  const [editingPo, setEditingPo] = useState<any>(null);
+  const [editPoStatus, setEditPoStatus] = useState('Draft');
+  const [editPoDiscount, setEditPoDiscount] = useState<number>(0);
+  const [editPoTax, setEditPoTax] = useState<number>(0);
+  const [editPoAcceptedName, setEditPoAcceptedName] = useState('');
+  const [editPoAcceptedDate, setEditPoAcceptedDate] = useState('');
+  const [editPoInternalNotes, setEditPoInternalNotes] = useState('');
+  const [editPoVendorNotes, setEditPoVendorNotes] = useState('');
+  const [isSavingEditPo, setIsSavingEditPo] = useState(false);
+
+  // Edit RFQ Details Modal state
+  const [showEditRfqModal, setShowEditRfqModal] = useState(false);
+  const [editingRfq, setEditingRfq] = useState<any>(null);
+  const [editRfqStatus, setEditRfqStatus] = useState<'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected'>('Pending');
+  const [editRfqQuotedPrice, setEditRfqQuotedPrice] = useState<number>(0);
+  const [editRfqCurrency, setEditRfqCurrency] = useState('USD');
+  const [editRfqRepliedDate, setEditRfqRepliedDate] = useState('');
+  const [editRfqNotes, setEditRfqNotes] = useState('');
+  const [isSavingEditRfq, setIsSavingEditRfq] = useState(false);
 
   // Digital Signature PO states
   const [poRequireSignature, setPoRequireSignature] = useState(false);
@@ -1955,7 +1981,9 @@ function PlannerWizardWorkspace() {
             appStateData,
             quotesRes,
             posRes,
-            bookingsRes
+            bookingsRes,
+            rfqEmailsRes,
+            rfpEmailsRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -1964,7 +1992,9 @@ function PlannerWizardWorkspace() {
             fetch(`/api/app-state?stateKey=${storageKey}`).then(r => r.ok ? r.json() : null).catch(() => null),
             getQuotationRequestsForTourAction(activeTourId),
             getPurchaseOrdersAction(activeTourId),
-            getVendorBookingsAction(activeTourId)
+            getVendorBookingsAction(activeTourId),
+            getRfqEmailsForTourAction(activeTourId),
+            getRfpEmailsForTourAction(activeTourId)
           ]);
 
           if (touristRes.success && touristRes.data) {
@@ -2057,6 +2087,12 @@ function PlannerWizardWorkspace() {
           }
           if (bookingsRes && bookingsRes.success && bookingsRes.bookings) {
             setVendorBookings(bookingsRes.bookings);
+          }
+          if (rfqEmailsRes && rfqEmailsRes.success && rfqEmailsRes.emails) {
+            setRfqEmails(rfqEmailsRes.emails as TourRfqEmail[]);
+          }
+          if (rfpEmailsRes && rfpEmailsRes.success && rfpEmailsRes.emails) {
+            setRfpEmails(rfpEmailsRes.emails as TourRfpEmail[]);
           }
 
           // Process appStateData
@@ -2724,7 +2760,9 @@ function PlannerWizardWorkspace() {
         {
           requireSignature: poRequireSignature,
           signatureImage: poSignatureImage,
-          poNumber: poNum
+          poNumber: poNum,
+          discount: poDiscount,
+          tax: poTax
         }
       );
       
@@ -2771,6 +2809,9 @@ function PlannerWizardWorkspace() {
           calculatedSubtotal += (totalQty * unitCost);
       });
 
+      const poNumMatch = poEmailSubject.match(/PO-HOT-\d+/);
+      const poNum = poNumMatch ? poNumMatch[0] : `PO-HOT-${Date.now().toString().slice(-6)}`;
+
       // 1. Insert the parallel booking and PO record
       const resDb = await createVendorBookingAction({
         tour_id: tourId,
@@ -2779,7 +2820,11 @@ function PlannerWizardWorkspace() {
         vendor_name: selectedPoHotel.name,
         agreed_price: calculatedSubtotal,
         currency: 'USD',
-        daily_activity_ids: selectedPoStays.map(s => s.id)
+        daily_activity_ids: selectedPoStays.map(s => s.id),
+        po_number: poNum,
+        discount: poDiscount,
+        tax: poTax,
+        notes: poVendorNotes
       });
 
       if (!resDb.success || !resDb.booking) {
@@ -2801,9 +2846,6 @@ function PlannerWizardWorkspace() {
       let pdfBase64 = '';
       let pdfFilename = '';
 
-      const poNumMatch = poEmailSubject.match(/PO-HOT-\d+/);
-      const poNum = poNumMatch ? poNumMatch[0] : `PO-HOT-${Date.now().toString().slice(-6)}`;
-
       if (poAttachPdf) {
         const doc = await generateHotelPoPdf(
           selectedPoHotel,
@@ -2814,7 +2856,9 @@ function PlannerWizardWorkspace() {
           {
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
-            poNumber: poNum
+            poNumber: poNum,
+            discount: poDiscount,
+            tax: poTax
           }
         );
         pdfBase64 = doc.output('datauristring').split(',')[1];
@@ -2835,6 +2879,9 @@ function PlannerWizardWorkspace() {
       if (resEmail.success) {
         alert("Purchase Order sent and booking generated successfully!");
         setShowPoModal(false);
+        setPoDiscount(0);
+        setPoTax(0);
+        setPoVendorNotes('');
 
         // Log PO email history
         try {
@@ -2875,6 +2922,107 @@ function PlannerWizardWorkspace() {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const openEditPoModal = (po: any) => {
+    setEditingPo(po);
+    setEditPoStatus(po.status || 'Draft');
+    setEditPoDiscount(po.discount || 0);
+    setEditPoTax(po.tax || 0);
+    setEditPoAcceptedName(po.accepted_by_name || '');
+    setEditPoAcceptedDate(po.accepted_date ? new Date(po.accepted_date).toISOString().split('T')[0] : '');
+    setEditPoInternalNotes(po.internal_notes || '');
+    setEditPoVendorNotes(po.vendor_notes || '');
+    setShowEditPoModal(true);
+  };
+
+  const handleSaveEditPo = async () => {
+    if (!editingPo) return;
+    setIsSavingEditPo(true);
+    try {
+      const updates = {
+        status: editPoStatus,
+        discount: editPoDiscount,
+        tax: editPoTax,
+        accepted_by_name: editPoAcceptedName || null,
+        accepted_date: editPoAcceptedDate || null,
+        internal_notes: editPoInternalNotes || null,
+        vendor_notes: editPoVendorNotes || null,
+        total_amount: (editingPo.subtotal || 0) + editPoTax - editPoDiscount,
+      };
+
+      const res = await updatePurchaseOrderAction(editingPo.id, updates);
+      if (res.success) {
+        alert("Purchase Order details updated successfully!");
+        setShowEditPoModal(false);
+        setEditingPo(null);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to update PO: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSavingEditPo(false);
+    }
+  };
+
+  const openEditRfqModal = (rfq: any) => {
+    setEditingRfq(rfq);
+    setEditRfqStatus(rfq.status || 'Pending');
+    setEditRfqQuotedPrice(rfq.quoted_price || 0);
+    setEditRfqCurrency(rfq.currency || 'USD');
+    setEditRfqRepliedDate(rfq.replied_date ? new Date(rfq.replied_date).toISOString().split('T')[0] : '');
+    setEditRfqNotes(rfq.notes || '');
+    setShowEditRfqModal(true);
+  };
+
+  const handleSaveEditRfq = async () => {
+    if (!editingRfq) return;
+    setIsSavingEditRfq(true);
+    try {
+      const updates = {
+        status: editRfqStatus,
+        quoted_price: editRfqQuotedPrice,
+        currency: editRfqCurrency,
+        replied_date: editRfqRepliedDate ? new Date(editRfqRepliedDate).toISOString() : null,
+        notes: editRfqNotes || null
+      };
+
+      // 1. Update general quotation request columns
+      const res = await updateQuotationAction(editingRfq.id, updates as any);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to update quotation request");
+      }
+
+      // 2. If status was changed to Selected, run selectQuotationAction to sync the mapping and other quotes
+      if (editRfqStatus === 'Selected') {
+        const quoteMapping = quotationRequests.find(q => q.quotation?.id === editingRfq.id);
+        let dailyActivityId = quoteMapping?.daily_activity_id;
+        if (!dailyActivityId) {
+          // Fallback: look up the sleep activity for this hotel vendor
+          const vendorId = editingRfq.vendor_id;
+          if (vendorId) {
+            dailyActivityId = dbActivities.find(a => a.hotel_id === vendorId && a.activity_type === 'sleep')?.id;
+          }
+        }
+        if (dailyActivityId) {
+          const selectRes = await selectQuotationAction(editingRfq.id, dailyActivityId);
+          if (!selectRes.success) {
+            throw new Error(selectRes.error || "Failed to select quotation as winning vendor");
+          }
+        }
+      }
+
+      alert("Quotation Request updated successfully!");
+      setShowEditRfqModal(false);
+      setEditingRfq(null);
+      loadProcurementData(tourId);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSavingEditRfq(false);
+    }
   };
 
   const handleSendRFQ = async (act: any, vendor: any) => {
@@ -5305,10 +5453,10 @@ function PlannerWizardWorkspace() {
                               {(() => {
                                 const hotelPurchaseOrderIds = new Set(
                                   purchaseOrders
-                                    .filter(po => po.hotel_id === hotel?.id)
+                                    .filter(po => po.hotel_id === hotelId)
                                     .map(po => po.id)
                                 );
-                                const myRfqEmails = rfqEmails.filter(email => email.vendor_id === hotel?.id);
+                                const myRfqEmails = rfqEmails.filter(email => email.vendor_id === hotelId);
                                 const myRfpEmails = rfpEmails.filter(email => email.purchase_order_id && hotelPurchaseOrderIds.has(email.purchase_order_id));
                                 const totalEmails = myRfqEmails.length + myRfpEmails.length;
                                 const isExpanded = !!expandedHotelHistory[hotelId];
@@ -5319,6 +5467,8 @@ function PlannerWizardWorkspace() {
                                     [hId]: !prev[hId]
                                   }));
                                 };
+
+                                const hotelPurchaseOrders = purchaseOrders.filter(po => po.hotel_id === hotelId);
 
                                 return (
                                   <div className="mt-4 pt-4 border-t border-neutral-200/60">
@@ -5349,6 +5499,12 @@ function PlannerWizardWorkspace() {
                                               const emailId = email.id;
                                               const isEmailBodyExpanded = expandedEmailId === emailId;
                                               const attachmentsArray = Array.isArray(email.attachments) ? email.attachments : [];
+                                              const matchingPo = email.logType === 'RFP' && email.purchase_order_id
+                                                ? purchaseOrders.find(p => p.id === email.purchase_order_id)
+                                                : null;
+                                              const matchingQuote = email.logType === 'RFQ' && email.quotation_request_id
+                                                ? (email.quotation || quotationRequests.find(q => q.quotation?.id === email.quotation_request_id)?.quotation)
+                                                : null;
 
                                               return (
                                                 <div key={emailId} className="border border-neutral-200/80 rounded-2xl p-3 bg-white shadow-sm space-y-2">
@@ -5396,6 +5552,30 @@ function PlannerWizardWorkspace() {
                                                         className="text-[11px] text-neutral-700 bg-neutral-50/50 p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[200px] font-sans prose prose-sm max-w-none"
                                                         dangerouslySetInnerHTML={{ __html: email.body_html }}
                                                       />
+                                                    </div>
+                                                  )}
+                                                  {matchingPo && (
+                                                    <div className="flex justify-end pt-2 border-t border-neutral-100/60 mt-2">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => openEditPoModal(matchingPo)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-[9px] font-bold transition-all shadow-sm hover:shadow-md"
+                                                      >
+                                                        <Pencil className="w-2.5 h-2.5 text-neutral-500" />
+                                                        <span>Edit Details</span>
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                  {matchingQuote && (
+                                                    <div className="flex justify-end pt-2 border-t border-neutral-100/60 mt-2">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => openEditRfqModal(matchingQuote)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-[9px] font-bold transition-all shadow-sm hover:shadow-md"
+                                                      >
+                                                        <Pencil className="w-2.5 h-2.5 text-neutral-500" />
+                                                        <span>Edit Details</span>
+                                                      </button>
                                                     </div>
                                                   )}
                                                 </div>
@@ -8484,6 +8664,46 @@ function PlannerWizardWorkspace() {
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                     </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Discount ($)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={poDiscount || ""}
+                        onChange={(e) => setPoDiscount(parseFloat(e.target.value) || 0)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Tax ($)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={poTax || ""}
+                        onChange={(e) => setPoTax(parseFloat(e.target.value) || 0)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Vendor Notes
+                      </label>
+                      <textarea
+                        value={poVendorNotes}
+                        onChange={(e) => setPoVendorNotes(e.target.value)}
+                        placeholder="Notes or instructions to be sent/saved with the purchase order..."
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-neutral-100">
@@ -8662,6 +8882,323 @@ function PlannerWizardWorkspace() {
                     )}
                   </button>
                 </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Edit PO Details Modal */}
+        {showEditPoModal && editingPo && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-neutral-800">
+                    Edit Purchase Order Details
+                  </h3>
+                  <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                    PO Number: {editingPo.po_number} &bull; Vendor: {editingPo.vendor_name || 'N/A'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowEditPoModal(false);
+                    setEditingPo(null);
+                  }}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Form */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Status */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Status
+                    </label>
+                    <select
+                      value={editPoStatus}
+                      onChange={(e) => setEditPoStatus(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    >
+                      <option value="Draft">Draft</option>
+                      <option value="Pending Confirmation">Pending Confirmation</option>
+                      <option value="Sent">Sent</option>
+                      <option value="Accepted">Accepted</option>
+                      <option value="Rejected">Rejected</option>
+                      <option value="Cancelled">Cancelled</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+
+                  {/* Empty for grid layout spacing */}
+                  <div className="hidden sm:block"></div>
+
+                  {/* Discount */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Discount ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editPoDiscount || ""}
+                      onChange={(e) => setEditPoDiscount(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Tax */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Tax ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editPoTax || ""}
+                      onChange={(e) => setEditPoTax(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Accepted By Name */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Accepted By Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. John Doe"
+                      value={editPoAcceptedName}
+                      onChange={(e) => setEditPoAcceptedName(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Accepted Date */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Accepted Date
+                    </label>
+                    <input
+                      type="date"
+                      value={editPoAcceptedDate}
+                      onChange={(e) => setEditPoAcceptedDate(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Internal Notes */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Internal Notes (Nilathra Team Only)
+                    </label>
+                    <textarea
+                      placeholder="Internal comments, checklist status, or booking updates..."
+                      value={editPoInternalNotes}
+                      onChange={(e) => setEditPoInternalNotes(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
+                    />
+                  </div>
+
+                  {/* Vendor Notes */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Vendor Notes (Shown on PO)
+                    </label>
+                    <textarea
+                      placeholder="Any specific requests or requirements communicated to/from the vendor..."
+                      value={editPoVendorNotes}
+                      onChange={(e) => setEditPoVendorNotes(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditPoModal(false);
+                    setEditingPo(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl hover:bg-neutral-150 text-xs font-bold text-neutral-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditPo}
+                  disabled={isSavingEditPo}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+                >
+                  {isSavingEditPo ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 text-white" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Edit RFQ Details Modal */}
+        {showEditRfqModal && editingRfq && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-neutral-800">
+                    Edit Quotation Request (RFQ) Details
+                  </h3>
+                  <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                    Vendor: {editingRfq.vendor_name || 'N/A'} &bull; Status: {editingRfq.status || 'Pending'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowEditRfqModal(false);
+                    setEditingRfq(null);
+                  }}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Form */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Status */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Status
+                    </label>
+                    <select
+                      value={editRfqStatus}
+                      onChange={(e) => setEditRfqStatus(e.target.value as any)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Sent">Sent</option>
+                      <option value="Replied">Replied</option>
+                      <option value="Declined">Declined</option>
+                      <option value="Expired">Expired</option>
+                      <option value="Selected">Selected (Finalized Vendor)</option>
+                    </select>
+                  </div>
+
+                  {/* Empty for grid layout spacing */}
+                  <div className="hidden sm:block"></div>
+
+                  {/* Quoted Price */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Quoted Price
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editRfqQuotedPrice || ""}
+                      onChange={(e) => setEditRfqQuotedPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Currency */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Currency
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="USD"
+                      value={editRfqCurrency}
+                      onChange={(e) => setEditRfqCurrency(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-mono"
+                    />
+                  </div>
+
+                  {/* Replied Date */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Replied Date
+                    </label>
+                    <input
+                      type="date"
+                      value={editRfqRepliedDate}
+                      onChange={(e) => setEditRfqRepliedDate(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div className="col-span-1 sm:col-span-2">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                      Vendor Reply Notes
+                    </label>
+                    <textarea
+                      placeholder="Notes regarding vendor response, discounts, availability details..."
+                      value={editRfqNotes}
+                      onChange={(e) => setEditRfqNotes(e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditRfqModal(false);
+                    setEditingRfq(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl hover:bg-neutral-150 text-xs font-bold text-neutral-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditRfq}
+                  disabled={isSavingEditRfq}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+                >
+                  {isSavingEditRfq ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 text-white" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
               </div>
 
             </div>

@@ -63,6 +63,8 @@ export const generateHotelPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        discount?: number;
+        tax?: number;
     }
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
@@ -359,11 +361,41 @@ export const generateHotelPoPdf = async (
     }
 
     // Totals Section
+    const disc = options.discount || 0;
+    const tx = options.tax || 0;
+    const finalTotal = calculatedSubtotal + tx - disc;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+
+    if (disc > 0 || tx > 0) {
+        doc.text("Subtotal:", 118, topY);
+        doc.text(`$${calculatedSubtotal.toFixed(2)}`, 188, topY, { align: 'right' });
+        topY += 5.5;
+
+        if (disc > 0) {
+            doc.text("Discount:", 118, topY);
+            doc.text(`-$${disc.toFixed(2)}`, 188, topY, { align: 'right' });
+            topY += 5.5;
+        }
+
+        if (tx > 0) {
+            doc.text("Tax:", 118, topY);
+            doc.text(`+$${tx.toFixed(2)}`, 188, topY, { align: 'right' });
+            topY += 5.5;
+        }
+        
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
+        doc.line(118, topY - 1.5, 190, topY - 1.5);
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text("Total Amount Payable:", 118, topY);
-    doc.text(`$${calculatedSubtotal.toFixed(2)}`, 188, topY, { align: 'right' });
+    doc.text(`$${finalTotal.toFixed(2)}`, 188, topY, { align: 'right' });
     topY += 12;
 
     // Digital Signature Placement

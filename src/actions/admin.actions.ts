@@ -1706,6 +1706,18 @@ export async function getRfpEmailsForTourAction(tourId: string) {
     }
 }
 
+export async function updatePurchaseOrderAction(poId: string, updates: any) {
+    try {
+        await FinanceService.updatePurchaseOrderDetails(poId, updates);
+        revalidatePath("/admin-new");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in updatePurchaseOrderAction:", error);
+        return { success: false, error: error.message || "Failed to update PO details." };
+    }
+}
+
+
 
 
 

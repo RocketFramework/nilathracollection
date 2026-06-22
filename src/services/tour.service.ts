@@ -389,6 +389,14 @@ export class TourService {
      */
     static async saveTour(tourId: string, tripData: TripData) {
         const supabaseAdmin = createAdminClient();
+
+        // Fetch existing quotation mappings before any deletions
+        const { data: existingMappings } = await supabaseAdmin
+            .from('daily_activity_quotation_request')
+            .select('*')
+            .eq('tour_id', tourId);
+
+        const allInsertedActivities: any[] = [];
         const { data: dbActivities } = await supabaseAdmin.from('activities').select('id, activity_name');
 
         const { data: rawSettings } = await supabaseAdmin.from('app_settings').select('setting_key, setting_value');
@@ -1040,6 +1048,41 @@ export class TourService {
                     if (act.charged_total_price) {
                         grandTotalCost += act.charged_total_price;
                     }
+                    allInsertedActivities.push(act);
+                }
+            }
+        }
+
+        // C) Restore daily_activity_quotation_request mappings
+        if (existingMappings && existingMappings.length > 0) {
+            const newItinIdMap = new Map<string, string>();
+            for (const act of allInsertedActivities) {
+                if (act.id && act.itinerary_id) {
+                    newItinIdMap.set(act.id, act.itinerary_id);
+                }
+            }
+
+            const mappingsToReinsert = existingMappings
+                .map(m => {
+                    const newItinId = newItinIdMap.get(m.daily_activity_id);
+                    if (!newItinId) return null;
+                    return {
+                        daily_activity_id: m.daily_activity_id,
+                        tour_id: m.tour_id,
+                        itinerary_id: newItinId,
+                        activity_type: m.activity_type,
+                        quotation_request_id: m.quotation_request_id
+                    };
+                })
+                .filter(Boolean);
+
+            if (mappingsToReinsert.length > 0) {
+                const { error: reinsertErr } = await supabaseAdmin
+                    .from('daily_activity_quotation_request')
+                    .insert(mappingsToReinsert);
+                
+                if (reinsertErr) {
+                    console.error("Failed to restore daily_activity_quotation_request mappings:", reinsertErr);
                 }
             }
         }

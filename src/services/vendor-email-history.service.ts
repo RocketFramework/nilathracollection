@@ -29,7 +29,12 @@ export class VendorEmailHistoryService {
         const db = client || createAdminClient();
         const { data, error } = await db
             .from('tour_rfq_emails')
-            .select('*')
+            .select(`
+                *,
+                quotation:quotation_request_id (
+                    *
+                )
+            `)
             .eq('tour_id', tourId)
             .order('sent_at', { ascending: false });
 

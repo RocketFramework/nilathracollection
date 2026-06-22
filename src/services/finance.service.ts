@@ -83,16 +83,6 @@ export class FinanceService {
             if (poError) throw poError;
             savedPOId = newPO.id;
         }
-
-        // If vendor_booking_id is provided, link this PO to the booking record
-        if (poData.vendor_booking_id) {
-            const { error: linkErr } = await supabase
-                .from('vendor_bookings')
-                .update({ purchase_order_id: savedPOId })
-                .eq('id', poData.vendor_booking_id);
-            if (linkErr) throw linkErr;
-        }
-
         // Insert items
         if (items && items.length > 0) {
             const itemsToInsert = items.map(item => {
@@ -218,6 +208,27 @@ export class FinanceService {
             })
             .eq('id', poId);
 
+        if (error) throw error;
+        return true;
+    }
+
+    /**
+     * Updates specific details (status, notes, discounts, tax, and acceptance details) of an existing PO.
+     */
+    static async updatePurchaseOrderDetails(poId: string, updates: any): Promise<boolean> {
+        const supabase = createAdminClient();
+        
+        // Strip out generated or immutable fields
+        delete updates.balance_payable;
+        delete updates.id;
+        delete updates.created_at;
+        delete updates.updated_at;
+        
+        const { error } = await supabase
+            .from('purchase_orders')
+            .update(updates)
+            .eq('id', poId);
+            
         if (error) throw error;
         return true;
     }
