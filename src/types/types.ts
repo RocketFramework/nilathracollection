@@ -10,7 +10,6 @@ export type PrepareBasicSubStep =
   | 'share-tourist';
 
 export type FinalStep =
-  | 'daily-activities'
   | 'element-selection'
   | 'hotel-selection'
   | 'activity-provider'
