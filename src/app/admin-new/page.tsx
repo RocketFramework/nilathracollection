@@ -41,6 +41,7 @@ import {
   ArrowLeft,
   Trash2,
   Plus,
+  History,
   UserPlus,
   DollarSign,
   Calendar,
@@ -72,7 +73,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName } from '../../types/types';
-import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail } from '../../other/interfaces';
+import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
   getTouristDataAction, 
@@ -119,7 +120,11 @@ import {
   getVendorBookingsAction,
   getHotelRfqTemplateAction,
   sendHotelRfqEmailAction,
-  sendPurchaseOrderEmailAction
+  sendPurchaseOrderEmailAction,
+  logRfqEmailAction,
+  getRfqEmailsForTourAction,
+  logRfpEmailAction,
+  getRfpEmailsForTourAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -1405,6 +1410,28 @@ function PlannerWizardWorkspace() {
   const [showShareHtml, setShowShareHtml] = useState(false);
   const [shareEmailAttachments, setShareEmailAttachments] = useState<File[]>([]);
   const [sharedEmails, setSharedEmails] = useState<TourSharedEmail[]>([]);
+  const [rfqEmails, setRfqEmails] = useState<TourRfqEmail[]>([]);
+  const [rfpEmails, setRfpEmails] = useState<TourRfpEmail[]>([]);
+  const [expandedHotelHistory, setExpandedHotelHistory] = useState<Record<string, boolean>>({});
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+
+  const formatDateTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
 
   // Fetch activities and settings from the database
   useEffect(() => {
@@ -2193,10 +2220,12 @@ function PlannerWizardWorkspace() {
     if (!tid || tid === 'draft-tour') return;
     setIsLoadingProcurement(true);
     try {
-      const [quotesRes, posRes, bookingsRes] = await Promise.all([
+      const [quotesRes, posRes, bookingsRes, rfqEmailsRes, rfpEmailsRes] = await Promise.all([
         getQuotationRequestsForTourAction(tid),
         getPurchaseOrdersAction(tid),
-        getVendorBookingsAction(tid)
+        getVendorBookingsAction(tid),
+        getRfqEmailsForTourAction(tid),
+        getRfpEmailsForTourAction(tid)
       ]);
       if (quotesRes.success && quotesRes.quotes) {
         setQuotationRequests(quotesRes.quotes);
@@ -2206,6 +2235,12 @@ function PlannerWizardWorkspace() {
       }
       if (bookingsRes.success && bookingsRes.bookings) {
         setVendorBookings(bookingsRes.bookings);
+      }
+      if (rfqEmailsRes.success && rfqEmailsRes.emails) {
+        setRfqEmails(rfqEmailsRes.emails as TourRfqEmail[]);
+      }
+      if (rfpEmailsRes.success && rfpEmailsRes.emails) {
+        setRfpEmails(rfpEmailsRes.emails as TourRfpEmail[]);
       }
     } catch (err) {
       console.error("Error loading procurement data:", err);
@@ -2542,6 +2577,23 @@ function PlannerWizardWorkspace() {
       if (resEmail.success) {
         alert("Request for Quotation sent successfully!");
         setShowRfqModal(false);
+
+        // Log RFQ email history
+        try {
+          await logRfqEmailAction(
+            tourId,
+            selectedRfqHotel.id || null,
+            rfqEmailTo,
+            'concierge@nilathra.com',
+            rfqEmailSubject,
+            processedBody,
+            pdfFilename ? [{ filename: pdfFilename }] : [],
+            resDb.quote.id
+          );
+        } catch (logErr) {
+          console.error("Failed to log RFQ email history:", logErr);
+        }
+
         loadProcurementData(tourId);
       } else {
         alert("Failed to send RFQ email: " + resEmail.error);
@@ -2783,6 +2835,22 @@ function PlannerWizardWorkspace() {
       if (resEmail.success) {
         alert("Purchase Order sent and booking generated successfully!");
         setShowPoModal(false);
+
+        // Log PO email history
+        try {
+          await logRfpEmailAction(
+            tourId,
+            poId,
+            poEmailTo,
+            'concierge@nilathra.com',
+            poEmailSubject,
+            poEmailBody,
+            pdfFilename ? [{ filename: pdfFilename }] : []
+          );
+        } catch (logErr) {
+          console.error("Failed to log PO email history:", logErr);
+        }
+
         loadProcurementData(tourId);
       } else {
         alert("Failed to send PO email: " + resEmail.error);
@@ -5232,6 +5300,113 @@ function PlannerWizardWorkspace() {
                                   )}
                                 </div>
                               )}
+
+                              {/* Collapsible Email History Section */}
+                              {(() => {
+                                const hotelPurchaseOrderIds = new Set(
+                                  purchaseOrders
+                                    .filter(po => po.hotel_id === hotel?.id)
+                                    .map(po => po.id)
+                                );
+                                const myRfqEmails = rfqEmails.filter(email => email.vendor_id === hotel?.id);
+                                const myRfpEmails = rfpEmails.filter(email => email.purchase_order_id && hotelPurchaseOrderIds.has(email.purchase_order_id));
+                                const totalEmails = myRfqEmails.length + myRfpEmails.length;
+                                const isExpanded = !!expandedHotelHistory[hotelId];
+
+                                const toggleHotelHistory = (hId: string) => {
+                                  setExpandedHotelHistory(prev => ({
+                                    ...prev,
+                                    [hId]: !prev[hId]
+                                  }));
+                                };
+
+                                return (
+                                  <div className="mt-4 pt-4 border-t border-neutral-200/60">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleHotelHistory(hotelId)}
+                                      className="flex items-center justify-between w-full text-left text-neutral-600 hover:text-neutral-900 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <History className="w-4 h-4 text-neutral-400" />
+                                        <span className="text-xs font-bold font-serif">Email History ({totalEmails})</span>
+                                      </div>
+                                      {isExpanded ? (
+                                        <ChevronUp className="w-4 h-4 text-neutral-400" />
+                                      ) : (
+                                        <ChevronDown className="w-4 h-4 text-neutral-400" />
+                                      )}
+                                    </button>
+
+                                    {isExpanded && (
+                                      <div className="mt-3 space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                        {totalEmails === 0 ? (
+                                          <p className="text-[10px] text-neutral-400 italic">No email history for this hotel.</p>
+                                        ) : (
+                                          [...myRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })), ...myRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))]
+                                            .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())
+                                            .map((email) => {
+                                              const emailId = email.id;
+                                              const isEmailBodyExpanded = expandedEmailId === emailId;
+                                              const attachmentsArray = Array.isArray(email.attachments) ? email.attachments : [];
+
+                                              return (
+                                                <div key={emailId} className="border border-neutral-200/80 rounded-2xl p-3 bg-white shadow-sm space-y-2">
+                                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                      <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                                        email.logType === 'RFQ' 
+                                                          ? 'bg-emerald-800/10 text-emerald-800 border border-emerald-800/20' 
+                                                          : 'bg-amber-650/10 text-amber-700 border border-amber-650/20'
+                                                      }`}>
+                                                        {email.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                                      </span>
+                                                      <span className="text-[10px] font-mono text-neutral-400">
+                                                        {formatDateTime(email.sent_at)}
+                                                      </span>
+                                                    </div>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setExpandedEmailId(isEmailBodyExpanded ? null : emailId)}
+                                                      className="text-[10px] text-emerald-850 font-bold hover:underline"
+                                                    >
+                                                      {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                                    </button>
+                                                  </div>
+
+                                                  <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                                    <div><span className="font-semibold text-neutral-450">To:</span> <span className="font-medium font-mono">{email.recipient_email}</span></div>
+                                                    <div><span className="font-semibold text-neutral-455">Subject:</span> <span className="font-bold text-neutral-700">{email.subject}</span></div>
+                                                    {attachmentsArray.length > 0 && (
+                                                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                                        <span className="font-semibold text-neutral-455">Attachments:</span>
+                                                        {attachmentsArray.map((att: any, attIdx: number) => (
+                                                          <span key={attIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded text-[9px] font-medium font-mono">
+                                                            <FileText className="w-3 h-3 text-neutral-400" />
+                                                            {att.filename || att.name || 'Attachment'}
+                                                          </span>
+                                                        ))}
+                                                      </div>
+                                                    )}
+                                                  </div>
+
+                                                  {isEmailBodyExpanded && (
+                                                    <div className="mt-2 pt-2 border-t border-neutral-100">
+                                                      <div 
+                                                        className="text-[11px] text-neutral-700 bg-neutral-50/50 p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[200px] font-sans prose prose-sm max-w-none"
+                                                        dangerouslySetInnerHTML={{ __html: email.body_html }}
+                                                      />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         });

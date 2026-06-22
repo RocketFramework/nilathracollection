@@ -409,9 +409,38 @@ export interface TourSharedEmail {
     sender_email: string;
     subject: string;
     body_html: string;
-    attachments: string[];
+    attachments: string[] | any;
     shared_at: string;
     sent_by?: string;
+    type?: string;
 }
+
+export interface TourRfqEmail {
+    id: string;
+    tour_id: string;
+    vendor_id?: string;
+    recipient_email: string;
+    sender_email: string;
+    subject: string;
+    body_html: string;
+    attachments: any;
+    sent_at: string;
+    sent_by?: string;
+    quotation_request_id?: string;
+}
+
+export interface TourRfpEmail {
+    id: string;
+    tour_id: string;
+    purchase_order_id?: string;
+    recipient_email: string;
+    sender_email: string;
+    subject: string;
+    body_html: string;
+    attachments: any;
+    sent_at: string;
+    sent_by?: string;
+}
+
 
 

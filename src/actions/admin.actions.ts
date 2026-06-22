@@ -26,6 +26,7 @@ import { CreateVendorBookingDTO, UpdateBookingStatusDTO } from "../dtos/vendor-b
 import { ItineraryDraftService } from "@/services/itinerary-draft.service";
 import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from "@/other/interfaces";
 import { TourSharedEmailService } from "@/services/tour-shared-email.service";
+import { VendorEmailHistoryService } from "@/services/vendor-email-history.service";
 import { enforcePermission } from "@/utils/auth-enforcer";
 import { AppSettingsService } from "@/services/app-settings.service";
 
@@ -1478,7 +1479,8 @@ export async function logSharedEmailAction(
     senderEmail: string,
     subject: string,
     bodyHtml: string,
-    attachments: string[]
+    attachments: string[],
+    type?: string
 ) {
     try {
         const supabase = await createClient();
@@ -1492,7 +1494,8 @@ export async function logSharedEmailAction(
             subject: subject,
             body_html: bodyHtml,
             attachments: attachments,
-            sent_by: sentBy
+            sent_by: sentBy,
+            type: type
         });
 
         return { success: true, logId };
@@ -1616,6 +1619,93 @@ export async function changeHotelDatabaseAction(
         return { success: false, error: error.message || "Failed to update changed hotel details." };
     }
 }
+
+export async function logRfqEmailAction(
+    tourId: string,
+    vendorId: string | null,
+    recipientEmail: string,
+    senderEmail: string,
+    subject: string,
+    bodyHtml: string,
+    attachments: any,
+    quotationRequestId?: string
+) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const sentBy = user ? user.id : undefined;
+
+        const logId = await VendorEmailHistoryService.logRfqEmail({
+            tour_id: tourId,
+            vendor_id: vendorId || undefined,
+            recipient_email: recipientEmail,
+            sender_email: senderEmail,
+            subject: subject,
+            body_html: bodyHtml,
+            attachments: attachments,
+            sent_by: sentBy,
+            quotation_request_id: quotationRequestId
+        });
+
+        return { success: true, logId };
+    } catch (error: any) {
+        console.error("Error in logRfqEmailAction:", error);
+        return { success: false, error: error.message || "Failed to log RFQ email." };
+    }
+}
+
+export async function getRfqEmailsForTourAction(tourId: string) {
+    try {
+        const emails = await VendorEmailHistoryService.getRfqEmailsByTourId(tourId);
+        return { success: true, emails };
+    } catch (error: any) {
+        console.error("Error in getRfqEmailsForTourAction:", error);
+        return { success: false, error: error.message || "Failed to fetch RFQ emails." };
+    }
+}
+
+export async function logRfpEmailAction(
+    tourId: string,
+    purchaseOrderId: string | null,
+    recipientEmail: string,
+    senderEmail: string,
+    subject: string,
+    bodyHtml: string,
+    attachments: any
+) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const sentBy = user ? user.id : undefined;
+
+        const logId = await VendorEmailHistoryService.logRfpEmail({
+            tour_id: tourId,
+            purchase_order_id: purchaseOrderId || undefined,
+            recipient_email: recipientEmail,
+            sender_email: senderEmail,
+            subject: subject,
+            body_html: bodyHtml,
+            attachments: attachments,
+            sent_by: sentBy
+        });
+
+        return { success: true, logId };
+    } catch (error: any) {
+        console.error("Error in logRfpEmailAction:", error);
+        return { success: false, error: error.message || "Failed to log RFP email." };
+    }
+}
+
+export async function getRfpEmailsForTourAction(tourId: string) {
+    try {
+        const emails = await VendorEmailHistoryService.getRfpEmailsByTourId(tourId);
+        return { success: true, emails };
+    } catch (error: any) {
+        console.error("Error in getRfpEmailsForTourAction:", error);
+        return { success: false, error: error.message || "Failed to fetch RFP emails." };
+    }
+}
+
 
 
 

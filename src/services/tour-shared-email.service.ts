@@ -1,8 +1,9 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { TourSharedEmail } from '@/other/interfaces';
+import { LogSharedEmailDTO } from '@/dtos/email-history.dto';
 
 export class TourSharedEmailService {
-    static async logSharedEmail(data: Omit<TourSharedEmail, 'id' | 'shared_at'>, client?: any): Promise<string> {
+    static async logSharedEmail(data: LogSharedEmailDTO, client?: any): Promise<string> {
         const db = client || createAdminClient();
         const { data: inserted, error } = await db
             .from('tour_shared_emails')
@@ -13,7 +14,8 @@ export class TourSharedEmailService {
                 subject: data.subject,
                 body_html: data.body_html,
                 attachments: data.attachments,
-                sent_by: data.sent_by || null
+                sent_by: data.sent_by || null,
+                type: data.type || 'share-tourist'
             }])
             .select('id')
             .single();
@@ -34,3 +36,4 @@ export class TourSharedEmailService {
         return data || [];
     }
 }
+
