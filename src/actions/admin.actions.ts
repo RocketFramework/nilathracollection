@@ -176,7 +176,7 @@ export async function saveTourAction(tourId: string, tripData: any) {
     try {
         await TourService.saveTour(tourId, tripData);
         // Force revalidation of any cached planner data views
-        revalidatePath(`/admin/planner`);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error saving tour data:", error);
@@ -193,7 +193,7 @@ export async function savePlannerDataAction(tourId: string, tripData: any) {
             .eq('id', tourId);
         if (error) throw error;
         // Force revalidation of any cached planner data views
-        revalidatePath(`/admin/planner`);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error saving planner JSON data:", error);
@@ -546,7 +546,7 @@ export async function saveTransportProviderAction(provider: TransportProvider) {
 
 export async function refreshPlannerCacheAction() {
     try {
-        revalidatePath('/admin/planner');
+        revalidatePath('/admin-new');
         revalidatePath('/admin/master-data');
         return { success: true };
     } catch (error: any) {
@@ -1285,7 +1285,7 @@ export async function selectQuotationAction(quoteId: string, dailyActivityId: st
 export async function createVendorBookingAction(dto: CreateVendorBookingDTO) {
     try {
         const booking = await VendorBookingService.createBookingRequest(dto);
-        revalidatePath("/admin/planner");
+        revalidatePath("/admin-new");
         return { success: true, booking };
     } catch (error: any) {
         console.error("Error in createVendorBookingAction:", error);
@@ -1306,7 +1306,7 @@ export async function getVendorBookingsAction(tourId: string) {
 export async function updateVendorBookingStatusAction(dto: UpdateBookingStatusDTO) {
     try {
         const booking = await VendorBookingService.updateBookingStatus(dto);
-        revalidatePath("/admin/planner");
+        revalidatePath("/admin-new");
         return { success: true, booking };
     } catch (error: any) {
         console.error("Error in updateVendorBookingStatusAction:", error);
@@ -1317,7 +1317,7 @@ export async function updateVendorBookingStatusAction(dto: UpdateBookingStatusDT
 export async function confirmFinalVendorBookingAction(bookingId: string) {
     try {
         await VendorBookingService.confirmFinalVendor(bookingId);
-        revalidatePath("/admin/planner");
+        revalidatePath("/admin-new");
         return { success: true };
     } catch (error: any) {
         console.error("Error in confirmFinalVendorBookingAction:", error);
@@ -1328,7 +1328,7 @@ export async function confirmFinalVendorBookingAction(bookingId: string) {
 export async function cancelVendorBookingAction(bookingId: string, reason?: string) {
     try {
         await VendorBookingService.cancelBooking(bookingId, reason);
-        revalidatePath("/admin/planner");
+        revalidatePath("/admin-new");
         return { success: true };
     } catch (error: any) {
         console.error("Error in cancelVendorBookingAction:", error);

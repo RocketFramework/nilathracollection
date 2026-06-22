@@ -26,7 +26,7 @@ export default function AdminRequests() {
         try {
             const res = await createTourAction(requestId);
             if (res.success && res.tourId) {
-                router.push(`/admin/planner?tourId=${res.tourId}`);
+                router.push(`/admin-new?tourId=${res.tourId}`);
             } else {
                 alert(res.error || 'Failed to open trip planner.');
             }

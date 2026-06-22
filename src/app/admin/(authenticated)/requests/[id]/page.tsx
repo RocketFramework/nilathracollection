@@ -114,7 +114,7 @@ export default function RequestDetailsPage() {
         try {
             const res = await createTourAction(requestId);
             if (res.success && res.tourId) {
-                router.push(`/admin/planner?tourId=${res.tourId}`);
+                router.push(`/admin-new?tourId=${res.tourId}`);
             } else {
                 setActionError(res.error || 'Failed to create tour.');
             }

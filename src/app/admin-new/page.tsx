@@ -418,6 +418,7 @@ function PlannerWizardWorkspace() {
 
   // 1. Wizard Track State
   const [track, setTrack] = useState<TrackType>('basic');
+  const lastLoadedRef = React.useRef<{ tourId: string; track: TrackType | null }>({ tourId: '', track: null });
 
   // 2. Active Step States
   const [activeBasicStepIndex, setActiveBasicStepIndex] = useState<number>(0);
@@ -1892,15 +1893,45 @@ function PlannerWizardWorkspace() {
         const activeTourId = params.get('tourId') || '60dec7e8-cbd9-4801-9f97-b41e5062fcc2';
         setTourId(activeTourId);
 
+        const urlTrack = params.get('track') as TrackType | null;
+        const urlStep = params.get('step');
+
+        let restoredTrack: TrackType | null = null;
+        let restoredBasicIdx = 0;
+        let restoredFinalIdx = 0;
+        let restoredElements: ItineraryElements | null = null;
+        let restoredFromDb = false;
+
+        const storageKey = `nilathra_planner_wizard_state_${activeTourId}`;
+
         if (activeTourId && activeTourId !== 'draft-tour') {
-          const touristRes = await getTouristDataAction(activeTourId);
+          // Fetch everything in parallel to eliminate sequential database query bottlenecks
+          const [
+            touristRes,
+            tourRes,
+            versionsRes,
+            daRes,
+            appStateData,
+            quotesRes,
+            posRes,
+            bookingsRes
+          ] = await Promise.all([
+            getTouristDataAction(activeTourId),
+            getTourDataAction(activeTourId),
+            getDraftVersionsAction(activeTourId),
+            getDailyActivitiesAction(activeTourId),
+            fetch(`/api/app-state?stateKey=${storageKey}`).then(r => r.ok ? r.json() : null).catch(() => null),
+            getQuotationRequestsForTourAction(activeTourId),
+            getPurchaseOrdersAction(activeTourId),
+            getVendorBookingsAction(activeTourId)
+          ]);
+
           if (touristRes.success && touristRes.data) {
             setTouristData(touristRes.data);
           } else {
             console.error("Failed to load tourist relational data:", touristRes.error);
           }
 
-          const tourRes = await getTourDataAction(activeTourId);
           if (tourRes.success && tourRes.data) {
             const fullTripData = tourRes.data.tripData as TripData;
             setTripData(fullTripData);
@@ -1962,41 +1993,34 @@ function PlannerWizardWorkspace() {
             console.error("Failed to load tour itinerary data:", tourRes.error);
           }
 
-          const versionsRes = await getDraftVersionsAction(activeTourId);
           if (versionsRes.success && versionsRes.versions) {
             setDraftVersions(versionsRes.versions);
           } else {
             console.error("Failed to load draft versions:", versionsRes.error);
           }
 
-          getDailyActivitiesAction(activeTourId).then(daRes => {
-            if (daRes.success && daRes.activities) {
-              const mapped = daRes.activities.map((a: any) => ({
-                ...a,
-                isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
-              }));
-              setDbActivities(mapped);
-            }
-          });
-        }
+          if (daRes.success && daRes.activities) {
+            const mapped = daRes.activities.map((a: any) => ({
+              ...a,
+              isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+            }));
+            setDbActivities(mapped);
+          }
 
-        const urlTrack = params.get('track') as TrackType | null;
-        const urlStep = params.get('step');
+          // Populate procurement data fetched in parallel
+          if (quotesRes && quotesRes.success && quotesRes.quotes) {
+            setQuotationRequests(quotesRes.quotes);
+          }
+          if (posRes && posRes.success && posRes.pos) {
+            setPurchaseOrders(posRes.pos);
+          }
+          if (bookingsRes && bookingsRes.success && bookingsRes.bookings) {
+            setVendorBookings(bookingsRes.bookings);
+          }
 
-        let restoredTrack: TrackType | null = null;
-        let restoredBasicIdx = 0;
-        let restoredFinalIdx = 0;
-        let restoredElements: ItineraryElements | null = null;
-
-        let restoredFromDb = false;
-
-        // 1. Try to fetch from database
-        const storageKey = `nilathra_planner_wizard_state_${activeTourId}`;
-        const res = await fetch(`/api/app-state?stateKey=${storageKey}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.state) {
-            const state = data.state;
+          // Process appStateData
+          if (appStateData && appStateData.state) {
+            const state = appStateData.state;
             restoredTrack = state.track;
             if (state.activeBasicStepIndex !== undefined) restoredBasicIdx = state.activeBasicStepIndex;
             if (state.activeFinalStepIndex !== undefined) restoredFinalIdx = state.activeFinalStepIndex;
@@ -2078,6 +2102,9 @@ function PlannerWizardWorkspace() {
         setTrack(finalTrack);
         setActiveBasicStepIndex(finalBasicIdx);
         setActiveFinalStepIndex(finalFinalIdx);
+
+        // Save the last loaded combination to ref so the first-run useEffect is skipped
+        lastLoadedRef.current = { tourId: activeTourId, track: finalTrack };
       } catch (e) {
         console.error("Failed to restore planner state:", e);
       } finally {
@@ -2732,11 +2759,20 @@ function PlannerWizardWorkspace() {
   };
 
   useEffect(() => {
+    if (!isStateRestored) return;
+
+    if (lastLoadedRef.current.tourId === tourId && lastLoadedRef.current.track === track) {
+      // Already loaded this combination, skip redundant initial mount load
+      return;
+    }
+
     if (track === 'final' && tourId) {
       loadDailyActivities(tourId);
       loadProcurementData(tourId);
     }
-  }, [track, tourId]);
+
+    lastLoadedRef.current = { tourId, track };
+  }, [track, tourId, isStateRestored]);
 
 
   // B. SYNC STATE TO LOCALSTORAGE & DATABASE & URL (whenever track, step, or elements change)

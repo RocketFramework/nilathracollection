@@ -96,7 +96,7 @@ export default function TourDetailViewPage() {
                 </div>
                 <div className="flex gap-3">
                     <button
-                        onClick={() => router.push(`/admin/planner?tourId=${tourId}`)}
+                        onClick={() => router.push(`/admin-new?tourId=${tourId}`)}
                         className="bg-neutral-100 text-brand-charcoal text-sm font-bold border border-neutral-200 px-5 py-2.5 rounded-lg hover:bg-neutral-200 transition-colors"
                     >
                         Edit in Planner
