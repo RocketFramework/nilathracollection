@@ -118,7 +118,8 @@ import {
   cancelVendorBookingAction,
   getVendorBookingsAction,
   getHotelRfqTemplateAction,
-  sendHotelRfqEmailAction
+  sendHotelRfqEmailAction,
+  sendPurchaseOrderEmailAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -126,6 +127,7 @@ import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
+import { generateHotelPoPdf } from '@/utils/po-pdf';
 
 interface StepItem {
   id: string;
@@ -369,6 +371,24 @@ function PlannerWizardWorkspace() {
   const rfqEditorRef = React.useRef<HTMLDivElement>(null);
   const [isSendingRfq, setIsSendingRfq] = useState(false);
   const [rfqAttachPdf, setRfqAttachPdf] = useState(true);
+
+  // PO Email Modal State
+  const [showPoModal, setShowPoModal] = useState(false);
+  const [selectedPoHotel, setSelectedPoHotel] = useState<any>(null);
+  const [selectedPoStays, setSelectedPoStays] = useState<any[]>([]);
+  const [poEmailTo, setPoEmailTo] = useState('');
+  const [poEmailSubject, setPoEmailSubject] = useState('');
+  const [poEmailBody, setPoEmailBody] = useState('');
+  const [poEmailBodyOriginal, setPoEmailBodyOriginal] = useState('');
+  const [showPoHtml, setShowPoHtml] = useState(false);
+  const poEditorRef = React.useRef<HTMLDivElement>(null);
+  const [isSendingPo, setIsSendingPo] = useState(false);
+  const [poAttachPdf, setPoAttachPdf] = useState(true);
+
+  // Digital Signature PO states
+  const [poRequireSignature, setPoRequireSignature] = useState(false);
+  const [poSignatureImage, setPoSignatureImage] = useState<string>('/images/bogus_signature.png');
+  const [uploadedSignatureName, setUploadedSignatureName] = useState<string>('');
 
   // Checkboxes for special requests
   const [rfqAdjacentRooms, setRfqAdjacentRooms] = useState(false);
@@ -2533,6 +2553,262 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  const handleOpenPoModal = async (hotel: any, stays: any[]) => {
+    setSelectedPoHotel(hotel);
+    setSelectedPoStays(stays);
+    setPoEmailTo(hotel?.reservation_email || '');
+    setPoRequireSignature(false);
+    setPoSignatureImage('/images/bogus_signature.png');
+    setUploadedSignatureName('');
+    setShowPoHtml(false);
+    setPoAttachPdf(true);
+    setShowPoModal(true);
+
+    const sortedStays = [...stays].sort((a, b) => {
+        const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+        const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
+        return dayA - dayB;
+    });
+
+    const checkInDate = sortedStays[0]?.tour_itineraries?.date || '';
+    const nightsCount = sortedStays.length;
+    let checkOutDate = '';
+    if (checkInDate && nightsCount > 0) {
+        const d = new Date(checkInDate);
+        d.setDate(d.getDate() + nightsCount);
+        checkOutDate = d.toISOString().split('T')[0];
+    }
+
+    const checkInDateFormatted = checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const checkOutDateFormatted = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+    const poNumber = `PO-HOT-${Date.now().toString().slice(-6)}`;
+    setPoEmailSubject(`Purchase Order ${poNumber} - ${hotel.name}`);
+
+    // Calculate total price
+    let calculatedSubtotal = 0;
+    const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+    const roomsText = sortedStays.map(act => {
+        const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+        const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+        const activeRooms = sizes.map(size => {
+            const count = (act as any)[`${size}_count`] || 0;
+            const label = size.split('_')[0];
+            const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+            return { type: displayType, count };
+        }).filter(r => r.count > 0);
+
+        let reqStr = '';
+        let totalQty = 0;
+        if (act.isCustomPO) {
+            reqStr = `Custom: ${act.title || act.name || 'Additional Service'}`;
+            totalQty = act.quantity || 1;
+        } else if (activeRooms.length === 0) {
+            reqStr = room?.room_name || 'Room';
+            totalQty = act.quantity || 1;
+        } else {
+            reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+            totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+        }
+
+        const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+        const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
+        calculatedSubtotal += totalCost;
+
+        return `• Day ${dayNum}: ${reqStr} (${act.meal_plan || 'BB'}) - Qty: ${totalQty} @ $${unitCost.toFixed(2)} (Total: $${totalCost.toFixed(2)})`;
+    }).join('<br />');
+
+    let agentName = 'Your Concierge Team';
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+    }
+
+    const defaultBody = `<p>Dear ${hotel.name} Reservations Team,</p>
+<p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> for the guest stays detailed below:</p>
+<div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
+  <strong>Reservation Details:</strong><br />
+  Check-in: ${checkInDateFormatted}<br />
+  Check-out: ${checkOutDateFormatted}<br />
+  Nights: ${nightsCount}<br /><br />
+  <strong>Stay Breakdown:</strong><br />
+  ${roomsText}<br /><br />
+  <strong>Total PO Amount:</strong> $${calculatedSubtotal.toFixed(2)}
+</div>
+<p>Kindly acknowledge receipt and confirm this booking under the agreed contracted rates.</p>
+<p>Thank you for partnering with Nilathra Collection.</p>
+<p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+
+    setPoEmailBodyOriginal(defaultBody);
+    setPoEmailBody(defaultBody);
+
+    // Sync editor HTML after DOM mounts
+    setTimeout(() => {
+      if (poEditorRef.current) {
+        poEditorRef.current.innerHTML = defaultBody;
+      }
+    }, 150);
+  };
+
+  const handleDownloadHotelPo = async (hotel: any, stays: any[]) => {
+    try {
+      let agentName = 'Your Concierge Team';
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+      }
+
+      const poNumMatch = poEmailSubject.match(/PO-HOT-\d+/);
+      const poNum = poNumMatch ? poNumMatch[0] : `PO-HOT-${Date.now().toString().slice(-6)}`;
+
+      const doc = await generateHotelPoPdf(
+        hotel,
+        stays,
+        appSettings,
+        agentName,
+        touristData,
+        {
+          requireSignature: poRequireSignature,
+          signatureImage: poSignatureImage,
+          poNumber: poNum
+        }
+      );
+      
+      if (doc) {
+        doc.save(`${poNum}_${hotel.name.replace(/\s+/g, '_')}.pdf`);
+      }
+    } catch (e) {
+      console.error("Failed to download PO PDF:", e);
+      alert("Error generating PO PDF. Please check settings.");
+    }
+  };
+
+  const handleSendPoEmail = async () => {
+    if (!poEmailTo) {
+      alert("Please enter a valid recipient email.");
+      return;
+    }
+    setIsSendingPo(true);
+    try {
+      const sortedStays = [...selectedPoStays].sort((a, b) => {
+          const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+          const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
+          return dayA - dayB;
+      });
+
+      // Calculate agreed price
+      let calculatedSubtotal = 0;
+      const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+      sortedStays.forEach(act => {
+          let totalQty = 0;
+          if (act.isCustomPO) {
+              totalQty = act.quantity || 1;
+          } else {
+              const activeRooms = sizes.map(size => ({
+                  count: (act as any)[`${size}_count`] || 0
+              })).filter(r => r.count > 0);
+              if (activeRooms.length === 0) {
+                  totalQty = act.quantity || 1;
+              } else {
+                  totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+              }
+          }
+          const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+          calculatedSubtotal += (totalQty * unitCost);
+      });
+
+      // 1. Insert the parallel booking and PO record
+      const resDb = await createVendorBookingAction({
+        tour_id: tourId,
+        vendor_type: 'hotel',
+        vendor_id: selectedPoHotel.id,
+        vendor_name: selectedPoHotel.name,
+        agreed_price: calculatedSubtotal,
+        currency: 'USD',
+        daily_activity_ids: selectedPoStays.map(s => s.id)
+      });
+
+      if (!resDb.success || !resDb.booking) {
+        throw new Error(resDb.error || "Failed to create vendor booking in database");
+      }
+
+      const poId = resDb.booking.purchase_order_id;
+      if (!poId) {
+        throw new Error("Parallel PO record was not auto-generated by the database/service");
+      }
+
+      let agentName = 'Your Concierge Team';
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+      }
+
+      let pdfBase64 = '';
+      let pdfFilename = '';
+
+      const poNumMatch = poEmailSubject.match(/PO-HOT-\d+/);
+      const poNum = poNumMatch ? poNumMatch[0] : `PO-HOT-${Date.now().toString().slice(-6)}`;
+
+      if (poAttachPdf) {
+        const doc = await generateHotelPoPdf(
+          selectedPoHotel,
+          selectedPoStays,
+          appSettings,
+          agentName,
+          touristData,
+          {
+            requireSignature: poRequireSignature,
+            signatureImage: poSignatureImage,
+            poNumber: poNum
+          }
+        );
+        pdfBase64 = doc.output('datauristring').split(',')[1];
+        pdfFilename = `${poNum}.pdf`;
+      }
+
+      const resEmail = await sendPurchaseOrderEmailAction({
+        to: poEmailTo,
+        from: 'concierge@nilathra.com',
+        subject: poEmailSubject,
+        body: poEmailBody,
+        pdfBase64,
+        pdfFilename,
+        poId: poId,
+        sentToName: selectedPoHotel.name
+      });
+
+      if (resEmail.success) {
+        alert("Purchase Order sent and booking generated successfully!");
+        setShowPoModal(false);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to send PO email: " + resEmail.error);
+      }
+    } catch (err: any) {
+      alert("Error generating/sending PO: " + err.message);
+    } finally {
+      setIsSendingPo(false);
+    }
+  };
+
+  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadedSignatureName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setPoSignatureImage(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSendRFQ = async (act: any, vendor: any) => {
     if (!vendor) return;
     setIsSubmittingRfq(true);
@@ -4424,6 +4700,16 @@ function PlannerWizardWorkspace() {
                                            <Mail className="w-3.5 h-3.5 text-emerald-800" />
                                            <span>Request Quote</span>
                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPoModal(hotel, acts)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
+                                            title="Create PO"
+                                          >
+                                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                            <span>Create PO</span>
+                                          </button>
                                        </div>
                                      )}
                                   </div>
@@ -7954,6 +8240,249 @@ function PlannerWizardWorkspace() {
                       <>
                         <Mail className="w-4 h-4 text-white" />
                         <span>Send RFQ Email</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Send PO Modal */}
+        {showPoModal && selectedPoHotel && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+              
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-neutral-800">
+                    Generate Purchase Order (PO)
+                  </h3>
+                  <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                    Hotel Partner: {selectedPoHotel.name} &bull; {selectedPoStays.length} Nights
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPoModal(false)}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Workspace */}
+              <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Left Column: Form Controls */}
+                <div className="lg:col-span-5 space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Recipient (Reservation Email)
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. reservations@hotel.com"
+                        value={poEmailTo}
+                        onChange={(e) => setPoEmailTo(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      />
+                      <span className="text-[9px] text-neutral-400 mt-1 block">
+                        {selectedPoHotel.reservation_email ? "Prefilled from hotel reservation email." : "Hotel email not configured. Please enter recipient address manually."}
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Subject Line
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="PO Subject"
+                        value={poEmailSubject}
+                        onChange={(e) => setPoEmailSubject(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-neutral-100">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                      Attachments Settings
+                    </span>
+                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={poAttachPdf}
+                        onChange={(e) => setPoAttachPdf(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-neutral-800">Attach Purchase Order PDF</span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">Include formal PO PDF in this email</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Digital Signature section */}
+                  <div className="space-y-3 pt-2 border-t border-neutral-100">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                      Digital Signature
+                    </span>
+                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={poRequireSignature}
+                        onChange={(e) => setPoRequireSignature(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-neutral-800">Requires Digital Signature</span>
+                        <span className="text-[10px] text-neutral-400 mt-0.5">Embed authorized signatory on the PO PDF</span>
+                      </div>
+                    </label>
+
+                    {poRequireSignature && (
+                      <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-wider block">
+                          Signature Placement Preview
+                        </span>
+                        
+                        <div className="bg-white border border-dashed border-neutral-350 rounded-xl p-3 flex flex-col items-center justify-center min-h-[80px] relative group overflow-hidden">
+                          {poSignatureImage ? (
+                            <img
+                              src={poSignatureImage}
+                              alt="Signature Preview"
+                              className="max-h-[60px] object-contain select-none"
+                            />
+                          ) : (
+                            <div className="text-neutral-350 text-[10px] font-bold uppercase tracking-wider">
+                              No Signature
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 hover:border-neutral-450 bg-white text-[10px] font-bold text-neutral-750 hover:bg-neutral-50 transition-all shadow-sm cursor-pointer w-full justify-center">
+                            <Upload className="w-3.5 h-3.5 text-neutral-500" />
+                            <span>{uploadedSignatureName ? "Replace Custom Signature" : "Upload Custom Signature"}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSignatureUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          {uploadedSignatureName && (
+                            <span className="text-[9px] text-emerald-850 font-medium block text-center truncate">
+                              File: {uploadedSignatureName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Email Body Preview & Editor */}
+                <div className="lg:col-span-7 flex flex-col space-y-2 h-[480px]">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-emerald-800" /> Email Message Preview
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextShowHtml = !showPoHtml;
+                        setShowPoHtml(nextShowHtml);
+                        if (!nextShowHtml) {
+                          setTimeout(() => {
+                            if (poEditorRef.current) {
+                              poEditorRef.current.innerHTML = poEmailBody;
+                            }
+                          }, 50);
+                        }
+                      }}
+                      className="text-[10px] flex items-center gap-1 text-neutral-500 hover:text-neutral-800 transition-colors uppercase font-bold tracking-wider"
+                    >
+                      <span>{showPoHtml ? "View Formatted" : "View HTML Source"}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden flex flex-col border border-neutral-200 rounded-2xl bg-[#FBFBFA]">
+                    {showPoHtml ? (
+                      <textarea
+                        required
+                        value={poEmailBody}
+                        onChange={(e) => {
+                          setPoEmailBody(e.target.value);
+                          if (poEditorRef.current) {
+                            poEditorRef.current.innerHTML = e.target.value;
+                          }
+                        }}
+                        className="w-full h-full p-4 bg-transparent outline-none text-xs font-mono text-neutral-800 resize-none overflow-y-auto"
+                      />
+                    ) : (
+                      <div
+                        ref={poEditorRef}
+                        contentEditable
+                        onInput={() => {
+                          if (poEditorRef.current) {
+                            setPoEmailBody(poEditorRef.current.innerHTML);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (poEditorRef.current) {
+                            setPoEmailBody(poEditorRef.current.innerHTML);
+                          }
+                        }}
+                        className="w-full h-full p-4 bg-transparent outline-none text-xs text-neutral-800 overflow-y-auto prose prose-sm max-w-none min-h-[380px]"
+                      />
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex flex-wrap gap-3 items-center justify-between shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadHotelPo(selectedPoHotel, selectedPoStays)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-300 hover:border-neutral-400 text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-all shadow-sm"
+                >
+                  <Download className="w-4 h-4 text-neutral-500" />
+                  <span>Download PDF Purchase Order</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPoModal(false)}
+                    className="px-4 py-2.5 rounded-xl hover:bg-neutral-150 text-xs font-bold text-neutral-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendPoEmail}
+                    disabled={isSendingPo || !poEmailTo}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
+                  >
+                    {isSendingPo ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 text-white" />
+                        <span>Send Purchase Order</span>
                       </>
                     )}
                   </button>
