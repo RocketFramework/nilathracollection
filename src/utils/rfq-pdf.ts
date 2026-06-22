@@ -278,7 +278,15 @@ export const generateHotelRfqPdf = async (
 
         let roomDesc = '';
         let totalQty = 0;
-        if (activeRooms.length === 0) {
+        let mealPlanText = act.meal_plan || 'BB';
+
+        if (act.isCustomPO) {
+            const descSuffix = act.description ? ` - ${act.description}` : '';
+            roomDesc = `Custom: ${act.title || act.name || 'Additional Service'}${descSuffix}`;
+            totalQty = act.quantity || 1;
+            const customType = act.activity_type || act.type || 'service';
+            mealPlanText = customType.charAt(0).toUpperCase() + customType.slice(1);
+        } else if (activeRooms.length === 0) {
             roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
             totalQty = act.quantity || 1;
         } else {
@@ -286,7 +294,9 @@ export const generateHotelRfqPdf = async (
             totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
         }
 
-        const cellHeight = 8;
+        const splitDesc = doc.splitTextToSize(roomDesc, 55);
+        const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
+
         if (topY + cellHeight > 270) {
             doc.addPage();
             topY = 20;
@@ -310,8 +320,8 @@ export const generateHotelRfqPdf = async (
         doc.line(20, topY + cellHeight, 190, topY + cellHeight);
 
         doc.text(displayDate, 24, topY + 5);
-        doc.text(roomDesc, 80, topY + 5);
-        doc.text(act.meal_plan || 'BB', 140, topY + 5);
+        doc.text(splitDesc, 80, topY + 5);
+        doc.text(mealPlanText, 140, topY + 5);
         doc.text(String(totalQty), 175, topY + 5, { align: 'center' });
 
         topY += cellHeight;

@@ -1247,7 +1247,10 @@ export class TourService {
         if (firstStay?.hotel_id) {
             const { error: customDaErr } = await supabaseAdmin
                 .from('daily_activities')
-                .update({ hotel_id: newHotelId })
+                .update({ 
+                    hotel_id: newHotelId,
+                    location_name: newHotel.location_address || ''
+                })
                 .eq('tour_id', tourId)
                 .eq('hotel_id', firstStay.hotel_id)
                 .in('day_number', dayNumbers)
@@ -1282,7 +1285,8 @@ export class TourService {
                         return {
                             ...b,
                             hotelId: newHotelId,
-                            hotelName: newHotel.name
+                            hotelName: newHotel.name,
+                            locationName: newHotel.location_address || ''
                         };
                     }
                     return b;

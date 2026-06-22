@@ -2249,10 +2249,11 @@ function PlannerWizardWorkspace() {
             return dayA - dayB;
         });
 
-        const checkInDate = sortedStays[0]?.tour_itineraries?.date || '';
-        const nightsCount = sortedStays.length;
+        const standardStaysOnly = sortedStays.filter(s => !s.isCustomPO);
+        const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays[0]?.tour_itineraries?.date || '';
+        const nightsCount = standardStaysOnly.length;
         let checkOutDate = '';
-        if (checkInDate) {
+        if (checkInDate && nightsCount > 0) {
             const d = new Date(checkInDate);
             d.setDate(d.getDate() + nightsCount);
             checkOutDate = d.toISOString().split('T')[0];
@@ -2282,20 +2283,25 @@ function PlannerWizardWorkspace() {
             const dateVal = act.tour_itineraries?.date;
             const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-            const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-            const activeRooms = sizes.map(size => {
-                const count = (act as any)[`${size}_count`] || 0;
-                const label = size.split('_')[0];
-                const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-                return { type: displayType, count };
-            }).filter(r => r.count > 0);
-
             let reqStr = '';
-            if (activeRooms.length === 0) {
-                const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
-                reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
+            if (act.isCustomPO) {
+                const descStr = act.description ? ` (${act.description})` : '';
+                reqStr = `Custom: ${act.title || act.name || 'Additional Service'} (Qty: ${act.quantity || 1})${descStr}`;
             } else {
-                reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+                const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+                const activeRooms = sizes.map(size => {
+                    const count = (act as any)[`${size}_count`] || 0;
+                    const label = size.split('_')[0];
+                    const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                    return { type: displayType, count };
+                }).filter(r => r.count > 0);
+
+                if (activeRooms.length === 0) {
+                    const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
+                    reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
+                } else {
+                    reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+                }
             }
 
             return { displayDate, reqStr };
@@ -4691,26 +4697,28 @@ function PlannerWizardWorkspace() {
                                         {hotel.hotel_class}
                                       </span>
                                     )}
-                                     {standardStays.length > 0 && (
+                                     {acts.length > 0 && (
                                        <div className="flex items-center gap-2">
+                                         {standardStays.length > 0 && (
+                                           <button
+                                             type="button"
+                                             onClick={() => {
+                                               const firstAct = standardStays[0];
+                                               if (firstAct) {
+                                                 handleOpenChangeHotelDrawer(firstAct, standardStays);
+                                               }
+                                             }}
+                                             disabled={isLockedByOther}
+                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                             title="Change Hotel"
+                                           >
+                                             <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                                             <span>Change Hotel</span>
+                                           </button>
+                                         )}
                                          <button
                                            type="button"
-                                           onClick={() => {
-                                             const firstAct = standardStays[0];
-                                             if (firstAct) {
-                                               handleOpenChangeHotelDrawer(firstAct, standardStays);
-                                             }
-                                           }}
-                                           disabled={isLockedByOther}
-                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
-                                           title="Change Hotel"
-                                         >
-                                           <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
-                                           <span>Change Hotel</span>
-                                         </button>
-                                         <button
-                                           type="button"
-                                           onClick={() => handleOpenRfqModal(hotel, standardStays)}
+                                           onClick={() => handleOpenRfqModal(hotel, acts)}
                                            disabled={isLockedByOther}
                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
                                            title="Request Quote"
@@ -6826,7 +6834,8 @@ function PlannerWizardWorkspace() {
                                                                 if (act.isCustomPO && act.hotel_id === oldHotelId && actDay === dayNum) {
                                                                   return {
                                                                     ...act,
-                                                                    hotel_id: h.id
+                                                                    hotel_id: h.id,
+                                                                    location_name: h.location_address || h.closest_city || ''
                                                                   };
                                                                 }
                                                                 return act;
@@ -6843,7 +6852,8 @@ function PlannerWizardWorkspace() {
                                                                     mealPlan: currentMealPlan,
                                                                     agreedPrice: totalAgreedVal,
                                                                     contractedPrice: avgContracted,
-                                                                    description: `${oldHotelName} changed due to ${h.name} due to availability`
+                                                                    description: `${oldHotelName} changed due to ${h.name} due to availability`,
+                                                                    locationName: h.location_address || h.closest_city || ''
                                                                   };
                                                                 }
                                                                 const blockDay = Number(b.dayNumber);
@@ -6851,7 +6861,8 @@ function PlannerWizardWorkspace() {
                                                                   return {
                                                                     ...b,
                                                                     hotelId: h.id,
-                                                                    hotelName: h.name
+                                                                    hotelName: h.name,
+                                                                    locationName: h.location_address || h.closest_city || ''
                                                                   };
                                                                 }
                                                                 return b;
@@ -6871,7 +6882,8 @@ function PlannerWizardWorkspace() {
                                                                       roomId: room.id,
                                                                       roomName: room.room_name,
                                                                       mealPlan: currentMealPlan,
-                                                                      pricePerNight: avgCharged
+                                                                      pricePerNight: avgCharged,
+                                                                      address: h.location_address || h.closest_city || ''
                                                                     } : a;
                                                                   })
                                                                 });
@@ -7477,7 +7489,8 @@ function PlannerWizardWorkspace() {
                                   if (act.isCustomPO && act.hotel_id === oldHotelId && stayDays.has(actDay)) {
                                     return {
                                       ...act,
-                                      hotel_id: h.id
+                                      hotel_id: h.id,
+                                      location_name: h.location_address || h.closest_city || ''
                                     };
                                   }
                                   return act;
@@ -7491,7 +7504,7 @@ function PlannerWizardWorkspace() {
                                       ...b,
                                       hotelId: h.id,
                                       hotelName: h.name,
-                                      locationName: h.closest_city || h.location_address || '',
+                                      locationName: h.location_address || h.closest_city || '',
                                       ...(b.hotelId !== h.id ? { roomName: '', mealPlan: 'BB' } : {})
                                     };
                                   }
@@ -7499,7 +7512,8 @@ function PlannerWizardWorkspace() {
                                     return {
                                       ...b,
                                       hotelId: h.id,
-                                      hotelName: h.name
+                                      hotelName: h.name,
+                                      locationName: h.location_address || h.closest_city || ''
                                     };
                                   }
                                   return b;
@@ -7748,7 +7762,8 @@ function PlannerWizardWorkspace() {
                                                             if (act.isCustomPO && act.hotel_id === oldHotelId && stayDays.has(actDay)) {
                                                               return {
                                                                 ...act,
-                                                                hotel_id: h.id
+                                                                hotel_id: h.id,
+                                                                location_name: h.location_address || h.closest_city || ''
                                                               };
                                                             }
                                                             return act;
@@ -7766,14 +7781,16 @@ function PlannerWizardWorkspace() {
                                                                 mealPlan: currentMealPlan,
                                                                 agreedPrice: totalAgreedVal,
                                                                 contractedPrice: avgContracted,
-                                                                description: `${oldHotelName} changed due to ${h.name} due to availability`
+                                                                description: `${oldHotelName} changed due to ${h.name} due to availability`,
+                                                                locationName: h.location_address || h.closest_city || ''
                                                               };
                                                             }
                                                             if (b.isCustomPO && b.hotelId === oldHotelId && stayDays.has(dayNum)) {
                                                               return {
                                                                 ...b,
                                                                 hotelId: h.id,
-                                                                hotelName: h.name
+                                                                hotelName: h.name,
+                                                                locationName: h.location_address || h.closest_city || ''
                                                               };
                                                             }
                                                             return b;
@@ -7793,7 +7810,8 @@ function PlannerWizardWorkspace() {
                                                                   roomId: room.id,
                                                                   roomName: room.room_name,
                                                                   mealPlan: currentMealPlan,
-                                                                  pricePerNight: avgCharged
+                                                                  pricePerNight: avgCharged,
+                                                                  address: h.location_address || h.closest_city || ''
                                                                 };
                                                               }
                                                               return a;
