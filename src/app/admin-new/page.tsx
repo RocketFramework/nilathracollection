@@ -114,6 +114,7 @@ import {
   savePurchaseOrderAction,
   saveSupplierInvoiceAction,
   saveSupplierPaymentAction,
+  deleteSupplierPaymentAction,
   getExchangeRateAction,
   createVendorBookingAction,
   confirmFinalVendorBookingAction,
@@ -126,7 +127,9 @@ import {
   getRfqEmailsForTourAction,
   logRfpEmailAction,
   getRfpEmailsForTourAction,
-  updatePurchaseOrderAction
+  updatePurchaseOrderAction,
+  uploadPayslipAction,
+  getPayslipSignedUrlAction
 } from '@/actions/admin.actions';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
@@ -2323,6 +2326,10 @@ function PlannerWizardWorkspace() {
 
   // Finance-Controlling states
   const [activePoForAdvancePayment, setActivePoForAdvancePayment] = useState<string | null>(null);
+  const [advancePaymentPayslipUrl, setAdvancePaymentPayslipUrl] = useState<string>('');
+  const [isUploadingPayslip, setIsUploadingPayslip] = useState<boolean>(false);
+  const [invoicePaymentPayslipUrl, setInvoicePaymentPayslipUrl] = useState<string>('');
+  const [isUploadingInvoicePayslip, setIsUploadingInvoicePayslip] = useState<boolean>(false);
   const [invoiceCurrency, setInvoiceCurrency] = useState<string>('USD');
   const [invoiceExchangeRate, setInvoiceExchangeRate] = useState<string>('1.0');
   const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
@@ -3252,6 +3259,26 @@ function PlannerWizardWorkspace() {
       return;
     }
 
+    const currentPO = purchaseOrders.find(p => p.id === poId);
+    if (currentPO) {
+      const poTotal = currentPO.total_amount || 0;
+      // Get already paid advance payments
+      const existingPaid = (currentPO.advance_payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      const totalPaidWithNew = existingPaid + amount;
+      
+      // If total advance payments settle or exceed the PO
+      if (totalPaidWithNew >= poTotal) {
+        const proceed = window.confirm(
+          `You are recording an advance payment of ${paymentCurrency} ${amount.toFixed(2)}, which will bring the total advance payments to ${paymentCurrency} ${totalPaidWithNew.toFixed(2)} (PO Total: ${currentPO.currency || 'USD'} ${poTotal.toFixed(2)}).\n\n` +
+          `For full settlements, it is recommended to record a Supplier Invoice first and log the payment against that invoice instead of as an advance.\n\n` +
+          `Are you sure you want to proceed with recording this as an advance payment?`
+        );
+        if (!proceed) {
+          return;
+        }
+      }
+    }
+
     try {
       const res = await saveSupplierPaymentAction({
         supplier_invoice_id: null,
@@ -3262,7 +3289,8 @@ function PlannerWizardWorkspace() {
         payment_reference: paymentRef || undefined,
         notes: paymentNotes || undefined,
         currency: paymentCurrency,
-        exchange_rate: rate
+        exchange_rate: rate,
+        attachment_url: advancePaymentPayslipUrl || undefined
       });
 
       if (res.success) {
@@ -3273,6 +3301,7 @@ function PlannerWizardWorkspace() {
         setPaymentDate('');
         setPaymentCurrency('USD');
         setPaymentExchangeRate('1.0');
+        setAdvancePaymentPayslipUrl('');
         setActivePoForAdvancePayment(null);
         loadProcurementData(tourId);
       } else {
@@ -3301,7 +3330,8 @@ function PlannerWizardWorkspace() {
         payment_reference: paymentRef || undefined,
         notes: paymentNotes || undefined,
         currency: paymentCurrency,
-        exchange_rate: rate
+        exchange_rate: rate,
+        attachment_url: invoicePaymentPayslipUrl || undefined
       });
 
       if (res.success) {
@@ -3312,10 +3342,28 @@ function PlannerWizardWorkspace() {
         setPaymentDate('');
         setPaymentCurrency('USD');
         setPaymentExchangeRate('1.0');
+        setInvoicePaymentPayslipUrl('');
         setPayingInvoiceId(null);
         loadProcurementData(tourId);
       } else {
         alert("Failed to record payment: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!window.confirm("Are you sure you want to delete/reverse this payment? This will update the balances and cannot be undone.")) {
+      return;
+    }
+    try {
+      const res = await deleteSupplierPaymentAction(paymentId);
+      if (res.success) {
+        alert("Payment deleted/reversed successfully.");
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to delete payment: " + res.error);
       }
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -5810,7 +5858,7 @@ function PlannerWizardWorkspace() {
                                                   />
                                                   <button
                                                     onClick={() => handleRecordQuoteResponse(quote.id)}
-                                                    className="px-3 py-1 bg-emerald-850 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold"
+                                                    className="px-3 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold"
                                                   >
                                                     Save
                                                   </button>
@@ -6029,7 +6077,7 @@ function PlannerWizardWorkspace() {
                                         {po.status === 'Draft' && (
                                           <button
                                             onClick={() => handleSubmitPO(po)}
-                                            className="px-3.5 py-1.5 bg-emerald-850 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                            className="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
                                           >
                                             Submit PO to Supplier
                                           </button>
@@ -6150,20 +6198,20 @@ function PlannerWizardWorkspace() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border border-neutral-200 rounded-2xl shadow-sm">
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">PO Total Value</span>
-                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalPoVal.toLocaleString()}</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalPoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">Total Invoiced</span>
-                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalInvoicedVal.toLocaleString()}</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalInvoicedVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">Total Payments</span>
-                                    <span className="text-sm font-bold text-neutral-700 font-mono">LKR {totalPaidLkr.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">LKR {totalPaidLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                   <div>
                                     <span className="text-[10px] font-bold text-neutral-400 uppercase block">Balance Payable</span>
                                     <span className={`text-sm font-bold font-mono ${balancePayableLkr <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
-                                      LKR {balancePayableLkr.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                      LKR {balancePayableLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                   </div>
                                 </div>
@@ -6277,6 +6325,74 @@ function PlannerWizardWorkspace() {
                                         </div>
                                       </div>
 
+                                      {/* Upload Payment Slip */}
+                                      <div className="space-y-2">
+                                        <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold block">
+                                          Upload Payment Slip / Receipt (JPEG, PNG, GIF, WebP)
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                          <div className="relative flex-1 max-w-md">
+                                            <input
+                                              type="file"
+                                              accept=".jpg,.jpeg,.png,.gif,.webp"
+                                              disabled={isUploadingPayslip}
+                                              onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+
+                                                // Validate image
+                                                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                                if (!validTypes.includes(file.type)) {
+                                                  alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                  e.target.value = '';
+                                                  return;
+                                                }
+
+                                                setIsUploadingPayslip(true);
+                                                try {
+                                                  const formData = new FormData();
+                                                  formData.append("file", file);
+                                                  const uploadRes = await uploadPayslipAction(formData);
+                                                  if (uploadRes.error) {
+                                                    alert("Failed to upload slip: " + uploadRes.error);
+                                                  } else if (uploadRes.url) {
+                                                    setAdvancePaymentPayslipUrl(uploadRes.url);
+                                                  }
+                                                } catch (err: any) {
+                                                  alert("Error uploading file: " + err.message);
+                                                } finally {
+                                                  setIsUploadingPayslip(false);
+                                                }
+                                              }}
+                                              className="hidden"
+                                              id={`payslip-upload-${po.id}`}
+                                            />
+                                            <label
+                                              htmlFor={`payslip-upload-${po.id}`}
+                                              className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 hover:bg-neutral-50/80 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none"
+                                            >
+                                              <Upload className="w-4 h-4" />
+                                              {isUploadingPayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                            </label>
+                                          </div>
+                                          
+                                          {advancePaymentPayslipUrl && (
+                                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>Slip Uploaded</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => setAdvancePaymentPayslipUrl('')}
+                                                className="text-red-500 hover:text-red-700 ml-2 font-bold focus:outline-none"
+                                                title="Remove Slip"
+                                              >
+                                                ✕
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
                                       {paymentAmount && paymentCurrency !== 'LKR' && (
                                         <p className="text-[10px] text-emerald-800 font-bold">
                                           Equivalent Amount: LKR {((parseFloat(paymentAmount) || 0) * (parseFloat(paymentExchangeRate) || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -6310,16 +6426,47 @@ function PlannerWizardWorkspace() {
                                               {pOnPo.payment_reference && (
                                                 <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {pOnPo.payment_reference}</span>
                                               )}
+                                              {pOnPo.attachment_url && (
+                                                <button 
+                                                  type="button"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const res = await getPayslipSignedUrlAction(pOnPo.attachment_url);
+                                                      if (res.success && res.url) {
+                                                        window.open(res.url, '_blank');
+                                                      } else {
+                                                        alert("Failed to generate secure view link: " + res.error);
+                                                      }
+                                                    } catch (err: any) {
+                                                      alert("Error generating secure link: " + err.message);
+                                                    }
+                                                  }}
+                                                  className="inline-flex items-center gap-1 ml-3 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 transition-all text-[9px] font-bold font-sans cursor-pointer focus:outline-none"
+                                                >
+                                                  <Image className="w-2.5 h-2.5 text-neutral-500" />
+                                                  View Slip
+                                                </button>
+                                              )}
                                               {pOnPo.notes && (
                                                 <span className="text-[10px] text-neutral-450 italic block mt-0.5">{pOnPo.notes}</span>
                                               )}
                                               <span className="text-[9px] text-neutral-400 block mt-0.5">Paid on: {new Date(pOnPo.payment_date).toLocaleDateString()}</span>
                                             </div>
-                                            <div className="text-right">
-                                              <span className="font-bold text-neutral-855 font-mono">{pOnPo.currency || 'USD'} {Number(pOnPo.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                              {pOnPo.currency !== 'LKR' && (
-                                                <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(pOnPo.amount) * Number(pOnPo.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                              )}
+                                            <div className="text-right flex items-center gap-3">
+                                              <div>
+                                                <span className="font-bold text-neutral-855 font-mono block">{pOnPo.currency || 'USD'} {Number(pOnPo.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                {pOnPo.currency !== 'LKR' && (
+                                                  <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(pOnPo.amount) * Number(pOnPo.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                )}
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleDeletePayment(pOnPo.id)}
+                                                className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all focus:outline-none cursor-pointer"
+                                                title="Delete/Reverse Payment"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
                                             </div>
                                           </div>
                                         ))}
@@ -6581,7 +6728,20 @@ function PlannerWizardWorkspace() {
                                         const isMatched = Math.abs(diff) < 0.01;
                                         const invPayments = inv.payments || [];
                                         const totalPaidInv = invPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-                                        const remainingInvBalance = inv.amount - totalPaidInv;
+                                        
+                                        // Deduct advance payments that belong to this PO
+                                        const totalAdvApplied = advPayments.reduce((sum: number, p: any) => {
+                                          if (p.currency === inv.currency) {
+                                            return sum + Number(p.amount);
+                                          } else {
+                                            // Convert currencies using LKR as a bridge
+                                            const lkrValue = Number(p.amount) * Number(p.exchange_rate || 1.0);
+                                            const invExchangeRate = Number(inv.exchange_rate || defaultUsdLkrRate || 1.0);
+                                            return sum + (lkrValue / invExchangeRate);
+                                          }
+                                        }, 0);
+
+                                        const remainingInvBalance = Math.max(0, inv.amount - totalAdvApplied - totalPaidInv);
 
                                         return (
                                           <div key={inv.id} className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm space-y-4">
@@ -6628,7 +6788,14 @@ function PlannerWizardWorkspace() {
                                                   return (
                                                     <div key={item.id} className="flex justify-between items-center py-1 text-xs border-b border-neutral-100 last:border-b-0">
                                                       <div>
-                                                        <span className="font-semibold text-neutral-750 block">{item.description}</span>
+                                                        <span className="font-semibold text-neutral-750 flex flex-wrap items-center gap-1.5">
+                                                           <span>{item.description}</span>
+                                                           {poItem?.service_date && (
+                                                             <span className="text-[9px] text-neutral-500 font-normal bg-neutral-200/70 px-1.5 py-0.5 rounded font-mono shrink-0">
+                                                               {new Date(poItem.service_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                             </span>
+                                                           )}
+                                                         </span>
                                                         <p className="text-[9px] text-neutral-450 mt-0.5">
                                                           {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)} 
                                                           {poItem && (item.quantity !== poItem.quantity || item.unit_price !== poItem.unit_price) && (
@@ -6660,14 +6827,14 @@ function PlannerWizardWorkspace() {
                                                   <button
                                                     onClick={() => {
                                                       setPayingInvoiceId(inv.id);
-                                                      setPaymentAmount(remainingInvBalance.toString());
+                                                      setPaymentAmount(remainingInvBalance.toFixed(2));
                                                       setPaymentCurrency(inv.currency || 'USD');
                                                       setPaymentExchangeRate(inv.exchange_rate?.toString() || defaultUsdLkrRate.toString());
                                                       setPaymentDate(new Date().toISOString().split('T')[0]);
                                                       setPaymentRef('');
                                                       setPaymentNotes('');
                                                     }}
-                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-850 hover:text-emerald-950 font-serif"
+                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 font-serif"
                                                   >
                                                     <Plus className="w-3 h-3" />
                                                     Add Payment
@@ -6702,7 +6869,7 @@ function PlannerWizardWorkspace() {
                                                         type="number"
                                                         value={paymentAmount}
                                                         onChange={(e) => setPaymentAmount(e.target.value)}
-                                                        placeholder={remainingInvBalance.toString()}
+                                                        placeholder={remainingInvBalance.toFixed(2)}
                                                         className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                                       />
                                                     </div>
@@ -6758,16 +6925,84 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
 
+                                                  {/* Upload Payment Slip */}
+                                                  <div className="space-y-2">
+                                                    <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold block">
+                                                      Upload Payment Slip / Receipt (JPEG, PNG, GIF, WebP)
+                                                    </label>
+                                                    <div className="flex items-center gap-3">
+                                                      <div className="relative flex-1 max-w-md">
+                                                        <input
+                                                          type="file"
+                                                          accept=".jpg,.jpeg,.png,.gif,.webp"
+                                                          disabled={isUploadingInvoicePayslip}
+                                                          onChange={async (e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (!file) return;
+
+                                                            // Validate image
+                                                            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                                            if (!validTypes.includes(file.type)) {
+                                                              alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                              e.target.value = '';
+                                                              return;
+                                                            }
+
+                                                            setIsUploadingInvoicePayslip(true);
+                                                            try {
+                                                              const formData = new FormData();
+                                                              formData.append("file", file);
+                                                              const uploadRes = await uploadPayslipAction(formData);
+                                                              if (uploadRes.error) {
+                                                                alert("Failed to upload slip: " + uploadRes.error);
+                                                              } else if (uploadRes.url) {
+                                                                setInvoicePaymentPayslipUrl(uploadRes.url);
+                                                              }
+                                                            } catch (err: any) {
+                                                              alert("Error uploading file: " + err.message);
+                                                            } finally {
+                                                              setIsUploadingInvoicePayslip(false);
+                                                            }
+                                                          }}
+                                                          className="hidden"
+                                                          id={`inv-payslip-upload-${inv.id}`}
+                                                        />
+                                                        <label
+                                                          htmlFor={`inv-payslip-upload-${inv.id}`}
+                                                          className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 hover:bg-neutral-50/80 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none"
+                                                        >
+                                                          <Upload className="w-4 h-4" />
+                                                          {isUploadingInvoicePayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                                        </label>
+                                                      </div>
+                                                      
+                                                      {invoicePaymentPayslipUrl && (
+                                                        <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                                          <Check className="w-3.5 h-3.5" />
+                                                          <span>Slip Uploaded</span>
+                                                          <button
+                                                            type="button"
+                                                            onClick={() => setInvoicePaymentPayslipUrl('')}
+                                                            className="text-red-500 hover:text-red-700 ml-2 font-bold focus:outline-none"
+                                                            title="Remove Slip"
+                                                          >
+                                                            ✕
+                                                          </button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+
                                                   <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
                                                     <button
                                                       onClick={() => handleRecordPayment(inv.id, po.id)}
-                                                      className="px-3.5 py-1.5 bg-emerald-850 hover:bg-emerald-950 text-white rounded-lg text-xs font-bold"
+                                                      className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm"
                                                     >
-                                                      Record Payment
+                                                      Save Payment
                                                     </button>
                                                     <button
                                                       onClick={() => setPayingInvoiceId(null)}
-                                                      className="px-3.5 py-1.5 border border-neutral-200 text-neutral-600 rounded-lg text-xs font-bold"
+                                                      className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
                                                     >
                                                       Cancel
                                                     </button>
@@ -6784,13 +7019,44 @@ function PlannerWizardWorkspace() {
                                                         {p.payment_reference && (
                                                           <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {p.payment_reference}</span>
                                                         )}
-                                                        <p className="text-[9px] text-neutral-400">Paid: {new Date(p.payment_date).toLocaleDateString()}</p>
-                                                      </div>
-                                                      <div className="text-right">
-                                                        <span className="font-bold text-neutral-800 font-mono">{p.currency || 'USD'} {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                        {p.currency !== 'LKR' && (
-                                                          <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(p.amount) * Number(p.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                        {p.attachment_url && (
+                                                          <button 
+                                                            type="button"
+                                                            onClick={async () => {
+                                                              try {
+                                                                const res = await getPayslipSignedUrlAction(p.attachment_url);
+                                                                if (res.success && res.url) {
+                                                                  window.open(res.url, '_blank');
+                                                                } else {
+                                                                  alert("Failed to generate secure view link: " + res.error);
+                                                                }
+                                                              } catch (err: any) {
+                                                                alert("Error generating secure link: " + err.message);
+                                                              }
+                                                            }}
+                                                            className="inline-flex items-center gap-1 ml-3 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 transition-all text-[9px] font-bold font-sans cursor-pointer focus:outline-none"
+                                                          >
+                                                            <Image className="w-2.5 h-2.5 text-neutral-500" />
+                                                            View Slip
+                                                          </button>
                                                         )}
+                                                        <p className="text-[9px] text-neutral-400 mt-0.5">Paid: {new Date(p.payment_date).toLocaleDateString()}</p>
+                                                      </div>
+                                                      <div className="text-right flex items-center gap-3">
+                                                        <div>
+                                                          <span className="font-bold text-neutral-800 font-mono block">{p.currency || 'USD'} {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                          {p.currency !== 'LKR' && (
+                                                            <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(p.amount) * Number(p.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                          )}
+                                                        </div>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => handleDeletePayment(p.id)}
+                                                          className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all focus:outline-none cursor-pointer"
+                                                          title="Delete/Reverse Payment"
+                                                        >
+                                                          <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
                                                       </div>
                                                     </div>
                                                   ))}
@@ -6800,7 +7066,14 @@ function PlannerWizardWorkspace() {
                                               )}
 
                                               <div className="flex items-center justify-between text-xs p-3 bg-neutral-50 rounded-xl border border-neutral-150">
-                                                <span className="text-neutral-500 font-bold font-sans">Remaining Invoice Balance:</span>
+                                                <div>
+                                                  <span className="text-neutral-500 font-bold font-sans block">Remaining Invoice Balance:</span>
+                                                  {totalAdvApplied > 0 && (
+                                                    <span className="text-[10px] text-neutral-450 italic font-medium block mt-0.5">
+                                                      (Deducted {inv.currency || 'USD'} {totalAdvApplied.toLocaleString(undefined, { minimumFractionDigits: 2 })} of PO advance payments)
+                                                    </span>
+                                                  )}
+                                                </div>
                                                 <span className={`font-mono font-bold ${remainingInvBalance <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
                                                   {inv.currency || 'USD'} {remainingInvBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </span>

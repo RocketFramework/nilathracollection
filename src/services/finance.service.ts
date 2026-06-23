@@ -209,6 +209,19 @@ export class FinanceService {
     }
 
     /**
+     * Deletes/reverses a supplier payment.
+     */
+    static async deleteSupplierPayment(id: string): Promise<boolean> {
+        const supabase = createAdminClient();
+        const { error } = await supabase
+            .from('supplier_payments')
+            .delete()
+            .eq('id', id);
+        if (error) throw error;
+        return true;
+    }
+
+    /**
      * Aggregates itinerary data and creates Draft POs in the database.
      */
     static async syncItineraryToRelationalPOs(tourId: string, itinerary: any[]) {

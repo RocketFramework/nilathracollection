@@ -155,6 +155,7 @@ export interface DBSupplierPayment {
     notes?: string;
     currency?: string;
     exchange_rate?: number;
+    attachment_url?: string;
     created_at: string;
 }
 

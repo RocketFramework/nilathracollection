@@ -377,6 +377,58 @@ export async function uploadHotelPhotoAction(formData: FormData) {
     }
 }
 
+export async function uploadPayslipAction(formData: FormData) {
+    try {
+        const file = formData.get("file") as File;
+        if (!file) {
+            return { error: "No file provided" };
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Convert the input image buffer (JPEG, PNG, GIF, JPG) to optimized WebP format on the fly
+        const optimizedBuffer = await sharp(buffer)
+            .webp({ quality: 80 })
+            .toBuffer();
+
+        const adminSupabase = createAdminClient();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.webp`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await adminSupabase.storage
+            .from('payslips')
+            .upload(filePath, optimizedBuffer, {
+                contentType: 'image/webp',
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        // Return relative file path since the bucket is private
+        return { success: true, url: filePath };
+    } catch (error: any) {
+        console.error("Error uploading payslip:", error);
+        return { error: error.message || "Failed to upload payslip." };
+    }
+}
+
+export async function getPayslipSignedUrlAction(filePath: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase.storage
+            .from('payslips')
+            .createSignedUrl(filePath, 3600); // 1 hour expiration
+
+        if (error) throw error;
+        return { success: true, url: data.signedUrl };
+    } catch (error: any) {
+        console.error("Error generating signed URL for payslip:", error);
+        return { error: error.message || "Failed to generate view link." };
+    }
+}
+
 export async function updateHotelContactInfoAction(id: string, name: string, contact: string, email: string) {
     try {
         const adminSupabase = await createAdminClient();
@@ -754,6 +806,16 @@ export async function saveSupplierPaymentAction(payment: Partial<DBSupplierPayme
     } catch (error: any) {
         console.error("Error saving supplier payment:", error);
         return { error: error.message || "Failed to save supplier payment." };
+    }
+}
+
+export async function deleteSupplierPaymentAction(id: string) {
+    try {
+        await FinanceService.deleteSupplierPayment(id);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting supplier payment:", error);
+        return { success: false, error: error.message || "Failed to delete supplier payment." };
     }
 }
 export async function getExchangeRateAction() {
