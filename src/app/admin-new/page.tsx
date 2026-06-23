@@ -114,6 +114,7 @@ import {
   savePurchaseOrderAction,
   saveSupplierInvoiceAction,
   saveSupplierPaymentAction,
+  getExchangeRateAction,
   createVendorBookingAction,
   confirmFinalVendorBookingAction,
   cancelVendorBookingAction,
@@ -2350,6 +2351,22 @@ function PlannerWizardWorkspace() {
       setInvoiceItems([]);
     }
   };
+
+  const [defaultUsdLkrRate, setDefaultUsdLkrRate] = useState<number>(300);
+
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const res = await getExchangeRateAction();
+        if (res.success && typeof res.rate === 'number') {
+          setDefaultUsdLkrRate(res.rate);
+        }
+      } catch (err) {
+        console.error("Error fetching exchange rate:", err);
+      }
+    };
+    fetchRate();
+  }, []);
 
   const handleOpenRfqModal = async (hotel: any, stays: any[]) => {
     setSelectedRfqHotel(hotel);
@@ -6062,7 +6079,7 @@ function PlannerWizardWorkspace() {
                             const totalPaidLkr = allPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) * Number(p.exchange_rate || 1.0)), 0);
 
                             // Active rate for PO converted value
-                            const activeRate = invoices[0]?.exchange_rate || advPayments[0]?.exchange_rate || parseFloat(invoiceExchangeRate) || 300.0;
+                            const activeRate = invoices[0]?.exchange_rate || advPayments[0]?.exchange_rate || parseFloat(invoiceExchangeRate) || defaultUsdLkrRate;
                             const poValLkr = poCurrency === 'LKR' ? totalPoVal : totalPoVal * activeRate;
                             const balancePayableLkr = poValLkr - totalPaidLkr;
 
@@ -6131,7 +6148,7 @@ function PlannerWizardWorkspace() {
                                           setActivePoForAdvancePayment(po.id);
                                           setPaymentAmount('');
                                           setPaymentCurrency('USD');
-                                          setPaymentExchangeRate('300.0');
+                                          setPaymentExchangeRate(defaultUsdLkrRate.toString());
                                           setPaymentDate(new Date().toISOString().split('T')[0]);
                                           setPaymentRef('');
                                           setPaymentNotes('');
@@ -6183,7 +6200,7 @@ function PlannerWizardWorkspace() {
                                               type="number"
                                               value={paymentExchangeRate}
                                               onChange={(e) => setPaymentExchangeRate(e.target.value)}
-                                              placeholder="300.00"
+                                              placeholder={defaultUsdLkrRate.toFixed(2)}
                                               className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                             />
                                           </div>
@@ -6294,7 +6311,7 @@ function PlannerWizardWorkspace() {
                                           setInvoiceNumber('');
                                           setInvoiceAmount(po.total_amount.toString());
                                           setInvoiceCurrency(po.currency || 'USD');
-                                          setInvoiceExchangeRate('300.0');
+                                          setInvoiceExchangeRate(defaultUsdLkrRate.toString());
                                           setInvoiceDate(new Date().toISOString().split('T')[0]);
                                           setInvoiceAttachment('');
                                           initInvoiceItems(po);
@@ -6378,7 +6395,7 @@ function PlannerWizardWorkspace() {
                                               type="number"
                                               value={invoiceExchangeRate}
                                               onChange={(e) => setInvoiceExchangeRate(e.target.value)}
-                                              placeholder="300.00"
+                                              placeholder={defaultUsdLkrRate.toFixed(2)}
                                               className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                             />
                                           </div>
@@ -6612,7 +6629,7 @@ function PlannerWizardWorkspace() {
                                                       setPayingInvoiceId(inv.id);
                                                       setPaymentAmount(remainingInvBalance.toString());
                                                       setPaymentCurrency(inv.currency || 'USD');
-                                                      setPaymentExchangeRate(inv.exchange_rate?.toString() || '300.0');
+                                                      setPaymentExchangeRate(inv.exchange_rate?.toString() || defaultUsdLkrRate.toString());
                                                       setPaymentDate(new Date().toISOString().split('T')[0]);
                                                       setPaymentRef('');
                                                       setPaymentNotes('');
@@ -6664,7 +6681,7 @@ function PlannerWizardWorkspace() {
                                                           type="number"
                                                           value={paymentExchangeRate}
                                                           onChange={(e) => setPaymentExchangeRate(e.target.value)}
-                                                          placeholder="300.00"
+                                                          placeholder={defaultUsdLkrRate.toFixed(2)}
                                                           className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                                         />
                                                       </div>
