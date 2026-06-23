@@ -1830,16 +1830,10 @@ function PlannerWizardWorkspace() {
         icon: CircleDollarSign 
       },
       { 
-        id: 'invoice-receive', 
-        label: 'Receive Supplier Invoices', 
-        description: 'Collect, check, and match inbound supplier invoices against issued POs.', 
+        id: 'finance-controlling', 
+        label: 'Finance Controlling', 
+        description: 'Perform hotel invoice reconciliation, match line-items, and handle supplier disbursements.', 
         icon: Receipt 
-      },
-      { 
-        id: 'payment-supplier', 
-        label: 'Pay Suppliers', 
-        description: 'Release bank wire transfers or credit disbursements to vendors.', 
-        icon: CircleDollarSign 
       },
       { 
         id: 'profit-loss', 
@@ -2161,8 +2155,7 @@ function PlannerWizardWorkspace() {
             'po-submission',
             'final-cost',
             'payment-receive',
-            'invoice-receive',
-            'payment-supplier',
+            'finance-controlling',
             'profit-loss'
           ].filter(Boolean) as string[];
 
@@ -2334,6 +2327,29 @@ function PlannerWizardWorkspace() {
   const [paymentRef, setPaymentRef] = useState<string>('');
   const [paymentNotes, setPaymentNotes] = useState<string>('');
   const [paymentDate, setPaymentDate] = useState<string>('');
+
+  // Finance-Controlling states
+  const [activePoForAdvancePayment, setActivePoForAdvancePayment] = useState<string | null>(null);
+  const [invoiceCurrency, setInvoiceCurrency] = useState<string>('USD');
+  const [invoiceExchangeRate, setInvoiceExchangeRate] = useState<string>('1.0');
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
+  const [paymentCurrency, setPaymentCurrency] = useState<string>('USD');
+  const [paymentExchangeRate, setPaymentExchangeRate] = useState<string>('1.0');
+
+  const initInvoiceItems = (po: any) => {
+    if (po.items && po.items.length > 0) {
+      setInvoiceItems(po.items.map((item: any) => ({
+        purchase_order_item_id: item.id,
+        description: item.description,
+        quantity: item.quantity.toString(),
+        unit_price: item.unit_price.toString(),
+        po_quantity: item.quantity,
+        po_unit_price: item.unit_price
+      })));
+    } else {
+      setInvoiceItems([]);
+    }
+  };
 
   const handleOpenRfqModal = async (hotel: any, stays: any[]) => {
     setSelectedRfqHotel(hotel);
@@ -3167,6 +3183,7 @@ function PlannerWizardWorkspace() {
 
   const handleReceiveInvoice = async (po: any) => {
     const amount = parseFloat(invoiceAmount);
+    const rate = parseFloat(invoiceExchangeRate) || 1.0;
     if (!invoiceNumber) {
       alert("Please enter an invoice number.");
       return;
@@ -3176,8 +3193,10 @@ function PlannerWizardWorkspace() {
       return;
     }
 
-    const discrepancy = amount - po.total_amount;
-    const isTallied = discrepancy === 0;
+    const invoiceAmtLKR = amount * rate;
+    const poAmtLKR = po.currency === 'USD' ? po.total_amount * rate : po.total_amount;
+    const discrepancy = po.currency === invoiceCurrency ? (amount - po.total_amount) : (invoiceAmtLKR - poAmtLKR);
+    const isTallied = Math.abs(discrepancy) < 0.01;
 
     try {
       const res = await saveSupplierInvoiceAction({
@@ -3185,18 +3204,27 @@ function PlannerWizardWorkspace() {
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate || new Date().toISOString().split('T')[0],
         amount: amount,
+        currency: invoiceCurrency,
+        exchange_rate: rate,
         status: isTallied ? 'Confirmed' : 'Pending',
         is_tallied: isTallied,
         discrepancy_amount: discrepancy,
-        attachment_url: invoiceAttachment || undefined
+        attachment_url: invoiceAttachment || undefined,
+        items: invoiceItems.map(item => ({
+          purchase_order_item_id: item.purchase_order_item_id,
+          description: item.description,
+          quantity: parseFloat(item.quantity) || 0,
+          unit_price: parseFloat(item.unit_price) || 0
+        })) as any
       });
 
       if (res.success) {
-        alert(isTallied ? "Invoice tallied and auto-approved!" : "Invoice recorded with discrepancy warning.");
+        alert(isTallied ? "Invoice recorded and tallied!" : "Invoice recorded with discrepancy warning.");
         setInvoiceNumber('');
         setInvoiceAmount('');
         setInvoiceDate('');
         setInvoiceAttachment('');
+        setInvoiceItems([]);
         setEnteringInvoicePoId(null);
         loadProcurementData(tourId);
       } else {
@@ -3207,8 +3235,48 @@ function PlannerWizardWorkspace() {
     }
   };
 
-  const handleRecordPayment = async (invoiceId: string) => {
+  const handleRecordAdvancePayment = async (poId: string) => {
     const amount = parseFloat(paymentAmount);
+    const rate = parseFloat(paymentExchangeRate) || 1.0;
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid payment amount.");
+      return;
+    }
+
+    try {
+      const res = await saveSupplierPaymentAction({
+        supplier_invoice_id: null,
+        purchase_order_id: poId,
+        payment_date: paymentDate || new Date().toISOString().split('T')[0],
+        amount: amount,
+        payment_method: paymentMethod,
+        payment_reference: paymentRef || undefined,
+        notes: paymentNotes || undefined,
+        currency: paymentCurrency,
+        exchange_rate: rate
+      });
+
+      if (res.success) {
+        alert("Advance payment recorded successfully!");
+        setPaymentAmount('');
+        setPaymentRef('');
+        setPaymentNotes('');
+        setPaymentDate('');
+        setPaymentCurrency('USD');
+        setPaymentExchangeRate('1.0');
+        setActivePoForAdvancePayment(null);
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to record advance payment: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleRecordPayment = async (invoiceId: string, poId: string) => {
+    const amount = parseFloat(paymentAmount);
+    const rate = parseFloat(paymentExchangeRate) || 1.0;
     if (isNaN(amount) || amount <= 0) {
       alert("Please enter a valid payment amount.");
       return;
@@ -3217,11 +3285,14 @@ function PlannerWizardWorkspace() {
     try {
       const res = await saveSupplierPaymentAction({
         supplier_invoice_id: invoiceId,
+        purchase_order_id: poId,
         payment_date: paymentDate || new Date().toISOString().split('T')[0],
         amount: amount,
         payment_method: paymentMethod,
         payment_reference: paymentRef || undefined,
-        notes: paymentNotes || undefined
+        notes: paymentNotes || undefined,
+        currency: paymentCurrency,
+        exchange_rate: rate
       });
 
       if (res.success) {
@@ -3230,6 +3301,8 @@ function PlannerWizardWorkspace() {
         setPaymentRef('');
         setPaymentNotes('');
         setPaymentDate('');
+        setPaymentCurrency('USD');
+        setPaymentExchangeRate('1.0');
         setPayingInvoiceId(null);
         loadProcurementData(tourId);
       } else {
@@ -5952,277 +6025,188 @@ function PlannerWizardWorkspace() {
                         })}
                     </div>
                   </div>
-                ) : track === 'final' && currentStep.id === 'invoice-receive' ? (
+                ) : track === 'final' && currentStep.id === 'finance-controlling' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Receipt className="w-5 h-5 text-emerald-800" />
-                        Receive & Tally Supplier Invoices
+                        Finance Controlling (Hotels Only)
                       </h3>
                       <p className="text-xs text-neutral-400">
-                        Record supplier invoices received post-service and verify matching totals against purchase orders.
+                        Review purchase orders, match invoice line items, and disburse payments (including advances) for hotel suppliers.
                       </p>
                     </div>
 
                     <div className="space-y-6">
-                      {purchaseOrders
-                        .filter(po => po.status === 'Sent' || po.status === 'Accepted' || po.status === 'Completed')
-                        .map(po => {
-                          const invoices = po.invoices || [];
-                          
-                          return (
-                            <div key={po.id} className="border border-neutral-200 rounded-2xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-150 pb-3">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-neutral-850 font-mono">{po.po_number}</span>
-                                    <span className="text-xs font-medium text-neutral-500">({po.vendor_name})</span>
-                                  </div>
-                                  <span className="text-[10px] uppercase tracking-wider text-neutral-450 block mt-0.5">Vendor Type: {po.vendor_type}</span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-[10px] text-neutral-400 block font-bold font-sans">PO Total</span>
-                                  <span className="text-sm font-bold text-neutral-800 font-mono">${po.total_amount}</span>
-                                </div>
-                              </div>
+                      {purchaseOrders.filter(po => po.vendor_type === 'hotel' && po.status !== 'Cancelled').length === 0 ? (
+                        <div className="p-6 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-250">
+                          <p className="text-sm text-neutral-500 italic">No active hotel purchase orders found for this tour.</p>
+                        </div>
+                      ) : (
+                        purchaseOrders
+                          .filter(po => po.vendor_type === 'hotel' && po.status !== 'Cancelled')
+                          .map(po => {
+                            const invoices = po.invoices || [];
+                            const advPayments = po.advance_payments || [];
+                            const invoicePayments = invoices.flatMap((inv: any) => inv.payments || []);
+                            const allPayments = [...advPayments, ...invoicePayments];
 
-                              {invoices.length > 0 ? (
-                                <div className="space-y-3">
-                                  <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Invoices Received</h5>
-                                  <div className="space-y-2">
-                                    {invoices.map((inv: any) => {
-                                      const diff = inv.amount - po.total_amount;
-                                      const isMatched = diff === 0;
+                            // Calculation totals
+                            const totalPoVal = po.total_amount;
+                            const poCurrency = po.currency || 'USD';
 
-                                      return (
-                                        <div key={inv.id} className="bg-white border border-neutral-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                                          <div>
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-xs font-bold text-neutral-800">#{inv.invoice_number}</span>
-                                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                                inv.status === 'Paid' ? 'bg-green-100 text-green-800' :
-                                                inv.status === 'Confirmed' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-amber-100 text-amber-800'
-                                              }`}>
-                                                {inv.status}
-                                              </span>
-                                            </div>
-                                            <p className="text-[10px] text-neutral-400 mt-1">Date: {new Date(inv.invoice_date).toLocaleDateString()}</p>
-                                          </div>
+                            // Invoiced total in document currency and LKR
+                            const totalInvoicedVal = invoices.reduce((sum: number, inv: any) => sum + Number(inv.amount), 0);
+                            
+                            // Payments total
+                            const totalPaidLkr = allPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) * Number(p.exchange_rate || 1.0)), 0);
 
-                                          <div className="flex items-center gap-4">
-                                            <div className="text-right">
-                                              <span className="text-xs font-bold text-neutral-800 block font-mono">${inv.amount}</span>
-                                              <div className="flex items-center gap-1 mt-0.5">
-                                                <span className={`w-1.5 h-1.5 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
-                                                <span className={`text-[9px] font-bold ${isMatched ? 'text-green-600' : 'text-red-600'}`}>
-                                                  {isMatched ? 'TALLIED' : `DISCREPANCY: $${diff}`}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-neutral-400 italic">No supplier invoice received yet.</p>
-                              )}
-
-                              {enteringInvoicePoId === po.id ? (
-                                <div className="p-4 bg-white border border-neutral-200 rounded-xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
-                                  <h5 className="text-xs font-bold text-neutral-700">Record Inbound Invoice</h5>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="space-y-1">
-                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Number</label>
-                                      <input
-                                        type="text"
-                                        value={invoiceNumber}
-                                        onChange={(e) => setInvoiceNumber(e.target.value)}
-                                        placeholder="INV-10291"
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
-                                      />
-                                    </div>
-
-                                    <div className="space-y-1">
-                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Amount ($)</label>
-                                      <input
-                                        type="number"
-                                        value={invoiceAmount}
-                                        onChange={(e) => setInvoiceAmount(e.target.value)}
-                                        placeholder={`${po.total_amount}`}
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
-                                      />
-                                    </div>
-
-                                    <div className="space-y-1">
-                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Date</label>
-                                      <input
-                                        type="date"
-                                        value={invoiceDate}
-                                        onChange={(e) => setInvoiceDate(e.target.value)}
-                                        className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {invoiceAmount && (
-                                    (() => {
-                                      const amt = parseFloat(invoiceAmount);
-                                      if (isNaN(amt)) return null;
-                                      const diff = amt - po.total_amount;
-                                      return (
-                                        <div className={`p-3 rounded-lg border text-xs flex items-center gap-2 font-medium ${
-                                          diff === 0 
-                                            ? 'bg-green-50 border-green-200 text-green-700' 
-                                            : 'bg-red-50 border-red-200 text-red-700'
-                                        }`}>
-                                          <span className={`w-2 h-2 rounded-full ${diff === 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                                          {diff === 0 
-                                            ? "Tally Result: MATCHED ($0 discrepancy)" 
-                                            : `Tally Result: MISMATCH (Discrepancy of $${diff})`}
-                                        </div>
-                                      );
-                                    })()
-                                  )}
-
-                                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
-                                    <button
-                                      onClick={() => handleReceiveInvoice(po)}
-                                      className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm"
-                                    >
-                                      Save Invoice
-                                    </button>
-                                    <button
-                                      onClick={() => setEnteringInvoicePoId(null)}
-                                      className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setEnteringInvoicePoId(po.id);
-                                    setInvoiceNumber('');
-                                    setInvoiceAmount(`${po.total_amount}`);
-                                    setInvoiceDate(new Date().toISOString().split('T')[0]);
-                                  }}
-                                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold transition-all shadow-sm"
-                                >
-                                  <Plus className="w-4 h-4 text-neutral-500" />
-                                  Receive Invoice
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                ) : track === 'final' && currentStep.id === 'payment-supplier' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
-                    <div className="border-b border-neutral-100 pb-4 mb-6">
-                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
-                        <CircleDollarSign className="w-5 h-5 text-emerald-800" />
-                        Disburse Supplier Payments
-                      </h3>
-                      <p className="text-xs text-neutral-400">
-                        Record and track payments issued to supplier bank wire details against confirmed invoices.
-                      </p>
-                    </div>
-
-                    <div className="space-y-6">
-                      {purchaseOrders
-                        .filter(po => po.invoices && po.invoices.length > 0)
-                        .map(po => {
-                          return (po.invoices || []).map((inv: any) => {
-                            const payments = inv.payments || [];
-                            const totalPaid = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-                            const balance = inv.amount - totalPaid;
+                            // Active rate for PO converted value
+                            const activeRate = invoices[0]?.exchange_rate || advPayments[0]?.exchange_rate || parseFloat(invoiceExchangeRate) || 300.0;
+                            const poValLkr = poCurrency === 'LKR' ? totalPoVal : totalPoVal * activeRate;
+                            const balancePayableLkr = poValLkr - totalPaidLkr;
 
                             return (
-                              <div key={inv.id} className="border border-neutral-200 rounded-2xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-150 pb-3">
+                              <div key={po.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                                {/* PO Summary Card Header */}
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-150 pb-4">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-neutral-850">Invoice: #{inv.invoice_number}</span>
-                                      <span className="text-xs font-medium text-neutral-400 font-sans">({po.vendor_name})</span>
+                                      <span className="text-sm font-bold text-neutral-850 font-mono">{po.po_number}</span>
+                                      <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
+                                      <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                        po.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                        po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
+                                        po.status === 'Accepted' ? 'bg-emerald-100 text-emerald-800' :
+                                        'bg-neutral-100 text-neutral-600'
+                                      }`}>
+                                        PO: {po.status}
+                                      </span>
                                     </div>
-                                    <span className="text-[10px] text-neutral-450 block mt-0.5 font-sans">PO Link: {po.po_number}</span>
+                                    <p className="text-[10px] text-neutral-400 mt-1">Date: {new Date(po.po_date).toLocaleDateString()}</p>
                                   </div>
-                                  <div className="text-right">
-                                    <span className="text-[10px] text-neutral-400 block font-bold font-serif">Invoice Amount</span>
-                                    <span className="text-sm font-bold text-neutral-800 font-mono">${inv.amount}</span>
+                                  <div className="flex items-center gap-6">
+                                    <div className="text-right">
+                                      <span className="text-[10px] text-neutral-400 block font-bold font-sans">PO Total</span>
+                                      <span className="text-base font-bold text-neutral-800 font-mono">{poCurrency} {totalPoVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      {poCurrency !== 'LKR' && (
+                                        <span className="text-[10px] text-neutral-405 block font-mono">≈ LKR {poValLkr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
 
-                                {payments.length > 0 ? (
-                                  <div className="space-y-3 bg-white border border-neutral-200 rounded-xl p-4 shadow-sm">
-                                    <h5 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Disbursement History</h5>
-                                    <div className="divide-y divide-neutral-100 text-xs">
-                                      {payments.map((p: any) => (
-                                        <div key={p.id} className="py-2.5 flex justify-between items-center first:pt-0 last:pb-0">
-                                          <div>
-                                            <span className="font-bold text-neutral-700">{p.payment_method}</span>
-                                            {p.payment_reference && (
-                                              <span className="text-[10px] text-neutral-400 font-mono ml-2">Ref: {p.payment_reference}</span>
-                                            )}
-                                            <p className="text-[9px] text-neutral-400 mt-0.5">Paid on: {new Date(p.payment_date).toLocaleDateString()}</p>
-                                          </div>
-                                          <span className="font-bold text-neutral-800 font-mono">${p.amount}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                    <div className="border-t border-neutral-150 pt-3 flex justify-between items-center text-xs font-bold">
-                                      <span className="text-neutral-500">Total Paid:</span>
-                                      <span className="text-neutral-800 font-mono">${totalPaid}</span>
-                                    </div>
+                                {/* Financial Reconciliation Dashboard Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border border-neutral-200 rounded-2xl shadow-sm">
+                                  <div>
+                                    <span className="text-[10px] font-bold text-neutral-400 uppercase block">PO Total Value</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalPoVal.toLocaleString()}</span>
                                   </div>
-                                ) : (
-                                  <p className="text-xs text-neutral-400 italic">No disbursement recorded.</p>
-                                )}
-
-                                <div className="flex items-center justify-between text-xs p-3 px-4 bg-white border border-neutral-200 rounded-xl shadow-sm">
-                                  <span className="text-neutral-500 font-bold">Remaining Balance:</span>
-                                  <span className={`font-mono font-bold ${balance <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
-                                    ${balance}
-                                  </span>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-neutral-400 uppercase block">Total Invoiced</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">{poCurrency} {totalInvoicedVal.toLocaleString()}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-neutral-400 uppercase block">Total Payments</span>
+                                    <span className="text-sm font-bold text-neutral-700 font-mono">LKR {totalPaidLkr.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-bold text-neutral-400 uppercase block">Balance Payable</span>
+                                    <span className={`text-sm font-bold font-mono ${balancePayableLkr <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                                      LKR {balancePayableLkr.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
                                 </div>
 
-                                {balance > 0 && (
-                                  payingInvoiceId === inv.id ? (
-                                    <div className="p-4 bg-white border border-neutral-200 rounded-xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
-                                      <h5 className="text-xs font-bold text-neutral-700">Record Payment</h5>
+                                {/* Advance Payments Section */}
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wide flex items-center gap-1.5">
+                                      <CircleDollarSign className="w-4 h-4 text-emerald-800" />
+                                      Advance Payments (Direct to PO)
+                                    </h4>
+                                    {activePoForAdvancePayment !== po.id && (
+                                      <button
+                                        onClick={() => {
+                                          setActivePoForAdvancePayment(po.id);
+                                          setPaymentAmount('');
+                                          setPaymentCurrency('USD');
+                                          setPaymentExchangeRate('300.0');
+                                          setPaymentDate(new Date().toISOString().split('T')[0]);
+                                          setPaymentRef('');
+                                          setPaymentNotes('');
+                                        }}
+                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-850 hover:text-emerald-950 border border-neutral-250 bg-white rounded-lg transition-all shadow-sm"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Record Advance Payment
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {activePoForAdvancePayment === po.id && (
+                                    <div className="p-4 bg-white border border-neutral-200 rounded-2xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                                      <h5 className="text-xs font-bold text-neutral-700">Record Advance Payment</h5>
                                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Payment Amount ($)</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Currency</label>
+                                          <select
+                                            value={paymentCurrency}
+                                            onChange={(e) => {
+                                              setPaymentCurrency(e.target.value);
+                                              if (e.target.value === 'LKR') setPaymentExchangeRate('1.0');
+                                            }}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                          >
+                                            <option value="USD">USD</option>
+                                            <option value="LKR">LKR</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="GBP">GBP</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Amount</label>
                                           <input
                                             type="number"
                                             value={paymentAmount}
                                             onChange={(e) => setPaymentAmount(e.target.value)}
-                                            placeholder={`${balance}`}
-                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                            placeholder="500.00"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                           />
                                         </div>
 
+                                        {paymentCurrency !== 'LKR' && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Exchange Rate (to LKR)</label>
+                                            <input
+                                              type="number"
+                                              value={paymentExchangeRate}
+                                              onChange={(e) => setPaymentExchangeRate(e.target.value)}
+                                              placeholder="300.00"
+                                              className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                            />
+                                          </div>
+                                        )}
+
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Disbursement Date</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Date</label>
                                           <input
                                             type="date"
                                             value={paymentDate}
                                             onChange={(e) => setPaymentDate(e.target.value)}
-                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                           />
                                         </div>
+                                      </div>
 
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div className="space-y-1">
                                           <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Method</label>
                                           <select
                                             value={paymentMethod}
                                             onChange={(e) => setPaymentMethod(e.target.value)}
-                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                           >
                                             <option value="Bank Transfer">Bank Transfer</option>
                                             <option value="Cash">Cash</option>
@@ -6231,64 +6215,559 @@ function PlannerWizardWorkspace() {
                                           </select>
                                         </div>
 
-                                        <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reference Number</label>
+                                        <div className="space-y-1 sm:col-span-2">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reference / Notes</label>
                                           <input
                                             type="text"
-                                            value={paymentRef}
-                                            onChange={(e) => setPaymentRef(e.target.value)}
-                                            placeholder="TXN-90210"
-                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
+                                            value={paymentNotes}
+                                            onChange={(e) => setPaymentNotes(e.target.value)}
+                                            placeholder="e.g. 50% booking deposit. Txn Ref: #19201"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                           />
                                         </div>
                                       </div>
 
-                                      <div className="space-y-1">
-                                        <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Internal Notes</label>
-                                        <input
-                                          type="text"
-                                          value={paymentNotes}
-                                          onChange={(e) => setPaymentNotes(e.target.value)}
-                                          placeholder="e.g., Wire transfer approved by operations team."
-                                          className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2.5 text-xs outline-none"
-                                        />
-                                      </div>
+                                      {paymentAmount && paymentCurrency !== 'LKR' && (
+                                        <p className="text-[10px] text-emerald-800 font-bold">
+                                          Equivalent Amount: LKR {((parseFloat(paymentAmount) || 0) * (parseFloat(paymentExchangeRate) || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </p>
+                                      )}
 
                                       <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
                                         <button
-                                          onClick={() => handleRecordPayment(inv.id)}
-                                          className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm"
+                                          onClick={() => handleRecordAdvancePayment(po.id)}
+                                          className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm"
                                         >
-                                          Record Disbursement
+                                          Save Advance Payment
                                         </button>
                                         <button
-                                          onClick={() => setPayingInvoiceId(null)}
+                                          onClick={() => setActivePoForAdvancePayment(null)}
                                           className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
                                         >
                                           Cancel
                                         </button>
                                       </div>
                                     </div>
+                                  )}
+
+                                  {advPayments.length > 0 ? (
+                                    <div className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm text-xs space-y-2">
+                                      <div className="divide-y divide-neutral-100">
+                                        {advPayments.map((pOnPo: any) => (
+                                          <div key={pOnPo.id} className="py-2 flex justify-between items-center first:pt-0 last:pb-0">
+                                            <div>
+                                              <span className="font-bold text-neutral-700">{pOnPo.payment_method}</span>
+                                              {pOnPo.payment_reference && (
+                                                <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {pOnPo.payment_reference}</span>
+                                              )}
+                                              {pOnPo.notes && (
+                                                <span className="text-[10px] text-neutral-450 italic block mt-0.5">{pOnPo.notes}</span>
+                                              )}
+                                              <span className="text-[9px] text-neutral-400 block mt-0.5">Paid on: {new Date(pOnPo.payment_date).toLocaleDateString()}</span>
+                                            </div>
+                                            <div className="text-right">
+                                              <span className="font-bold text-neutral-855 font-mono">{pOnPo.currency || 'USD'} {Number(pOnPo.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                              {pOnPo.currency !== 'LKR' && (
+                                                <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(pOnPo.amount) * Number(pOnPo.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
                                   ) : (
-                                    <button
-                                      onClick={() => {
-                                        setPayingInvoiceId(inv.id);
-                                        setPaymentAmount(`${balance}`);
-                                        setPaymentDate(new Date().toISOString().split('T')[0]);
-                                        setPaymentRef('');
-                                        setPaymentNotes('');
-                                      }}
-                                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold transition-all shadow-sm"
-                                    >
-                                      <Plus className="w-4 h-4 text-neutral-500" />
-                                      Record Payment
-                                    </button>
-                                  )
-                                )}
+                                    <p className="text-xs text-neutral-400 italic">No advance payments recorded.</p>
+                                  )}
+                                </div>
+
+                                {/* Invoices Section */}
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
+                                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wide flex items-center gap-1.5">
+                                      <Receipt className="w-4 h-4 text-emerald-800" />
+                                      Invoices & Reconciliation
+                                    </h4>
+                                    {enteringInvoicePoId !== po.id && (
+                                      <button
+                                        onClick={() => {
+                                          setEnteringInvoicePoId(po.id);
+                                          setInvoiceNumber('');
+                                          setInvoiceAmount(po.total_amount.toString());
+                                          setInvoiceCurrency(po.currency || 'USD');
+                                          setInvoiceExchangeRate('300.0');
+                                          setInvoiceDate(new Date().toISOString().split('T')[0]);
+                                          setInvoiceAttachment('');
+                                          initInvoiceItems(po);
+                                        }}
+                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-850 hover:text-emerald-950 border border-neutral-250 bg-white rounded-lg transition-all shadow-sm"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Record Invoice & Match Items
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {enteringInvoicePoId === po.id && (
+                                    <div className="p-5 bg-white border border-neutral-200 rounded-2xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                                      <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                                        <h5 className="text-xs font-bold text-neutral-700">Record Inbound Invoice</h5>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setInvoiceItems(po.items?.map((item: any) => ({
+                                              purchase_order_item_id: item.id,
+                                              description: item.description,
+                                              quantity: item.quantity.toString(),
+                                              unit_price: item.unit_price.toString(),
+                                              po_quantity: item.quantity,
+                                              po_unit_price: item.unit_price
+                                            })) || []);
+                                            const calcTotal = (po.items || []).reduce((s: number, i: any) => s + (i.quantity * i.unit_price), 0);
+                                            setInvoiceAmount(calcTotal.toString());
+                                          }}
+                                          className="text-[10px] text-emerald-855 hover:text-emerald-950 font-bold underline"
+                                        >
+                                          Reset to PO Defaults
+                                        </button>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Number</label>
+                                          <input
+                                            type="text"
+                                            value={invoiceNumber}
+                                            onChange={(e) => setInvoiceNumber(e.target.value)}
+                                            placeholder="INV-10291"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Currency</label>
+                                          <select
+                                            value={invoiceCurrency}
+                                            onChange={(e) => {
+                                              setInvoiceCurrency(e.target.value);
+                                              if (e.target.value === 'LKR') setInvoiceExchangeRate('1.0');
+                                            }}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                          >
+                                            <option value="USD">USD</option>
+                                            <option value="LKR">LKR</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="GBP">GBP</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Amount</label>
+                                          <input
+                                            type="number"
+                                            value={invoiceAmount}
+                                            onChange={(e) => setInvoiceAmount(e.target.value)}
+                                            placeholder="0.00"
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                          />
+                                        </div>
+
+                                        {invoiceCurrency !== 'LKR' && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Exchange Rate</label>
+                                            <input
+                                              type="number"
+                                              value={invoiceExchangeRate}
+                                              onChange={(e) => setInvoiceExchangeRate(e.target.value)}
+                                              placeholder="300.00"
+                                              className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Date</label>
+                                          <input
+                                            type="date"
+                                            value={invoiceDate}
+                                            onChange={(e) => setInvoiceDate(e.target.value)}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Attachment URL</label>
+                                          <input
+                                            type="text"
+                                            value={invoiceAttachment}
+                                            onChange={(e) => setInvoiceAttachment(e.target.value)}
+                                            placeholder="https://..."
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {/* Matching Line Items Section */}
+                                      <div className="space-y-3 pt-2">
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Line Items Auditing</span>
+                                          {invoiceItems.length > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const calcTotal = invoiceItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0);
+                                                setInvoiceAmount(calcTotal.toString());
+                                              }}
+                                              className="text-[9px] text-emerald-855 hover:text-emerald-950 font-bold"
+                                            >
+                                              Use Line Items Sum: {invoiceCurrency} {invoiceItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0).toFixed(2)}
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {invoiceItems.length === 0 ? (
+                                          <p className="text-[11px] text-neutral-404 italic">No line items in this PO. Click save to record header total.</p>
+                                        ) : (
+                                          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                            {invoiceItems.map((item, idx) => {
+                                              const qty = parseFloat(item.quantity) || 0;
+                                              const rate = parseFloat(item.unit_price) || 0;
+                                              const total = qty * rate;
+                                              const poTotal = item.po_quantity * item.po_unit_price;
+                                              const diff = total - poTotal;
+
+                                              return (
+                                                <div key={idx} className="p-3 bg-neutral-50 rounded-xl border border-neutral-150 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                                                  <div className="md:w-1/3">
+                                                    <span className="font-bold text-neutral-700 block">{item.description}</span>
+                                                    <span className="text-[10px] text-neutral-450 font-mono">PO: {item.po_quantity} x {poCurrency} {item.po_unit_price.toFixed(2)} = {poCurrency} {poTotal.toFixed(2)}</span>
+                                                  </div>
+                                                  <div className="flex flex-1 gap-2">
+                                                    <div className="flex-1">
+                                                      <span className="text-[9px] text-neutral-400 block font-bold mb-0.5">INV QTY</span>
+                                                      <input
+                                                        type="number"
+                                                        value={item.quantity}
+                                                        onChange={(e) => {
+                                                          const val = e.target.value;
+                                                          setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: val } : it));
+                                                        }}
+                                                        className="w-full bg-white border border-neutral-200 rounded-lg p-1 text-[11px] outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                      <span className="text-[9px] text-neutral-400 block font-bold mb-0.5">INV RATE</span>
+                                                      <input
+                                                        type="number"
+                                                        value={item.unit_price}
+                                                        onChange={(e) => {
+                                                          const val = e.target.value;
+                                                          setInvoiceItems(prev => prev.map((it, i) => i === idx ? { ...it, unit_price: val } : it));
+                                                        }}
+                                                        className="w-full bg-white border border-neutral-200 rounded-lg p-1 text-[11px] outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                  <div className="text-right md:w-1/4">
+                                                    <span className="font-bold block text-neutral-700 font-mono">{invoiceCurrency} {total.toFixed(2)}</span>
+                                                    <span className={`text-[10px] font-bold ${diff === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                      {diff === 0 ? 'MATCHED' : `DIFF: ${diff > 0 ? '+' : ''}${diff.toFixed(2)}`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Tally calculation warning/success */}
+                                      {invoiceAmount && (
+                                        (() => {
+                                          const amt = parseFloat(invoiceAmount);
+                                          const rate = parseFloat(invoiceExchangeRate) || 1.0;
+                                          if (isNaN(amt)) return null;
+
+                                          const invoiceAmtLKR = amt * rate;
+                                          const poAmtLKR = po.currency === 'USD' ? po.total_amount * rate : po.total_amount;
+                                          const diff = po.currency === invoiceCurrency ? (amt - po.total_amount) : (invoiceAmtLKR - poAmtLKR);
+                                          const isMatched = Math.abs(diff) < 0.01;
+
+                                          return (
+                                            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 font-medium ${
+                                              isMatched ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
+                                            }`}>
+                                              <span className={`w-2 h-2 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
+                                              {isMatched 
+                                                ? "Tally Result: MATCHED (0.00 discrepancy)" 
+                                                : `Tally Result: MISMATCH (Discrepancy of ${po.currency === invoiceCurrency ? invoiceCurrency : 'LKR'} ${diff.toFixed(2)})`}
+                                            </div>
+                                          );
+                                        })()
+                                      )}
+
+                                      <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                        <button
+                                          onClick={() => handleReceiveInvoice(po)}
+                                          className="px-4 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-sm"
+                                        >
+                                          Save Invoice
+                                        </button>
+                                        <button
+                                          onClick={() => setEnteringInvoicePoId(null)}
+                                          className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-xs font-bold"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {invoices.length > 0 ? (
+                                    <div className="space-y-4">
+                                      {invoices.map((inv: any) => {
+                                        const diff = po.currency === inv.currency ? (inv.amount - po.total_amount) : ((inv.amount * (inv.exchange_rate || 1.0)) - (po.currency === 'USD' ? po.total_amount * (inv.exchange_rate || 1.0) : po.total_amount));
+                                        const isMatched = Math.abs(diff) < 0.01;
+                                        const invPayments = inv.payments || [];
+                                        const totalPaidInv = invPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                                        const remainingInvBalance = inv.amount - totalPaidInv;
+
+                                        return (
+                                          <div key={inv.id} className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm space-y-4">
+                                            {/* Invoice header info */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-xs font-bold text-neutral-805">#{inv.invoice_number}</span>
+                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                                    inv.status === 'Confirmed' ? 'bg-blue-100 border border-blue-200 text-blue-800' :
+                                                    inv.status === 'Paid' ? 'bg-green-105 border border-green-200 text-green-800' :
+                                                    'bg-amber-105 border border-amber-200 text-amber-800'
+                                                  }`}>
+                                                    {inv.status}
+                                                  </span>
+                                                </div>
+                                                <p className="text-[10px] text-neutral-450 mt-1 font-mono">Date: {new Date(inv.invoice_date).toLocaleDateString()}</p>
+                                              </div>
+                                              <div className="text-right">
+                                                <span className="text-sm font-bold text-neutral-800 font-mono">{inv.currency || 'USD'} {Number(inv.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                {inv.currency !== 'LKR' && (
+                                                  <span className="text-[10px] text-neutral-450 block font-mono">≈ LKR {(Number(inv.amount) * Number(inv.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                )}
+                                                <div className="flex items-center justify-end gap-1 mt-1">
+                                                  <span className={`w-1.5 h-1.5 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                  <span className={`text-[9px] font-bold ${isMatched ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {isMatched ? 'TALLIED' : `DISCREPANCY: ${inv.currency || 'USD'} ${diff.toFixed(2)}`}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            {/* Invoice matched items */}
+                                            {inv.items && inv.items.length > 0 && (
+                                              <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-150 space-y-1.5">
+                                                <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block mb-1">Audit Details</span>
+                                                {inv.items.map((item: any) => {
+                                                  const poItem = po.items?.find((p: any) => p.id === item.purchase_order_item_id);
+                                                  const totalItemPrice = item.quantity * item.unit_price;
+                                                  const poItemPrice = poItem ? (poItem.quantity * poItem.unit_price) : 0;
+                                                  const itemDiff = totalItemPrice - poItemPrice;
+                                                  const hasDiff = Math.abs(itemDiff) > 0.01;
+
+                                                  return (
+                                                    <div key={item.id} className="flex justify-between items-center py-1 text-xs border-b border-neutral-100 last:border-b-0">
+                                                      <div>
+                                                        <span className="font-semibold text-neutral-750 block">{item.description}</span>
+                                                        <p className="text-[9px] text-neutral-450 mt-0.5">
+                                                          {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)} 
+                                                          {poItem && (item.quantity !== poItem.quantity || item.unit_price !== poItem.unit_price) && (
+                                                            <span className="text-red-500 ml-1">
+                                                              (PO: {poItem.quantity} @ {poItem.unit_price.toFixed(2)})
+                                                            </span>
+                                                          )}
+                                                        </p>
+                                                      </div>
+                                                      <div className="text-right">
+                                                        <span className="font-mono font-bold text-neutral-800">{inv.currency || 'USD'} {totalItemPrice.toFixed(2)}</span>
+                                                        {hasDiff && (
+                                                          <span className="text-[9px] text-red-500 block font-bold font-mono">
+                                                            {itemDiff > 0 ? '+' : ''}{itemDiff.toFixed(2)}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+
+                                            {/* Invoice payments history */}
+                                            <div className="space-y-3 font-sans">
+                                              <div className="flex items-center justify-between border-t border-neutral-100 pt-3">
+                                                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Invoice Disbursements</span>
+                                                {remainingInvBalance > 0 && payingInvoiceId !== inv.id && (
+                                                  <button
+                                                    onClick={() => {
+                                                      setPayingInvoiceId(inv.id);
+                                                      setPaymentAmount(remainingInvBalance.toString());
+                                                      setPaymentCurrency(inv.currency || 'USD');
+                                                      setPaymentExchangeRate(inv.exchange_rate?.toString() || '300.0');
+                                                      setPaymentDate(new Date().toISOString().split('T')[0]);
+                                                      setPaymentRef('');
+                                                      setPaymentNotes('');
+                                                    }}
+                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-850 hover:text-emerald-950 font-serif"
+                                                  >
+                                                    <Plus className="w-3 h-3" />
+                                                    Add Payment
+                                                  </button>
+                                                )}
+                                              </div>
+
+                                              {payingInvoiceId === inv.id && (
+                                                <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                                  <h5 className="text-xs font-bold text-neutral-700">Record Payment Against Invoice</h5>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <div className="space-y-1">
+                                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Currency</label>
+                                                      <select
+                                                        value={paymentCurrency}
+                                                        onChange={(e) => {
+                                                          setPaymentCurrency(e.target.value);
+                                                          if (e.target.value === 'LKR') setPaymentExchangeRate('1.0');
+                                                        }}
+                                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      >
+                                                        <option value="USD">USD</option>
+                                                        <option value="LKR">LKR</option>
+                                                        <option value="EUR">EUR</option>
+                                                        <option value="GBP">GBP</option>
+                                                      </select>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Amount</label>
+                                                      <input
+                                                        type="number"
+                                                        value={paymentAmount}
+                                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                                        placeholder={remainingInvBalance.toString()}
+                                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      />
+                                                    </div>
+
+                                                    {paymentCurrency !== 'LKR' && (
+                                                      <div className="space-y-1">
+                                                        <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Exchange Rate</label>
+                                                        <input
+                                                          type="number"
+                                                          value={paymentExchangeRate}
+                                                          onChange={(e) => setPaymentExchangeRate(e.target.value)}
+                                                          placeholder="300.00"
+                                                          className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                        />
+                                                      </div>
+                                                    )}
+
+                                                    <div className="space-y-1">
+                                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Date</label>
+                                                      <input
+                                                        type="date"
+                                                        value={paymentDate}
+                                                        onChange={(e) => setPaymentDate(e.target.value)}
+                                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    <div className="space-y-1">
+                                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Method</label>
+                                                      <select
+                                                        value={paymentMethod}
+                                                        onChange={(e) => setPaymentMethod(e.target.value)}
+                                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      >
+                                                        <option value="Bank Transfer">Bank Transfer</option>
+                                                        <option value="Cash">Cash</option>
+                                                        <option value="Card">Card</option>
+                                                        <option value="Cheque">Cheque</option>
+                                                      </select>
+                                                    </div>
+
+                                                    <div className="space-y-1 sm:col-span-2">
+                                                      <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Reference / Notes</label>
+                                                      <input
+                                                        type="text"
+                                                        value={paymentNotes}
+                                                        onChange={(e) => setPaymentNotes(e.target.value)}
+                                                        placeholder="Txn ID, Bank details..."
+                                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
+                                                    <button
+                                                      onClick={() => handleRecordPayment(inv.id, po.id)}
+                                                      className="px-3.5 py-1.5 bg-emerald-850 hover:bg-emerald-950 text-white rounded-lg text-xs font-bold"
+                                                    >
+                                                      Record Payment
+                                                    </button>
+                                                    <button
+                                                      onClick={() => setPayingInvoiceId(null)}
+                                                      className="px-3.5 py-1.5 border border-neutral-200 text-neutral-600 rounded-lg text-xs font-bold"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {invPayments.length > 0 ? (
+                                                <div className="divide-y divide-neutral-100 text-xs bg-neutral-50/50 rounded-xl p-3 border border-neutral-100 font-sans">
+                                                  {invPayments.map((p: any) => (
+                                                    <div key={p.id} className="py-1.5 flex justify-between items-center first:pt-0 last:pb-0">
+                                                      <div>
+                                                        <span className="font-bold text-neutral-700">{p.payment_method}</span>
+                                                        {p.payment_reference && (
+                                                          <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {p.payment_reference}</span>
+                                                        )}
+                                                        <p className="text-[9px] text-neutral-400">Paid: {new Date(p.payment_date).toLocaleDateString()}</p>
+                                                      </div>
+                                                      <div className="text-right">
+                                                        <span className="font-bold text-neutral-800 font-mono">{p.currency || 'USD'} {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                        {p.currency !== 'LKR' && (
+                                                          <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(p.amount) * Number(p.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <p className="text-[11px] text-neutral-400 italic">No disbursements recorded for this invoice.</p>
+                                              )}
+
+                                              <div className="flex items-center justify-between text-xs p-3 bg-neutral-50 rounded-xl border border-neutral-150">
+                                                <span className="text-neutral-500 font-bold font-sans">Remaining Invoice Balance:</span>
+                                                <span className={`font-mono font-bold ${remainingInvBalance <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                                                  {inv.currency || 'USD'} {remainingInvBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-neutral-400 italic">No supplier invoices received yet.</p>
+                                  )}
+                                </div>
                               </div>
                             );
-                          });
-                        })}
+                          })
+                      )}
                     </div>
                   </div>
                 ) : track === 'basic' && currentStep.id === 'ai-builder' ? (

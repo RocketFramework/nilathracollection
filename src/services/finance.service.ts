@@ -14,8 +14,10 @@ export class FinanceService {
                 items:purchase_order_items(*),
                 invoices:supplier_invoices(
                     *,
+                    items:supplier_invoice_items(*),
                     payments:supplier_payments(*)
-                )
+                ),
+                advance_payments:supplier_payments(*)
             `)
             .eq('tour_id', tourId)
             .order('created_at', { ascending: false });
@@ -37,7 +39,8 @@ export class FinanceService {
                     }
                 }
                 return item;
-            })
+            }),
+            advance_payments: (po.advance_payments as any[])?.filter(p => !p.supplier_invoice_id) || []
         }));
 
         return processedData as DBPurchaseOrder[];
@@ -152,17 +155,39 @@ export class FinanceService {
      */
     static async saveSupplierInvoice(invoice: Partial<DBSupplierInvoice>) {
         const supabase = createAdminClient();
-        const { id, payments: _, ...invData } = invoice as any;
+        const { id, payments: _, items, ...invData } = invoice as any;
 
+        let invoiceId = id;
         if (id) {
             const { error } = await supabase.from('supplier_invoices').update(invData).eq('id', id);
             if (error) throw error;
-            return id;
+            
+            const { error: delError } = await supabase
+                .from('supplier_invoice_items')
+                .delete()
+                .eq('supplier_invoice_id', id);
+            if (delError) throw delError;
         } else {
             const { data, error } = await supabase.from('supplier_invoices').insert([invData]).select().single();
             if (error) throw error;
-            return data.id;
+            invoiceId = data.id;
         }
+
+        if (items && items.length > 0) {
+            const itemsToInsert = items.map((item: any) => {
+                const { id: _itemId, total_price: _, ...itemData } = item;
+                return {
+                    ...itemData,
+                    supplier_invoice_id: invoiceId
+                };
+            });
+            const { error: itemsError } = await supabase
+                .from('supplier_invoice_items')
+                .insert(itemsToInsert);
+            if (itemsError) throw itemsError;
+        }
+
+        return invoiceId;
     }
 
     /**

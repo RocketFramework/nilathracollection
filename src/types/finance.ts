@@ -125,19 +125,36 @@ export interface DBSupplierInvoice {
     discrepancy_amount?: number;
     approved_by?: string | null;
     approved_at?: string | null;
+    currency?: string;
+    exchange_rate?: number;
+    items?: DBSupplierInvoiceItem[];
     payments?: DBSupplierPayment[];
     created_at: string;
     updated_at: string;
 }
 
-export interface DBSupplierPayment {
+export interface DBSupplierInvoiceItem {
     id: string;
     supplier_invoice_id: string;
+    purchase_order_item_id?: string | null;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    created_at?: string;
+}
+
+export interface DBSupplierPayment {
+    id: string;
+    supplier_invoice_id: string | null;
+    purchase_order_id?: string | null;
     payment_date: string;
     amount: number;
     payment_method: string;
     payment_reference?: string;
     notes?: string;
+    currency?: string;
+    exchange_rate?: number;
     created_at: string;
 }
 

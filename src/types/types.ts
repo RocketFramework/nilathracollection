@@ -24,6 +24,7 @@ export type FinalStep =
   | 'payment-receive'
   | 'invoice-receive'
   | 'payment-supplier'
+  | 'finance-controlling'
   | 'profit-loss';
 
 export const TRAVEL_STYLES = ['Luxury', 'Ultra VIP', 'Premium', 'Regular', 'Mixed'] as const;
