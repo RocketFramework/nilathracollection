@@ -91,12 +91,8 @@ export class FinanceService {
             const itemsToInsert = items.map(item => {
                 const { total_price: _, daily_activity_id, ...itemData } = item as any;
                 
-                // Encode the daily_activity block UUID into special_notes to bypass the obsolete tour_itineraries FK constraint
                 if (daily_activity_id) {
                     itemData.daily_activity_id = daily_activity_id;
-                    itemData.special_notes = itemData.special_notes 
-                        ? `${itemData.special_notes} || BLOCK_REF:${daily_activity_id}` 
-                        : `BLOCK_REF:${daily_activity_id}`;
                 }
 
                 return {

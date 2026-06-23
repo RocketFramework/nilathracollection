@@ -2344,7 +2344,12 @@ function PlannerWizardWorkspace() {
         quantity: item.quantity.toString(),
         unit_price: item.unit_price.toString(),
         po_quantity: item.quantity,
-        po_unit_price: item.unit_price
+        po_unit_price: item.unit_price,
+        room_type: item.room_type,
+        meal_plan: item.meal_plan,
+        number_of_nights: item.number_of_nights,
+        check_in_date: item.check_in_date,
+        check_out_date: item.check_out_date
       })));
     } else {
       setInvoiceItems([]);
@@ -6517,7 +6522,12 @@ function PlannerWizardWorkspace() {
                                               quantity: item.quantity.toString(),
                                               unit_price: item.unit_price.toString(),
                                               po_quantity: item.quantity,
-                                              po_unit_price: item.unit_price
+                                              po_unit_price: item.unit_price,
+                                              room_type: item.room_type,
+                                              meal_plan: item.meal_plan,
+                                              number_of_nights: item.number_of_nights,
+                                              check_in_date: item.check_in_date,
+                                              check_out_date: item.check_out_date
                                             })) || []);
                                             const calcTotal = (po.items || []).reduce((s: number, i: any) => s + (i.quantity * i.unit_price), 0);
                                             setInvoiceAmount(calcTotal.toString());
@@ -6638,6 +6648,31 @@ function PlannerWizardWorkspace() {
                                                 <div key={idx} className="p-3 bg-neutral-50 rounded-xl border border-neutral-150 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
                                                   <div className="md:w-1/3">
                                                     <span className="font-bold text-neutral-700 block">{item.description}</span>
+                                                    {(item.room_type || item.meal_plan || item.check_in_date) && (
+                                                      <div className="flex flex-wrap gap-1 mt-1 mb-1">
+                                                        {item.room_type && (
+                                                          <span className="text-[8px] bg-neutral-200 text-neutral-600 px-1 py-0.5 rounded font-bold uppercase">
+                                                            {item.room_type}
+                                                          </span>
+                                                        )}
+                                                        {item.meal_plan && (
+                                                          <span className="text-[8px] bg-neutral-200 text-neutral-600 px-1 py-0.5 rounded font-bold">
+                                                            {item.meal_plan}
+                                                          </span>
+                                                        )}
+                                                        {item.number_of_nights && (
+                                                          <span className="text-[8px] bg-neutral-200 text-neutral-600 px-1 py-0.5 rounded font-bold font-mono">
+                                                            {item.number_of_nights} Nights
+                                                          </span>
+                                                        )}
+                                                        {item.check_in_date && (
+                                                          <span className="text-[8px] bg-neutral-200 text-neutral-600 px-1 py-0.5 rounded font-bold font-mono">
+                                                            {new Date(item.check_in_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                            {item.check_out_date && ` - ${new Date(item.check_out_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    )}
                                                     <span className="text-[10px] text-neutral-450 font-mono">PO: {item.po_quantity} x {poCurrency} {item.po_unit_price.toFixed(2)} = {poCurrency} {poTotal.toFixed(2)}</span>
                                                   </div>
                                                   <div className="flex flex-1 gap-2">
@@ -6778,7 +6813,13 @@ function PlannerWizardWorkspace() {
                                             {inv.items && inv.items.length > 0 && (
                                               <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-150 space-y-1.5">
                                                 <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block mb-1">Audit Details</span>
-                                                {inv.items.map((item: any) => {
+                                                {[...inv.items].sort((a: any, b: any) => {
+                                                  const poA = po.items?.find((p: any) => p.id === a.purchase_order_item_id);
+                                                  const poB = po.items?.find((p: any) => p.id === b.purchase_order_item_id);
+                                                  const dateA = poA?.service_date || '9999-12-31';
+                                                  const dateB = poB?.service_date || '9999-12-31';
+                                                  return dateA.localeCompare(dateB);
+                                                }).map((item: any) => {
                                                   const poItem = po.items?.find((p: any) => p.id === item.purchase_order_item_id);
                                                   const totalItemPrice = item.quantity * item.unit_price;
                                                   const poItemPrice = poItem ? (poItem.quantity * poItem.unit_price) : 0;
@@ -6796,6 +6837,31 @@ function PlannerWizardWorkspace() {
                                                              </span>
                                                            )}
                                                          </span>
+                                                         {poItem && (poItem.room_type || poItem.meal_plan || poItem.check_in_date) && (
+                                                           <div className="flex flex-wrap gap-1 mt-0.5 mb-0.5">
+                                                             {poItem.room_type && (
+                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold uppercase">
+                                                                 {poItem.room_type}
+                                                               </span>
+                                                             )}
+                                                             {poItem.meal_plan && (
+                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold">
+                                                                 {poItem.meal_plan}
+                                                               </span>
+                                                             )}
+                                                             {poItem.number_of_nights && (
+                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
+                                                                 {poItem.number_of_nights} Nights
+                                                               </span>
+                                                             )}
+                                                             {poItem.check_in_date && (
+                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
+                                                                 {new Date(poItem.check_in_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                                 {poItem.check_out_date && ` - ${new Date(poItem.check_out_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+                                                               </span>
+                                                             )}
+                                                           </div>
+                                                         )}
                                                         <p className="text-[9px] text-neutral-450 mt-0.5">
                                                           {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)} 
                                                           {poItem && (item.quantity !== poItem.quantity || item.unit_price !== poItem.unit_price) && (
