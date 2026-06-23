@@ -2947,7 +2947,6 @@ function PlannerWizardWorkspace() {
         accepted_by_name: editPoAcceptedName || null,
         accepted_date: editPoAcceptedDate || null,
         internal_notes: editPoInternalNotes || null,
-        vendor_notes: editPoVendorNotes || null,
         total_amount: (editingPo.subtotal || 0) + editPoTax - editPoDiscount,
       };
 
@@ -2983,8 +2982,6 @@ function PlannerWizardWorkspace() {
     try {
       const updates = {
         status: editRfqStatus,
-        quoted_price: editRfqQuotedPrice,
-        currency: editRfqCurrency,
         replied_date: editRfqRepliedDate ? new Date(editRfqRepliedDate).toISOString() : null,
         notes: editRfqNotes || null
       };
@@ -9009,19 +9006,6 @@ function PlannerWizardWorkspace() {
                       className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
                     />
                   </div>
-
-                  {/* Vendor Notes */}
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Vendor Notes (Shown on PO)
-                    </label>
-                    <textarea
-                      placeholder="Any specific requests or requirements communicated to/from the vendor..."
-                      value={editPoVendorNotes}
-                      onChange={(e) => setEditPoVendorNotes(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -9091,7 +9075,7 @@ function PlannerWizardWorkspace() {
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Status */}
-                  <div>
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
                       Status
                     </label>
@@ -9107,38 +9091,6 @@ function PlannerWizardWorkspace() {
                       <option value="Expired">Expired</option>
                       <option value="Selected">Selected (Finalized Vendor)</option>
                     </select>
-                  </div>
-
-                  {/* Empty for grid layout spacing */}
-                  <div className="hidden sm:block"></div>
-
-                  {/* Quoted Price */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Quoted Price
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editRfqQuotedPrice || ""}
-                      onChange={(e) => setEditRfqQuotedPrice(parseFloat(e.target.value) || 0)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    />
-                  </div>
-
-                  {/* Currency */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Currency
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="USD"
-                      value={editRfqCurrency}
-                      onChange={(e) => setEditRfqCurrency(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-mono"
-                    />
                   </div>
 
                   {/* Replied Date */}
