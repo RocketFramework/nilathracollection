@@ -1806,24 +1806,7 @@ function PlannerWizardWorkspace() {
 
     // Core operational flow steps
     list.push(
-      { 
-        id: 'quote-request', 
-        label: 'Supplier Quote Requests', 
-        description: 'Dispatch automated quote sheets to all selected hotels and transport providers.', 
-        icon: MailQuestion 
-      },
-      { 
-        id: 'po-submission', 
-        label: 'PO Submission to Suppliers', 
-        description: 'Generate and submit legally binding Purchase Orders to confirm services.', 
-        icon: Send 
-      },
-      { 
-        id: 'final-cost', 
-        label: 'Final Cost Structure', 
-        description: 'View fully consolidated tour budgets, precise markups, and final client pricing.', 
-        icon: Coins 
-      },
+
       { 
         id: 'payment-receive', 
         label: 'Collect Tourist Payment', 
@@ -2098,6 +2081,12 @@ function PlannerWizardWorkspace() {
             if (state.activeFinalStepIndex !== undefined) restoredFinalIdx = state.activeFinalStepIndex;
             if (state.elements) restoredElements = state.elements;
             if (state.selectedActivityIds) setSelectedActivityIds(state.selectedActivityIds);
+            if (state.itinerary) {
+              setItinerary(sortItineraryChronologically(state.itinerary));
+            }
+            if (state.dbActivities) {
+              setDbActivities(state.dbActivities);
+            }
             restoredFromDb = true;
           }
         }
@@ -2112,6 +2101,12 @@ function PlannerWizardWorkspace() {
             if (parsed.activeBasicStepIndex !== undefined) restoredBasicIdx = parsed.activeBasicStepIndex;
             if (parsed.activeFinalStepIndex !== undefined) restoredFinalIdx = parsed.activeFinalStepIndex;
             if (parsed.selectedActivityIds) setSelectedActivityIds(parsed.selectedActivityIds);
+            if (parsed.itinerary) {
+              setItinerary(sortItineraryChronologically(parsed.itinerary));
+            }
+            if (parsed.dbActivities) {
+              setDbActivities(parsed.dbActivities);
+            }
           }
         }
 
@@ -2152,9 +2147,6 @@ function PlannerWizardWorkspace() {
             activeElements.security && 'security-service',
             activeElements.guide && 'guide-selection',
             activeElements.driver && 'driver-selection',
-            'quote-request',
-            'po-submission',
-            'final-cost',
             'payment-receive',
             'finance-controlling',
             'profit-loss'
@@ -3347,7 +3339,7 @@ function PlannerWizardWorkspace() {
   }, [track, tourId, isStateRestored]);
 
 
-  // B. SYNC STATE TO LOCALSTORAGE & DATABASE & URL (whenever track, step, or elements change)
+  // B. SYNC STATE TO LOCALSTORAGE & DATABASE & URL (whenever track, step, elements, itinerary, or dbActivities change)
   useEffect(() => {
     if (!isStateRestored) return;
 
@@ -3358,7 +3350,9 @@ function PlannerWizardWorkspace() {
         activeBasicStepIndex,
         activeFinalStepIndex,
         elements,
-        selectedActivityIds
+        selectedActivityIds,
+        itinerary,
+        dbActivities
       }));
 
       // 2. Sync to Database in background
@@ -3374,7 +3368,9 @@ function PlannerWizardWorkspace() {
             activeBasicStepIndex,
             activeFinalStepIndex,
             elements,
-            selectedActivityIds
+            selectedActivityIds,
+            itinerary,
+            dbActivities
           }
         })
       }).catch(err => {
@@ -3402,7 +3398,44 @@ function PlannerWizardWorkspace() {
     } catch (e) {
       console.error("Failed to persist state:", e);
     }
-  }, [track, activeBasicStepIndex, activeFinalStepIndex, elements, selectedActivityIds, isStateRestored, STORAGE_KEY, tourId, basicSteps, finalSteps]);
+  }, [track, activeBasicStepIndex, activeFinalStepIndex, elements, selectedActivityIds, itinerary, dbActivities, isStateRestored, STORAGE_KEY, tourId, basicSteps, finalSteps]);
+
+  // C. CENTRALIZED DEBOUNCED AUTO-SAVE ITINERARY OPERATIONAL RECORDS (whenever itinerary changes)
+  useEffect(() => {
+    if (!isStateRestored || !tourId || tourId === 'draft-tour' || !tripData) return;
+
+    const handler = setTimeout(async () => {
+      try {
+        const updatedTripData = {
+          ...tripData,
+          itinerary,
+          manualSingle,
+          manualDouble,
+          manualTriple,
+          manualFamily,
+          profile: tripData.profile ? {
+            ...tripData.profile,
+            adults: touristData?.preferences?.adults ?? tripData.profile.adults,
+            children: touristData?.preferences?.children ?? tripData.profile.children,
+            infants: touristData?.preferences?.infants ?? tripData.profile.infants,
+          } : tripData.profile
+        };
+
+        const res = await saveTourAction(tourId, updatedTripData);
+        if (res.success) {
+          console.log("Successfully auto-persisted itinerary updates to database.");
+        } else {
+          console.error("Auto-persist itinerary failed:", res.error);
+        }
+      } catch (err) {
+        console.error("Auto-persist itinerary caught exception:", err);
+      }
+    }, 1500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [itinerary, tourId, tripData, manualSingle, manualDouble, manualTriple, manualFamily, touristData, isStateRestored]);
 
   // Collaborative edit locking lifecycle
   useEffect(() => {
