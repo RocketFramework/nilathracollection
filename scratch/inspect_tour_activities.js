@@ -27,18 +27,38 @@ const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(url, key);
 
 async function run() {
-    const tourId = '88eb758d-11b5-4b11-aafb-f04e7562de39';
-    const { data: acts, error } = await supabase
+    // Let's find some tour that has daily activities
+    const { data: rawActs, error: err } = await supabase
         .from('daily_activities')
-        .select('*')
-        .eq('tour_id', tourId);
-    
-    if (error) {
-        console.error("Error:", error);
-    } else {
-        console.log("Daily activities count:", acts.length);
-        console.log("Daily activities details:", acts.map(a => ({ id: a.id, tour_id: a.tour_id, title: a.title, activity_type: a.activity_type })));
+        .select(`
+            *,
+            tour_itineraries!inner (
+                tour_id,
+                day_number,
+                date
+            )
+        `)
+        .limit(30);
+
+    if (err) {
+        console.error("Error:", err);
+        return;
     }
+
+    console.log(`Found ${rawActs.length} activities.`);
+    rawActs.forEach((a, i) => {
+        console.log(`\n--- Activity #${i+1} ---`);
+        console.log(`ID: ${a.id}`);
+        console.log(`Type: ${a.activity_type}`);
+        console.log(`Title: ${a.title}`);
+        console.log(`Description: ${a.description}`);
+        console.log(`Charged Unit Price: ${a.charged_unit_price}`);
+        console.log(`Charged Total Price: ${a.charged_total_price}`);
+        console.log(`Quantity: ${a.quantity}`);
+        console.log(`Hotel ID: ${a.hotel_id}`);
+        console.log(`Meal Plan: ${a.meal_plan}`);
+        console.log(`Rooms: Single(${a.single_room_count}), Double(${a.double_room_count}), Twin(${a.twin_room_count}), Triple(${a.triple_room_count}), Family(${a.family_room_count})`);
+    });
 }
 
 run();

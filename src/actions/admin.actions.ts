@@ -29,6 +29,7 @@ import { TourSharedEmailService } from "@/services/tour-shared-email.service";
 import { VendorEmailHistoryService } from "@/services/vendor-email-history.service";
 import { enforcePermission } from "@/utils/auth-enforcer";
 import { AppSettingsService } from "@/services/app-settings.service";
+import { CustomerInvoiceService } from "@/services/customer-invoice.service";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -1776,6 +1777,59 @@ export async function updatePurchaseOrderAction(poId: string, updates: any) {
     } catch (error: any) {
         console.error("Error in updatePurchaseOrderAction:", error);
         return { success: false, error: error.message || "Failed to update PO details." };
+    }
+}
+
+export async function previewCustomerInvoiceAction(tourId: string, options: any) {
+    try {
+        const items = await CustomerInvoiceService.previewInvoiceItems(tourId, options);
+        return { success: true, items };
+    } catch (error: any) {
+        console.error("Error in previewCustomerInvoiceAction:", error);
+        return { success: false, error: error.message || "Failed to preview customer invoice." };
+    }
+}
+
+export async function generateCustomerInvoiceAction(dto: any) {
+    try {
+        const invoice = await CustomerInvoiceService.generateCustomerInvoice(dto);
+        revalidatePath("/admin-new");
+        return { success: true, invoice };
+    } catch (error: any) {
+        console.error("Error in generateCustomerInvoiceAction:", error);
+        return { success: false, error: error.message || "Failed to generate customer invoice." };
+    }
+}
+
+export async function getCustomerInvoicesAction(tourId: string) {
+    try {
+        const invoices = await CustomerInvoiceService.getCustomerInvoices(tourId);
+        return { success: true, invoices };
+    } catch (error: any) {
+        console.error("Error in getCustomerInvoicesAction:", error);
+        return { success: false, error: error.message || "Failed to retrieve customer invoices." };
+    }
+}
+
+export async function deleteCustomerInvoiceAction(invoiceId: string) {
+    try {
+        await CustomerInvoiceService.deleteCustomerInvoice(invoiceId);
+        revalidatePath("/admin-new");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in deleteCustomerInvoiceAction:", error);
+        return { success: false, error: error.message || "Failed to delete customer invoice." };
+    }
+}
+
+export async function registerCustomerPaymentAction(dto: any) {
+    try {
+        const payment = await CustomerInvoiceService.registerCustomerPayment(dto);
+        revalidatePath("/admin-new");
+        return { success: true, payment };
+    } catch (error: any) {
+        console.error("Error in registerCustomerPaymentAction:", error);
+        return { success: false, error: error.message || "Failed to register customer payment." };
     }
 }
 

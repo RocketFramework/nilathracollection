@@ -18,3 +18,20 @@ export interface CustomerPaymentDTO {
     payment_method?: string;
     transaction_id?: string;
 }
+
+export interface GenerateCustomerInvoiceDTO {
+    tour_id: string;
+    discountAmount: number;
+    taxAmount: number;
+    agencyNote?: string;
+    customServiceFee?: number;
+    flightsQuotedSeparately?: boolean;
+    flightsQuotedPrice?: number;
+    billingDetails: {
+        name: string;
+        email: string;
+        phone: string;
+        address: string;
+    };
+    dueDate?: string;
+}

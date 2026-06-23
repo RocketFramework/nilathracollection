@@ -443,5 +443,21 @@ export interface TourRfpEmail {
     sent_by?: string;
 }
 
+export interface GenerateCustomerInvoiceOptions {
+    discountAmount: number;
+    taxAmount: number;
+    agencyNote?: string;
+    customServiceFee?: number;
+    flightsQuotedSeparately?: boolean;
+    flightsQuotedPrice?: number;
+    billingDetails: {
+        name: string;
+        email: string;
+        phone: string;
+        address: string;
+    };
+    dueDate?: string;
+}
+
 
 

@@ -17,7 +17,8 @@ import {
   Shield, 
   UserCheck, 
   User, 
-  Mail, 
+  Mail,
+  Phone, 
   MailQuestion, 
   Send, 
   Type, 
@@ -25,6 +26,8 @@ import {
   Paperclip, 
   Receipt, 
   CircleDollarSign, 
+  Sparkles,
+  Info,
   TrendingUp,
   ChevronRight,
   ChevronLeft,
@@ -128,6 +131,11 @@ import {
   logRfpEmailAction,
   getRfpEmailsForTourAction,
   updatePurchaseOrderAction,
+  previewCustomerInvoiceAction,
+  generateCustomerInvoiceAction,
+  getCustomerInvoicesAction,
+  deleteCustomerInvoiceAction,
+  registerCustomerPaymentAction,
   uploadPayslipAction,
   getPayslipSignedUrlAction
 } from '@/actions/admin.actions';
@@ -1568,17 +1576,49 @@ function PlannerWizardWorkspace() {
       if (tripData) {
         const updatedTripData = { 
           ...tripData, 
+          clientName: `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || tripData.clientName,
+          clientEmail: touristData.profile.email || tripData.clientEmail,
+          clientPhone: touristData.profile.phone || tripData.clientPhone,
+          clientAddress: touristData.profile.address || tripData.clientAddress,
+          clientPassport: touristData.profile.passport_number || tripData.clientPassport,
           itinerary,
           manualSingle,
           manualDouble,
           manualTriple,
           manualFamily,
-          profile: tripData.profile ? {
+          profile: {
             ...tripData.profile,
-            adults: touristData.preferences.adults ?? tripData.profile.adults,
-            children: touristData.preferences.children ?? tripData.profile.children,
-            infants: touristData.preferences.infants ?? tripData.profile.infants,
-          } : tripData.profile
+            adults: touristData.preferences.adults ?? tripData.profile?.adults ?? 2,
+            children: touristData.preferences.children ?? tripData.profile?.children ?? 0,
+            infants: touristData.preferences.infants ?? tripData.profile?.infants ?? 0,
+            arrivalDate: touristData.preferences.arrival_date || tripData.profile?.arrivalDate || '',
+            departureDate: touristData.preferences.departure_date || tripData.profile?.departureDate || '',
+            durationDays: touristData.preferences.duration_days ?? tripData.profile?.durationDays ?? 0,
+            budgetTotal: touristData.preferences.budget_total ?? tripData.profile?.budgetTotal ?? 0,
+            budgetPerPerson: touristData.preferences.budget_per_person ?? tripData.profile?.budgetPerPerson ?? 0,
+            travelStyle: (touristData.preferences.travel_style || tripData.profile?.travelStyle || 'Luxury') as TravelStyle,
+            departureCountry: touristData.preferences.departure_country || tripData.profile?.departureCountry || '',
+            specialConditions: {
+              dietary: touristData.preferences.dietary_requirements || tripData.profile?.specialConditions?.dietary || '',
+              medical: touristData.preferences.medical_conditions || tripData.profile?.specialConditions?.medical || '',
+              accessibility: touristData.preferences.accessibility_requirements || tripData.profile?.specialConditions?.accessibility || '',
+              language: touristData.preferences.language_preference || tripData.profile?.specialConditions?.language || 'English',
+              occasion: touristData.preferences.special_notes || tripData.profile?.specialConditions?.occasion || '',
+            }
+          },
+          travelers: (touristData.team || []).map(t => ({
+            id: t.id,
+            fullName: t.full_name,
+            passportNumber: t.passport_number,
+            nationality: t.nationality,
+            dateOfBirth: t.date_of_birth,
+            gender: t.gender,
+            dietaryPreferences: t.dietary_preferences,
+            mealPreference: t.meal_preference,
+            roomPreference: t.room_preference,
+            sharedWithIds: t.shared_with_ids,
+            medicalNotes: t.medical_notes,
+          }))
         };
         const tourRes = await saveTourAction(tourId, updatedTripData);
         if (!tourRes.success) {
@@ -1919,6 +1959,26 @@ function PlannerWizardWorkspace() {
         }
       }
       loadSharedEmails();
+    }
+  }, [currentStep?.id, tourId]);
+
+  // Load customer invoices when step is 'payment-receive'
+  useEffect(() => {
+    if (currentStep?.id === 'payment-receive' && tourId) {
+      async function loadCustomerInvoices() {
+        setIsLoadingCustomerInvoices(true);
+        try {
+          const res = await getCustomerInvoicesAction(tourId);
+          if (res.success && res.invoices) {
+            setCustomerInvoices(res.invoices);
+          }
+        } catch (err) {
+          console.error("Error loading customer invoices:", err);
+        } finally {
+          setIsLoadingCustomerInvoices(false);
+        }
+      }
+      loadCustomerInvoices();
     }
   }, [currentStep?.id, tourId]);
 
@@ -2335,6 +2395,32 @@ function PlannerWizardWorkspace() {
   const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
   const [paymentCurrency, setPaymentCurrency] = useState<string>('USD');
   const [paymentExchangeRate, setPaymentExchangeRate] = useState<string>('1.0');
+
+  // Customer Invoices states
+  const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [isLoadingCustomerInvoices, setIsLoadingCustomerInvoices] = useState<boolean>(false);
+  const [isGeneratingCustomerInvoice, setIsGeneratingCustomerInvoice] = useState<boolean>(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState<boolean>(false);
+  const [customerInvoicePreviewItems, setCustomerInvoicePreviewItems] = useState<any[]>([]);
+  const [showCreateCustomerInvoiceModal, setShowCreateCustomerInvoiceModal] = useState<boolean>(false);
+  const [invoiceDiscountAmount, setInvoiceDiscountAmount] = useState<string>('0.00');
+  const [invoiceTaxAmount, setInvoiceTaxAmount] = useState<string>('0.00');
+  const [invoiceAgencyNote, setInvoiceAgencyNote] = useState<string>('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState<string>('');
+  const [invoiceCustomServiceFee, setInvoiceCustomServiceFee] = useState<string>('');
+  const [invoiceFlightsQuotedSeparately, setInvoiceFlightsQuotedSeparately] = useState<boolean>(false);
+  const [invoiceFlightsQuotedPrice, setInvoiceFlightsQuotedPrice] = useState<string>('0.00');
+  const [invoiceBillingName, setInvoiceBillingName] = useState<string>('');
+  const [invoiceBillingEmail, setInvoiceBillingEmail] = useState<string>('');
+  const [invoiceBillingPhone, setInvoiceBillingPhone] = useState<string>('');
+  const [invoiceBillingAddress, setInvoiceBillingAddress] = useState<string>('');
+  
+  // Client payment state
+  const [customerPaymentInvoiceId, setCustomerPaymentInvoiceId] = useState<string | null>(null);
+  const [customerPaymentAmount, setCustomerPaymentAmount] = useState<string>('');
+  const [customerPaymentMethod, setCustomerPaymentMethod] = useState<string>('Bank Transfer');
+  const [customerPaymentTxId, setCustomerPaymentTxId] = useState<string>('');
 
   const initInvoiceItems = (po: any) => {
     if (po.items && po.items.length > 0) {
@@ -3375,6 +3461,148 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  // Customer Invoice Handlers
+  const reloadCustomerInvoices = async () => {
+    if (!tourId) return;
+    setIsLoadingCustomerInvoices(true);
+    try {
+      const res = await getCustomerInvoicesAction(tourId);
+      if (res.success && res.invoices) {
+        setCustomerInvoices(res.invoices);
+      }
+    } catch (e) {
+      console.error("Failed to load customer invoices:", e);
+    } finally {
+      setIsLoadingCustomerInvoices(false);
+    }
+  };
+
+  const handleOpenCreateInvoice = () => {
+    const defaultName = touristData?.profile ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() : '';
+    const defaultEmail = touristData?.profile?.email || '';
+    const defaultPhone = touristData?.profile?.phone || '';
+    const defaultAddress = touristData?.profile?.address || '';
+    
+    setInvoiceBillingName(defaultName);
+    setInvoiceBillingEmail(defaultEmail);
+    setInvoiceBillingPhone(defaultPhone);
+    setInvoiceBillingAddress(defaultAddress);
+    
+    // Default 14 days due date
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    setInvoiceDueDate(d.toISOString().split('T')[0]);
+    
+    setInvoiceDiscountAmount('0.00');
+    setInvoiceTaxAmount('0.00');
+    setInvoiceAgencyNote('Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX');
+    setInvoiceCustomServiceFee('');
+    setInvoiceFlightsQuotedSeparately(false);
+    setInvoiceFlightsQuotedPrice('0.00');
+    setCustomerInvoicePreviewItems([]);
+    
+    setShowCreateCustomerInvoiceModal(true);
+  };
+
+  const handlePreviewInvoice = async () => {
+    if (!tourId) return;
+    setIsGeneratingPreview(true);
+    try {
+      const res = await previewCustomerInvoiceAction(tourId, {
+        customServiceFee: invoiceCustomServiceFee ? parseFloat(invoiceCustomServiceFee) : undefined,
+        flightsQuotedSeparately: invoiceFlightsQuotedSeparately,
+        flightsQuotedPrice: parseFloat(invoiceFlightsQuotedPrice) || 0,
+      });
+      if (res.success && res.items) {
+        setCustomerInvoicePreviewItems(res.items);
+      } else {
+        alert("Failed to generate preview: " + res.error);
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const handleGenerateInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tourId) return;
+    
+    setIsGeneratingCustomerInvoice(true);
+    try {
+      const res = await generateCustomerInvoiceAction({
+        tour_id: tourId,
+        discountAmount: parseFloat(invoiceDiscountAmount) || 0,
+        taxAmount: parseFloat(invoiceTaxAmount) || 0,
+        agencyNote: invoiceAgencyNote || undefined,
+        customServiceFee: invoiceCustomServiceFee ? parseFloat(invoiceCustomServiceFee) : undefined,
+        flightsQuotedSeparately: invoiceFlightsQuotedSeparately,
+        flightsQuotedPrice: parseFloat(invoiceFlightsQuotedPrice) || 0,
+        billingDetails: {
+          name: invoiceBillingName,
+          email: invoiceBillingEmail,
+          phone: invoiceBillingPhone,
+          address: invoiceBillingAddress
+        },
+        dueDate: invoiceDueDate || undefined
+      });
+
+      if (res.success) {
+        alert("Customer invoice generated successfully! Number: " + res.invoice.invoice_number);
+        setShowCreateCustomerInvoiceModal(false);
+        reloadCustomerInvoices();
+      } else {
+        alert("Failed to generate invoice: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsGeneratingCustomerInvoice(false);
+    }
+  };
+
+  const handleDeleteCustomerInvoice = async (invoiceId: string) => {
+    if (!confirm("Are you sure you want to delete this customer invoice? This will also remove all associated invoice items and payments.")) return;
+    try {
+      const res = await deleteCustomerInvoiceAction(invoiceId);
+      if (res.success) {
+        alert("Invoice deleted successfully.");
+        reloadCustomerInvoices();
+      } else {
+        alert("Failed to delete invoice: " + res.error);
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    }
+  };
+
+  const handleRecordCustomerPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerPaymentInvoiceId) return;
+    
+    try {
+      const res = await registerCustomerPaymentAction({
+        invoice_id: customerPaymentInvoiceId,
+        amount: parseFloat(customerPaymentAmount) || 0,
+        payment_method: customerPaymentMethod,
+        transaction_id: customerPaymentTxId || undefined
+      });
+
+      if (res.success) {
+        alert("Payment recorded successfully!");
+        setCustomerPaymentInvoiceId(null);
+        setCustomerPaymentAmount('');
+        setCustomerPaymentTxId('');
+        reloadCustomerInvoices();
+      } else {
+        alert("Failed to record payment: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
   useEffect(() => {
     if (!isStateRestored) return;
 
@@ -3461,17 +3689,49 @@ function PlannerWizardWorkspace() {
       try {
         const updatedTripData = {
           ...tripData,
+          clientName: touristData?.profile ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() : tripData.clientName,
+          clientEmail: touristData?.profile?.email || tripData.clientEmail,
+          clientPhone: touristData?.profile?.phone || tripData.clientPhone,
+          clientAddress: touristData?.profile?.address || tripData.clientAddress,
+          clientPassport: touristData?.profile?.passport_number || tripData.clientPassport,
           itinerary,
           manualSingle,
           manualDouble,
           manualTriple,
           manualFamily,
-          profile: tripData.profile ? {
+          profile: {
             ...tripData.profile,
-            adults: touristData?.preferences?.adults ?? tripData.profile.adults,
-            children: touristData?.preferences?.children ?? tripData.profile.children,
-            infants: touristData?.preferences?.infants ?? tripData.profile.infants,
-          } : tripData.profile
+            adults: touristData?.preferences?.adults ?? tripData.profile?.adults ?? 2,
+            children: touristData?.preferences?.children ?? tripData.profile?.children ?? 0,
+            infants: touristData?.preferences?.infants ?? tripData.profile?.infants ?? 0,
+            arrivalDate: touristData?.preferences?.arrival_date || tripData.profile?.arrivalDate || '',
+            departureDate: touristData?.preferences?.departure_date || tripData.profile?.departureDate || '',
+            durationDays: touristData?.preferences?.duration_days ?? tripData.profile?.durationDays ?? 0,
+            budgetTotal: touristData?.preferences?.budget_total ?? tripData.profile?.budgetTotal ?? 0,
+            budgetPerPerson: touristData?.preferences?.budget_per_person ?? tripData.profile?.budgetPerPerson ?? 0,
+            travelStyle: (touristData?.preferences?.travel_style || tripData.profile?.travelStyle || 'Luxury') as TravelStyle,
+            departureCountry: touristData?.preferences?.departure_country || tripData.profile?.departureCountry || '',
+            specialConditions: {
+              dietary: touristData?.preferences?.dietary_requirements || tripData.profile?.specialConditions?.dietary || '',
+              medical: touristData?.preferences?.medical_conditions || tripData.profile?.specialConditions?.medical || '',
+              accessibility: touristData?.preferences?.accessibility_requirements || tripData.profile?.specialConditions?.accessibility || '',
+              language: touristData?.preferences?.language_preference || tripData.profile?.specialConditions?.language || 'English',
+              occasion: touristData?.preferences?.special_notes || tripData.profile?.specialConditions?.occasion || '',
+            }
+          },
+          travelers: touristData?.team ? touristData.team.map(t => ({
+            id: t.id,
+            fullName: t.full_name,
+            passportNumber: t.passport_number,
+            nationality: t.nationality,
+            dateOfBirth: t.date_of_birth,
+            gender: t.gender,
+            dietaryPreferences: t.dietary_preferences,
+            mealPreference: t.meal_preference,
+            roomPreference: t.room_preference,
+            sharedWithIds: t.shared_with_ids,
+            medicalNotes: t.medical_notes,
+          })) : tripData.travelers
         };
 
         const res = await saveTourAction(tourId, updatedTripData);
@@ -7159,6 +7419,314 @@ function PlannerWizardWorkspace() {
                       )}
                     </div>
                   </div>
+                ) : track === 'final' && currentStep.id === 'payment-receive' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="flex items-center justify-between border-b border-neutral-100 pb-4 mb-6">
+                      <div>
+                        <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                          <CircleDollarSign className="w-5 h-5 text-emerald-800" />
+                          Collect Tourist Payment
+                        </h3>
+                        <p className="text-xs text-neutral-400 mt-1">
+                          Generate experience-based customer invoices and log client payments.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleOpenCreateInvoice}
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition-all shadow-md cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Generate Customer Invoice
+                      </button>
+                    </div>
+
+                    {/* Invoices List */}
+                    {isLoadingCustomerInvoices ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-800" />
+                        <p className="text-xs text-neutral-450 italic">Loading customer invoices...</p>
+                      </div>
+                    ) : customerInvoices.length === 0 ? (
+                      <div className="text-center py-12 bg-neutral-50/50 border border-dashed border-neutral-250 rounded-2xl space-y-3">
+                        <Receipt className="w-10 h-10 text-neutral-300 mx-auto" />
+                        <h4 className="text-sm font-bold text-neutral-700">No Invoices Yet</h4>
+                        <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                          Click "Generate Customer Invoice" to build a consolidated category-based billing document for this guest.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {customerInvoices.map((inv) => {
+                          const isExpanded = expandedInvoiceId === inv.id;
+                          const totalPaid = (inv.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+                          const remainingBalance = Math.max(0, inv.amount - totalPaid);
+                          
+                          return (
+                            <div key={inv.id} className="border border-neutral-200 rounded-2xl bg-white shadow-sm overflow-hidden transition-all hover:shadow-md">
+                              {/* Invoice Header */}
+                              <div className="p-5 bg-neutral-50/50 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-emerald-50 text-emerald-800 rounded-xl flex items-center justify-center border border-emerald-100/50">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-mono font-bold text-neutral-500 block">Invoice Number</span>
+                                    <span className="text-sm font-bold text-neutral-800">{inv.invoice_number}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-6">
+                                  <div>
+                                    <span className="text-xs font-sans font-bold text-neutral-500 block text-right">Total Amount</span>
+                                    <span className="text-sm font-mono font-extrabold text-neutral-800 text-right block">
+                                      {inv.currency || 'USD'} {inv.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                      inv.status === 'Paid'
+                                        ? 'bg-green-50 text-green-700 border border-green-100'
+                                        : inv.status === 'Cancelled'
+                                        ? 'bg-red-50 text-red-700 border border-red-100'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                    }`}>
+                                      {inv.status}
+                                    </span>
+                                    <button
+                                      onClick={() => handleDeleteCustomerInvoice(inv.id)}
+                                      className="p-1.5 text-neutral-450 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                      title="Delete Invoice"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Invoice Details */}
+                              <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-neutral-600">
+                                <div className="space-y-1 bg-neutral-50/50 p-4 rounded-xl border border-neutral-100">
+                                  <span className="font-bold text-neutral-700 block mb-1">Billing Details</span>
+                                  <p className="font-medium text-neutral-800">{inv.billing_details?.name}</p>
+                                  <p className="text-[11px] text-neutral-500">{inv.billing_details?.email}</p>
+                                  <p className="text-[11px] text-neutral-500">{inv.billing_details?.phone}</p>
+                                  <p className="text-[11px] text-neutral-500 mt-1 leading-normal italic">{inv.billing_details?.address}</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <div>
+                                    <span className="font-bold text-neutral-500 block">Due Date</span>
+                                    <span className="font-medium text-neutral-800">
+                                      {inv.due_date ? new Date(inv.due_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'On Presentation'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-bold text-neutral-500 block">Created On</span>
+                                    <span className="font-medium text-neutral-800">
+                                      {new Date(inv.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                    </span>
+                                  </div>
+                                  {inv.agency_note && (
+                                    <div className="pt-1 border-t border-neutral-100">
+                                      <span className="font-bold text-neutral-500 block">Notes / Bank Details</span>
+                                      <p className="text-[10px] text-neutral-500 whitespace-pre-line leading-relaxed">{inv.agency_note}</p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Financial Summary & Payments */}
+                                <div className="space-y-3 bg-neutral-50/50 p-4 rounded-xl border border-neutral-100 flex flex-col justify-between">
+                                  <div>
+                                    <span className="font-bold text-neutral-700 block mb-1">Payment Status</span>
+                                    <div className="flex items-center justify-between text-[11px] py-1 border-b border-neutral-200/50">
+                                      <span>Total Paid:</span>
+                                      <span className="font-mono font-bold text-emerald-800">
+                                        {inv.currency || 'USD'} {totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs font-bold pt-2">
+                                      <span>Balance Due:</span>
+                                      <span className={`font-mono ${remainingBalance <= 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                                        {inv.currency || 'USD'} {remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {inv.status !== 'Paid' && customerPaymentInvoiceId !== inv.id && (
+                                    <button
+                                      onClick={() => {
+                                        setCustomerPaymentInvoiceId(inv.id);
+                                        setCustomerPaymentAmount(remainingBalance.toFixed(2));
+                                        setCustomerPaymentMethod('Bank Transfer');
+                                        setCustomerPaymentTxId('');
+                                      }}
+                                      className="w-full text-center px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm mt-3 cursor-pointer"
+                                    >
+                                      Record Client Payment
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Record Payment Form (Inline) */}
+                              {customerPaymentInvoiceId === inv.id && (
+                                <form onSubmit={handleRecordCustomerPayment} className="p-5 border-t border-emerald-100 bg-emerald-50/20 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                  <h5 className="text-xs font-bold text-emerald-850 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Coins className="w-4 h-4" /> Record Customer Payment
+                                  </h5>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Amount ({inv.currency || 'USD'})</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={customerPaymentAmount}
+                                        onChange={(e) => setCustomerPaymentAmount(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Payment Method</label>
+                                      <select
+                                        value={customerPaymentMethod}
+                                        onChange={(e) => setCustomerPaymentMethod(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      >
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Credit Card">Credit Card</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Cheque">Cheque</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Transaction / Ref ID</label>
+                                      <input
+                                        type="text"
+                                        placeholder="e.g. TXN-1029302"
+                                        value={customerPaymentTxId}
+                                        onChange={(e) => setCustomerPaymentTxId(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-end gap-2 pt-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setCustomerPaymentInvoiceId(null)}
+                                      className="px-3.5 py-2 border border-neutral-250 hover:bg-neutral-50 text-neutral-600 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="submit"
+                                      className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm cursor-pointer"
+                                    >
+                                      Save Payment
+                                    </button>
+                                  </div>
+                                </form>
+                              )}
+
+                              {/* Accordion Toggle */}
+                              <div className="border-t border-neutral-100">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedInvoiceId(isExpanded ? null : inv.id)}
+                                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-neutral-50 text-xs font-semibold text-neutral-700 transition-colors cursor-pointer"
+                                >
+                                  <span>{isExpanded ? "Hide Consolidated Line Items" : "View Consolidated Line Items"}</span>
+                                  {isExpanded ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
+                                </button>
+                              </div>
+
+                              {/* Accordion Content */}
+                              {isExpanded && (
+                                <div className="bg-neutral-50/30 p-5 border-t border-neutral-100 space-y-4 animate-in fade-in duration-205">
+                                  <div className="overflow-x-auto border border-neutral-200 rounded-xl bg-white shadow-sm">
+                                    <table className="min-w-full divide-y divide-neutral-200 text-left text-xs">
+                                      <thead className="bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                        <tr>
+                                          <th scope="col" className="px-4 py-2.5">Category & Description</th>
+                                          <th scope="col" className="px-4 py-2.5 text-right">Amount ({inv.currency || 'USD'})</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-neutral-100 text-neutral-750 font-medium">
+                                        {inv.items?.map((item: any) => (
+                                          <tr key={item.id} className="hover:bg-neutral-50/50 transition-colors">
+                                            <td className="px-4 py-3 leading-normal">{item.description}</td>
+                                            <td className="px-4 py-3 text-right font-mono font-bold">
+                                              ${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                        
+                                        {/* Summary math inside items table */}
+                                        <tr className="bg-neutral-50/50 font-bold border-t-2 border-neutral-250">
+                                          <td className="px-4 py-2 text-right text-[10px] text-neutral-500 uppercase">Subtotal</td>
+                                          <td className="px-4 py-2 text-right font-mono">
+                                            ${((inv.amount || 0) + (inv.discount_amount || 0) - (inv.tax_amount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                          </td>
+                                        </tr>
+                                        {inv.discount_amount > 0 && (
+                                          <tr className="bg-neutral-50/30 text-amber-700 font-bold">
+                                            <td className="px-4 py-2 text-right text-[10px] uppercase">Discount Applied</td>
+                                            <td className="px-4 py-2 text-right font-mono">
+                                              -${Number(inv.discount_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                          </tr>
+                                        )}
+                                        {inv.tax_amount > 0 && (
+                                          <tr className="bg-neutral-50/30 text-neutral-750 font-bold">
+                                            <td className="px-4 py-2 text-right text-[10px] uppercase">Tax / VAT</td>
+                                            <td className="px-4 py-2 text-right font-mono">
+                                              +${Number(inv.tax_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                          </tr>
+                                        )}
+                                        <tr className="bg-emerald-50/20 text-emerald-900 font-extrabold border-t border-emerald-100">
+                                          <td className="px-4 py-2.5 text-right text-xs uppercase tracking-wide">Total Invoice Amount</td>
+                                          <td className="px-4 py-2.5 text-right font-mono text-sm">
+                                            ${Number(inv.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {/* Payments Log */}
+                                  <div className="space-y-2">
+                                    <h6 className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Client Payment History</h6>
+                                    {inv.payments && inv.payments.length > 0 ? (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {inv.payments.map((p: any) => (
+                                          <div key={p.id} className="p-3 bg-white border border-neutral-150 rounded-xl flex items-center justify-between text-[11px] shadow-sm animate-in fade-in">
+                                            <div>
+                                              <span className="font-bold text-neutral-700 block">{p.payment_method}</span>
+                                              <span className="text-[10px] text-neutral-450 block font-mono">{p.transaction_id || 'No Ref / Tx ID'}</span>
+                                            </div>
+                                            <div className="text-right">
+                                              <span className="font-mono font-bold text-emerald-800 block">${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                              <span className="text-[9px] text-neutral-400 font-mono block">
+                                                {new Date(p.created_at).toLocaleDateString(undefined, { dateStyle: 'short' })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-[10px] text-neutral-450 italic">No payments logged against this invoice yet.</p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 ) : track === 'basic' && currentStep.id === 'ai-builder' ? (
                   <AIItineraryBuilder
                     itinerary={itinerary}
@@ -8517,6 +9085,301 @@ function PlannerWizardWorkspace() {
                   </button>
                 </div>
 
+              </div>
+            </div>
+          );
+        })(), document.body)}
+
+        {/* Customer Invoice Generation Modal Overlay */}
+        {showCreateCustomerInvoiceModal && mounted && createPortal((() => {
+          const subtotalPreview = customerInvoicePreviewItems.reduce((sum, item) => sum + item.amount, 0);
+          const discountPreview = parseFloat(invoiceDiscountAmount) || 0;
+          const taxPreview = parseFloat(invoiceTaxAmount) || 0;
+          const totalPreview = Math.max(0, subtotalPreview - discountPreview + taxPreview);
+
+          return (
+            <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden border border-neutral-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                {/* Modal Header */}
+                <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                  <div>
+                    <h3 className="text-lg font-serif font-bold text-neutral-800 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-emerald-800" />
+                      Generate Customer Invoice (Consolidated)
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      Consolidates client billing into clean experience categories. No supplier rack rates are exposed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCustomerInvoiceModal(false)}
+                    className="p-1.5 hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column: Form Settings */}
+                  <div className="space-y-6">
+                    {/* Section: Client Billing Info */}
+                    <div className="bg-neutral-50/30 p-5 rounded-2xl border border-neutral-150 space-y-4">
+                      <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <User className="w-4 h-4 text-emerald-800" /> Client Billing Information
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Client Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={invoiceBillingName}
+                            onChange={(e) => setInvoiceBillingName(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Email Address</label>
+                          <input
+                            type="email"
+                            required
+                            value={invoiceBillingEmail}
+                            onChange={(e) => setInvoiceBillingEmail(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Phone Number</label>
+                          <input
+                            type="text"
+                            value={invoiceBillingPhone}
+                            onChange={(e) => setInvoiceBillingPhone(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Payment Due Date</label>
+                          <input
+                            type="date"
+                            value={invoiceDueDate}
+                            onChange={(e) => setInvoiceDueDate(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Billing Address</label>
+                        <textarea
+                          rows={2}
+                          value={invoiceBillingAddress}
+                          onChange={(e) => setInvoiceBillingAddress(e.target.value)}
+                          className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800 resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Section: Financial Adjustments */}
+                    <div className="bg-neutral-50/30 p-5 rounded-2xl border border-neutral-150 space-y-4">
+                      <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <DollarSign className="w-4 h-4 text-emerald-800" /> Billing Adjustments & Fees
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold flex items-center gap-1">
+                            Discount Amt ($)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={invoiceDiscountAmount}
+                            onChange={(e) => setInvoiceDiscountAmount(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Tax / VAT ($)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={invoiceTaxAmount}
+                            onChange={(e) => setInvoiceTaxAmount(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold flex items-center gap-1">
+                            Service Fee ($)
+                            <span className="text-[9px] text-neutral-400 normal-case font-normal">(Override)</span>
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Auto-calculated"
+                            value={invoiceCustomServiceFee}
+                            onChange={(e) => setInvoiceCustomServiceFee(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Flights Options */}
+                      <div className="border-t border-neutral-200/50 pt-3 space-y-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-neutral-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={invoiceFlightsQuotedSeparately}
+                            onChange={(e) => setInvoiceFlightsQuotedSeparately(e.target.checked)}
+                            className="rounded text-emerald-800 focus:ring-emerald-800 cursor-pointer"
+                          />
+                          Expose flights as separately quoted item
+                        </label>
+
+                        {invoiceFlightsQuotedSeparately && (
+                          <div className="space-y-1 animate-in slide-in-from-top-1 duration-150">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Flight Quoted Price ($)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={invoiceFlightsQuotedPrice}
+                              onChange={(e) => setInvoiceFlightsQuotedPrice(e.target.value)}
+                              className="w-full max-w-[200px] bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Section: Notes & Terms */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5" /> Notes & Bank Instructions
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={invoiceAgencyNote}
+                        onChange={(e) => setInvoiceAgencyNote(e.target.value)}
+                        className="w-full bg-neutral-50/30 border border-neutral-200 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-emerald-800 leading-normal"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Column: Live Preview Panel */}
+                  <div className="flex flex-col h-full space-y-4">
+                    <div className="flex-1 border border-neutral-200 rounded-2xl bg-neutral-50/30 p-5 flex flex-col justify-between min-h-[300px]">
+                      <div>
+                        <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center justify-between">
+                          <span>Live Invoicing Preview</span>
+                          <button
+                            type="button"
+                            onClick={handlePreviewInvoice}
+                            disabled={isGeneratingPreview}
+                            className="px-3 py-1 bg-white hover:bg-neutral-50 text-emerald-800 border border-neutral-250 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          >
+                            {isGeneratingPreview ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Generate Preview
+                              </>
+                            )}
+                          </button>
+                        </h4>
+
+                        {/* Preview Items */}
+                        <div className="mt-4 space-y-2 max-h-[220px] overflow-y-auto">
+                          {customerInvoicePreviewItems.length > 0 ? (
+                            customerInvoicePreviewItems.map((item, idx) => (
+                              <div key={idx} className="p-3 bg-white border border-neutral-150 rounded-xl flex items-center justify-between text-[11px] shadow-sm animate-in fade-in duration-200">
+                                <span className="text-neutral-700 leading-normal font-medium max-w-[70%]">{item.description}</span>
+                                <span className="font-mono font-bold text-neutral-800">
+                                  ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="py-12 text-center text-neutral-450 italic text-[11px] bg-white border border-dashed border-neutral-200 rounded-xl">
+                              No preview generated yet. Configure options on the left and click "Generate Preview".
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Preview Summary */}
+                      {customerInvoicePreviewItems.length > 0 && (
+                        <div className="pt-4 border-t border-neutral-200 mt-4 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between text-neutral-500 font-medium">
+                            <span>Subtotal:</span>
+                            <span className="font-mono">${subtotalPreview.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          {discountPreview > 0 && (
+                            <div className="flex items-center justify-between text-amber-700 font-medium">
+                              <span>Discount:</span>
+                              <span className="font-mono">-${discountPreview.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+                          {taxPreview > 0 && (
+                            <div className="flex items-center justify-between text-neutral-700 font-medium">
+                              <span>Tax / VAT:</span>
+                              <span className="font-mono">+${taxPreview.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-emerald-900 font-extrabold text-sm pt-2 border-t border-neutral-200/50">
+                            <span>Total Selling Price:</span>
+                            <span className="font-mono text-base">${totalPreview.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-amber-50 text-amber-800 p-4 border border-amber-100 rounded-2xl flex gap-2.5 text-[11px] leading-relaxed">
+                      <Info className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
+                      <p>
+                        <strong>VIP Billing Notice:</strong> Individual supplier contracted rates and margin buffers are completely omitted from this preview. The guest will only see consolidated experience descriptions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-6 border-t border-neutral-100 flex items-center justify-end gap-3 bg-neutral-50/50">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCustomerInvoiceModal(false)}
+                    className="px-5 py-2.5 border border-neutral-250 hover:bg-neutral-50 text-neutral-600 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateInvoice}
+                    disabled={isGeneratingCustomerInvoice || customerInvoicePreviewItems.length === 0}
+                    className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-950 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
+                  >
+                    {isGeneratingCustomerInvoice ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4.5 h-4.5" />
+                        Generate & Save Invoice
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           );
