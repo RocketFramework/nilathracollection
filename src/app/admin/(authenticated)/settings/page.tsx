@@ -16,6 +16,14 @@ export default function SettingsPage() {
         premium_vehicle_km_rate: 0,
         luxury_vehicle_km_rate: 0,
         ultra_vip_vehicle_km_rate: 0,
+        regular_vehicle_day_rate: 0,
+        premium_vehicle_day_rate: 0,
+        luxury_vehicle_day_rate: 0,
+        ultra_vip_vehicle_day_rate: 0,
+        regular_chauffeur_day_rate: 0,
+        premium_chauffeur_day_rate: 0,
+        luxury_chauffeur_day_rate: 0,
+        ultra_vip_chauffeur_day_rate: 0,
         activity_travel_prep_time: 2,
         daily_activity_hours_limit: 6,
         activity_average_speed_km: 30,
@@ -416,6 +424,184 @@ export default function SettingsPage() {
                                 step="0.01"
                                 value={markups.ultra_vip_vehicle_km_rate}
                                 onChange={(e) => setMarkups({ ...markups, ultra_vip_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">Transport Vehicle Per Day Rates</h2>
+                        <p className="text-sm text-neutral-500">Configure global per day charges for different vehicle classes.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Regular Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.regular_vehicle_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, regular_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Premium Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.premium_vehicle_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, premium_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Luxury Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.luxury_vehicle_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, luxury_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Ultra VIP Vehicle ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.ultra_vip_vehicle_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, ultra_vip_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">Transport Chauffeur Per Day Rates</h2>
+                        <p className="text-sm text-neutral-500">Configure global per day chauffeur/driver allowances and service rates by class.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Regular Chauffeur ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.regular_chauffeur_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, regular_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Premium Chauffeur ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.premium_chauffeur_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, premium_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Luxury Chauffeur ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.luxury_chauffeur_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, luxury_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Ultra VIP Chauffeur ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.ultra_vip_chauffeur_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, ultra_vip_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
