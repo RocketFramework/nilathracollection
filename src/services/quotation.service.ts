@@ -31,9 +31,32 @@ export class QuotationService {
             ? dto.daily_activity_ids
             : [dto.daily_activity_id].filter(Boolean) as string[];
 
+        // Dynamically resolve tour_id if missing/empty
+        let resolvedTourId = dto.tour_id;
+        if (!resolvedTourId && dto.itinerary_id) {
+            const { data: itin } = await adminSupabase
+                .from('tour_itineraries')
+                .select('tour_id')
+                .eq('id', dto.itinerary_id)
+                .single();
+            if (itin && itin.tour_id) {
+                resolvedTourId = itin.tour_id;
+            }
+        }
+        if (!resolvedTourId && activityIds.length > 0) {
+            const { data: act } = await adminSupabase
+                .from('daily_activities')
+                .select('tour_id')
+                .eq('id', activityIds[0])
+                .single();
+            if (act && act.tour_id) {
+                resolvedTourId = act.tour_id;
+            }
+        }
+
         const mappings = activityIds.map(actId => ({
             daily_activity_id: actId,
-            tour_id: dto.tour_id,
+            tour_id: resolvedTourId || null,
             itinerary_id: dto.itinerary_id,
             activity_type: dto.activity_type,
             quotation_request_id: quote.id

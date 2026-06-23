@@ -391,10 +391,25 @@ export class TourService {
         const supabaseAdmin = createAdminClient();
 
         // Fetch existing quotation mappings before any deletions
-        const { data: existingMappings } = await supabaseAdmin
-            .from('daily_activity_quotation_request')
-            .select('*')
+        // Fetch existing itineraries for this tour to cover any mapping rows with null tour_id
+        const { data: existingItins } = await supabaseAdmin
+            .from('tour_itineraries')
+            .select('id')
             .eq('tour_id', tourId);
+        
+        const itinIds = existingItins?.map(i => i.id) || [];
+        
+        let query = supabaseAdmin
+            .from('daily_activity_quotation_request')
+            .select('*');
+            
+        if (itinIds.length > 0) {
+            query = query.or(`tour_id.eq.${tourId},itinerary_id.in.(${itinIds.join(',')})`);
+        } else {
+            query = query.eq('tour_id', tourId);
+        }
+        
+        const { data: existingMappings } = await query;
 
         const allInsertedActivities: any[] = [];
         const { data: dbActivities } = await supabaseAdmin.from('activities').select('id, activity_name');
@@ -1068,7 +1083,7 @@ export class TourService {
                     if (!newItinId) return null;
                     return {
                         daily_activity_id: m.daily_activity_id,
-                        tour_id: m.tour_id,
+                        tour_id: m.tour_id || tourId, // Auto-heal/backfill tour_id if it was null
                         itinerary_id: newItinId,
                         activity_type: m.activity_type,
                         quotation_request_id: m.quotation_request_id
