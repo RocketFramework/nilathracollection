@@ -1,0 +1,547 @@
+diff --git a/src/app/admin-new/components/ItineraryPdfTemplateNew.tsx b/src/app/admin-new/components/ItineraryPdfTemplateNew.tsx
+index 6371687..81db957 100644
+--- a/src/app/admin-new/components/ItineraryPdfTemplateNew.tsx
++++ b/src/app/admin-new/components/ItineraryPdfTemplateNew.tsx
+@@ -1,7 +1,8 @@
+ import React from 'react';
+ import { InternalItineraryBlock } from '@/other/interfaces';
+ import { TouristDataDTO } from '@/dtos/tourist-data.dto';
+-import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys } from '@/types/types';
++import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys, TRAVEL_STYLES, GUIDE_RATE_KEYS, TravelStyleSettingKeys } from '@/types/types';
++import { InvoiceCalculationService } from '@/services/invoice-calculation.service';
+ 
+ interface ItineraryPdfTemplateNewProps {
+   itinerary: InternalItineraryBlock[];
+@@ -219,7 +220,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
+       // Helper to get settings keys
+       const getTierValue = (setting: typeof TierSettingDefinitions[keyof typeof TierSettingDefinitions]) => {
+         if (!appSettings) return setting.defaultValue;
+-        const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
++        const key = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+         const fullKey = `${key}_${setting.key}`;
+         return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
+       };
+@@ -231,7 +232,52 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
+         : pax * lunchCostPerHead;
+ 
+       // 4. Transport Cost
+-      const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
++      let dailyTransportCost = 0;
++
++      if (appSettings && (chauffeurNeeded || guideNeeded)) {
++        const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
++        
++        // Calculate Vehicle & Chauffeur if chauffeurNeeded is true
++        if (chauffeurNeeded) {
++          // Vehicle Cost
++          const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
++          const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
++          const transportMarkupPercent = Number(appSettings.transport_markup) || 0;
++          const transportMarkup = transportMarkupPercent / 100;
++          const vehicleCost = vehicleDayRate * (1 + transportMarkup);
++
++          // Chauffeur Cost
++          const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
++          const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
++          const driverMarkupPercent = appSettings.diver_markup !== undefined 
++            ? Number(appSettings.diver_markup) 
++            : (Number(appSettings.driver_markup) || 0);
++          const driverMarkup = driverMarkupPercent / 100;
++          const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
++
++          dailyTransportCost += vehicleCost + chauffeurCost;
++        }
++
++        // Calculate Guide if guideNeeded is true
++        if (guideNeeded) {
++          let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
++          if (travelStyle === TRAVEL_STYLES.REGULAR) {
++            guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
++          } else if (travelStyle === TRAVEL_STYLES.PREMIUM) {
++            guideDayRateKey = GUIDE_RATE_KEYS.REGULAR;
++          } else if (travelStyle === TRAVEL_STYLES.LUXURY || travelStyle === TRAVEL_STYLES.ULTRA_VIP) {
++            guideDayRateKey = GUIDE_RATE_KEYS.NATIONAL;
++          }
++
++          const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
++          const tourGuideMarkupPercent = Number(appSettings.tour_guide_markup) || 0;
++          const tourGuideMarkup = tourGuideMarkupPercent / 100;
++          const guideCost = guideDayRate * (1 + tourGuideMarkup);
++
++          dailyTransportCost += guideCost;
++        }
++      }
++
+       const getBlockKm = (block: InternalItineraryBlock) => {
+         if (!block.distance) return 0;
+         const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
+@@ -240,7 +286,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
+       const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
+       const transport = overrides.transport !== undefined 
+         ? overrides.transport 
+-        : km * kmRate;
++        : dailyTransportCost;
+ 
+       // 5. Concierge Cost (ticket, refreshment, seamless concierge)
+       const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
+@@ -349,19 +395,42 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
+       return null;
+     };
+ 
+-    // Calculate overall itinerary costs summary
+-    const uniqueDays = Array.from(new Set(itinerary.map(b => b.dayNumber))).filter(d => d > 0).sort((a, b) => a - b);
+-    const overallCostSummary = uniqueDays.reduce((totals, dayNum) => {
+-      const dayCosts = calculateDayTotal(dayNum);
+-      return {
+-        hotel: totals.hotel + dayCosts.hotel,
+-        meals: totals.meals + dayCosts.meals,
+-        transport: totals.transport + dayCosts.transport,
+-        concierge: totals.concierge + dayCosts.concierge,
+-        agencyFee: totals.agencyFee + dayCosts.agencyFee,
+-        total: totals.total + dayCosts.total
+-      };
+-    }, { hotel: 0, meals: 0, transport: 0, concierge: 0, agencyFee: 0, total: 0 });
++    // Calculate overall itinerary costs summary using InvoiceCalculationService
++    const simplifiedItinerary = itinerary.map(b => ({
++      id: b.id,
++      type: b.type,
++      agreedPrice: b.agreedPrice,
++      hotelId: b.hotelId,
++      quantity: b.quantity || b.transportQuantity || b.restaurantQuantity || 1,
++      dayNumber: b.dayNumber
++    }));
++
++    const invoiceItems = InvoiceCalculationService.calculateInvoiceItems({
++      itinerary: simplifiedItinerary,
++      travelStyle,
++      chauffeurNeeded,
++      guideNeeded,
++      appSettings,
++      pax: totalPax,
++      durationDays,
++      flightsQuotedSeparately: false,
++      flightsQuotedPrice: 0,
++      customServiceFee: undefined
++    });
++
++    console.log("PDF calculation debug:", {
++      travelStyle,
++      chauffeurNeeded,
++      guideNeeded,
++      pax: totalPax,
++      durationDays,
++      appSettingsExists: !!appSettings,
++      appSettingsKeys: appSettings ? Object.keys(appSettings) : [],
++      simplifiedItineraryLength: simplifiedItinerary.length,
++      invoiceItems
++    });
++
++    const grandTotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+ 
+     // Calculate total price of hotel blocks in the skeleton itinerary
+     const hotelPriceTotal = itinerary
+@@ -606,45 +675,27 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
+                       </div>
+                     </div>
+ 
+-                    {appSettings && overallCostSummary.total > 0 ? (
++                    {appSettings && invoiceItems.length > 0 && grandTotal > 0 ? (
+                       <div className="mt-6 pt-4 border-t border-[#E8DFD1] space-y-2 text-xs font-sans text-neutral-600 bg-white p-4 rounded-xl border border-[#E8DFD1]/55 text-left">
+                         <div className="uppercase tracking-widest text-[9px] font-bold text-[#D4AF37] font-serif mb-2">Estimated Package Cost Overview</div>
+-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10.5px]">
+-                          <div className="flex justify-between">
+-                            <span className="text-neutral-400">Total Accommodation Cost:</span>
+-                            <span className="font-semibold text-neutral-700">${overallCostSummary.hotel.toFixed(2)} USD</span>
+-                          </div>
+-                          <div className="flex justify-between">
+-                            <span className="text-neutral-400">Total Meal Cost ({adults + children} Pax):</span>
+-                            <span className="font-semibold text-neutral-700">${overallCostSummary.meals.toFixed(2)} USD</span>
+-                          </div>
+-                          <div className="flex justify-between">
+-                            <span className="text-neutral-400">Total Transport Cost:</span>
+-                            <span className="font-semibold text-neutral-700">${overallCostSummary.transport.toFixed(2)} USD</span>
+-                          </div>
+-                          <div className="flex justify-between">
+-                            <span className="text-neutral-400">Total Concierge & Seamless Support:</span>
+-                            <span className="font-semibold text-neutral-700">${overallCostSummary.concierge.toFixed(2)} USD</span>
+-                          </div>
+-                          <div className="col-span-2 border-t border-neutral-100 pt-2 mt-1 flex justify-between font-bold text-neutral-800">
+-                            <span>Subtotal:</span>
+-                            <span>${(overallCostSummary.hotel + overallCostSummary.meals + overallCostSummary.transport + overallCostSummary.concierge).toFixed(2)} USD</span>
+-                          </div>
+-                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium">
+-                            <span>Agency Fee, Tax & Support Fee:</span>
+-                            <span>${overallCostSummary.agencyFee.toFixed(2)} USD</span>
+-                          </div>
+-                          <div className="col-span-2 border-t border-neutral-300 pt-2 mt-1 flex justify-between items-center text-sm font-serif font-black text-neutral-900 bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8DFD1]/55">
++                        <div className="space-y-2">
++                          {invoiceItems.map((item, idx) => (
++                            <div key={idx} className="flex justify-between border-b border-neutral-100 pb-1.5 text-[10.5px]">
++                              <span className="text-neutral-400">{item.description}:</span>
++                              <span className="font-semibold text-neutral-700">${item.amount.toFixed(2)} USD</span>
++                            </div>
++                          ))}
++                          <div className="border-t border-neutral-300 pt-2 mt-1 flex justify-between items-center text-sm font-serif font-black text-neutral-900 bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8DFD1]/55">
+                             <span className="uppercase tracking-wider text-[10px] text-[#8C6D3F]">Estimated Grand Total</span>
+-                            <span>${overallCostSummary.total.toFixed(2)} USD</span>
++                            <span>${grandTotal.toFixed(2)} USD</span>
+                           </div>
+-                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium pt-1.5 border-t border-neutral-100">
++                          <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium pt-1.5">
+                             <span>Per Head Cost (Trip Total — {totalPax} Pax):</span>
+-                            <span className="font-semibold text-neutral-700">${(overallCostSummary.total / (totalPax || 1)).toFixed(2)} USD</span>
++                            <span className="font-semibold text-neutral-700">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
+                           </div>
+-                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium">
++                          <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium">
+                             <span>Per Head Cost (Per Day):</span>
+-                            <span className="font-semibold text-neutral-700">${(overallCostSummary.total / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
++                            <span className="font-semibold text-neutral-700">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
+                           </div>
+                         </div>
+                       </div>
+@@ -749,37 +800,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
+                                   </div>
+                                 );
+                               })()}
+-                              {appSettings && (() => {
+-                                const costData = calculateDayTotal(dayNum);
+-                                return (
+-                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed text-left grid grid-cols-2 gap-x-4 gap-y-1 mt-3 bg-white p-2.5 rounded-lg border border-[#E8DFD1]/50 shadow-inner">
+-                                    <div className="col-span-2 border-b border-neutral-100 pb-1 mb-1 flex justify-between font-bold text-[#8C6D3F]">
+-                                      <span>Cost Breakdown Summary</span>
+-                                      <span>Total: ${costData.total.toFixed(2)} USD</span>
+-                                    </div>
+-                                    <div className="flex justify-between">
+-                                      <span className="text-neutral-400">Hotel Cost:</span>
+-                                      <span className="font-semibold text-neutral-700">${costData.hotel.toFixed(2)}</span>
+-                                    </div>
+-                                    <div className="flex justify-between">
+-                                      <span className="text-neutral-400">Meal Cost ({adults + children} Pax):</span>
+-                                      <span className="font-semibold text-neutral-700">${costData.meals.toFixed(2)}</span>
+-                                    </div>
+-                                    <div className="flex justify-between">
+-                                      <span className="text-neutral-400">Transport ({costData.km.toFixed(0)} km):</span>
+-                                      <span className="font-semibold text-neutral-700">${costData.transport.toFixed(2)}</span>
+-                                    </div>
+-                                    <div className="flex justify-between">
+-                                      <span className="text-neutral-400">Concierge & Tickets:</span>
+-                                      <span className="font-semibold text-neutral-700">${costData.concierge.toFixed(2)}</span>
+-                                    </div>
+-                                    <div className="col-span-2 border-t border-neutral-100 pt-1 mt-1 flex justify-between text-neutral-500 text-[9px]">
+-                                      <span>Agency Fee & Tax ({costData.agencyFeePercent}%):</span>
+-                                      <span className="font-semibold">${costData.agencyFee.toFixed(2)}</span>
+-                                    </div>
+-                                  </div>
+-                                );
+-                              })()}
++
+                             </div>
+                           </div>
+ 
+diff --git a/src/app/admin-new/page.tsx b/src/app/admin-new/page.tsx
+index df3665e..ece8043 100644
+--- a/src/app/admin-new/page.tsx
++++ b/src/app/admin-new/page.tsx
+@@ -76,7 +76,7 @@ import {
+   Pencil,
+   Flag
+ } from 'lucide-react';
+-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName } from '../../types/types';
++import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys } from '../../types/types';
+ import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
+ import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
+ import { 
+@@ -12602,7 +12602,7 @@ function AIItineraryBuilder({
+     // Helper to get settings keys
+     const getTierValue = (setting: typeof TierSettingDefinitions[keyof typeof TierSettingDefinitions]) => {
+       if (!appSettings) return setting.defaultValue;
+-      const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
++      const key = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+       const fullKey = `${key}_${setting.key}`;
+       return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
+     };
+@@ -12614,7 +12614,52 @@ function AIItineraryBuilder({
+       : pax * lunchCostPerHead;
+ 
+     // 4. Transport Cost
+-    const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
++    let dailyTransportCost = 0;
++
++    if (appSettings && (chauffeurNeeded || guideNeeded)) {
++      const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
++      
++      // Calculate Vehicle & Chauffeur if chauffeurNeeded is true
++      if (chauffeurNeeded) {
++        // Vehicle Cost
++        const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
++        const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
++        const transportMarkupPercent = Number(appSettings.transport_markup) || 0;
++        const transportMarkup = transportMarkupPercent / 100;
++        const vehicleCost = vehicleDayRate * (1 + transportMarkup);
++
++        // Chauffeur Cost
++        const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
++        const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
++        const driverMarkupPercent = appSettings.diver_markup !== undefined 
++          ? Number(appSettings.diver_markup) 
++          : (Number(appSettings.driver_markup) || 0);
++        const driverMarkup = driverMarkupPercent / 100;
++        const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
++
++        dailyTransportCost += vehicleCost + chauffeurCost;
++      }
++
++      // Calculate Guide if guideNeeded is true
++      if (guideNeeded) {
++        let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
++        if (travelStyle === TRAVEL_STYLES.REGULAR) {
++          guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
++        } else if (travelStyle === TRAVEL_STYLES.PREMIUM) {
++          guideDayRateKey = GUIDE_RATE_KEYS.REGULAR;
++        } else if (travelStyle === TRAVEL_STYLES.LUXURY || travelStyle === TRAVEL_STYLES.ULTRA_VIP) {
++          guideDayRateKey = GUIDE_RATE_KEYS.NATIONAL;
++        }
++
++        const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
++        const tourGuideMarkupPercent = Number(appSettings.tour_guide_markup) || 0;
++        const tourGuideMarkup = tourGuideMarkupPercent / 100;
++        const guideCost = guideDayRate * (1 + tourGuideMarkup);
++
++        dailyTransportCost += guideCost;
++      }
++    }
++
+     const getBlockKm = (block: InternalItineraryBlock) => {
+       if (!block.distance) return 0;
+       const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
+@@ -12623,7 +12668,7 @@ function AIItineraryBuilder({
+     const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
+     const transport = overrides.transport !== undefined 
+       ? overrides.transport 
+-      : km * kmRate;
++      : dailyTransportCost;
+ 
+     // 5. Concierge Cost (ticket, refreshment, seamless concierge)
+     const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
+@@ -13851,7 +13896,19 @@ function AIItineraryBuilder({
+                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                   {renderCostCard('Hotel Cost', 'hotel', dayTotalObj.hotel, <BedDouble className="w-4 h-4 text-amber-605 shrink-0" />)}
+                   {renderCostCard('Meals', 'meals', dayTotalObj.meals, <Utensils className="w-4 h-4 text-rose-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
+-                  {renderCostCard('Transport', 'transport', dayTotalObj.transport, <Car className="w-4 h-4 text-sky-600 shrink-0" />, `(${dayTotalObj.km.toFixed(0)} km)`)}
++                  {renderCostCard(
++                    'Transport', 
++                    'transport', 
++                    dayTotalObj.transport, 
++                    <Car className="w-4 h-4 text-sky-600 shrink-0" />, 
++                    chauffeurNeeded && guideNeeded 
++                      ? '(Vehicle, Chauffeur & Guide)' 
++                      : chauffeurNeeded 
++                        ? '(Vehicle & Chauffeur)' 
++                        : guideNeeded 
++                          ? '(Guide Only)' 
++                          : '(Not Enabled)'
++                  )}
+                   {renderCostCard('Concierge', 'concierge', dayTotalObj.concierge, <Receipt className="w-4 h-4 text-indigo-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
+                   {renderCostCard('Agency Fee', 'agencyFeePercent', dayTotalObj.agencyFeePercent, <Coins className="w-4 h-4 text-emerald-600 shrink-0" />, `($${dayTotalObj.agencyFee.toFixed(2)})`)}
+                 </div>
+diff --git a/src/services/customer-invoice.service.ts b/src/services/customer-invoice.service.ts
+index 03089ea..8017e7d 100644
+--- a/src/services/customer-invoice.service.ts
++++ b/src/services/customer-invoice.service.ts
+@@ -1,6 +1,7 @@
+ import { createAdminClient } from '@/utils/supabase/admin';
+ import { CustomerPaymentDTO, GenerateCustomerInvoiceDTO } from '../dtos/finance.dto';
+ import { DBCustomerInvoice, DBCustomerInvoiceItem } from '../types/finance';
++import { InvoiceCalculationService } from './invoice-calculation.service';
+ 
+ export class CustomerInvoiceService {
+     /**
+@@ -45,72 +46,77 @@ export class CustomerInvoiceService {
+         const { data: activities, error: actError } = await query;
+         if (actError) throw actError;
+ 
+-        const invoiceItems: { description: string; amount: number; dailyActivityIds: string[] }[] = [];
+-
+-        // --- CATEGORY 1: ACCOMMODATION & MEALS ---
+-        const sleepMealActs = activities?.filter(act => act.activity_type === 'sleep' || act.activity_type === 'meal' || act.hotel_id !== null) || [];
+-        const sleepActs = sleepMealActs.filter(act => act.activity_type === 'sleep' || act.hotel_id !== null);
+-        const nights = sleepActs.length;
+-        const sleepMealTotal = sleepMealActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
+-
+-        if (sleepMealActs.length > 0) {
+-            const description = nights > 0 
+-                ? `Luxury Accommodation & Bespoke Dining throughout (${nights} Night${nights > 1 ? 's' : ''})`
+-                : "Luxury Accommodation & Bespoke Dining throughout";
+-            invoiceItems.push({
+-                description,
+-                amount: sleepMealTotal,
+-                dailyActivityIds: sleepMealActs.map(act => act.id).filter(Boolean)
+-            });
+-        }
+-
+-        // --- CATEGORY 2: PRIVATE TRANSFERS ---
+-        const travelActs = activities?.filter(act => act.activity_type === 'travel' || act.activity_type === 'train') || [];
+-        const travelTotal = travelActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
+-        if (travelActs.length > 0) {
+-            invoiceItems.push({
+-                description: "Chauffeur-driven transfers throughout",
+-                amount: travelTotal,
+-                dailyActivityIds: travelActs.map(act => act.id).filter(Boolean)
+-            });
+-        }
+-
+-        // --- CATEGORY 3: EXPERIENCES ---
+-        const experienceActs = activities?.filter(act => act.activity_type === 'activity' || act.activity_type === 'custom') || [];
+-        const experienceTotal = experienceActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
+-        if (experienceActs.length > 0) {
+-            invoiceItems.push({
+-                description: "Curated Activities & Experiences throughout",
+-                amount: experienceTotal,
+-                dailyActivityIds: experienceActs.map(act => act.id).filter(Boolean)
+-            });
+-        }
++        // 4. Fetch settings from app_settings
++        const { data: rawSettings } = await supabaseAdmin
++            .from('app_settings')
++            .select('setting_key, setting_value');
+ 
+-        // --- CATEGORY 4: FLIGHTS ---
+-        if (options.flightsQuotedSeparately) {
+-            const price = Number(options.flightsQuotedPrice) || 0;
+-            invoiceItems.push({
+-                description: price > 0 ? "International Airfare — Booked & Confirmed" : "International airfare excluded",
+-                amount: price,
+-                dailyActivityIds: []
++        const appSettings: Record<string, number> = {};
++        if (rawSettings) {
++            rawSettings.forEach(s => {
++                appSettings[s.setting_key] = Number(s.setting_value) || 0;
+             });
+         }
+ 
+-        // --- CATEGORY 5: CONCIERGE & CURATION (SERVICE FEE) ---
+-        const curationTypes = ['guide', 'driver', 'buffer', 'wait'];
+-        const curationActs = activities?.filter(act => curationTypes.includes(act.activity_type || '')) || [];
+-        const defaultCurationTotal = curationActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
+-
+-        const serviceFeeAmount = options.customServiceFee !== undefined 
+-            ? Number(options.customServiceFee) 
+-            : defaultCurationTotal;
++        // 5. Fetch active elements (guideNeeded, chauffeurNeeded) from app_states
++        const { data: appState } = await supabaseAdmin
++            .from('app_states')
++            .select('state_data')
++            .eq('state_key', `nilathra_planner_wizard_state_${tourId}`)
++            .maybeSingle();
++
++        const elements = appState?.state_data?.elements || {
++            guide: true,
++            driver: true,
++            transport: true
++        };
++        const chauffeurNeeded = elements.driver ?? true;
++        const guideNeeded = elements.guide ?? true;
+ 
+-        invoiceItems.push({
+-            description: "Nilathra Collection service fee",
+-            amount: serviceFeeAmount,
+-            dailyActivityIds: curationActs.map(act => act.id).filter(Boolean)
++        // 6. Resolve pax count and travel style
++        const { data: touristProfile } = tour.tourist_id ? await supabaseAdmin
++            .from('tourist_profiles')
++            .select('*')
++            .eq('id', tour.tourist_id)
++            .maybeSingle() : { data: null };
++
++        const adults = touristProfile?.adults || tour?.planner_data?.profile?.adults || 2;
++        const children = touristProfile?.children || tour?.planner_data?.profile?.children || 0;
++        const pax = adults + children;
++        const travelStyle = touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
++        const durationDays = itineraries?.length || tour?.planner_data?.profile?.durationDays || 5;
++
++        // 7. Map daily activities to InvoiceCalculationService format
++        const simplifiedItinerary = (activities || []).map(act => ({
++            id: act.id,
++            type: act.activity_type || '',
++            agreedPrice: Number(act.charged_total_price) || 0,
++            hotelId: act.hotel_id || undefined,
++            quantity: act.quantity || 1,
++            dayNumber: act.tour_itineraries?.day_number || 1
++        }));
++
++        // 8. Calculate unified invoice items
++        const rawItems = InvoiceCalculationService.calculateInvoiceItems({
++            itinerary: simplifiedItinerary,
++            travelStyle,
++            chauffeurNeeded,
++            guideNeeded,
++            appSettings,
++            pax,
++            durationDays,
++            flightsQuotedSeparately: options.flightsQuotedSeparately,
++            flightsQuotedPrice: options.flightsQuotedPrice,
++            customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined
+         });
+ 
++        // Map back to expected structure (ensure dailyActivityIds is strictly string[])
++        const invoiceItems = rawItems.map(item => ({
++            description: item.description,
++            amount: item.amount,
++            dailyActivityIds: item.dailyActivityIds || []
++        }));
++
+         return invoiceItems;
+     }
+ 
+diff --git a/src/types/types.ts b/src/types/types.ts
+index c6053d3..58ee7cf 100644
+--- a/src/types/types.ts
++++ b/src/types/types.ts
+@@ -27,8 +27,18 @@ export type FinalStep =
+   | 'finance-controlling'
+   | 'profit-loss';
+ 
+-export const TRAVEL_STYLES = ['Luxury', 'Ultra VIP', 'Premium', 'Regular', 'Mixed'] as const;
+-export type TravelStyle = typeof TRAVEL_STYLES[number];
++const TRAVEL_STYLES_ARRAY = ['Luxury', 'Ultra VIP', 'Premium', 'Regular', 'Mixed'] as const;
++export const TRAVEL_STYLES = Object.assign(
++  ['Luxury', 'Ultra VIP', 'Premium', 'Regular', 'Mixed'] as const,
++  {
++    LUXURY: 'Luxury' as const,
++    ULTRA_VIP: 'Ultra VIP' as const,
++    PREMIUM: 'Premium' as const,
++    REGULAR: 'Regular' as const,
++    MIXED: 'Mixed' as const
++  }
++);
++export type TravelStyle = typeof TRAVEL_STYLES_ARRAY[number];
+ 
+ export const TravelStylePolicyKeys: Record<Exclude<TravelStyle, 'Mixed'>, string> = {
+   'Regular': 'policy_regular',
+@@ -37,6 +47,13 @@ export const TravelStylePolicyKeys: Record<Exclude<TravelStyle, 'Mixed'>, string
+   'Ultra VIP': 'policy_ultra_vip'
+ };
+ 
++export const TravelStyleSettingKeys: Record<Exclude<TravelStyle, 'Mixed'>, string> = {
++  'Regular': 'regular',
++  'Premium': 'premium',
++  'Luxury': 'luxury',
++  'Ultra VIP': 'ultra_vip'
++};
++
+ 
+ export const GENDERS = ['Male', 'Female', 'Other'] as const;
+ export type Gender = typeof GENDERS[number];
+@@ -88,5 +105,11 @@ export const TierSettingDefinitions = {
+   SERVICE_FEE: { key: 'service_fee', defaultValue: 10 }
+ } as const;
+ 
++export const GUIDE_RATE_KEYS = {
++  NATIONAL: 'guide_national_day_rate',
++  REGULAR: 'guide_regular_day_rate',
++  LOCATION: 'guide_location_day_rate'
++} as const;
++
+ export type RoomSizeName = 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
+ 

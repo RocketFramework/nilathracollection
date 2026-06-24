@@ -76,7 +76,7 @@ import {
   Pencil,
   Flag
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
@@ -12602,7 +12602,7 @@ function AIItineraryBuilder({
     // Helper to get settings keys
     const getTierValue = (setting: typeof TierSettingDefinitions[keyof typeof TierSettingDefinitions]) => {
       if (!appSettings) return setting.defaultValue;
-      const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
+      const key = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
       const fullKey = `${key}_${setting.key}`;
       return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
     };
@@ -12614,7 +12614,52 @@ function AIItineraryBuilder({
       : pax * lunchCostPerHead;
 
     // 4. Transport Cost
-    const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
+    let dailyTransportCost = 0;
+
+    if (appSettings && (chauffeurNeeded || guideNeeded)) {
+      const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+      
+      // Calculate Vehicle & Chauffeur if chauffeurNeeded is true
+      if (chauffeurNeeded) {
+        // Vehicle Cost
+        const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
+        const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
+        const transportMarkupPercent = Number(appSettings.transport_markup) || 0;
+        const transportMarkup = transportMarkupPercent / 100;
+        const vehicleCost = vehicleDayRate * (1 + transportMarkup);
+
+        // Chauffeur Cost
+        const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
+        const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
+        const driverMarkupPercent = appSettings.diver_markup !== undefined 
+          ? Number(appSettings.diver_markup) 
+          : (Number(appSettings.driver_markup) || 0);
+        const driverMarkup = driverMarkupPercent / 100;
+        const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
+
+        dailyTransportCost += vehicleCost + chauffeurCost;
+      }
+
+      // Calculate Guide if guideNeeded is true
+      if (guideNeeded) {
+        let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
+        if (travelStyle === TRAVEL_STYLES.REGULAR) {
+          guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
+        } else if (travelStyle === TRAVEL_STYLES.PREMIUM) {
+          guideDayRateKey = GUIDE_RATE_KEYS.REGULAR;
+        } else if (travelStyle === TRAVEL_STYLES.LUXURY || travelStyle === TRAVEL_STYLES.ULTRA_VIP) {
+          guideDayRateKey = GUIDE_RATE_KEYS.NATIONAL;
+        }
+
+        const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
+        const tourGuideMarkupPercent = Number(appSettings.tour_guide_markup) || 0;
+        const tourGuideMarkup = tourGuideMarkupPercent / 100;
+        const guideCost = guideDayRate * (1 + tourGuideMarkup);
+
+        dailyTransportCost += guideCost;
+      }
+    }
+
     const getBlockKm = (block: InternalItineraryBlock) => {
       if (!block.distance) return 0;
       const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
@@ -12623,7 +12668,7 @@ function AIItineraryBuilder({
     const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
     const transport = overrides.transport !== undefined 
       ? overrides.transport 
-      : km * kmRate;
+      : dailyTransportCost;
 
     // 5. Concierge Cost (ticket, refreshment, seamless concierge)
     const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
@@ -13851,7 +13896,19 @@ function AIItineraryBuilder({
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   {renderCostCard('Hotel Cost', 'hotel', dayTotalObj.hotel, <BedDouble className="w-4 h-4 text-amber-605 shrink-0" />)}
                   {renderCostCard('Meals', 'meals', dayTotalObj.meals, <Utensils className="w-4 h-4 text-rose-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
-                  {renderCostCard('Transport', 'transport', dayTotalObj.transport, <Car className="w-4 h-4 text-sky-600 shrink-0" />, `(${dayTotalObj.km.toFixed(0)} km)`)}
+                  {renderCostCard(
+                    'Transport', 
+                    'transport', 
+                    dayTotalObj.transport, 
+                    <Car className="w-4 h-4 text-sky-600 shrink-0" />, 
+                    chauffeurNeeded && guideNeeded 
+                      ? '(Vehicle, Chauffeur & Guide)' 
+                      : chauffeurNeeded 
+                        ? '(Vehicle & Chauffeur)' 
+                        : guideNeeded 
+                          ? '(Guide Only)' 
+                          : '(Not Enabled)'
+                  )}
                   {renderCostCard('Concierge', 'concierge', dayTotalObj.concierge, <Receipt className="w-4 h-4 text-indigo-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
                   {renderCostCard('Agency Fee', 'agencyFeePercent', dayTotalObj.agencyFeePercent, <Coins className="w-4 h-4 text-emerald-600 shrink-0" />, `($${dayTotalObj.agencyFee.toFixed(2)})`)}
                 </div>

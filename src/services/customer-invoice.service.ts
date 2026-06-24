@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { CustomerPaymentDTO, GenerateCustomerInvoiceDTO } from '../dtos/finance.dto';
 import { DBCustomerInvoice, DBCustomerInvoiceItem } from '../types/finance';
+import { InvoiceCalculationService } from './invoice-calculation.service';
 
 export class CustomerInvoiceService {
     /**
@@ -45,71 +46,76 @@ export class CustomerInvoiceService {
         const { data: activities, error: actError } = await query;
         if (actError) throw actError;
 
-        const invoiceItems: { description: string; amount: number; dailyActivityIds: string[] }[] = [];
+        // 4. Fetch settings from app_settings
+        const { data: rawSettings } = await supabaseAdmin
+            .from('app_settings')
+            .select('setting_key, setting_value');
 
-        // --- CATEGORY 1: ACCOMMODATION & MEALS ---
-        const sleepMealActs = activities?.filter(act => act.activity_type === 'sleep' || act.activity_type === 'meal' || act.hotel_id !== null) || [];
-        const sleepActs = sleepMealActs.filter(act => act.activity_type === 'sleep' || act.hotel_id !== null);
-        const nights = sleepActs.length;
-        const sleepMealTotal = sleepMealActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
-
-        if (sleepMealActs.length > 0) {
-            const description = nights > 0 
-                ? `Luxury Accommodation & Bespoke Dining throughout (${nights} Night${nights > 1 ? 's' : ''})`
-                : "Luxury Accommodation & Bespoke Dining throughout";
-            invoiceItems.push({
-                description,
-                amount: sleepMealTotal,
-                dailyActivityIds: sleepMealActs.map(act => act.id).filter(Boolean)
+        const appSettings: Record<string, number> = {};
+        if (rawSettings) {
+            rawSettings.forEach(s => {
+                appSettings[s.setting_key] = Number(s.setting_value) || 0;
             });
         }
 
-        // --- CATEGORY 2: PRIVATE TRANSFERS ---
-        const travelActs = activities?.filter(act => act.activity_type === 'travel' || act.activity_type === 'train') || [];
-        const travelTotal = travelActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
-        if (travelActs.length > 0) {
-            invoiceItems.push({
-                description: "Chauffeur-driven transfers throughout",
-                amount: travelTotal,
-                dailyActivityIds: travelActs.map(act => act.id).filter(Boolean)
-            });
-        }
+        // 5. Fetch active elements (guideNeeded, chauffeurNeeded) from app_states
+        const { data: appState } = await supabaseAdmin
+            .from('app_states')
+            .select('state_data')
+            .eq('state_key', `nilathra_planner_wizard_state_${tourId}`)
+            .maybeSingle();
 
-        // --- CATEGORY 3: EXPERIENCES ---
-        const experienceActs = activities?.filter(act => act.activity_type === 'activity' || act.activity_type === 'custom') || [];
-        const experienceTotal = experienceActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
-        if (experienceActs.length > 0) {
-            invoiceItems.push({
-                description: "Curated Activities & Experiences throughout",
-                amount: experienceTotal,
-                dailyActivityIds: experienceActs.map(act => act.id).filter(Boolean)
-            });
-        }
+        const elements = appState?.state_data?.elements || {
+            guide: true,
+            driver: true,
+            transport: true
+        };
+        const chauffeurNeeded = elements.driver ?? true;
+        const guideNeeded = elements.guide ?? true;
 
-        // --- CATEGORY 4: FLIGHTS ---
-        if (options.flightsQuotedSeparately) {
-            const price = Number(options.flightsQuotedPrice) || 0;
-            invoiceItems.push({
-                description: price > 0 ? "International Airfare — Booked & Confirmed" : "International airfare excluded",
-                amount: price,
-                dailyActivityIds: []
-            });
-        }
+        // 6. Resolve pax count and travel style
+        const { data: touristProfile } = tour.tourist_id ? await supabaseAdmin
+            .from('tourist_profiles')
+            .select('*')
+            .eq('id', tour.tourist_id)
+            .maybeSingle() : { data: null };
 
-        // --- CATEGORY 5: CONCIERGE & CURATION (SERVICE FEE) ---
-        const curationTypes = ['guide', 'driver', 'buffer', 'wait'];
-        const curationActs = activities?.filter(act => curationTypes.includes(act.activity_type || '')) || [];
-        const defaultCurationTotal = curationActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
+        const adults = touristProfile?.adults || tour?.planner_data?.profile?.adults || 2;
+        const children = touristProfile?.children || tour?.planner_data?.profile?.children || 0;
+        const pax = adults + children;
+        const travelStyle = touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
+        const durationDays = itineraries?.length || tour?.planner_data?.profile?.durationDays || 5;
 
-        const serviceFeeAmount = options.customServiceFee !== undefined 
-            ? Number(options.customServiceFee) 
-            : defaultCurationTotal;
+        // 7. Map daily activities to InvoiceCalculationService format
+        const simplifiedItinerary = (activities || []).map(act => ({
+            id: act.id,
+            type: act.activity_type || '',
+            agreedPrice: Number(act.charged_total_price) || 0,
+            hotelId: act.hotel_id || undefined,
+            quantity: act.quantity || 1,
+            dayNumber: act.tour_itineraries?.day_number || 1
+        }));
 
-        invoiceItems.push({
-            description: "Nilathra Collection service fee",
-            amount: serviceFeeAmount,
-            dailyActivityIds: curationActs.map(act => act.id).filter(Boolean)
+        // 8. Calculate unified invoice items
+        const rawItems = InvoiceCalculationService.calculateInvoiceItems({
+            itinerary: simplifiedItinerary,
+            travelStyle,
+            chauffeurNeeded,
+            guideNeeded,
+            appSettings,
+            pax,
+            durationDays,
+            flightsQuotedSeparately: options.flightsQuotedSeparately,
+            flightsQuotedPrice: options.flightsQuotedPrice,
+            customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined
         });
+
+        // Map back to expected structure (ensure dailyActivityIds is strictly string[])
+        const invoiceItems = rawItems.map(item => ({
+            description: item.description,
+            amount: item.amount,
+            dailyActivityIds: item.dailyActivityIds || []
+        }));
 
         return invoiceItems;
     }

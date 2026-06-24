@@ -273,22 +273,6 @@ export default function SettingsPage() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold text-neutral-700 mb-2">Restaurant Markup (%)</label>
-                        <div className="flex items-center relative">
-                            <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.1"
-                                value={markups.restaurant_markup}
-                                onChange={(e) => setMarkups({ ...markups, restaurant_markup: parseFloat(e.target.value) || 0 })}
-                                className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
-                            />
-                            <span className="absolute right-4 text-neutral-400 font-bold">%</span>
-                        </div>
-                    </div>
-
-                    <div>
                         <label className="block text-sm font-bold text-neutral-700 mb-2">Tour Guide Markup (%)</label>
                         <div className="flex items-center relative">
                             <input

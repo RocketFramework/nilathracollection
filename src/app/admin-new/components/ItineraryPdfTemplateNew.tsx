@@ -1,7 +1,8 @@
 import React from 'react';
 import { InternalItineraryBlock } from '@/other/interfaces';
 import { TouristDataDTO } from '@/dtos/tourist-data.dto';
-import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys } from '@/types/types';
+import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys, TRAVEL_STYLES, GUIDE_RATE_KEYS, TravelStyleSettingKeys } from '@/types/types';
+import { InvoiceCalculationService } from '@/services/invoice-calculation.service';
 
 interface ItineraryPdfTemplateNewProps {
   itinerary: InternalItineraryBlock[];
@@ -201,79 +202,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       }
     };
 
-    // Helper to calculate daily cost summary
-    const calculateDayTotal = (dayNum: number) => {
-      const overrides = dayCostOverrides?.[dayNum] || {};
-      const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
-      
-      // 1. Hotel Cost
-      const hotel = overrides.hotel !== undefined 
-        ? overrides.hotel 
-        : blocksForDay
-            .filter(b => b.type === ItineraryBlockTypes.SLEEP)
-            .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
-
-      // 2. Pax Count
-      const pax = (adults || 0) + (children || 0);
-
-      // Helper to get settings keys
-      const getTierValue = (setting: typeof TierSettingDefinitions[keyof typeof TierSettingDefinitions]) => {
-        if (!appSettings) return setting.defaultValue;
-        const key = travelStyle?.toLowerCase().replace(' ', '_') || 'luxury';
-        const fullKey = `${key}_${setting.key}`;
-        return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
-      };
-
-      // 3. Meal Cost (Lunch cost per tourist * pax)
-      const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
-      const meals = overrides.meals !== undefined 
-        ? overrides.meals 
-        : pax * lunchCostPerHead;
-
-      // 4. Transport Cost
-      const kmRate = getTierValue(TierSettingDefinitions.VEHICLE_KM_RATE);
-      const getBlockKm = (block: InternalItineraryBlock) => {
-        if (!block.distance) return 0;
-        const parsed = parseFloat(block.distance.toString().replace(/[^\d.]/g, ''));
-        return isNaN(parsed) ? 0 : parsed;
-      };
-      const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
-      const transport = overrides.transport !== undefined 
-        ? overrides.transport 
-        : km * kmRate;
-
-      // 5. Concierge Cost (ticket, refreshment, seamless concierge)
-      const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
-      const concierge = overrides.concierge !== undefined 
-        ? overrides.concierge 
-        : pax * conciergeCostPerHead;
-
-      // 6. Agency Fee & Tax
-      const agencyFeePercent = overrides.agencyFeePercent !== undefined
-        ? overrides.agencyFeePercent
-        : getTierValue(TierSettingDefinitions.SERVICE_FEE);
-        
-      const subtotal = hotel + meals + transport + concierge;
-      const agencyFee = overrides.agencyFee !== undefined
-        ? overrides.agencyFee
-        : subtotal * (agencyFeePercent / 100);
-
-      const total = overrides.total !== undefined
-        ? overrides.total
-        : subtotal + agencyFee;
-
-      return {
-        hotel,
-        meals,
-        km,
-        transport,
-        concierge,
-        agencyFeePercent,
-        agencyFee,
-        total
-      };
-    };
-
     const getResolvedBindingDisplay = (block: InternalItineraryBlock) => {
       if (!masterData) return null;
 
@@ -349,19 +277,42 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       return null;
     };
 
-    // Calculate overall itinerary costs summary
-    const uniqueDays = Array.from(new Set(itinerary.map(b => b.dayNumber))).filter(d => d > 0).sort((a, b) => a - b);
-    const overallCostSummary = uniqueDays.reduce((totals, dayNum) => {
-      const dayCosts = calculateDayTotal(dayNum);
-      return {
-        hotel: totals.hotel + dayCosts.hotel,
-        meals: totals.meals + dayCosts.meals,
-        transport: totals.transport + dayCosts.transport,
-        concierge: totals.concierge + dayCosts.concierge,
-        agencyFee: totals.agencyFee + dayCosts.agencyFee,
-        total: totals.total + dayCosts.total
-      };
-    }, { hotel: 0, meals: 0, transport: 0, concierge: 0, agencyFee: 0, total: 0 });
+    // Calculate overall itinerary costs summary using InvoiceCalculationService
+    const simplifiedItinerary = itinerary.map(b => ({
+      id: b.id,
+      type: b.type,
+      agreedPrice: b.agreedPrice,
+      hotelId: b.hotelId,
+      quantity: b.quantity || b.transportQuantity || b.restaurantQuantity || 1,
+      dayNumber: b.dayNumber
+    }));
+
+    const invoiceItems = InvoiceCalculationService.calculateInvoiceItems({
+      itinerary: simplifiedItinerary,
+      travelStyle,
+      chauffeurNeeded,
+      guideNeeded,
+      appSettings,
+      pax: totalPax,
+      durationDays,
+      flightsQuotedSeparately: false,
+      flightsQuotedPrice: 0,
+      customServiceFee: undefined
+    });
+
+    console.log("PDF calculation debug:", {
+      travelStyle,
+      chauffeurNeeded,
+      guideNeeded,
+      pax: totalPax,
+      durationDays,
+      appSettingsExists: !!appSettings,
+      appSettingsKeys: appSettings ? Object.keys(appSettings) : [],
+      simplifiedItineraryLength: simplifiedItinerary.length,
+      invoiceItems
+    });
+
+    const grandTotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
 
     // Calculate total price of hotel blocks in the skeleton itinerary
     const hotelPriceTotal = itinerary
@@ -606,45 +557,27 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       </div>
                     </div>
 
-                    {appSettings && overallCostSummary.total > 0 ? (
+                    {appSettings && invoiceItems.length > 0 && grandTotal > 0 ? (
                       <div className="mt-6 pt-4 border-t border-[#E8DFD1] space-y-2 text-xs font-sans text-neutral-600 bg-white p-4 rounded-xl border border-[#E8DFD1]/55 text-left">
                         <div className="uppercase tracking-widest text-[9px] font-bold text-[#D4AF37] font-serif mb-2">Estimated Package Cost Overview</div>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[10.5px]">
-                          <div className="flex justify-between">
-                            <span className="text-neutral-400">Total Accommodation Cost:</span>
-                            <span className="font-semibold text-neutral-700">${overallCostSummary.hotel.toFixed(2)} USD</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-neutral-400">Total Meal Cost ({adults + children} Pax):</span>
-                            <span className="font-semibold text-neutral-700">${overallCostSummary.meals.toFixed(2)} USD</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-neutral-400">Total Transport Cost:</span>
-                            <span className="font-semibold text-neutral-700">${overallCostSummary.transport.toFixed(2)} USD</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-neutral-400">Total Concierge & Seamless Support:</span>
-                            <span className="font-semibold text-neutral-700">${overallCostSummary.concierge.toFixed(2)} USD</span>
-                          </div>
-                          <div className="col-span-2 border-t border-neutral-100 pt-2 mt-1 flex justify-between font-bold text-neutral-800">
-                            <span>Subtotal:</span>
-                            <span>${(overallCostSummary.hotel + overallCostSummary.meals + overallCostSummary.transport + overallCostSummary.concierge).toFixed(2)} USD</span>
-                          </div>
-                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium">
-                            <span>Agency Fee, Tax & Support Fee:</span>
-                            <span>${overallCostSummary.agencyFee.toFixed(2)} USD</span>
-                          </div>
-                          <div className="col-span-2 border-t border-neutral-300 pt-2 mt-1 flex justify-between items-center text-sm font-serif font-black text-neutral-900 bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8DFD1]/55">
+                        <div className="space-y-2">
+                          {invoiceItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between border-b border-neutral-100 pb-1.5 text-[10.5px]">
+                              <span className="text-neutral-400">{item.description}:</span>
+                              <span className="font-semibold text-neutral-700">${item.amount.toFixed(2)} USD</span>
+                            </div>
+                          ))}
+                          <div className="border-t border-neutral-300 pt-2 mt-1 flex justify-between items-center text-sm font-serif font-black text-neutral-900 bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8DFD1]/55">
                             <span className="uppercase tracking-wider text-[10px] text-[#8C6D3F]">Estimated Grand Total</span>
-                            <span>${overallCostSummary.total.toFixed(2)} USD</span>
+                            <span>${grandTotal.toFixed(2)} USD</span>
                           </div>
-                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium pt-1.5 border-t border-neutral-100">
+                          <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium pt-1.5">
                             <span>Per Head Cost (Trip Total — {totalPax} Pax):</span>
-                            <span className="font-semibold text-neutral-700">${(overallCostSummary.total / (totalPax || 1)).toFixed(2)} USD</span>
+                            <span className="font-semibold text-neutral-700">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
                           </div>
-                          <div className="col-span-2 flex justify-between text-[10.5px] text-neutral-500 font-medium">
+                          <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium">
                             <span>Per Head Cost (Per Day):</span>
-                            <span className="font-semibold text-neutral-700">${(overallCostSummary.total / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
+                            <span className="font-semibold text-neutral-700">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
                           </div>
                         </div>
                       </div>
@@ -749,37 +682,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                   </div>
                                 );
                               })()}
-                              {appSettings && (() => {
-                                const costData = calculateDayTotal(dayNum);
-                                return (
-                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed text-left grid grid-cols-2 gap-x-4 gap-y-1 mt-3 bg-white p-2.5 rounded-lg border border-[#E8DFD1]/50 shadow-inner">
-                                    <div className="col-span-2 border-b border-neutral-100 pb-1 mb-1 flex justify-between font-bold text-[#8C6D3F]">
-                                      <span>Cost Breakdown Summary</span>
-                                      <span>Total: ${costData.total.toFixed(2)} USD</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-neutral-400">Hotel Cost:</span>
-                                      <span className="font-semibold text-neutral-700">${costData.hotel.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-neutral-400">Meal Cost ({adults + children} Pax):</span>
-                                      <span className="font-semibold text-neutral-700">${costData.meals.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-neutral-400">Transport ({costData.km.toFixed(0)} km):</span>
-                                      <span className="font-semibold text-neutral-700">${costData.transport.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-neutral-400">Concierge & Tickets:</span>
-                                      <span className="font-semibold text-neutral-700">${costData.concierge.toFixed(2)}</span>
-                                    </div>
-                                    <div className="col-span-2 border-t border-neutral-100 pt-1 mt-1 flex justify-between text-neutral-500 text-[9px]">
-                                      <span>Agency Fee & Tax ({costData.agencyFeePercent}%):</span>
-                                      <span className="font-semibold">${costData.agencyFee.toFixed(2)}</span>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
+
                             </div>
                           </div>
 
