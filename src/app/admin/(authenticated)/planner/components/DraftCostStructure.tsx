@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { TripData, DraftCostItem } from '../types';
 import { Plus, Trash2, Edit2, Check, RefreshCw } from 'lucide-react';
 import { getVendorsAction, getAppMarkupsAction, getTransportProvidersAction } from '@/actions/admin.actions';
+import { Settings } from '@/types/types';
 
 interface Props {
     tripData: TripData;
@@ -47,7 +48,7 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         const vendors = vendorsRes.success ? vendorsRes.vendors : [];
         const transportProviders = transportProvidersRes.success && transportProvidersRes.providers ? transportProvidersRes.providers : [];
         const markups: any = markupsRes.success && markupsRes.markups ? markupsRes.markups : {};
-        const activityMarkup = markups.vendor_activity_markup ?? 10;
+        const activityMarkup = markups[Settings.Vendor_Activity_Markup] ?? 10;
 
         const getDayDate = (dayNumber: number) => {
             if (!data.profile?.arrivalDate) return `Day ${dayNumber}`;
@@ -185,10 +186,10 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
 
             // Fallback to average/default if kmRate is still 0
             if (kmRate === 0) {
-                kmRate = markups.regular_vehicle_km_rate || 0.50;
+                kmRate = markups[Settings.Regular_Vehicle_Km_Rate] || 0.50;
             }
 
-            const transportMarkup = markups.transport_markup ?? 10;
+            const transportMarkup = markups[Settings.Transport_Markup] ?? 10;
             const unitPrice = kmRate * (1 + (transportMarkup / 100));
 
             const quantity = totalKm > 0 ? Math.round(totalKm) : transports.length;
@@ -323,13 +324,13 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         const pax = (data.profile?.adults || 0) + (data.profile?.children || 0) || 1;
         let conciergeUnitCost = 100;
         if (travelStyle === 'Regular') {
-            conciergeUnitCost = markups.regular_concierge_cost !== undefined ? markups.regular_concierge_cost : 40;
+            conciergeUnitCost = markups[Settings.Regular_Concierge_Cost] !== undefined ? markups[Settings.Regular_Concierge_Cost] : 40;
         } else if (travelStyle === 'Premium') {
-            conciergeUnitCost = markups.premium_concierge_cost !== undefined ? markups.premium_concierge_cost : 50;
+            conciergeUnitCost = markups[Settings.Premium_Concierge_Cost] !== undefined ? markups[Settings.Premium_Concierge_Cost] : 50;
         } else if (travelStyle === 'Luxury') {
-            conciergeUnitCost = markups.luxury_concierge_cost !== undefined ? markups.luxury_concierge_cost : 100;
+            conciergeUnitCost = markups[Settings.Luxury_Concierge_Cost] !== undefined ? markups[Settings.Luxury_Concierge_Cost] : 100;
         } else if (travelStyle === 'Ultra VIP') {
-            conciergeUnitCost = markups.ultra_vip_concierge_cost !== undefined ? markups.ultra_vip_concierge_cost : 200;
+            conciergeUnitCost = markups[Settings.Ultra_Vip_Concierge_Cost] !== undefined ? markups[Settings.Ultra_Vip_Concierge_Cost] : 200;
         }
 
         const conciergeTotal = conciergeUnitCost * pax;
@@ -348,13 +349,13 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
         // Add Service Fee based on travel style tier
         let serviceFeePercent = 20;
         if (travelStyle === 'Regular') {
-            serviceFeePercent = markups.regular_service_fee !== undefined ? markups.regular_service_fee : 10;
+            serviceFeePercent = markups[Settings.Regular_Service_Fee] !== undefined ? markups[Settings.Regular_Service_Fee] : 10;
         } else if (travelStyle === 'Premium') {
-            serviceFeePercent = markups.premium_service_fee !== undefined ? markups.premium_service_fee : 20;
+            serviceFeePercent = markups[Settings.Premium_Service_Fee] !== undefined ? markups[Settings.Premium_Service_Fee] : 20;
         } else if (travelStyle === 'Luxury') {
-            serviceFeePercent = markups.luxury_service_fee !== undefined ? markups.luxury_service_fee : 25;
+            serviceFeePercent = markups[Settings.Luxury_Service_Fee] !== undefined ? markups[Settings.Luxury_Service_Fee] : 25;
         } else if (travelStyle === 'Ultra VIP') {
-            serviceFeePercent = markups.ultra_vip_service_fee !== undefined ? markups.ultra_vip_service_fee : 40;
+            serviceFeePercent = markups[Settings.Ultra_Vip_Service_Fee] !== undefined ? markups[Settings.Ultra_Vip_Service_Fee] : 40;
         }
 
         const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);

@@ -29,6 +29,7 @@ import {
     getItineraryDatesAction
 } from "@/actions/admin.actions";
 import { AIRule } from "@/types/ai";
+import { Settings } from '@/types/types';
 import { ItineraryPdfTemplate } from "../components/ItineraryPdfTemplate";
 
 import {
@@ -225,7 +226,7 @@ export function ItineraryBuilder({
                 });
                 if (markupRes && markupRes.success && markupRes.markups) {
                     setMarkups(markupRes.markups);
-                    setRoomMarkup(markupRes.markups.room_markup ?? 10);
+                    setRoomMarkup(markupRes.markups[Settings.Room_Markup] ?? 10);
                 }
             } catch (err) {
                 console.error("Failed to load master data for assignment:", err);
@@ -497,7 +498,7 @@ export function ItineraryBuilder({
         let trans = 0;
         let transContracted = 0;
         const pax = (tripData.profile.adults || 0) + (tripData.profile.children || 0);
-        const roomMarkup = markups.room_markup ?? 10;
+        const roomMarkup = markups[Settings.Room_Markup] ?? 10;
 
         // Count hotel costs
         tripData.accommodations.forEach(h => {
@@ -520,11 +521,11 @@ export function ItineraryBuilder({
 
         // Count transport costs
         const travelStyle = tripData.profile?.travelStyle || 'Standard';
-        let vehicleKmRate = markups.regular_vehicle_km_rate || 0;
-        if (travelStyle === 'Premium') vehicleKmRate = markups.premium_vehicle_km_rate || 0;
-        else if (travelStyle === 'Luxury') vehicleKmRate = markups.luxury_vehicle_km_rate || 0;
-        else if (travelStyle === 'Ultra VIP') vehicleKmRate = markups.ultra_vip_vehicle_km_rate || 0;
-        const transportMarkup = markups.transport_markup || 10;
+        let vehicleKmRate = markups[Settings.Regular_Vehicle_Km_Rate] || 0;
+        if (travelStyle === 'Premium') vehicleKmRate = markups[Settings.Premium_Vehicle_Km_Rate] || 0;
+        else if (travelStyle === 'Luxury') vehicleKmRate = markups[Settings.Luxury_Vehicle_Km_Rate] || 0;
+        else if (travelStyle === 'Ultra VIP') vehicleKmRate = markups[Settings.Ultra_Vip_Vehicle_Km_Rate] || 0;
+        const transportMarkup = markups[Settings.Transport_Markup] || 10;
 
         // 1. Segment-specific costs
         tripData.itinerary.forEach(b => {
@@ -586,8 +587,8 @@ export function ItineraryBuilder({
         }
 
         // Current block costs (Activities & Restaurants)
-        const restaurantMarkup = markups.restaurant_markup ?? 10;
-        const activityMarkup = markups.vendor_activity_markup ?? 10;
+        const restaurantMarkup = markups[Settings.Restaurant_Markup] ?? 10;
+        const activityMarkup = markups[Settings.Vendor_Activity_Markup] ?? 10;
 
         tripData.itinerary.forEach(b => {
             if (b.type === 'activity' && (b.vendorId || b.vendorActivityId)) {
@@ -643,7 +644,7 @@ export function ItineraryBuilder({
             total: hotels + acts + trans,
             totalContracted: hotelsContracted + actsContracted + transContracted
         };
-    }, [tripData.itinerary, tripData.accommodations, masterData, tripData.profile, tripData.defaultDriverId, tripData.defaultVehicleId, markups.room_markup]);
+    }, [tripData.itinerary, tripData.accommodations, masterData, tripData.profile, tripData.defaultDriverId, tripData.defaultVehicleId, markups[Settings.Room_Markup]]);
 
     const itinerarySummary = useMemo(() => {
         const blocks = tripData.itinerary || [];
@@ -1085,7 +1086,7 @@ export function ItineraryBuilder({
             const restaurant = masterData.restaurants.find(r => r.id === value);
             if (restaurant) {
                 const contractedRate = restaurant.lunch_rate_per_head || 25;
-                const markupPercent = markups.restaurant_markup ?? 10;
+                const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
                 const agreedPrice = contractedRate * (1 + markupPercent / 100);
                 
                 updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? { 
@@ -1127,7 +1128,7 @@ export function ItineraryBuilder({
 
                 const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(blockActivityId));
                 if (va) {
-                    const markupPercent = markups.vendor_activity_markup ?? 10;
+                    const markupPercent = markups[Settings.Vendor_Activity_Markup] ?? 10;
                     const contractedRate = va.vendor_price || 0;
                     const agreedPrice = contractedRate * (1 + markupPercent / 100);
 
@@ -1905,7 +1906,7 @@ export function ItineraryBuilder({
                                                                     ? block.agreedPrice 
                                                                     : (() => {
                                                                         const base = block.contractedPrice !== undefined ? block.contractedPrice : (va?.vendor_price || 0);
-                                                                        const activityMarkup = markups.vendor_activity_markup ?? 10;
+                                                                        const activityMarkup = markups[Settings.Vendor_Activity_Markup] ?? 10;
                                                                         return base * (1 + (activityMarkup / 100));
                                                                     })();
                                                                 const totalPrice = unitPrice * quantity;
@@ -2967,7 +2968,7 @@ export function ItineraryBuilder({
                                                                         { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head }
                                                                     ].filter(m => m.active).map(meal => {
                                                                         const contractedRate = meal.price || 0;
-                                                                        const markupPercent = markups.restaurant_markup ?? 10;
+                                                                        const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
                                                                         const agreedPrice = contractedRate * (1 + markupPercent / 100);
                                                                         return (
                                                                         <button key={meal.id} onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}

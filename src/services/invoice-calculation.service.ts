@@ -1,4 +1,4 @@
-import { TRAVEL_STYLES, TravelStyleSettingKeys, GUIDE_RATE_KEYS } from '@/types/types';
+import { TRAVEL_STYLES, TravelStyleSettingKeys, GUIDE_RATE_KEYS, Settings } from '@/types/types';
 
 export interface InvoiceItem {
   description: string;
@@ -85,16 +85,16 @@ export class InvoiceCalculationService {
         // Vehicle Cost
         const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
         const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
-        const transportMarkupPercent = Number(appSettings.transport_markup) || 0;
+        const transportMarkupPercent = Number(appSettings[Settings.Transport_Markup]) || 0;
         const transportMarkup = transportMarkupPercent / 100;
         const vehicleCost = vehicleDayRate * (1 + transportMarkup);
 
         // Chauffeur Cost
         const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
         const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
-        const driverMarkupPercent = appSettings.diver_markup !== undefined 
-          ? Number(appSettings.diver_markup) 
-          : (Number(appSettings.driver_markup) || 0);
+        const driverMarkupPercent = appSettings[Settings.Diver_Markup] !== undefined 
+          ? Number(appSettings[Settings.Diver_Markup]) 
+          : (Number(appSettings[Settings.Driver_Markup]) || 0);
         const driverMarkup = driverMarkupPercent / 100;
         const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
 
@@ -113,7 +113,7 @@ export class InvoiceCalculationService {
         }
 
         const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
-        const tourGuideMarkupPercent = Number(appSettings.tour_guide_markup) || 0;
+        const tourGuideMarkupPercent = Number(appSettings[Settings.Tour_Guide_Markup]) || 0;
         const tourGuideMarkup = tourGuideMarkupPercent / 100;
         const guideCost = guideDayRate * (1 + tourGuideMarkup);
 

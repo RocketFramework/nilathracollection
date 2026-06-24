@@ -3,6 +3,7 @@ import { TripData } from "../types";
 import { MapPin, Clock, Bed, Compass, Utensils, Car, Info, Calendar } from "lucide-react";
 import { getBookingTermsAction } from "@/actions/terms.actions";
 import { getItineraryDatesAction, getAppMarkupsAction } from "@/actions/admin.actions";
+import { Settings } from '@/types/types';
 
 export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData: TripData, masterData?: any }>(
     ({ tripData, masterData }, ref) => {
@@ -736,7 +737,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
 
                                         {/* Draft Itinerary Terms */}
                                         {(() => {
-                                            const draftPolicyText = appSettings?.policy_draft || '';
+                                            const draftPolicyText = appSettings?.[Settings.Policy_Draft] || '';
                                             if (!draftPolicyText) return null;
 
                                             const parsePolicyLines = (text: string) => {
@@ -769,7 +770,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                         })()}
 
                                         {/* Standard Tier Booking Terms (only if no draft terms are present) */}
-                                        {!appSettings?.policy_draft && luxuryTerms && (
+                                        {!appSettings?.[Settings.Policy_Draft] && luxuryTerms && (
                                             <div className="mt-16 pt-16 border-t border-[#E5E7EB] text-left pb-16 break-inside-avoid">
                                                 <h4 className="text-[#111827] font-serif text-2xl mb-8 text-center text-[#D4AF37]">Luxury Tier Booking Terms</h4>
                                                 

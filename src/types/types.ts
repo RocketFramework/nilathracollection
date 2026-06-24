@@ -113,6 +113,7 @@ export const GUIDE_RATE_KEYS = {
 export const Settings = {
   Room_Markup: 'room_markup',
   Diver_Markup: 'diver_markup',
+  Driver_Markup: 'driver_markup',
   Restaurant_Markup: 'restaurant_markup',
   Tour_Guide_Markup: 'tour_guide_markup',
   Vendor_Activity_Markup: 'vendor_activity_markup',

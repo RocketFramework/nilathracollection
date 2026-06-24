@@ -1,63 +1,64 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { Settings } from '@/types/types';
 import { getAppMarkupsAction, saveAppMarkupsAction, uploadHotelPhotoAction } from '@/actions/admin.actions';
 import { Save, Loader2, Upload } from 'lucide-react';
 
 export default function SettingsPage() {
     const [markups, setMarkups] = useState({
-        room_markup: 10,
-        diver_markup: 10,
-        restaurant_markup: 10,
-        tour_guide_markup: 10,
-        vendor_activity_markup: 10,
-        transport_markup: 10,
-        regular_vehicle_km_rate: 0,
-        premium_vehicle_km_rate: 0,
-        luxury_vehicle_km_rate: 0,
-        ultra_vip_vehicle_km_rate: 0,
-        regular_vehicle_day_rate: 0,
-        premium_vehicle_day_rate: 0,
-        luxury_vehicle_day_rate: 0,
-        ultra_vip_vehicle_day_rate: 0,
-        regular_chauffeur_day_rate: 0,
-        premium_chauffeur_day_rate: 0,
-        luxury_chauffeur_day_rate: 0,
-        ultra_vip_chauffeur_day_rate: 0,
-        guide_national_day_rate: 0,
-        guide_regular_day_rate: 0,
-        guide_location_day_rate: 0,
-        activity_travel_prep_time: 2,
-        daily_activity_hours_limit: 6,
-        activity_average_speed_km: 30,
-        regular_service_fee: 10,
-        premium_service_fee: 20,
-        luxury_service_fee: 25,
-        ultra_vip_service_fee: 40,
-        regular_concierge_cost: 40,
-        premium_concierge_cost: 50,
-        luxury_concierge_cost: 100,
-        ultra_vip_concierge_cost: 200,
-        regular_breakfast_cost: 12,
-        premium_breakfast_cost: 20,
-        luxury_breakfast_cost: 30,
-        ultra_vip_breakfast_cost: 60,
-        regular_lunch_cost: 15,
-        premium_lunch_cost: 25,
-        luxury_lunch_cost: 50,
-        ultra_vip_lunch_cost: 100,
-        regular_dinner_cost: 20,
-        premium_dinner_cost: 35,
-        luxury_dinner_cost: 50,
-        ultra_vip_dinner_cost: 100,
-        policy_generic: "",
-        policy_regular: "",
-        policy_premium: "",
-        policy_luxury: "",
-        policy_ultra_vip: "",
-        policy_draft: "",
-        address: "",
-        company_logo: "",
+        [Settings.Room_Markup]: 10,
+        [Settings.Diver_Markup]: 10,
+        [Settings.Restaurant_Markup]: 10,
+        [Settings.Tour_Guide_Markup]: 10,
+        [Settings.Vendor_Activity_Markup]: 10,
+        [Settings.Transport_Markup]: 10,
+        [Settings.Regular_Vehicle_Km_Rate]: 0,
+        [Settings.Premium_Vehicle_Km_Rate]: 0,
+        [Settings.Luxury_Vehicle_Km_Rate]: 0,
+        [Settings.Ultra_Vip_Vehicle_Km_Rate]: 0,
+        [Settings.Regular_Vehicle_Day_Rate]: 0,
+        [Settings.Premium_Vehicle_Day_Rate]: 0,
+        [Settings.Luxury_Vehicle_Day_Rate]: 0,
+        [Settings.Ultra_Vip_Vehicle_Day_Rate]: 0,
+        [Settings.Regular_Chauffeur_Day_Rate]: 0,
+        [Settings.Premium_Chauffeur_Day_Rate]: 0,
+        [Settings.Luxury_Chauffeur_Day_Rate]: 0,
+        [Settings.Ultra_Vip_Chauffeur_Day_Rate]: 0,
+        [Settings.Guide_National_Day_Rate]: 0,
+        [Settings.Guide_Regular_Day_Rate]: 0,
+        [Settings.Guide_Location_Day_Rate]: 0,
+        [Settings.Activity_Travel_Prep_Time]: 2,
+        [Settings.Daily_Activity_Hours_Limit]: 6,
+        [Settings.Activity_Average_Speed_Km]: 30,
+        [Settings.Regular_Service_Fee]: 10,
+        [Settings.Premium_Service_Fee]: 20,
+        [Settings.Luxury_Service_Fee]: 25,
+        [Settings.Ultra_Vip_Service_Fee]: 40,
+        [Settings.Regular_Concierge_Cost]: 40,
+        [Settings.Premium_Concierge_Cost]: 50,
+        [Settings.Luxury_Concierge_Cost]: 100,
+        [Settings.Ultra_Vip_Concierge_Cost]: 200,
+        [Settings.Regular_Breakfast_Cost]: 12,
+        [Settings.Premium_Breakfast_Cost]: 20,
+        [Settings.Luxury_Breakfast_Cost]: 30,
+        [Settings.Ultra_Vip_Breakfast_Cost]: 60,
+        [Settings.Regular_Lunch_Cost]: 15,
+        [Settings.Premium_Lunch_Cost]: 25,
+        [Settings.Luxury_Lunch_Cost]: 50,
+        [Settings.Ultra_Vip_Lunch_Cost]: 100,
+        [Settings.Regular_Dinner_Cost]: 20,
+        [Settings.Premium_Dinner_Cost]: 35,
+        [Settings.Luxury_Dinner_Cost]: 50,
+        [Settings.Ultra_Vip_Dinner_Cost]: 100,
+        [Settings.Policy_Generic]: "",
+        [Settings.Policy_Regular]: "",
+        [Settings.Policy_Premium]: "",
+        [Settings.Policy_Luxury]: "",
+        [Settings.Policy_Ultra_Vip]: "",
+        [Settings.Policy_Draft]: "",
+        [Settings.Address]: "",
+        [Settings.Company_Logo]: "",
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -76,7 +77,7 @@ export default function SettingsPage() {
 
             const res = await uploadHotelPhotoAction(formData);
             if (res.success && res.url) {
-                setMarkups(prev => ({ ...prev, company_logo: res.url }));
+                setMarkups(prev => ({ ...prev, [Settings.Company_Logo]: res.url }));
                 setMessage({ text: 'Logo uploaded successfully! Remember to save settings.', type: 'success' });
             } else {
                 setMessage({ text: res.error || 'Failed to upload logo', type: 'error' });
@@ -142,8 +143,8 @@ export default function SettingsPage() {
                         <label className="block text-sm font-bold text-neutral-700 mb-2">Company Address</label>
                         <textarea
                             rows={3}
-                            value={markups.address || ""}
-                            onChange={(e) => setMarkups({ ...markups, address: e.target.value })}
+                            value={markups[Settings.Address] || ""}
+                            onChange={(e) => setMarkups({ ...markups, [Settings.Address]: e.target.value })}
                             placeholder="Enter company address..."
                             className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                         />
@@ -152,16 +153,16 @@ export default function SettingsPage() {
                     <div>
                         <label className="block text-sm font-bold text-neutral-700 mb-2">Company Logo</label>
                         <div className="flex items-center gap-6">
-                            {markups.company_logo ? (
+                            {markups[Settings.Company_Logo] ? (
                                 <div className="relative w-24 h-24 border border-neutral-200 rounded-xl overflow-hidden bg-neutral-50 flex items-center justify-center">
                                     <img
-                                        src={markups.company_logo}
+                                        src={markups[Settings.Company_Logo]}
                                         alt="Company Logo Preview"
                                         className="object-contain w-full h-full p-2"
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setMarkups({ ...markups, company_logo: "" })}
+                                        onClick={() => setMarkups({ ...markups, [Settings.Company_Logo]: "" })}
                                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-sm"
                                         title="Remove Logo"
                                     >
@@ -248,8 +249,8 @@ export default function SettingsPage() {
                                 min="0"
                                 max="100"
                                 step="0.1"
-                                value={markups.room_markup}
-                                onChange={(e) => setMarkups({ ...markups, room_markup: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Room_Markup]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Room_Markup]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">%</span>
@@ -264,8 +265,8 @@ export default function SettingsPage() {
                                 min="0"
                                 max="100"
                                 step="0.1"
-                                value={markups.diver_markup}
-                                onChange={(e) => setMarkups({ ...markups, diver_markup: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Diver_Markup]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Diver_Markup]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">%</span>
@@ -280,8 +281,8 @@ export default function SettingsPage() {
                                 min="0"
                                 max="100"
                                 step="0.1"
-                                value={markups.tour_guide_markup}
-                                onChange={(e) => setMarkups({ ...markups, tour_guide_markup: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Tour_Guide_Markup]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Tour_Guide_Markup]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">%</span>
@@ -296,8 +297,8 @@ export default function SettingsPage() {
                                 min="0"
                                 max="100"
                                 step="0.1"
-                                value={markups.vendor_activity_markup}
-                                onChange={(e) => setMarkups({ ...markups, vendor_activity_markup: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Vendor_Activity_Markup]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Vendor_Activity_Markup]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">%</span>
@@ -312,8 +313,8 @@ export default function SettingsPage() {
                                 min="0"
                                 max="100"
                                 step="0.1"
-                                value={markups.transport_markup}
-                                onChange={(e) => setMarkups({ ...markups, transport_markup: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Transport_Markup]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Transport_Markup]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-10"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">%</span>
@@ -364,8 +365,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.regular_vehicle_km_rate}
-                                onChange={(e) => setMarkups({ ...markups, regular_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Regular_Vehicle_Km_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Vehicle_Km_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -379,8 +380,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.premium_vehicle_km_rate}
-                                onChange={(e) => setMarkups({ ...markups, premium_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Premium_Vehicle_Km_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Vehicle_Km_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -394,8 +395,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.luxury_vehicle_km_rate}
-                                onChange={(e) => setMarkups({ ...markups, luxury_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Luxury_Vehicle_Km_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Vehicle_Km_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -409,8 +410,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.ultra_vip_vehicle_km_rate}
-                                onChange={(e) => setMarkups({ ...markups, ultra_vip_vehicle_km_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Ultra_Vip_Vehicle_Km_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Vehicle_Km_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -453,8 +454,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.regular_vehicle_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, regular_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Regular_Vehicle_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Vehicle_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -468,8 +469,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.premium_vehicle_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, premium_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Premium_Vehicle_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Vehicle_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -483,8 +484,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.luxury_vehicle_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, luxury_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Luxury_Vehicle_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Vehicle_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -498,8 +499,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.ultra_vip_vehicle_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, ultra_vip_vehicle_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Ultra_Vip_Vehicle_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Vehicle_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -542,8 +543,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.regular_chauffeur_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, regular_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Regular_Chauffeur_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Chauffeur_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -557,8 +558,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.premium_chauffeur_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, premium_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Premium_Chauffeur_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Chauffeur_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -572,8 +573,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.luxury_chauffeur_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, luxury_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Luxury_Chauffeur_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Chauffeur_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -587,8 +588,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.ultra_vip_chauffeur_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, ultra_vip_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Ultra_Vip_Chauffeur_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Chauffeur_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -631,8 +632,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.guide_national_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, guide_national_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Guide_National_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Guide_National_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -646,8 +647,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.guide_regular_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, guide_regular_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Guide_Regular_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Guide_Regular_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -661,8 +662,8 @@ export default function SettingsPage() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={markups.guide_location_day_rate}
-                                onChange={(e) => setMarkups({ ...markups, guide_location_day_rate: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Guide_Location_Day_Rate]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Guide_Location_Day_Rate]: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>
@@ -705,8 +706,8 @@ export default function SettingsPage() {
                                 min="0"
                                 max="24"
                                 step="0.5"
-                                value={markups.activity_travel_prep_time}
-                                onChange={(e) => setMarkups({ ...markups, activity_travel_prep_time: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Activity_Travel_Prep_Time]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Activity_Travel_Prep_Time]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-12"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">hrs</span>
@@ -721,8 +722,8 @@ export default function SettingsPage() {
                                 min="1"
                                 max="24"
                                 step="0.5"
-                                value={markups.daily_activity_hours_limit}
-                                onChange={(e) => setMarkups({ ...markups, daily_activity_hours_limit: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Daily_Activity_Hours_Limit]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Daily_Activity_Hours_Limit]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-12"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">hrs</span>
@@ -737,8 +738,8 @@ export default function SettingsPage() {
                                 min="1"
                                 max="200"
                                 step="1"
-                                value={markups.activity_average_speed_km}
-                                onChange={(e) => setMarkups({ ...markups, activity_average_speed_km: parseFloat(e.target.value) || 0 })}
+                                value={markups[Settings.Activity_Average_Speed_Km]}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Activity_Average_Speed_Km]: parseFloat(e.target.value) || 0 })}
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-12"
                             />
                             <span className="absolute right-4 text-neutral-400 font-bold">km</span>
@@ -756,8 +757,8 @@ export default function SettingsPage() {
                                         min="0"
                                         max="100"
                                         step="0.1"
-                                        value={markups.regular_service_fee}
-                                        onChange={(e) => setMarkups({ ...markups, regular_service_fee: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Regular_Service_Fee]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Service_Fee]: parseFloat(e.target.value) || 0 })}
                                         className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
                                     />
                                     <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
@@ -771,8 +772,8 @@ export default function SettingsPage() {
                                         min="0"
                                         max="100"
                                         step="0.1"
-                                        value={markups.premium_service_fee}
-                                        onChange={(e) => setMarkups({ ...markups, premium_service_fee: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Premium_Service_Fee]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Service_Fee]: parseFloat(e.target.value) || 0 })}
                                         className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
                                     />
                                     <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
@@ -786,8 +787,8 @@ export default function SettingsPage() {
                                         min="0"
                                         max="100"
                                         step="0.1"
-                                        value={markups.luxury_service_fee}
-                                        onChange={(e) => setMarkups({ ...markups, luxury_service_fee: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Luxury_Service_Fee]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Service_Fee]: parseFloat(e.target.value) || 0 })}
                                         className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
                                     />
                                     <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
@@ -801,8 +802,8 @@ export default function SettingsPage() {
                                         min="0"
                                         max="100"
                                         step="0.1"
-                                        value={markups.ultra_vip_service_fee}
-                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_service_fee: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Ultra_Vip_Service_Fee]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Service_Fee]: parseFloat(e.target.value) || 0 })}
                                         className="w-full px-3 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none pr-8 text-sm font-medium"
                                     />
                                     <span className="absolute right-3 text-neutral-400 font-bold text-sm">%</span>
@@ -822,8 +823,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         step="1"
-                                        value={markups.regular_concierge_cost}
-                                        onChange={(e) => setMarkups({ ...markups, regular_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Regular_Concierge_Cost]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Concierge_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                 </div>
@@ -836,8 +837,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         step="1"
-                                        value={markups.premium_concierge_cost}
-                                        onChange={(e) => setMarkups({ ...markups, premium_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Premium_Concierge_Cost]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Concierge_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                 </div>
@@ -850,8 +851,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         step="1"
-                                        value={markups.luxury_concierge_cost}
-                                        onChange={(e) => setMarkups({ ...markups, luxury_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Luxury_Concierge_Cost]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Concierge_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                 </div>
@@ -864,8 +865,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         step="1"
-                                        value={markups.ultra_vip_concierge_cost}
-                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_concierge_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Ultra_Vip_Concierge_Cost]}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Concierge_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                 </div>
@@ -885,8 +886,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Breakfast"
-                                        value={markups.regular_breakfast_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, regular_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Regular_Breakfast_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Breakfast_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
@@ -897,8 +898,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Lunch"
-                                        value={markups.regular_lunch_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, regular_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Regular_Lunch_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Lunch_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
@@ -909,8 +910,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Dinner"
-                                        value={markups.regular_dinner_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, regular_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Regular_Dinner_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Regular_Dinner_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
@@ -926,8 +927,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Breakfast"
-                                        value={markups.premium_breakfast_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, premium_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Premium_Breakfast_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Breakfast_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
@@ -938,8 +939,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Lunch"
-                                        value={markups.premium_lunch_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, premium_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Premium_Lunch_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Lunch_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
@@ -950,8 +951,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Dinner"
-                                        value={markups.premium_dinner_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, premium_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Premium_Dinner_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Premium_Dinner_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
@@ -967,8 +968,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Breakfast"
-                                        value={markups.luxury_breakfast_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, luxury_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Luxury_Breakfast_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Breakfast_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
@@ -979,8 +980,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Lunch"
-                                        value={markups.luxury_lunch_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, luxury_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Luxury_Lunch_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Lunch_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
@@ -991,8 +992,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Dinner"
-                                        value={markups.luxury_dinner_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, luxury_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Luxury_Dinner_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Luxury_Dinner_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
@@ -1008,8 +1009,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Breakfast"
-                                        value={markups.ultra_vip_breakfast_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_breakfast_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Ultra_Vip_Breakfast_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Breakfast_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">BF</span>
@@ -1020,8 +1021,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Lunch"
-                                        value={markups.ultra_vip_lunch_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_lunch_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Ultra_Vip_Lunch_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Lunch_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">LH</span>
@@ -1032,8 +1033,8 @@ export default function SettingsPage() {
                                         type="number"
                                         min="0"
                                         placeholder="Dinner"
-                                        value={markups.ultra_vip_dinner_cost ?? ''}
-                                        onChange={(e) => setMarkups({ ...markups, ultra_vip_dinner_cost: parseFloat(e.target.value) || 0 })}
+                                        value={markups[Settings.Ultra_Vip_Dinner_Cost] ?? ''}
+                                        onChange={(e) => setMarkups({ ...markups, [Settings.Ultra_Vip_Dinner_Cost]: parseFloat(e.target.value) || 0 })}
                                         className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none text-sm font-medium"
                                     />
                                     <span className="text-[10px] text-neutral-400 absolute right-3 font-semibold">DN</span>
@@ -1076,8 +1077,8 @@ export default function SettingsPage() {
                             <label className="block text-sm font-bold text-neutral-700 mb-2">Generic Policy Notes (Applies to all itineraries)</label>
                             <textarea
                                 rows={4}
-                                value={markups.policy_generic || ""}
-                                onChange={(e) => setMarkups({ ...markups, policy_generic: e.target.value })}
+                                value={markups[Settings.Policy_Generic] || ""}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Policy_Generic]: e.target.value })}
                                 placeholder="Enter generic policy notes, one per line..."
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                             />
@@ -1087,8 +1088,8 @@ export default function SettingsPage() {
                             <label className="block text-sm font-bold text-neutral-700 mb-2">Draft Itinerary Terms (Applies to draft itineraries)</label>
                             <textarea
                                 rows={4}
-                                value={markups.policy_draft || ""}
-                                onChange={(e) => setMarkups({ ...markups, policy_draft: e.target.value })}
+                                value={markups[Settings.Policy_Draft] || ""}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Policy_Draft]: e.target.value })}
                                 placeholder="Enter draft itinerary terms, one per line..."
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                             />
@@ -1100,8 +1101,8 @@ export default function SettingsPage() {
                             <label className="block text-sm font-bold text-neutral-700 mb-2">Regular Tier Policies</label>
                             <textarea
                                 rows={4}
-                                value={markups.policy_regular || ""}
-                                onChange={(e) => setMarkups({ ...markups, policy_regular: e.target.value })}
+                                value={markups[Settings.Policy_Regular] || ""}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Policy_Regular]: e.target.value })}
                                 placeholder="Enter Regular tier policies..."
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                             />
@@ -1111,8 +1112,8 @@ export default function SettingsPage() {
                             <label className="block text-sm font-bold text-neutral-700 mb-2">Premium Tier Policies</label>
                             <textarea
                                 rows={4}
-                                value={markups.policy_premium || ""}
-                                onChange={(e) => setMarkups({ ...markups, policy_premium: e.target.value })}
+                                value={markups[Settings.Policy_Premium] || ""}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Policy_Premium]: e.target.value })}
                                 placeholder="Enter Premium tier policies..."
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                             />
@@ -1122,8 +1123,8 @@ export default function SettingsPage() {
                             <label className="block text-sm font-bold text-neutral-700 mb-2">Luxury Tier Policies</label>
                             <textarea
                                 rows={4}
-                                value={markups.policy_luxury || ""}
-                                onChange={(e) => setMarkups({ ...markups, policy_luxury: e.target.value })}
+                                value={markups[Settings.Policy_Luxury] || ""}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Policy_Luxury]: e.target.value })}
                                 placeholder="Enter Luxury tier policies..."
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                             />
@@ -1133,8 +1134,8 @@ export default function SettingsPage() {
                             <label className="block text-sm font-bold text-neutral-700 mb-2">Ultra VIP Tier Policies</label>
                             <textarea
                                 rows={4}
-                                value={markups.policy_ultra_vip || ""}
-                                onChange={(e) => setMarkups({ ...markups, policy_ultra_vip: e.target.value })}
+                                value={markups[Settings.Policy_Ultra_Vip] || ""}
+                                onChange={(e) => setMarkups({ ...markups, [Settings.Policy_Ultra_Vip]: e.target.value })}
                                 placeholder="Enter Ultra VIP tier policies..."
                                 className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                             />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { InternalItineraryBlock } from '@/other/interfaces';
 import { TouristDataDTO } from '@/dtos/tourist-data.dto';
-import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys, TRAVEL_STYLES, GUIDE_RATE_KEYS, TravelStyleSettingKeys } from '@/types/types';
+import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys, TRAVEL_STYLES, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings } from '@/types/types';
 import { InvoiceCalculationService } from '@/services/invoice-calculation.service';
 
 interface ItineraryPdfTemplateNewProps {
@@ -821,7 +821,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   };
 
                   const isDraft = tripStatus?.toLowerCase() === 'draft';
-                  const genericPolicyText = appSettings?.policy_generic || '';
+                  const genericPolicyText = appSettings?.[Settings.Policy_Generic] || '';
                   const tierKey = travelStyle ? getTierPolicyKey(travelStyle) : null;
                   const tierPolicyText = (tierKey && appSettings?.[tierKey]) || '';
 
@@ -834,7 +834,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   };
 
                   const allPolicies = isDraft
-                    ? parsePolicyLines(appSettings?.policy_draft || '')
+                    ? parsePolicyLines(appSettings?.[Settings.Policy_Draft] || '')
                     : [
                         ...parsePolicyLines(genericPolicyText),
                         ...parsePolicyLines(tierPolicyText)

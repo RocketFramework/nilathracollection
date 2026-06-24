@@ -1,5 +1,6 @@
 
 import { CreateTourDTO, AddActivityDTO } from '../dtos/tour.dto';
+import { Settings } from '@/types/types';
 import { TripData, Traveler, TravelStyle } from '@/app/admin/(authenticated)/planner/types';
 import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import { createAdminClient } from '@/utils/supabase/admin';
@@ -419,16 +420,16 @@ export class TourService {
         if (rawSettings) {
             rawSettings.forEach(s => settingsMap[s.setting_key] = Number(s.setting_value) || 0);
         }
-        const roomMarkup = settingsMap.room_markup || 10;
-        const transportMarkup = settingsMap.transport_markup || 10;
-        const restaurantMarkup = settingsMap.restaurant_markup || 10;
-        const activityMarkup = settingsMap.vendor_activity_markup || 10;
+        const roomMarkup = settingsMap[Settings.Room_Markup] || 10;
+        const transportMarkup = settingsMap[Settings.Transport_Markup] || 10;
+        const restaurantMarkup = settingsMap[Settings.Restaurant_Markup] || 10;
+        const activityMarkup = settingsMap[Settings.Vendor_Activity_Markup] || 10;
         
         const travelStyle = tripData.profile?.travelStyle || 'Standard';
-        let vehicleKmRate = settingsMap.regular_vehicle_km_rate || 0;
-        if (travelStyle === 'Premium') vehicleKmRate = settingsMap.premium_vehicle_km_rate || 0;
-        else if (travelStyle === 'Luxury') vehicleKmRate = settingsMap.luxury_vehicle_km_rate || 0;
-        else if (travelStyle === 'Ultra VIP') vehicleKmRate = settingsMap.ultra_vip_vehicle_km_rate || 0;
+        let vehicleKmRate = settingsMap[Settings.Regular_Vehicle_Km_Rate] || 0;
+        if (travelStyle === 'Premium') vehicleKmRate = settingsMap[Settings.Premium_Vehicle_Km_Rate] || 0;
+        else if (travelStyle === 'Luxury') vehicleKmRate = settingsMap[Settings.Luxury_Vehicle_Km_Rate] || 0;
+        else if (travelStyle === 'Ultra VIP') vehicleKmRate = settingsMap[Settings.Ultra_Vip_Vehicle_Km_Rate] || 0;
 
         // Dynamically recalculate itinerary summary to prevent React state staleness
         const blocks = tripData.itinerary || [];

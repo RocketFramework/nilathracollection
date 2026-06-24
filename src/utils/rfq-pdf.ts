@@ -1,4 +1,4 @@
-import { RoomSizeName } from '@/types/types';
+import { RoomSizeName, Settings } from '@/types/types';
 
 const loadJsPDF = () => {
     return new Promise<any>((resolve) => {
@@ -72,9 +72,9 @@ export const generateHotelRfqPdf = async (
     let logoBottomY = 20;
 
     // Load Company Logo
-    if (appSettings?.company_logo) {
+    if (appSettings?.[Settings.Company_Logo]) {
         try {
-            const logoBase64 = await getBase64ImageFromUrl(appSettings.company_logo);
+            const logoBase64 = await getBase64ImageFromUrl(appSettings[Settings.Company_Logo]);
             const dims = await getImageDimensions(logoBase64);
             const aspectRatio = dims.width / dims.height;
             let logoWidth = 40;
@@ -206,8 +206,8 @@ export const generateHotelRfqPdf = async (
     doc.setFontSize(9);
     
     let issuerY = topY + 10;
-    if (appSettings?.address) {
-        const splitIssuer = doc.splitTextToSize(appSettings.address, 80);
+    if (appSettings?.[Settings.Address]) {
+        const splitIssuer = doc.splitTextToSize(appSettings[Settings.Address], 80);
         doc.text(splitIssuer, col2X, issuerY);
         issuerY += (splitIssuer.length * 4.5);
     } else {

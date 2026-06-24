@@ -35,7 +35,7 @@ import {
   CheckCircle,
   AlertCircle,
   Play,
-  Settings,
+  Settings as SettingsIcon,
   HelpCircle,
   Map,
   ShieldCheck,
@@ -76,7 +76,7 @@ import {
   Pencil,
   Flag
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
@@ -646,7 +646,7 @@ function PlannerWizardWorkspace() {
         });
         if (markupRes && markupRes.success && markupRes.markups) {
           setMarkups(markupRes.markups);
-          setRoomMarkup(markupRes.markups.room_markup ?? 10);
+          setRoomMarkup(markupRes.markups[Settings.Room_Markup] ?? 10);
         }
       } catch (err) {
         console.error("Failed to load master data for assignment:", err);
@@ -845,7 +845,7 @@ function PlannerWizardWorkspace() {
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
         const contractedPrice = restaurant.lunch_rate_per_head || 25;
-        const markupPercent = markups.restaurant_markup ?? 10;
+        const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
         const agreedPrice = contractedPrice * (1 + markupPercent / 100);
         
         setItinerary(prev => prev.map(b => b.id === blockId ? { 
@@ -907,7 +907,7 @@ function PlannerWizardWorkspace() {
           : (block.imageUrl || '');
 
         if (va) {
-          const markupPercent = markups.vendor_activity_markup ?? 10;
+          const markupPercent = markups[Settings.Vendor_Activity_Markup] ?? 10;
           const contractedRate = va.vendor_price || 0;
           const agreedPrice = contractedRate * (1 + markupPercent / 100);
 
@@ -1489,14 +1489,14 @@ function PlannerWizardWorkspace() {
         if (res.success && res.markups) {
           const settings = res.markups as any;
           setAppSettings(settings);
-          if (settings.activity_travel_prep_time !== undefined) {
-            setActivityTravelPrepTime(Number(settings.activity_travel_prep_time));
+          if (settings[Settings.Activity_Travel_Prep_Time] !== undefined) {
+            setActivityTravelPrepTime(Number(settings[Settings.Activity_Travel_Prep_Time]));
           }
-          if (settings.daily_activity_hours_limit !== undefined) {
-            setDailyActivityHoursLimit(Number(settings.daily_activity_hours_limit));
+          if (settings[Settings.Daily_Activity_Hours_Limit] !== undefined) {
+            setDailyActivityHoursLimit(Number(settings[Settings.Daily_Activity_Hours_Limit]));
           }
-          if (settings.activity_average_speed_km !== undefined) {
-            setActivityAverageSpeedKm(Number(settings.activity_average_speed_km));
+          if (settings[Settings.Activity_Average_Speed_Km] !== undefined) {
+            setActivityAverageSpeedKm(Number(settings[Settings.Activity_Average_Speed_Km]));
           }
         }
       } catch (error) {
@@ -4408,7 +4408,7 @@ function PlannerWizardWorkspace() {
             Back to Dashboard
           </Link>
           <div className="bg-brand-green/10 text-brand-green p-2 rounded-xl">
-            <Settings className="w-5 h-5 text-emerald-800" />
+            <SettingsIcon className="w-5 h-5 text-emerald-800" />
           </div>
           <div>
             <h1 className="text-lg font-serif font-bold text-neutral-800 flex items-center gap-2">
@@ -12624,16 +12624,16 @@ function AIItineraryBuilder({
         // Vehicle Cost
         const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
         const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
-        const transportMarkupPercent = Number(appSettings.transport_markup) || 0;
+        const transportMarkupPercent = Number(appSettings[Settings.Transport_Markup]) || 0;
         const transportMarkup = transportMarkupPercent / 100;
         const vehicleCost = vehicleDayRate * (1 + transportMarkup);
 
         // Chauffeur Cost
         const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
         const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
-        const driverMarkupPercent = appSettings.diver_markup !== undefined 
-          ? Number(appSettings.diver_markup) 
-          : (Number(appSettings.driver_markup) || 0);
+        const driverMarkupPercent = appSettings[Settings.Diver_Markup] !== undefined 
+          ? Number(appSettings[Settings.Diver_Markup]) 
+          : (Number(appSettings[Settings.Driver_Markup]) || 0);
         const driverMarkup = driverMarkupPercent / 100;
         const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
 
@@ -12652,7 +12652,7 @@ function AIItineraryBuilder({
         }
 
         const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
-        const tourGuideMarkupPercent = Number(appSettings.tour_guide_markup) || 0;
+        const tourGuideMarkupPercent = Number(appSettings[Settings.Tour_Guide_Markup]) || 0;
         const tourGuideMarkup = tourGuideMarkupPercent / 100;
         const guideCost = guideDayRate * (1 + tourGuideMarkup);
 
@@ -13417,7 +13417,7 @@ function AIItineraryBuilder({
                 : 'bg-white hover:bg-neutral-50 border-neutral-200/80 text-neutral-700 hover:text-neutral-900'
             }`}
           >
-            <Settings className="w-4 h-4 text-neutral-500" /> AI Rules Config
+            <SettingsIcon className="w-4 h-4 text-neutral-500" /> AI Rules Config
           </button>
 
           {/* Download PDF */}
