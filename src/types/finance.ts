@@ -110,6 +110,7 @@ export interface DBCustomerInvoiceItem {
     description: string;
     amount: number;
     created_at: string;
+    daily_activity_ids?: string[];
 }
 
 export interface DBCustomerPayment {

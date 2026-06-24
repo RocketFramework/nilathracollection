@@ -6,7 +6,7 @@ export class CustomerInvoiceService {
     /**
      * Preview consolidated experience category invoice items for a tour
      */
-    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO>) {
+    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO>): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
         const supabaseAdmin = createAdminClient();
 
         // 1. Fetch tour details
@@ -45,95 +45,22 @@ export class CustomerInvoiceService {
         const { data: activities, error: actError } = await query;
         if (actError) throw actError;
 
-        // Resolve room category names for room IDs
-        const roomIds: string[] = [];
-        activities?.forEach(act => {
-            if (act.single_room_id) roomIds.push(act.single_room_id);
-            if (act.double_room_id) roomIds.push(act.double_room_id);
-            if (act.twin_room_id) roomIds.push(act.twin_room_id);
-            if (act.triple_room_id) roomIds.push(act.triple_room_id);
-            if (act.family_room_id) roomIds.push(act.family_room_id);
-        });
+        const invoiceItems: { description: string; amount: number; dailyActivityIds: string[] }[] = [];
 
-        const roomNamesMap = new Map<string, string>();
-        if (roomIds.length > 0) {
-            const uniqueRoomIds = Array.from(new Set(roomIds));
-            const { data: rooms } = await supabaseAdmin
-                .from('hotel_rooms')
-                .select('id, room_name')
-                .in('id', uniqueRoomIds);
-            rooms?.forEach(r => roomNamesMap.set(r.id, r.room_name));
-        }
+        // --- CATEGORY 1: ACCOMMODATION & MEALS ---
+        const sleepMealActs = activities?.filter(act => act.activity_type === 'sleep' || act.activity_type === 'meal' || act.hotel_id !== null) || [];
+        const sleepActs = sleepMealActs.filter(act => act.activity_type === 'sleep' || act.hotel_id !== null);
+        const nights = sleepActs.length;
+        const sleepMealTotal = sleepMealActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
 
-        const invoiceItems: { description: string; amount: number }[] = [];
-
-        // --- CATEGORY 1: ACCOMMODATION ---
-        const sleepActs = activities?.filter(act => act.activity_type === 'sleep' || act.hotel_id !== null) || [];
-        const hotelGroups = new Map<string, typeof sleepActs>();
-        sleepActs.forEach(act => {
-            const key = act.hotel_id || 'unknown';
-            if (!hotelGroups.has(key)) {
-                hotelGroups.set(key, []);
-            }
-            hotelGroups.get(key)!.push(act);
-        });
-
-        const mealActs = activities?.filter(act => act.activity_type === 'meal' && (act.charged_total_price || 0) > 0) || [];
-
-        for (const [hotelId, acts] of hotelGroups.entries()) {
-            const firstAct = acts[0];
-            const hotelName = firstAct.hotels?.name || firstAct.title || "Luxury Accommodation";
-            const nights = acts.length;
-
-            const roomTypeCountMap = new Map<string, number>();
-            acts.forEach(act => {
-                const roomCounts = [
-                    { id: act.single_room_id, count: act.single_room_count, name: 'Single Room' },
-                    { id: act.double_room_id, count: act.double_room_count, name: 'Double Room' },
-                    { id: act.twin_room_id, count: act.twin_room_count, name: 'Twin Room' },
-                    { id: act.triple_room_id, count: act.triple_room_count, name: 'Triple Room' },
-                    { id: act.family_room_id, count: act.family_room_count, name: 'Family Room' }
-                ];
-                roomCounts.forEach(rc => {
-                    if (rc.count && rc.count > 0) {
-                        const name = rc.id ? (roomNamesMap.get(rc.id) || rc.name) : rc.name;
-                        roomTypeCountMap.set(name, (roomTypeCountMap.get(name) || 0) + rc.count);
-                    }
-                });
-            });
-
-            const roomDetailsList: string[] = [];
-            roomTypeCountMap.forEach((count, name) => {
-                const avgCount = Math.round(count / nights) || 1;
-                roomDetailsList.push(`${avgCount}x ${name}`);
-            });
-            const roomsStr = roomDetailsList.length > 0 ? roomDetailsList.join(", ") : "Bespoke Room Setup";
-
-            const mealPlans = Array.from(new Set(acts.map(act => act.meal_plan).filter(Boolean)));
-            const mealPlanNames = mealPlans.map(mp => {
-                const code = String(mp).toUpperCase();
-                if (code === 'BB') return 'Bed & Breakfast';
-                if (code === 'HB') return 'Half Board';
-                if (code === 'FB') return 'Full Board';
-                if (code === 'AI') return 'All Inclusive';
-                return mp;
-            });
-            const mealPlanStr = mealPlanNames.length > 0 ? ` - ${mealPlanNames.join(", ")}` : '';
-
-            let totalAmount = acts.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
-
-            // Roll meals on same day into stay
-            const actDates = acts.map(act => act.tour_itineraries?.date).filter(Boolean);
-            const matchingMeals = mealActs.filter(meal => actDates.includes(meal.tour_itineraries?.date));
-            matchingMeals.forEach(meal => {
-                totalAmount += (Number(meal.charged_total_price) || 0);
-                const idx = mealActs.indexOf(meal);
-                if (idx !== -1) mealActs.splice(idx, 1);
-            });
-
+        if (sleepMealActs.length > 0) {
+            const description = nights > 0 
+                ? `Luxury Accommodation & Bespoke Dining throughout (${nights} Night${nights > 1 ? 's' : ''})`
+                : "Luxury Accommodation & Bespoke Dining throughout";
             invoiceItems.push({
-                description: `${hotelName} — ${roomsStr} (${nights} Night${nights > 1 ? 's' : ''}${mealPlanStr})`,
-                amount: totalAmount
+                description,
+                amount: sleepMealTotal,
+                dailyActivityIds: sleepMealActs.map(act => act.id).filter(Boolean)
             });
         }
 
@@ -143,48 +70,29 @@ export class CustomerInvoiceService {
         if (travelActs.length > 0) {
             invoiceItems.push({
                 description: "Chauffeur-driven transfers throughout",
-                amount: travelTotal
+                amount: travelTotal,
+                dailyActivityIds: travelActs.map(act => act.id).filter(Boolean)
             });
         }
 
         // --- CATEGORY 3: EXPERIENCES ---
-        const experienceActs = activities?.filter(act => 
-            act.activity_type === 'activity' || 
-            act.activity_type === 'custom' || 
-            (act.activity_type === 'meal' && !sleepActs.some(s => s.tour_itineraries?.date === act.tour_itineraries?.date))
-        ) || [];
-
-        experienceActs.forEach(act => {
-            const price = Number(act.charged_total_price) || 0;
-            if (price > 0) {
-                let durationText = '';
-                if (act.time_start && act.time_end) {
-                    try {
-                        const [sH, sM] = act.time_start.split(':').map(Number);
-                        const [eH, eM] = act.time_end.split(':').map(Number);
-                        if (!isNaN(sH) && !isNaN(eH)) {
-                            const diffMins = (eH * 60 + eM) - (sH * 60 + sM);
-                            if (diffMins > 0) {
-                                const hrs = Math.floor(diffMins / 60);
-                                const mins = diffMins % 60;
-                                durationText = ` (${hrs > 0 ? `${hrs} hr${hrs > 1 ? 's' : ''}` : ''}${mins > 0 ? ` ${mins} min` : ''})`;
-                            }
-                        }
-                    } catch (e) {}
-                }
-                invoiceItems.push({
-                    description: `${act.title}${durationText}`,
-                    amount: price
-                });
-            }
-        });
+        const experienceActs = activities?.filter(act => act.activity_type === 'activity' || act.activity_type === 'custom') || [];
+        const experienceTotal = experienceActs.reduce((sum, act) => sum + (Number(act.charged_total_price) || 0), 0);
+        if (experienceActs.length > 0) {
+            invoiceItems.push({
+                description: "Curated Activities & Experiences throughout",
+                amount: experienceTotal,
+                dailyActivityIds: experienceActs.map(act => act.id).filter(Boolean)
+            });
+        }
 
         // --- CATEGORY 4: FLIGHTS ---
         if (options.flightsQuotedSeparately) {
             const price = Number(options.flightsQuotedPrice) || 0;
             invoiceItems.push({
                 description: price > 0 ? "International Airfare — Booked & Confirmed" : "International airfare excluded",
-                amount: price
+                amount: price,
+                dailyActivityIds: []
             });
         }
 
@@ -199,7 +107,8 @@ export class CustomerInvoiceService {
 
         invoiceItems.push({
             description: "Nilathra Collection service fee",
-            amount: serviceFeeAmount
+            amount: serviceFeeAmount,
+            dailyActivityIds: curationActs.map(act => act.id).filter(Boolean)
         });
 
         return invoiceItems;
@@ -265,7 +174,7 @@ export class CustomerInvoiceService {
 
         if (invError) throw invError;
 
-        // 6. Insert items
+        // 6. Insert items and create links to daily activities
         if (items.length > 0) {
             const itemsToInsert = items.map(item => ({
                 invoice_id: invoice.id,
@@ -273,11 +182,33 @@ export class CustomerInvoiceService {
                 amount: item.amount
             }));
 
-            const { error: itemsError } = await supabaseAdmin
+            const { data: insertedItems, error: itemsError } = await supabaseAdmin
                 .from('customer_invoice_items')
-                .insert(itemsToInsert);
+                .insert(itemsToInsert)
+                .select();
 
             if (itemsError) throw itemsError;
+
+            // Link items with daily activities in the database
+            const linksToInsert: { invoice_item_id: string; daily_activity_id: string }[] = [];
+            insertedItems?.forEach((insertedItem, index) => {
+                const sourceItem = items[index];
+                if (sourceItem.dailyActivityIds && sourceItem.dailyActivityIds.length > 0) {
+                    sourceItem.dailyActivityIds.forEach((daId: string) => {
+                        linksToInsert.push({
+                            invoice_item_id: insertedItem.id,
+                            daily_activity_id: daId
+                        });
+                    });
+                }
+            });
+
+            if (linksToInsert.length > 0) {
+                const { error: linksError } = await supabaseAdmin
+                    .from('daily_activity_customer_invoice_items')
+                    .insert(linksToInsert);
+                if (linksError) throw linksError;
+            }
         }
 
         return {
@@ -302,6 +233,34 @@ export class CustomerInvoiceService {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
+
+        // Fetch linked daily activities for each invoice item
+        if (invoices && invoices.length > 0) {
+            const itemIds = (invoices as any[]).flatMap(inv => ((inv.items as any[]) || []).map((item: any) => item.id));
+            if (itemIds.length > 0) {
+                const { data: links, error: linksError } = await supabaseAdmin
+                    .from('daily_activity_customer_invoice_items')
+                    .select('invoice_item_id, daily_activity_id')
+                    .in('invoice_item_id', itemIds);
+
+                if (!linksError && links) {
+                    const linksMap = new Map<string, string[]>();
+                    links.forEach((l: any) => {
+                        if (!linksMap.has(l.invoice_item_id)) {
+                            linksMap.set(l.invoice_item_id, []);
+                        }
+                        linksMap.get(l.invoice_item_id)!.push(l.daily_activity_id);
+                    });
+
+                    invoices.forEach(inv => {
+                        (((inv as any).items as any[]) || []).forEach((item: any) => {
+                            item.daily_activity_ids = linksMap.get(item.id) || [];
+                        });
+                    });
+                }
+            }
+        }
+
         return invoices as DBCustomerInvoice[];
     }
 
