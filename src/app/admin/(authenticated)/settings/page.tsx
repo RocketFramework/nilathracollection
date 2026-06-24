@@ -24,6 +24,9 @@ export default function SettingsPage() {
         premium_chauffeur_day_rate: 0,
         luxury_chauffeur_day_rate: 0,
         ultra_vip_chauffeur_day_rate: 0,
+        guide_national_day_rate: 0,
+        guide_regular_day_rate: 0,
+        guide_location_day_rate: 0,
         activity_travel_prep_time: 2,
         daily_activity_hours_limit: 6,
         activity_average_speed_km: 30,
@@ -602,6 +605,80 @@ export default function SettingsPage() {
                                 step="0.01"
                                 value={markups.ultra_vip_chauffeur_day_rate}
                                 onChange={(e) => setMarkups({ ...markups, ultra_vip_chauffeur_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mt-8">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">Guide Per Day Rates</h2>
+                        <p className="text-sm text-neutral-500">Configure global per day rates for different guide classes.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">National Guide ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.guide_national_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, guide_national_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Regular Guide ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.guide_regular_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, guide_regular_day_rate: parseFloat(e.target.value) || 0 })}
+                                className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Location Guide ($)</label>
+                        <div className="flex items-center relative">
+                            <span className="absolute left-4 text-neutral-400 font-bold">$</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={markups.guide_location_day_rate}
+                                onChange={(e) => setMarkups({ ...markups, guide_location_day_rate: parseFloat(e.target.value) || 0 })}
                                 className="w-full pl-8 pr-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none"
                             />
                         </div>

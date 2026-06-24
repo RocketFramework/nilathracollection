@@ -73,10 +73,11 @@ import {
   Link as LinkIcon,
   Link2Off,
   Train,
-  Pencil
+  Pencil,
+  Flag
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName } from '../../types/types';
-import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail } from '../../other/interfaces';
+import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
   getTouristDataAction, 
@@ -1962,9 +1963,9 @@ function PlannerWizardWorkspace() {
     }
   }, [currentStep?.id, tourId]);
 
-  // Load customer invoices when step is 'payment-receive'
+  // Load customer invoices when step is 'payment-receive' or 'profit-loss'
   useEffect(() => {
-    if (currentStep?.id === 'payment-receive' && tourId) {
+    if ((currentStep?.id === 'payment-receive' || currentStep?.id === 'profit-loss') && tourId) {
       async function loadCustomerInvoices() {
         setIsLoadingCustomerInvoices(true);
         try {
@@ -2421,6 +2422,333 @@ function PlannerWizardWorkspace() {
   const [customerPaymentAmount, setCustomerPaymentAmount] = useState<string>('');
   const [customerPaymentMethod, setCustomerPaymentMethod] = useState<string>('Bank Transfer');
   const [customerPaymentTxId, setCustomerPaymentTxId] = useState<string>('');
+
+  // Profit & Loss Analysis states & calculations
+  const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(true);
+
+  const profitLossReport = useMemo(() => {
+    // 1. Calculate allocated customer invoice details for each activity first
+    const activityCustomerBilling = new globalThis.Map<string, { invoicedUSD: number; paidUSD: number }>();
+
+    customerInvoices.forEach(inv => {
+      if (inv.status === 'Cancelled') return;
+      const items = inv.items || [];
+      const payments = inv.payments || [];
+      const totalPaidCust = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      const invoiceTotal = inv.amount || 1.0;
+
+      items.forEach((item: any) => {
+        const itemIds = item.daily_activity_ids || [];
+        if (itemIds.length === 0) return;
+
+        // Sum the charged_total_price of all daily activities linked to this customer item to find the baseline ratio
+        const linkedActivities = dbActivities.filter(a => itemIds.includes(a.id));
+        const sumChargedTotal = linkedActivities.reduce((sum, a) => sum + (a.charged_total_price || 0), 0);
+
+        linkedActivities.forEach(da => {
+          const ratio = sumChargedTotal > 0 ? (da.charged_total_price || 0) / sumChargedTotal : 0;
+          const activityInvoiced = ratio * (item.amount || 0);
+          const activityPaid = ratio * (invoiceTotal > 0 ? (item.amount / invoiceTotal) * totalPaidCust : 0);
+
+          const current = activityCustomerBilling.get(da.id) || { invoicedUSD: 0, paidUSD: 0 };
+          activityCustomerBilling.set(da.id, {
+            invoicedUSD: current.invoicedUSD + activityInvoiced,
+            paidUSD: current.paidUSD + activityPaid
+          });
+        });
+      });
+    });
+
+    // Helper functions for currency conversion
+    const getPaymentAmountInUSD = (p: any) => {
+      const amt = Number(p.amount) || 0;
+      const rate = Number(p.exchange_rate) || 1.0;
+      if (p.currency === 'USD') return amt;
+      if (p.currency === 'LKR') return rate > 0 ? amt / rate : amt;
+      return amt;
+    };
+
+    const getInvoiceItemAmountInUSD = (item: any, exchangeRate: number, currency: string) => {
+      const total = (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
+      if (currency === 'USD') return total;
+      if (currency === 'LKR') return exchangeRate > 0 ? total / exchangeRate : total;
+      return total;
+    };    // 2. Map Supplier side (Daily Activity as base)
+    const supplierPLItems: ProfitLossLineItem[] = dbActivities.map(da => {
+      const contractedPrice = da.contracted_price || 0;
+      const contractedTotal = contractedPrice * (da.quantity || 1);
+      const chargedPrice = da.charged_unit_price || 0;
+      const chargedTotal = da.charged_total_price || (chargedPrice * (da.quantity || 1));
+
+      // Find linked PO items
+      const linkedPOItems = purchaseOrders
+        .filter(po => po.status !== 'Cancelled')
+        .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
+        .filter(item => item.daily_activity_id === da.id);
+
+      let invoicedTotal = 0;
+      let invoicedQty = 0;
+      let poNumber: string | null = null;
+      let supplierInvoiceNumber: string | null = null;
+      let supplierInvoiceCurrency: string | null = null;
+      let supplierInvoiceRate: number | null = null;
+
+      linkedPOItems.forEach(poItem => {
+        poNumber = poItem.po.po_number || poNumber;
+
+        // Sum invoice items
+        const invoices = poItem.po.invoices || [];
+        invoices.forEach((inv: any) => {
+          const invItems = inv.items || [];
+          const matchingInvItems = invItems.filter((ii: any) => ii.purchase_order_item_id === poItem.id);
+
+          matchingInvItems.forEach((ii: any) => {
+            const itemTotalUSD = getInvoiceItemAmountInUSD(ii, Number(inv.exchange_rate) || 1.0, inv.currency || 'USD');
+            invoicedTotal += itemTotalUSD;
+            invoicedQty += ii.quantity || 0;
+
+            supplierInvoiceNumber = inv.invoice_number || supplierInvoiceNumber;
+            supplierInvoiceCurrency = inv.currency || supplierInvoiceCurrency;
+            supplierInvoiceRate = Number(inv.exchange_rate) || supplierInvoiceRate;
+          });
+        });
+      });
+
+      const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+      const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+      const margin = chargedTotal - contractedTotal;
+      const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+
+      // A discrepancy exists if:
+      // - Invoiced total doesn't match agreed cost (contracted total) by more than $0.05
+      // - Or if agreed cost is > 0 but invoiced is 0 (delayed invoice)
+      const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+      // Resolve vendor name and contact details based on activity_type and respective foreign key in daily_activities
+      let vendorName = 'No Vendor Linked';
+      let vendorPhone: string | null = null;
+      let vendorEmail: string | null = null;
+      let reservationContactName: string | null = null;
+      let reservationContactPhone: string | null = null;
+      let reservationContactEmail: string | null = null;
+      let salesContactName: string | null = null;
+      let salesContactPhone: string | null = null;
+      let salesContactEmail: string | null = null;
+
+      if (da.activity_type === 'travel') {
+        const tp = masterData.transportProviders?.find((t: any) => t.id === da.transport_id);
+        if (tp) {
+          vendorName = tp.name;
+          vendorPhone = tp.phone || null;
+          vendorEmail = tp.email || null;
+        }
+      } else if (da.activity_type === 'sleep') {
+        const hotel = masterData.hotels?.find((h: any) => h.id === da.hotel_id);
+        if (hotel) {
+          vendorName = hotel.name;
+          vendorPhone = hotel.reservation_agent_contact || hotel.sales_agent_contact || null;
+          vendorEmail = hotel.reservation_email || hotel.sales_email || null;
+          reservationContactName = hotel.reservation_agent_name || null;
+          reservationContactPhone = hotel.reservation_agent_contact || null;
+          reservationContactEmail = hotel.reservation_email || null;
+          salesContactName = hotel.sales_agent_name || null;
+          salesContactPhone = hotel.sales_agent_contact || null;
+          salesContactEmail = hotel.sales_email || null;
+        }
+      } else if (da.activity_type === 'meal') {
+        const rest = masterData.restaurants?.find((r: any) => r.id === da.restaurant_id);
+        if (rest) {
+          vendorName = rest.name;
+          vendorPhone = rest.contact_number || null;
+          vendorEmail = rest.email || null;
+        }
+      } else if (da.activity_type === 'guide') {
+        const guide = masterData.guides?.find((g: any) => g.id === da.guide_id);
+        if (guide) {
+          vendorName = guide.full_name || guide.name;
+          vendorPhone = guide.phone || null;
+          vendorEmail = guide.email || null;
+        }
+      } else if (da.activity_type === 'driver') {
+        const driver = masterData.drivers?.find((d: any) => d.id === da.driver_id);
+        if (driver) {
+          vendorName = driver.full_name || driver.name;
+          vendorPhone = driver.phone || null;
+          vendorEmail = driver.email || null;
+        }
+      } else {
+        const vendor = masterData.vendors?.find((v: any) => v.id === da.vendor_id);
+        if (vendor) {
+          vendorName = vendor.name;
+          vendorPhone = vendor.phone || null;
+          vendorEmail = vendor.email || null;
+        }
+      }
+
+      // Fallback to PO vendor name and contact details
+      if (vendorName === 'No Vendor Linked' && linkedPOItems.length > 0) {
+        const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
+        if (poWithVendor) {
+          vendorName = poWithVendor.po.vendor_name;
+          vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
+          vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+        }
+      }
+
+      return {
+        dailyActivityId: da.id,
+        dayNumber: da.tour_itineraries?.day_number || da.day_number || 1,
+        date: da.tour_itineraries?.date || null,
+        title: da.title || '',
+        vendorName,
+        vendorType: da.activity_type || 'other',
+        quantity: da.quantity || 1,
+        contractedPrice,
+        contractedTotal,
+        chargedPrice,
+        chargedTotal,
+        invoicedQty,
+        invoicedUnitPrice,
+        invoicedTotal,
+        invoicedDiscrepancy,
+        margin,
+        marginPercentage,
+        poNumber,
+        supplierInvoiceNumber,
+        supplierInvoiceCurrency,
+        supplierInvoiceRate,
+        vendorPhone,
+        vendorEmail,
+        reservationContactName,
+        reservationContactPhone,
+        reservationContactEmail,
+        salesContactName,
+        salesContactPhone,
+        salesContactEmail,
+        hasDiscrepancy
+      };
+    });
+
+    supplierPLItems.sort((a, b) => {
+      if (a.dayNumber !== b.dayNumber) {
+        return a.dayNumber - b.dayNumber;
+      }
+      return a.vendorType.localeCompare(b.vendorType);
+    });
+
+    // 3. Map Customer side (Customer Invoices as base)
+    const customerPLItems: ProfitLossCustomerItem[] = customerInvoices
+      .filter(inv => inv.status !== 'Cancelled')
+      .flatMap(inv => {
+        const items = inv.items || [];
+        const payments = inv.payments || [];
+        const totalPaidCust = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+        const invoiceTotal = inv.amount || 1.0;
+
+        return items.map((item: any) => {
+          const itemIds = item.daily_activity_ids || [];
+          const linkedActivities = dbActivities.filter(a => itemIds.includes(a.id));
+          const dailyActivitySum = linkedActivities.reduce((sum, a) => sum + (a.charged_total_price || 0), 0);
+
+          let totalSupplierAgreed = 0;
+          let totalSupplierInvoiced = 0;
+
+          linkedActivities.forEach(da => {
+            const splItem = supplierPLItems.find(s => s.dailyActivityId === da.id);
+            if (splItem) {
+              totalSupplierAgreed += splItem.contractedTotal;
+              totalSupplierInvoiced += splItem.invoicedTotal;
+            }
+          });
+
+          const agreedAmount = dailyActivitySum;
+          const invoicedAmount = item.amount || 0;
+          const paidAmount = invoiceTotal > 0 ? (invoicedAmount / invoiceTotal) * totalPaidCust : 0;
+
+          const discrepancy = paidAmount - invoicedAmount;
+          const dailyActivityDiscrepancy = invoicedAmount - dailyActivitySum;
+
+          const hasDiscrepancy = Math.abs(discrepancy) >= 0.05 || Math.abs(dailyActivityDiscrepancy) >= 0.05;
+
+          return {
+            invoiceItemId: item.id,
+            invoiceId: inv.id,
+            invoiceNumber: inv.invoice_number || 'No Inv Num',
+            description: item.description || '',
+            agreedAmount,
+            invoicedAmount,
+            paidAmount,
+            discrepancy,
+            dailyActivitySum,
+            dailyActivityDiscrepancy,
+            totalSupplierAgreed,
+            totalSupplierInvoiced,
+            linkedActivities: linkedActivities.map(da => ({
+              id: da.id,
+              dayNumber: da.day_number || 1,
+              title: da.title || '',
+              chargedTotal: da.charged_total_price || 0
+            })),
+            hasDiscrepancy
+          };
+        });
+      });
+
+    // 4. Summaries
+    const totalCustomerAgreed = supplierPLItems.reduce((sum, item) => sum + item.chargedTotal, 0);
+    const totalCustomerInvoiced = customerPLItems.reduce((sum, item) => sum + item.invoicedAmount, 0);
+    const totalCustomerPaid = customerInvoices
+      .filter(inv => inv.status !== 'Cancelled')
+      .flatMap(inv => inv.payments || [])
+      .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+
+    const totalSupplierAgreed = supplierPLItems.reduce((sum, item) => sum + item.contractedTotal, 0);
+    const totalSupplierInvoiced = supplierPLItems.reduce((sum, item) => sum + item.invoicedTotal, 0);
+    
+    // Total Supplier Payments (Disbursed) aggregated at the PO/Invoice level
+    const totalSupplierPaid = purchaseOrders
+      .filter(po => po.status !== 'Cancelled')
+      .reduce((sum: number, po: any) => {
+        // PO advance payments
+        const advSum = (po.advance_payments || [])
+          .filter((p: any) => !p.supplier_invoice_id)
+          .reduce((s: number, p: any) => {
+            const apUSD = getPaymentAmountInUSD(p);
+            return s + apUSD;
+          }, 0);
+
+        // Invoice payments
+        const invPaymentsSum = (po.invoices || []).reduce((sInv: number, inv: any) => {
+          const pSum = (inv.payments || []).reduce((sP: number, p: any) => {
+            const pUSD = getPaymentAmountInUSD(p);
+            return sP + pUSD;
+          }, 0);
+          return sInv + pSum;
+        }, 0);
+
+        return sum + advSum + invPaymentsSum;
+      }, 0);
+
+    const netAgreedProfit = totalCustomerAgreed - totalSupplierAgreed;
+    const netActualProfit = totalCustomerPaid - totalSupplierPaid;
+
+    const plSummary: ProfitLossSummary = {
+      totalCustomerAgreed,
+      totalCustomerInvoiced,
+      totalCustomerPaid,
+      totalSupplierAgreed,
+      totalSupplierInvoiced,
+      totalSupplierPaid,
+      netAgreedProfit,
+      netActualProfit
+    };
+
+    return {
+      supplierPLItems,
+      customerPLItems,
+      plSummary
+    };
+  }, [dbActivities, purchaseOrders, customerInvoices]);
 
   const initInvoiceItems = (po: any) => {
     if (po.items && po.items.length > 0) {
@@ -7726,6 +8054,439 @@ function PlannerWizardWorkspace() {
                         })}
                       </div>
                     )}
+                  </div>
+                ) : track === 'final' && currentStep.id === 'profit-loss' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
+                    {/* Step Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
+                      <div>
+                        <h3 className="text-2xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                          <TrendingUp className="w-6 h-6 text-emerald-800" />
+                          Profit & Loss Analysis
+                        </h3>
+                        <p className="text-xs text-neutral-400 mt-1">
+                          Auditing actual revenue, vendor expenses, invoice differences, and transaction payslips.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={profitLossShowOnlyDiscrepancies}
+                            onChange={(e) => setProfitLossShowOnlyDiscrepancies(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-800 focus:ring-emerald-800 border-neutral-350 cursor-pointer"
+                          />
+                          <span>Show Only Discrepancies / Delayed Invoices</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Top Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {/* Guest Revenue */}
+                      <div className="bg-emerald-50/20 border border-emerald-100 rounded-2xl p-5 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800">Guest Revenue</span>
+                          <CircleDollarSign className="w-4 h-4 text-emerald-700" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-neutral-400 block">Actual Invoiced</span>
+                          <span className="text-2xl font-extrabold text-neutral-800 font-mono">
+                            ${profitLossReport.plSummary.totalCustomerInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-neutral-500 space-y-1 border-t border-emerald-100/50 pt-2 flex flex-col">
+                          <span className="flex justify-between">
+                            <span>Contracted Total:</span>
+                            <span className="font-mono font-bold">${profitLossReport.plSummary.totalSupplierAgreed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </span>
+                          <span className="flex justify-between">
+                            <span>Charged Total:</span>
+                            <span className="font-mono font-bold">${profitLossReport.plSummary.totalCustomerAgreed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </span>
+                          <span className="flex justify-between">
+                            <span>Actual Payments:</span>
+                            <span className="font-mono font-bold text-emerald-700">${profitLossReport.plSummary.totalCustomerPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Supplier Procurement */}
+                      <div className="bg-amber-50/15 border border-amber-100 rounded-2xl p-5 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800">Supplier Expenses</span>
+                          <Receipt className="w-4 h-4 text-amber-700" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-neutral-400 block">Actual Invoiced</span>
+                          <span className="text-2xl font-extrabold text-neutral-800 font-mono">
+                            ${profitLossReport.plSummary.totalSupplierInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-neutral-500 space-y-1 border-t border-amber-100/50 pt-2 flex flex-col">
+                          <span className="flex justify-between">
+                            <span>Agreed Cost:</span>
+                            <span className="font-mono font-bold">${profitLossReport.plSummary.totalSupplierAgreed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
+                          <span className="flex justify-between">
+                            <span>Actual Disbursements:</span>
+                            <span className="font-mono font-bold text-amber-700">${profitLossReport.plSummary.totalSupplierPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Net Margins */}
+                      <div className="bg-blue-50/15 border border-blue-100 rounded-2xl p-5 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-blue-800">Net Profit</span>
+                          <TrendingUp className="w-4 h-4 text-blue-700" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-xs text-neutral-400 block">Actual Net Profit</span>
+                          <span className={`text-2xl font-extrabold font-mono ${profitLossReport.plSummary.netActualProfit >= 0 ? 'text-green-700' : 'text-red-750'}`}>
+                            ${profitLossReport.plSummary.netActualProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-neutral-500 space-y-1 border-t border-blue-100/50 pt-2 flex flex-col">
+                          <span className="flex justify-between">
+                            <span>Agreed Net Profit:</span>
+                            <span className="font-mono font-bold">${profitLossReport.plSummary.netAgreedProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </span>
+                          <span className="flex justify-between">
+                            <span>Yield Rate (Actual):</span>
+                            <span className="font-mono font-bold text-blue-700">
+                              {profitLossReport.plSummary.totalCustomerPaid > 0 
+                                ? ((profitLossReport.plSummary.netActualProfit / profitLossReport.plSummary.totalCustomerPaid) * 100).toFixed(1) + '%' 
+                                : '0.0%'}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Audit Status */}
+                      {(() => {
+                        const supplierDiscrepancyCount = profitLossReport.supplierPLItems.filter(item => item.hasDiscrepancy).length;
+                        const customerDiscrepancyCount = profitLossReport.customerPLItems.filter(item => item.hasDiscrepancy).length;
+                        const totalAudits = supplierDiscrepancyCount + customerDiscrepancyCount;
+
+                        return (
+                          <div className={`border rounded-2xl p-5 shadow-sm space-y-3 ${totalAudits > 0 ? 'bg-red-50/15 border-red-100' : 'bg-green-50/15 border-green-100'}`}>
+                            <div className="flex items-center justify-between">
+                              <span className={`text-[10px] uppercase font-bold tracking-wider ${totalAudits > 0 ? 'text-red-800' : 'text-green-800'}`}>Reconciliation Audit</span>
+                              {totalAudits > 0 ? <AlertCircle className="w-4 h-4 text-red-700" /> : <CheckCircle2 className="w-4 h-4 text-green-700" />}
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-neutral-400 block">Open Discrepancies</span>
+                              <span className={`text-2xl font-extrabold font-mono ${totalAudits > 0 ? 'text-red-800' : 'text-green-800'}`}>
+                                {totalAudits}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-neutral-500 space-y-1 border-t pt-2 flex flex-col border-neutral-100">
+                              <span className="flex justify-between">
+                                <span>Supplier Inconsistencies:</span>
+                                <span className="font-bold">{supplierDiscrepancyCount}</span>
+                              </span>
+                              <span className="flex justify-between">
+                                <span>Guest Billing Gaps:</span>
+                                <span className="font-bold">{customerDiscrepancyCount}</span>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Supplier Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-base font-bold text-neutral-800 flex items-center gap-1.5 font-serif">
+                          <Receipt className="w-4.5 h-4.5 text-emerald-800" />
+                          Supplier Cost & Invoice Reconciliation (Line-by-Line)
+                        </h4>
+                        <span className="text-xs text-neutral-450 italic">Values converted to USD</span>
+                      </div>
+
+                      {(() => {
+                        const itemsToRender = profitLossShowOnlyDiscrepancies 
+                          ? profitLossReport.supplierPLItems.filter(item => item.hasDiscrepancy)
+                          : profitLossReport.supplierPLItems;
+
+                        if (itemsToRender.length === 0) {
+                          return (
+                            <div className="p-8 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-200">
+                              <p className="text-sm text-neutral-500 italic">No supplier discrepancies found.</p>
+                              {profitLossShowOnlyDiscrepancies && (
+                                <button
+                                  onClick={() => setProfitLossShowOnlyDiscrepancies(false)}
+                                  className="text-xs text-emerald-800 underline font-bold mt-2 hover:text-emerald-950"
+                                >
+                                  Show all matching items
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-sm">
+                            <table className="min-w-full divide-y divide-neutral-200 text-left text-xs">
+                              <thead className="bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                <tr>
+                                  <th scope="col" className="px-4 py-3">Day / Service</th>
+                                  <th scope="col" className="px-4 py-3">Supplier Detail</th>
+                                  <th scope="col" className="px-4 py-3 text-right">Contracted Price & Total</th>
+                                  <th scope="col" className="px-4 py-3 text-right">Charged Price & Total</th>
+                                  <th scope="col" className="px-4 py-3 text-right">Margin & %</th>
+                                  <th scope="col" className="px-4 py-3 text-center">Status / Audit</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-neutral-100 text-neutral-700 font-medium">
+                                {itemsToRender.map((item, idx) => {
+                                  const isPendingInvoice = item.contractedTotal > 0 && item.invoicedTotal === 0;
+                                  const nextItem = itemsToRender[idx + 1];
+                                  const isLastItemOfDay = nextItem && nextItem.dayNumber !== item.dayNumber;
+                                  return (
+                                    <tr 
+                                      key={item.dailyActivityId} 
+                                      className={`hover:bg-neutral-50/50 transition-colors ${isLastItemOfDay ? 'border-b-2 border-neutral-300' : ''}`}
+                                    >
+                                      <td className="px-4 py-2">
+                                        <span className="font-semibold text-neutral-800 block">{item.title}</span>
+                                        <span className="block text-[10px] text-neutral-400 mt-0.5 font-mono">
+                                          Day {item.dayNumber} {item.date && `| ${item.date}`} | <span className="capitalize">{item.vendorType}</span> | Qty: {item.quantity}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2 space-y-0.5">
+                                        <span className="text-neutral-850 font-bold block">{item.vendorName}</span>
+                                        {item.poNumber && (
+                                          <span className="text-[10px] text-neutral-450 font-mono block">PO: {item.poNumber}</span>
+                                        )}
+                                        {item.supplierInvoiceNumber && (
+                                          <span className="text-[10px] text-neutral-450 font-mono block">Inv: {item.supplierInvoiceNumber} ({item.supplierInvoiceCurrency} @ {item.supplierInvoiceRate})</span>
+                                        )}
+                                        
+                                        {/* Compact Contact details (single line) */}
+                                        {(() => {
+                                          const parts: string[] = [];
+                                          const rContact = item.reservationContactPhone || item.reservationContactEmail;
+                                          const sContact = item.salesContactPhone || item.salesContactEmail;
+                                          
+                                          if (rContact) {
+                                            parts.push(`R: ${rContact}`);
+                                          }
+                                          if (sContact) {
+                                            parts.push(`S: ${sContact}`);
+                                          }
+                                          
+                                          if (parts.length === 0 && (item.vendorPhone || item.vendorEmail)) {
+                                            parts.push(`C: ${item.vendorPhone || item.vendorEmail}`);
+                                          }
+                                          
+                                          if (parts.length === 0) return null;
+                                          
+                                          return (
+                                            <span 
+                                              className="block text-[9px] text-neutral-500 font-mono mt-0.5 whitespace-nowrap truncate max-w-[200px]" 
+                                              title={parts.join(' | ')}
+                                            >
+                                              {parts.join(' | ')}
+                                            </span>
+                                          );
+                                        })()}
+                                      </td>
+                                      <td className="px-4 py-2 text-right font-mono text-neutral-850">
+                                        <div className="font-bold text-xs">${item.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                        <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.contractedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                      </td>
+                                      <td className="px-4 py-2 text-right font-mono text-neutral-850">
+                                        <div className="font-bold text-xs">${item.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                        <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.chargedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                      </td>
+                                      <td className="px-4 py-2 text-right font-mono">
+                                        <div className={`font-bold text-xs ${item.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
+                                          ${item.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                                          {item.marginPercentage < 10 && (
+                                            <span title="Margin below 10%">
+                                              <Flag className="w-3 h-3 text-red-600 fill-red-600 animate-pulse" />
+                                            </span>
+                                          )}
+                                          <span className={`text-[10px] font-bold ${item.marginPercentage >= 10 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {item.marginPercentage.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-2 text-center">
+                                        {isPendingInvoice ? (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-800 border border-red-200">
+                                            <AlertCircle className="w-3 h-3" /> Pending Invoice
+                                          </span>
+                                        ) : item.invoicedDiscrepancy !== 0 ? (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title={`Agreed: $${item.contractedTotal} vs Invoiced: $${item.invoicedTotal}`}>
+                                            <AlertCircle className="w-3 h-3" /> Invoice Diff: ${item.invoicedDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
+                                            <Check className="w-3 h-3" /> Reconciled
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Customer Section */}
+                    <div className="space-y-4 pt-6 border-t border-neutral-100">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-base font-bold text-neutral-800 flex items-center gap-1.5 font-serif">
+                          <CircleDollarSign className="w-4.5 h-4.5 text-emerald-800" />
+                          Guest Invoices & Receivables Reconciliation
+                        </h4>
+                        <span className="text-xs text-neutral-450 italic">Values converted to USD</span>
+                      </div>
+
+                      {(() => {
+                        const itemsToRender = profitLossShowOnlyDiscrepancies 
+                          ? profitLossReport.customerPLItems.filter(item => item.hasDiscrepancy)
+                          : profitLossReport.customerPLItems;
+
+                        if (itemsToRender.length === 0) {
+                          return (
+                            <div className="p-8 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-200">
+                              <p className="text-sm text-neutral-500 italic">No guest billing discrepancies found.</p>
+                              {profitLossShowOnlyDiscrepancies && (
+                                <button
+                                  onClick={() => setProfitLossShowOnlyDiscrepancies(false)}
+                                  className="text-xs text-emerald-800 underline font-bold mt-2 hover:text-emerald-950"
+                                >
+                                  Show all guest billing items
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-4">
+                            {itemsToRender.map((item) => {
+                              const isExpanded = expandedInvoiceId === item.invoiceItemId;
+                              return (
+                                <div key={item.invoiceItemId} className="border border-neutral-200 rounded-2xl bg-white shadow-sm overflow-hidden hover:shadow-md transition-all">
+                                  {/* Header Summary */}
+                                  <div className="p-5 flex flex-wrap items-center justify-between gap-6 bg-neutral-50/50">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-9 h-9 bg-emerald-50 text-emerald-850 rounded-xl flex items-center justify-center border border-emerald-100">
+                                        <FileText className="w-4.5 h-4.5" />
+                                      </div>
+                                      <div>
+                                        <span className="text-[10px] font-mono font-bold text-neutral-450 block">Invoice {item.invoiceNumber}</span>
+                                        <span className="text-sm font-bold text-neutral-800">{item.description}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Numeric Comparisons */}
+                                    <div className="grid grid-cols-3 gap-6 text-right">
+                                      <div>
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Agreed / Planner</span>
+                                        <span className="text-xs font-mono font-bold text-neutral-800">
+                                          ${item.agreedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Billed / Invoiced</span>
+                                        <span className={`text-xs font-mono font-bold ${item.dailyActivityDiscrepancy !== 0 ? 'text-amber-600' : 'text-neutral-800'}`}>
+                                          ${item.invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Paid / Collected</span>
+                                        <span className={`text-xs font-mono font-bold ${item.discrepancy !== 0 ? 'text-amber-600' : 'text-neutral-800'}`}>
+                                          ${item.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Action & Status */}
+                                    <div className="flex items-center gap-4">
+                                      {item.dailyActivityDiscrepancy !== 0 ? (
+                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title="Consolidated invoice amount differs from plan activities sum">
+                                          Billing Diff: ${item.dailyActivityDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </span>
+                                      ) : item.discrepancy !== 0 ? (
+                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title="Collection does not match invoiced amount">
+                                          Uncollected: ${Math.abs(item.discrepancy).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
+                                          <Check className="w-3 h-3" /> Fully Paid
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedInvoiceId(isExpanded ? null : item.invoiceItemId)}
+                                        className="p-1 hover:bg-neutral-100 rounded-lg text-neutral-400 hover:text-neutral-700 transition-colors"
+                                      >
+                                        {isExpanded ? <ChevronUp className="w-4.5 h-4.5" /> : <ChevronDown className="w-4.5 h-4.5" />}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Expanded Table showing individual daily activities */}
+                                  {isExpanded && (
+                                    <div className="p-5 border-t border-neutral-150 bg-neutral-50/20 space-y-3 animate-in fade-in duration-200">
+                                      <h5 className="text-[10px] font-bold uppercase tracking-wider text-neutral-450">Linked Planner Daily Activities</h5>
+                                      {item.linkedActivities.length === 0 ? (
+                                        <p className="text-xs text-neutral-400 italic">No daily activities linked to this category item.</p>
+                                      ) : (
+                                        <div className="overflow-x-auto border border-neutral-200 rounded-xl bg-white shadow-sm max-w-2xl">
+                                          <table className="min-w-full divide-y divide-neutral-200 text-left text-[11px]">
+                                            <thead className="bg-neutral-50 font-bold text-neutral-400 uppercase tracking-wider text-[9px]">
+                                              <tr>
+                                                <th scope="col" className="px-3 py-2">Day / Title</th>
+                                                <th scope="col" className="px-3 py-2 text-right">Agreed Customer Price (USD)</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-neutral-100 text-neutral-600 font-medium">
+                                              {item.linkedActivities.map((act) => (
+                                                <tr key={act.id} className="hover:bg-neutral-50/35 transition-colors">
+                                                  <td className="px-3 py-2.5">
+                                                    <span className="bg-neutral-100 text-neutral-600 px-1 py-0.2 rounded text-[9px] font-bold mr-1.5">
+                                                      Day {act.dayNumber}
+                                                    </span>
+                                                    {act.title}
+                                                  </td>
+                                                  <td className="px-3 py-2.5 text-right font-mono font-bold">
+                                                    ${act.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                              <tr className="bg-neutral-50 font-bold border-t border-neutral-200">
+                                                <td className="px-3 py-2 text-right text-[9px] uppercase tracking-wide text-neutral-450">Sum of Activities:</td>
+                                                <td className="px-3 py-2 text-right font-mono text-neutral-800">
+                                                  ${item.dailyActivitySum.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                              </tr>
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 ) : track === 'basic' && currentStep.id === 'ai-builder' ? (
                   <AIItineraryBuilder

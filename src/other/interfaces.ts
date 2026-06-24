@@ -459,5 +459,72 @@ export interface GenerateCustomerInvoiceOptions {
     dueDate?: string;
 }
 
+export interface ProfitLossLineItem {
+    dailyActivityId: string;
+    dayNumber: number;
+    date: string | null;
+    title: string;
+    vendorName: string;
+    vendorType: string;
+    quantity: number;
+    contractedPrice: number; // agreed unit price with supplier (USD) (contracted_unit_price)
+    contractedTotal: number; // contractedPrice * quantity (USD) (contracted_total_price)
+    chargedPrice: number; // charged unit price from customer (USD) (charged_unit_price)
+    chargedTotal: number; // chargedPrice * quantity (USD) (charged_total_price)
+    invoicedQty: number; // invoiced quantity from supplier_invoice_items
+    invoicedUnitPrice: number; // invoiced unit price from supplier_invoice_items (USD)
+    invoicedTotal: number; // invoiced total price from supplier_invoice_items (USD)
+    invoicedDiscrepancy: number; // invoicedTotal - contractedTotal
+    margin: number; // chargedTotal - contractedTotal
+    marginPercentage: number; // (margin / chargedTotal) * 100
+    poNumber: string | null; // PO reference number
+    supplierInvoiceNumber: string | null; // Supplier invoice reference number
+    supplierInvoiceCurrency: string | null; // Original currency of supplier invoice
+    supplierInvoiceRate: number | null; // Exchange rate of supplier invoice
+    vendorPhone: string | null;
+    vendorEmail: string | null;
+    reservationContactName: string | null;
+    reservationContactPhone: string | null;
+    reservationContactEmail: string | null;
+    salesContactName: string | null;
+    salesContactPhone: string | null;
+    salesContactEmail: string | null;
+    hasDiscrepancy: boolean;
+}
+
+export interface ProfitLossCustomerItem {
+    invoiceItemId: string;
+    invoiceId: string;
+    invoiceNumber: string;
+    description: string;
+    agreedAmount: number; // customer agreed amount (USD) - sum of linked daily activities
+    invoicedAmount: number; // customer invoiced amount (USD) - from the customer invoice item
+    paidAmount: number; // allocated customer payment (USD) - proportional from invoice payments
+    discrepancy: number; // paidAmount - invoicedAmount
+    dailyActivitySum: number; // sum of linked daily activities (USD) (same as agreedAmount)
+    dailyActivityDiscrepancy: number; // invoicedAmount - dailyActivitySum (detects invoicing mismatch/delay)
+    totalSupplierAgreed: number; // sum of supplier agreed cost for linked activities (USD)
+    totalSupplierInvoiced: number; // sum of supplier invoiced cost for linked activities (USD)
+    linkedActivities: {
+        id: string;
+        dayNumber: number;
+        title: string;
+        chargedTotal: number;
+    }[];
+    hasDiscrepancy: boolean;
+}
+
+export interface ProfitLossSummary {
+    totalCustomerAgreed: number;
+    totalCustomerInvoiced: number;
+    totalCustomerPaid: number;
+    totalSupplierAgreed: number;
+    totalSupplierInvoiced: number;
+    totalSupplierPaid: number;
+    netAgreedProfit: number;
+    netActualProfit: number;
+}
+
+
 
 
