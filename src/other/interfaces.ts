@@ -426,9 +426,46 @@ export interface TourRfqEmail {
     attachments: any;
     sent_at: string;
     sent_by?: string;
-    quotation_request_id?: string;
-    quotation?: any;
+    daily_activity_vendor_id?: string;
+    daily_activity_vendor?: any;
 }
+
+export interface DailyActivityVendor {
+    id: string;
+    tour_id?: string | null;
+    vendor_id?: string | null;
+    vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
+    vendor_name: string;
+    to_email?: string | null;
+    from_email?: string | null;
+    subject?: string | null;
+    email_content?: string | null;
+    sent_date?: string | null;
+    replied_date?: string | null;
+    quoted_price?: number | null;
+    currency?: string;
+    status: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
+    selected_vendor?: boolean;
+    notes?: string | null;
+    created_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    booking_reference?: string | null;
+    cancellation_deadline?: string | null;
+    cancellation_policy?: string | null;
+}
+
+export interface DailyActivityVendorLink {
+    id: string;
+    daily_activity_id: string;
+    daily_activity_vendor_id: string;
+    tour_id?: string | null;
+    itinerary_id?: string | null;
+    activity_type?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 
 export interface TourRfpEmail {
     id: string;

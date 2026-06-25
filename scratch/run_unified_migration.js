@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+// Manually parse .env.local
 try {
     const envPath = path.join(__dirname, '../.env.local');
     if (fs.existsSync(envPath)) {
@@ -19,33 +20,34 @@ try {
                 process.env[key] = value;
             }
         });
+        console.log('Loaded env variables from .env.local');
     }
-} catch (err) {}
+} catch (err) {
+    console.error('Failed to parse .env.local:', err.message);
+}
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !key) {
+    console.error('Missing environment variables NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    process.exit(1);
+}
+
 const supabase = createClient(url, key);
 
-async function inspect() {
-    console.log("---- purchase_orders columns ----");
-    const { data: po, error: poErr } = await supabase.from('purchase_orders').select('*').limit(1);
-    if (po && po.length > 0) {
-        console.log(Object.keys(po[0]));
-    } else if (poErr) {
-        console.error(poErr);
+async function run() {
+    const sqlPath = path.join(__dirname, '../data/migrations/01_unify_procurement_schema.sql');
+    console.log('Reading SQL migration from:', sqlPath);
+    const sqlContent = fs.readFileSync(sqlPath, 'utf8');
+    
+    console.log('Executing SQL migration in Supabase via RPC run_sql...');
+    const { error } = await supabase.rpc('run_sql', { sql_query: sqlContent });
+    if (error) {
+        console.error('Migration failed:', error);
     } else {
-        console.log("No rows in purchase_orders");
-    }
-
-    console.log("---- tour_rfq_emails columns ----");
-    const { data: rfq, error: rfqErr } = await supabase.from('tour_rfq_emails').select('*').limit(1);
-    if (rfq && rfq.length > 0) {
-        console.log(Object.keys(rfq[0]));
-    } else if (rfqErr) {
-        console.error(rfqErr);
-    } else {
-        console.log("No rows in tour_rfq_emails");
+        console.log('Migration executed successfully! Unified procurement tables created.');
     }
 }
 
-inspect();
+run();

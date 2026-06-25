@@ -5,19 +5,21 @@ import { LogRfqEmailDTO, LogRfpEmailDTO } from '@/dtos/email-history.dto';
 export class VendorEmailHistoryService {
     static async logRfqEmail(data: LogRfqEmailDTO, client?: any): Promise<string> {
         const db = client || createAdminClient();
+        const insertData: any = {
+            tour_id: data.tour_id,
+            vendor_id: data.vendor_id || null,
+            recipient_email: data.recipient_email,
+            sender_email: data.sender_email,
+            subject: data.subject,
+            body_html: (data as any).body_html,
+            attachments: data.attachments || [],
+            sent_by: data.sent_by || null,
+            daily_activity_vendor_id: (data as any).daily_activity_vendor_id || (data as any).quotation_request_id || null
+        };
+
         const { data: inserted, error } = await db
             .from('tour_rfq_emails')
-            .insert([{
-                tour_id: data.tour_id,
-                vendor_id: data.vendor_id || null,
-                recipient_email: data.recipient_email,
-                sender_email: data.sender_email,
-                subject: data.subject,
-                body_html: data.body_html,
-                attachments: data.attachments || [],
-                sent_by: data.sent_by || null,
-                quotation_request_id: data.quotation_request_id || null
-            }])
+            .insert([insertData])
             .select('id')
             .single();
 
@@ -30,8 +32,17 @@ export class VendorEmailHistoryService {
         const { data, error } = await db
             .from('tour_rfq_emails')
             .select(`
-                *,
-                quotation:quotation_request_id (
+                id,
+                tour_id,
+                vendor_id,
+                recipient_email,
+                sender_email,
+                subject,
+                attachments,
+                sent_at,
+                sent_by,
+                daily_activity_vendor_id,
+                daily_activity_vendor:daily_activity_vendor_id (
                     *
                 )
             `)
@@ -40,6 +51,18 @@ export class VendorEmailHistoryService {
 
         if (error) throw error;
         return data || [];
+    }
+
+    static async getRfqEmailBody(emailId: string, client?: any): Promise<string> {
+        const db = client || createAdminClient();
+        const { data, error } = await db
+            .from('tour_rfq_emails')
+            .select('body_html')
+            .eq('id', emailId)
+            .single();
+
+        if (error) throw error;
+        return data?.body_html || '';
     }
 
     static async logRfpEmail(data: LogRfpEmailDTO, client?: any): Promise<string> {
@@ -52,7 +75,7 @@ export class VendorEmailHistoryService {
                 recipient_email: data.recipient_email,
                 sender_email: data.sender_email,
                 subject: data.subject,
-                body_html: data.body_html,
+                body_html: (data as any).body_html,
                 attachments: data.attachments || [],
                 sent_by: data.sent_by || null
             }])
@@ -67,11 +90,33 @@ export class VendorEmailHistoryService {
         const db = client || createAdminClient();
         const { data, error } = await db
             .from('tour_rfp_emails')
-            .select('*')
+            .select(`
+                id,
+                tour_id,
+                purchase_order_id,
+                recipient_email,
+                sender_email,
+                subject,
+                attachments,
+                sent_at,
+                sent_by
+            `)
             .eq('tour_id', tourId)
             .order('sent_at', { ascending: false });
 
         if (error) throw error;
         return data || [];
+    }
+
+    static async getRfpEmailBody(emailId: string, client?: any): Promise<string> {
+        const db = client || createAdminClient();
+        const { data, error } = await db
+            .from('tour_rfp_emails')
+            .select('body_html')
+            .eq('id', emailId)
+            .single();
+
+        if (error) throw error;
+        return data?.body_html || '';
     }
 }

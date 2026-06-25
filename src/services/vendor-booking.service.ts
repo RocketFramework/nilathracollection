@@ -147,7 +147,7 @@ export class VendorBookingService {
             balance_payable: totalAmount,
             cancellation_policy: bookingData.cancellation_policy || undefined,
             vendor_notes: bookingData.notes || undefined,
-            quotation_request_id: bookingData.quotation_request_id || null
+            daily_activity_vendor_id: bookingData.quotation_request_id || null
         };
 
         if (bookingData.vendor_type === 'hotel') poPayload.hotel_id = bookingData.vendor_id;
@@ -159,10 +159,10 @@ export class VendorBookingService {
 
         const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);
 
-        // 4. Update the quotation request status if this was initiated from a quote
+        // 4. Update the daily_activity_vendors status if this was initiated from a quote
         if (bookingData.quotation_request_id) {
             await supabase
-                .from('quotation_request')
+                .from('daily_activity_vendors')
                 .update({ status: 'Selected', selected_vendor: true })
                 .eq('id', bookingData.quotation_request_id);
         }
@@ -223,7 +223,7 @@ export class VendorBookingService {
                 id: po.id,
                 purchase_order_id: po.id,
                 tour_id: po.tour_id,
-                quotation_request_id: po.quotation_request_id || null,
+                quotation_request_id: po.daily_activity_vendor_id || po.quotation_request_id || null,
                 vendor_type: vType,
                 vendor_id: vendorId,
                 vendor_name: po.vendor_name,
@@ -264,6 +264,19 @@ export class VendorBookingService {
             .single();
 
         if (error) throw error;
+
+        // Sync back to daily_activity_vendors status
+        if (data.daily_activity_vendor_id) {
+            let unifiedStatus = 'Pending';
+            if (status === 'Confirmed') unifiedStatus = 'Sent';
+            else if (status === 'Went Ahead') unifiedStatus = 'Confirmed';
+            else if (status === 'Cancelled') unifiedStatus = 'Cancelled';
+
+            await supabase
+                .from('daily_activity_vendors')
+                .update({ status: unifiedStatus, selected_vendor: status === 'Went Ahead' })
+                .eq('id', data.daily_activity_vendor_id);
+        }
         
         return {
             ...data,
@@ -278,6 +291,12 @@ export class VendorBookingService {
     static async cancelBooking(bookingId: string, reason?: string): Promise<boolean> {
         const supabase = createAdminClient();
 
+        const { data: po, error: fetchErr } = await supabase
+            .from('purchase_orders')
+            .select('daily_activity_vendor_id')
+            .eq('id', bookingId)
+            .single();
+
         const { error } = await supabase
             .from('purchase_orders')
             .update({ 
@@ -288,6 +307,14 @@ export class VendorBookingService {
             .eq('id', bookingId);
 
         if (error) throw error;
+
+        if (po && po.daily_activity_vendor_id) {
+            await supabase
+                .from('daily_activity_vendors')
+                .update({ status: 'Cancelled', selected_vendor: false })
+                .eq('id', po.daily_activity_vendor_id);
+        }
+
         return true;
     }
 
@@ -344,6 +371,19 @@ export class VendorBookingService {
                 })
                 .in('id', otherPOIds)
                 .neq('status', 'Cancelled');
+
+            // Fetch daily_activity_vendor_id for other POs and cancel them
+            const { data: otherPOs } = await supabase
+                .from('purchase_orders')
+                .select('daily_activity_vendor_id')
+                .in('id', otherPOIds);
+            const otherVendorIds = otherPOs ? otherPOs.map(p => p.daily_activity_vendor_id).filter(Boolean) : [];
+            if (otherVendorIds.length > 0) {
+                await supabase
+                    .from('daily_activity_vendors')
+                    .update({ selected_vendor: false, status: 'Declined' })
+                    .in('id', otherVendorIds);
+            }
         }
 
         await supabase
@@ -353,6 +393,13 @@ export class VendorBookingService {
                 updated_at: new Date().toISOString() 
             })
             .eq('id', targetPOId);
+
+        if (targetPO.daily_activity_vendor_id) {
+            await supabase
+                .from('daily_activity_vendors')
+                .update({ selected_vendor: true, status: 'Selected' })
+                .eq('id', targetPO.daily_activity_vendor_id);
+        }
 
         let vType = vendor_type;
         if (vType === 'transport') vType = 'transport_provider';

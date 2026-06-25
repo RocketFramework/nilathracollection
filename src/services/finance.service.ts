@@ -77,14 +77,41 @@ export class FinanceService {
                 .eq('purchase_order_id', id);
             if (delError) throw delError;
         } else {
-            // Insert PO header letting DB generate ID
-            const { data: newPO, error: poError } = await supabase
-                .from('purchase_orders')
-                .insert([poData])
-                .select()
-                .single();
-            if (poError) throw poError;
-            savedPOId = newPO.id;
+            // Check if po_number exists to avoid duplicate key violates unique constraint "purchase_orders_po_number_key"
+            let existingPO = null;
+            if (poData.po_number) {
+                const { data } = await supabase
+                    .from('purchase_orders')
+                    .select('id')
+                    .eq('po_number', poData.po_number)
+                    .maybeSingle();
+                existingPO = data;
+            }
+
+            if (existingPO) {
+                const { error: poError } = await supabase
+                    .from('purchase_orders')
+                    .update(poData)
+                    .eq('id', existingPO.id);
+                if (poError) throw poError;
+                savedPOId = existingPO.id;
+
+                // Delete existing items for a clean rewrite
+                const { error: delError } = await supabase
+                    .from('purchase_order_items')
+                    .delete()
+                    .eq('purchase_order_id', savedPOId);
+                if (delError) throw delError;
+            } else {
+                // Insert PO header letting DB generate ID
+                const { data: newPO, error: poError } = await supabase
+                    .from('purchase_orders')
+                    .insert([poData])
+                    .select()
+                    .single();
+                if (poError) throw poError;
+                savedPOId = newPO.id;
+            }
         }
         // Insert items
         if (items && items.length > 0) {

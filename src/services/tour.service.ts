@@ -401,7 +401,7 @@ export class TourService {
         const itinIds = existingItins?.map(i => i.id) || [];
         
         let query = supabaseAdmin
-            .from('daily_activity_quotation_request')
+            .from('daily_activity_vendor_links')
             .select('*');
             
         if (itinIds.length > 0) {
@@ -1069,7 +1069,7 @@ export class TourService {
             }
         }
 
-        // C) Restore daily_activity_quotation_request mappings
+        // C) Restore daily_activity_vendor_links mappings
         if (existingMappings && existingMappings.length > 0) {
             const newItinIdMap = new Map<string, string>();
             for (const act of allInsertedActivities) {
@@ -1087,18 +1087,18 @@ export class TourService {
                         tour_id: m.tour_id || tourId, // Auto-heal/backfill tour_id if it was null
                         itinerary_id: newItinId,
                         activity_type: m.activity_type,
-                        quotation_request_id: m.quotation_request_id
+                        daily_activity_vendor_id: m.daily_activity_vendor_id || m.quotation_request_id
                     };
                 })
                 .filter(Boolean);
 
             if (mappingsToReinsert.length > 0) {
                 const { error: reinsertErr } = await supabaseAdmin
-                    .from('daily_activity_quotation_request')
+                    .from('daily_activity_vendor_links')
                     .insert(mappingsToReinsert);
                 
                 if (reinsertErr) {
-                    console.error("Failed to restore daily_activity_quotation_request mappings:", reinsertErr);
+                    console.error("Failed to restore daily_activity_vendor_links mappings:", reinsertErr);
                 }
             }
         }

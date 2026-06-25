@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+// Manually parse .env.local
 try {
     const envPath = path.join(__dirname, '../.env.local');
     if (fs.existsSync(envPath)) {
@@ -26,26 +27,14 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(url, key);
 
-async function inspect() {
-    console.log("---- purchase_orders columns ----");
-    const { data: po, error: poErr } = await supabase.from('purchase_orders').select('*').limit(1);
-    if (po && po.length > 0) {
-        console.log(Object.keys(po[0]));
-    } else if (poErr) {
-        console.error(poErr);
-    } else {
-        console.log("No rows in purchase_orders");
-    }
+async function run() {
+    console.log('Querying pg_proc...');
+    const { data: d1, error: e1 } = await supabase.from('pg_proc').select('*').limit(5);
+    console.log('pg_proc:', e1 ? e1.message : d1);
 
-    console.log("---- tour_rfq_emails columns ----");
-    const { data: rfq, error: rfqErr } = await supabase.from('tour_rfq_emails').select('*').limit(1);
-    if (rfq && rfq.length > 0) {
-        console.log(Object.keys(rfq[0]));
-    } else if (rfqErr) {
-        console.error(rfqErr);
-    } else {
-        console.log("No rows in tour_rfq_emails");
-    }
+    console.log('Querying pg_description...');
+    const { data: d2, error: e2 } = await supabase.from('pg_description').select('*').limit(5);
+    console.log('pg_description:', e2 ? e2.message : d2);
 }
 
-inspect();
+run();

@@ -1086,8 +1086,13 @@ export function ItineraryBuilder({
             const restaurant = masterData.restaurants.find(r => r.id === value);
             if (restaurant) {
                 const contractedRate = restaurant.lunch_rate_per_head || 25;
-                const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
-                const agreedPrice = contractedRate * (1 + markupPercent / 100);
+                const style = tripData.profile?.travelStyle || 'Luxury';
+                let tierMealCost = markups[Settings.Luxury_Lunch_Cost] ?? 50;
+                if (style === 'Regular') tierMealCost = markups[Settings.Regular_Lunch_Cost] ?? 15;
+                else if (style === 'Premium') tierMealCost = markups[Settings.Premium_Lunch_Cost] ?? 25;
+                else if (style === 'Luxury') tierMealCost = markups[Settings.Luxury_Lunch_Cost] ?? 50;
+                else if (style === 'Ultra VIP') tierMealCost = markups[Settings.Ultra_Vip_Lunch_Cost] ?? 100;
+                const agreedPrice = tierMealCost;
                 
                 updates.itinerary = tripData.itinerary.map(b => b.id === blockId ? { 
                     ...b, 
@@ -2968,8 +2973,13 @@ export function ItineraryBuilder({
                                                                         { id: 'dinner', label: 'Dinner', active: r.has_dinner, price: r.dinner_rate_per_head }
                                                                     ].filter(m => m.active).map(meal => {
                                                                         const contractedRate = meal.price || 0;
-                                                                        const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
-                                                                        const agreedPrice = contractedRate * (1 + markupPercent / 100);
+                                                                        const style = tripData.profile?.travelStyle || 'Luxury';
+                                                                        let tierMealCost = markups[Settings.Luxury_Lunch_Cost] ?? 50;
+                                                                        if (style === 'Regular') tierMealCost = markups[Settings.Regular_Lunch_Cost] ?? 15;
+                                                                        else if (style === 'Premium') tierMealCost = markups[Settings.Premium_Lunch_Cost] ?? 25;
+                                                                        else if (style === 'Luxury') tierMealCost = markups[Settings.Luxury_Lunch_Cost] ?? 50;
+                                                                        else if (style === 'Ultra VIP') tierMealCost = markups[Settings.Ultra_Vip_Lunch_Cost] ?? 100;
+                                                                        const agreedPrice = tierMealCost;
                                                                         return (
                                                                         <button key={meal.id} onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}
                                                                             className={`p-3 rounded-lg flex items-center justify-between text-xs font-bold ${currentBlock?.mealType === meal.label ? 'bg-white border-brand-gold border shadow-sm' : 'bg-white/50 border-transparent hover:border-neutral-200 border'}`}>

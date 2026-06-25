@@ -1276,24 +1276,29 @@ export async function sendPurchaseOrderEmailAction(options: {
         
         const sender = from || process.env.EMAIL_FROM || 'concierge@nilathra.com';
         
+        const emailPayload: any = {
+            from: sender,
+            to: to,
+            subject: subject,
+            html: html
+        };
+
+        if (pdfBase64 && pdfFilename) {
+            emailPayload.attachments = [
+                {
+                    filename: pdfFilename,
+                    content: pdfBase64
+                }
+            ];
+        }
+
         const res = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                from: sender,
-                to: to,
-                subject: subject,
-                html: html,
-                attachments: [
-                    {
-                        filename: pdfFilename,
-                        content: pdfBase64
-                    }
-                ]
-            })
+            body: JSON.stringify(emailPayload)
         });
         
         const resJson = await res.json();
@@ -1420,6 +1425,26 @@ export async function cancelVendorBookingAction(bookingId: string, reason?: stri
     } catch (error: any) {
         console.error("Error in cancelVendorBookingAction:", error);
         return { success: false, error: error.message || "Failed to cancel booking." };
+    }
+}
+
+export async function getRfqEmailBodyAction(emailId: string) {
+    try {
+        const body = await VendorEmailHistoryService.getRfqEmailBody(emailId);
+        return { success: true, body };
+    } catch (error: any) {
+        console.error("Error in getRfqEmailBodyAction:", error);
+        return { success: false, error: error.message || "Failed to fetch RFQ email body." };
+    }
+}
+
+export async function getRfpEmailBodyAction(emailId: string) {
+    try {
+        const body = await VendorEmailHistoryService.getRfpEmailBody(emailId);
+        return { success: true, body };
+    } catch (error: any) {
+        console.error("Error in getRfpEmailBodyAction:", error);
+        return { success: false, error: error.message || "Failed to fetch RFP email body." };
     }
 }
 
@@ -1730,7 +1755,7 @@ export async function logRfqEmailAction(
             body_html: bodyHtml,
             attachments: attachments,
             sent_by: sentBy,
-            quotation_request_id: quotationRequestId
+            daily_activity_vendor_id: quotationRequestId
         });
 
         return { success: true, logId };
