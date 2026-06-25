@@ -140,6 +140,14 @@ import {
   uploadPayslipAction,
   getPayslipSignedUrlAction
 } from '@/actions/admin.actions';
+import {
+  initializeDefaultBlocksAction,
+  getPOBlocksAction,
+  createPOBlockAction,
+  updatePOBlockAction,
+  deletePOBlockAction
+} from '@/actions/po-block.actions';
+import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
 import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
 import { GeoLocation } from '@/lib/route-engine-new';
@@ -377,6 +385,17 @@ function PlannerWizardWorkspace() {
   // Procurement operational states
   const [quotationRequests, setQuotationRequests] = useState<any[]>([]);
   const [appSettings, setAppSettings] = useState<any>(null);
+
+  // PO Blocks state variables
+  const [poBlocks, setPoBlocks] = useState<POBlock[]>([]);
+  const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [editingBlockName, setEditingBlockName] = useState<string>('');
+  const [poSelectedActivityIds, setPoSelectedActivityIds] = useState<string[]>([]);
+  const [newBlockName, setNewBlockName] = useState<string>('');
+  const [newBlockType, setNewBlockType] = useState<'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity'>('accommodation');
+  const [rfqBlockId, setRfqBlockId] = useState<string | null>(null);
+  const [poBlockId, setPoBlockId] = useState<string | null>(null);
 
   // RFQ Email Modal State
   const [showRfqModal, setShowRfqModal] = useState(false);
@@ -1574,6 +1593,9 @@ function PlannerWizardWorkspace() {
         throw new Error(res.error || 'Failed to save tourist data');
       }
 
+      // Clean itinerary to ensure it's a completely plain, JSON-serializable structure with no React or circular references
+      const cleanItinerary = JSON.parse(JSON.stringify(itinerary));
+
       if (tripData) {
         const updatedTripData = { 
           ...tripData, 
@@ -1582,7 +1604,7 @@ function PlannerWizardWorkspace() {
           clientPhone: touristData.profile.phone || tripData.clientPhone,
           clientAddress: touristData.profile.address || tripData.clientAddress,
           clientPassport: touristData.profile.passport_number || tripData.clientPassport,
-          itinerary,
+          itinerary: cleanItinerary,
           manualSingle,
           manualDouble,
           manualTriple,
@@ -1639,7 +1661,7 @@ function PlannerWizardWorkspace() {
           triple_rooms: manualTriple,
           family_rooms: manualFamily
         };
-        const draftRes = await saveDraftVersionAction(tourId, itinerary, autoLabel, null, counts);
+        const draftRes = await saveDraftVersionAction(tourId, cleanItinerary, autoLabel, null, counts);
         if (draftRes.success && draftRes.version) {
           // Update draft versions list
           setDraftVersions(prev => [draftRes.version as DraftItineraryVersion, ...prev]);
@@ -1648,8 +1670,8 @@ function PlannerWizardWorkspace() {
 
       alert('Workflow state, client profile and itinerary saved to database successfully.');
     } catch (error: any) {
-      console.error("Failed to save progress:", error);
-      alert("Error saving: " + (error.message || error));
+      console.error("Failed to save progress detailed error:", error);
+      alert("Error saving: " + (error.stack || error.message || String(error)));
     } finally {
       setIsSaving(false);
     }
@@ -1735,7 +1757,9 @@ function PlannerWizardWorkspace() {
         triple_rooms: manualTriple,
         family_rooms: manualFamily
       };
-      const res = await saveDraftVersionAction(tourId, itinerary, label, null, counts);
+      // Clean itinerary to ensure it's a completely plain, JSON-serializable structure with no React or circular references
+      const cleanItinerary = JSON.parse(JSON.stringify(itinerary));
+      const res = await saveDraftVersionAction(tourId, cleanItinerary, label, null, counts);
       if (res.success && res.version) {
         setDraftVersions(prev => [res.version as any, ...prev]);
         alert("Draft version snapshot saved successfully!");
@@ -1787,6 +1811,12 @@ function PlannerWizardWorkspace() {
         label: 'Itinerary Element Selection', 
         description: 'Choose which operational resources are needed for this custom tour package.', 
         icon: CheckSquare 
+      },
+      {
+        id: 'po-creation',
+        label: 'PO Blocks Configuration',
+        description: 'Package daily activities into consolidated procurement blocks.',
+        icon: Briefcase
       },
     ];
 
@@ -1945,6 +1975,22 @@ function PlannerWizardWorkspace() {
       loadShareTemplate();
     }
   }, [currentStep?.id, touristData, tourId, shareTemplateLoaded]);
+
+  // Initialize and load PO Blocks
+  useEffect(() => {
+    if (!tourId || tourId === 'draft-tour') return;
+    if (currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection') {
+      setLoadingBlocks(true);
+      initializeDefaultBlocksAction(tourId).then(res => {
+        if (res.success && res.blocks) {
+          setPoBlocks(res.blocks);
+        } else {
+          console.error("Failed to initialize PO blocks:", res.error);
+        }
+        setLoadingBlocks(false);
+      });
+    }
+  }, [tourId, currentStep?.id]);
 
   // Load email sharing history logs
   useEffect(() => {
@@ -2112,13 +2158,27 @@ function PlannerWizardWorkspace() {
             console.error("Failed to load draft versions:", versionsRes.error);
           }
 
-          if (daRes.success && daRes.activities) {
-            const mapped = daRes.activities.map((a: any) => ({
-              ...a,
-              isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
-            }));
-            setDbActivities(mapped);
+          let activitiesList = daRes.success && daRes.activities ? daRes.activities : [];
+          
+          if (tourRes.success && tourRes.data && activitiesList.length === 0) {
+            const fullTripData = tourRes.data.tripData as TripData;
+            if (fullTripData && fullTripData.itinerary && fullTripData.itinerary.length > 0) {
+              console.log("Auto-backfilling daily_activities from planner_data itinerary...");
+              const saveRes = await saveTourAction(activeTourId, fullTripData);
+              if (saveRes.success) {
+                const freshDaRes = await getDailyActivitiesAction(activeTourId);
+                if (freshDaRes.success && freshDaRes.activities) {
+                  activitiesList = freshDaRes.activities;
+                }
+              }
+            }
           }
+
+          const mapped = activitiesList.map((a: any) => ({
+            ...a,
+            isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+          }));
+          setDbActivities(mapped);
 
           // Populate procurement data fetched in parallel
           if (quotesRes && quotesRes.success && quotesRes.quotes) {
@@ -2204,6 +2264,7 @@ function PlannerWizardWorkspace() {
           ];
           const localFinalSteps = [
             'element-selection',
+            'po-creation',
             activeElements.hotel && 'hotel-selection',
             activeElements.activity && 'activity-provider',
             activeElements.restaurant && 'restaurant-selection',
@@ -2786,7 +2847,8 @@ function PlannerWizardWorkspace() {
     fetchRate();
   }, []);
 
-  const handleOpenRfqModal = async (hotel: any, stays: any[]) => {
+  const handleOpenRfqModal = async (hotel: any, stays: any[], blockId?: string) => {
+    setRfqBlockId(blockId || null);
     setSelectedRfqHotel(hotel);
     setSelectedRfqStays(stays);
     setRfqAdjacentRooms(false);
@@ -3011,7 +3073,8 @@ function PlannerWizardWorkspace() {
         subject: rfqEmailSubject,
         email_content: rfqEmailBody,
         activity_type: 'hotel',
-        daily_activity_ids: selectedRfqStays.map(s => s.id)
+        daily_activity_ids: selectedRfqStays.map(s => s.id),
+        po_block_id: rfqBlockId || undefined
       });
 
       if (!resDb.success || !resDb.quote) {
@@ -3092,7 +3155,43 @@ function PlannerWizardWorkspace() {
     }
   };
 
-  const handleOpenPoModal = async (hotel: any, stays: any[]) => {
+  const handleSelectBlockCandidateHotel = async (block: any, quote: any) => {
+    try {
+      const stayIds = block.daily_activities?.map((a: any) => a.id) || [];
+      if (stayIds.length === 0) return;
+      
+      const newHotelId = quote.vendor_id;
+      if (!newHotelId) return;
+
+      const res = await changeHotelDatabaseAction(tourId, stayIds, newHotelId, []);
+      if (res.success) {
+        setDbActivities(prev => prev.map(act => {
+          if (stayIds.includes(act.id)) {
+            return {
+              ...act,
+              hotel_id: newHotelId,
+              contracted_price: quote.quoted_price || act.contracted_price,
+              contracted_total_price: (quote.quoted_price || act.contracted_price) * (act.quantity || 1)
+            };
+          }
+          return act;
+        }));
+
+        const blocksRes = await getPOBlocksAction(tourId);
+        if (blocksRes.success && blocksRes.blocks) {
+          setPoBlocks(blocksRes.blocks);
+        }
+      } else {
+        alert("Failed to select hotel: " + res.error);
+      }
+    } catch (err: any) {
+      console.error("Error selecting block candidate hotel:", err);
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleOpenPoModal = async (hotel: any, stays: any[], blockId?: string) => {
+    setPoBlockId(blockId || null);
     setSelectedPoHotel(hotel);
     setSelectedPoStays(stays);
     setPoEmailTo(hotel?.reservation_email || '');
@@ -3275,7 +3374,8 @@ function PlannerWizardWorkspace() {
         po_number: poNum,
         discount: poDiscount,
         tax: poTax,
-        notes: poVendorNotes
+        notes: poVendorNotes,
+        po_block_id: poBlockId || undefined
       });
 
       if (!resDb.success || !resDb.booking) {
@@ -4215,17 +4315,17 @@ function PlannerWizardWorkspace() {
     setElements(nextElements);
 
     // 2. Compute the new final steps length
-    let dynamicStepsCount = 9; // 2 base steps + 7 operational closing steps
-    if (nextElements.hotel) dynamicStepsCount++;
-    if (nextElements.activity) dynamicStepsCount++;
-    if (nextElements.restaurant) dynamicStepsCount++;
-    if (nextElements.transport) dynamicStepsCount++;
-    if (nextElements.security) dynamicStepsCount++;
-    if (nextElements.guide) dynamicStepsCount++;
-    if (nextElements.driver) dynamicStepsCount++;
+    let newStepsCount = 5; // Unconditional steps: element-selection, po-creation, payment-receive, finance-controlling, profit-loss
+    if (nextElements.hotel) newStepsCount++;
+    if (nextElements.activity) newStepsCount++;
+    if (nextElements.restaurant) newStepsCount++;
+    if (nextElements.transport) newStepsCount++;
+    if (nextElements.security) newStepsCount++;
+    if (nextElements.guide) newStepsCount++;
+    if (nextElements.driver) newStepsCount++;
 
     // 3. Clamp the active index to prevent out-of-bounds
-    setActiveFinalStepIndex(prev => Math.min(prev, dynamicStepsCount - 1));
+    setActiveFinalStepIndex(prev => Math.min(prev, newStepsCount - 1));
   };
 
   const handleSendShareEmail = async (e: React.FormEvent) => {
@@ -5534,45 +5634,337 @@ function PlannerWizardWorkspace() {
                       </div>
                     </div>
                   </div>
+                ) : track === 'final' && currentStep.id === 'po-creation' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-serif font-bold text-neutral-805 flex items-center gap-2">
+                          <Briefcase className="w-5 h-5 text-emerald-805" />
+                          Purchase Order (PO) Blocks Configuration
+                        </h3>
+                        <p className="text-xs text-neutral-400">
+                          Group daily activities into consolidated procurement blocks (Stay nights, Transport, Dining, and Activities) for single RFQ and PO management.
+                        </p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setLoadingBlocks(true);
+                          const res = await initializeDefaultBlocksAction(tourId);
+                          if (res.success && res.blocks) {
+                            setPoBlocks(res.blocks);
+                          }
+                          setLoadingBlocks(false);
+                        }}
+                        className="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                      >
+                        <History className="w-3.5 h-3.5" />
+                        Reset to Defaults
+                      </button>
+                    </div>
+
+                    {loadingBlocks ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                        <Loader2 className="w-8 h-8 text-emerald-800 animate-spin" />
+                        <span className="text-xs text-neutral-400">Loading procurement blocks...</span>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Left Side: Current Blocks List */}
+                        <div className="lg:col-span-6 space-y-6">
+                          <h4 className="text-sm font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-2">
+                            Active Procurement Blocks ({poBlocks.length})
+                          </h4>
+                          {poBlocks.length === 0 ? (
+                            <div className="p-6 rounded-2xl bg-neutral-50/30 border border-dashed border-neutral-200 text-center space-y-2">
+                              <p className="text-xs text-neutral-400 italic">No blocks configured yet.</p>
+                              <p className="text-[10px] text-neutral-400">Select activities on the right to package them into blocks.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                              {poBlocks.map((block) => {
+                                const isEditing = editingBlockId === block.id;
+                                return (
+                                  <div key={block.id} className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-all space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2 flex-grow">
+                                        <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                          (block.block_type === 'accommodation' || block.block_type === 'sleep') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                                          block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                          (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                          'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                        }`}>
+                                          {block.block_type.toUpperCase()}
+                                        </span>
+                                        {isEditing ? (
+                                          <input
+                                            type="text"
+                                            value={editingBlockName}
+                                            onChange={(e) => setEditingBlockName(e.target.value)}
+                                            className="text-xs px-2 py-0.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-808"
+                                            autoFocus
+                                          />
+                                        ) : (
+                                          <span className="text-xs font-bold text-neutral-700">{block.name}</span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        {isEditing ? (
+                                          <>
+                                            <button
+                                              onClick={async () => {
+                                                if (!editingBlockName.trim()) return;
+                                                const actIds = block.daily_activities?.map((a: any) => a.id) || [];
+                                                const res = await updatePOBlockAction(block.id, editingBlockName, block.block_type, actIds);
+                                                if (res.success) {
+                                                  setPoBlocks(prev => prev.map(b => b.id === block.id ? { ...b, name: editingBlockName } : b));
+                                                  setEditingBlockId(null);
+                                                }
+                                              }}
+                                              className="p-1 text-emerald-808 hover:bg-emerald-55 rounded-lg"
+                                            >
+                                              <Check className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              onClick={() => setEditingBlockId(null)}
+                                              className="p-1 text-neutral-400 hover:bg-neutral-100 rounded-lg"
+                                            >
+                                              <X className="w-3.5 h-3.5" />
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <button
+                                            onClick={() => {
+                                              setEditingBlockId(block.id);
+                                              setEditingBlockName(block.name);
+                                            }}
+                                            className="p-1 text-neutral-400 hover:text-emerald-808 hover:bg-neutral-55 rounded-lg"
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={async () => {
+                                            if (confirm("Are you sure you want to delete this block? Linked activities will become unassigned.")) {
+                                              const res = await deletePOBlockAction(block.id);
+                                              if (res.success) {
+                                                setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                              }
+                                            }
+                                          }}
+                                          className="p-1 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Activities inside this block */}
+                                    <div className="space-y-1.5">
+                                      {block.daily_activities && block.daily_activities.length > 0 ? (
+                                        block.daily_activities.map((act: any) => (
+                                          <div key={act.id} className="flex items-center justify-between text-[11px] p-2 bg-neutral-50 rounded-xl border border-neutral-100">
+                                            <div>
+                                              <span className="font-bold text-neutral-600 mr-2">Day {act.tour_itineraries?.day_number || 1}</span>
+                                              <span className="text-neutral-700">{act.title || 'Unlabeled Service'}</span>
+                                            </div>
+                                            <span className="text-[9px] text-neutral-400 italic">
+                                              {act.activity_type}
+                                            </span>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <p className="text-[10px] text-neutral-400 italic pl-2">No activities grouped in this block.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right Side: Activity Assignment & Block Builder */}
+                        <div className="lg:col-span-6 space-y-6 border-l border-neutral-100 lg:pl-8">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">
+                              Itinerary Activities List
+                            </h4>
+                            {poSelectedActivityIds.length > 0 && (
+                              <span className="text-xs bg-emerald-805 text-white px-2 py-0.5 rounded-full font-bold">
+                                {poSelectedActivityIds.length} Selected
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action panel when items are checked */}
+                          {poSelectedActivityIds.length > 0 && (
+                            <div className="p-4 rounded-2xl bg-emerald-805/5 border border-emerald-805/10 space-y-4 animate-in zoom-in-95 duration-200">
+                              <span className="text-xs font-bold text-emerald-805 block">Procurement Actions</span>
+                              
+                              {/* Option A: Group into new block */}
+                              <div className="space-y-3 p-3 bg-white rounded-xl border border-neutral-200">
+                                <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider block">Option 1: Package into New Block</span>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Enter block name (e.g. Hotel Stay Day 2)"
+                                    value={newBlockName}
+                                    onChange={(e) => setNewBlockName(e.target.value)}
+                                    className="text-xs p-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-805"
+                                  />
+                                  <select
+                                    value={newBlockType}
+                                    onChange={(e: any) => setNewBlockType(e.target.value)}
+                                    className="text-xs p-2 border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-805"
+                                  >
+                                    <option value="accommodation">Accommodation (Hotel)</option>
+                                    <option value="travel">Transport & Transfers</option>
+                                    <option value="restaurant">Dining / Restaurant</option>
+                                    <option value="activity">Activities & Tickets</option>
+                                  </select>
+                                </div>
+                                <button
+                                  onClick={async () => {
+                                    if (!newBlockName.trim()) {
+                                      alert("Please enter a name for the block.");
+                                      return;
+                                    }
+                                    const nextNum = poBlocks.length + 1;
+                                    const res = await createPOBlockAction(tourId, newBlockName, newBlockType, nextNum, poSelectedActivityIds);
+                                    if (res.success && res.block) {
+                                      const refreshRes = await getPOBlocksAction(tourId);
+                                      if (refreshRes.success && refreshRes.blocks) {
+                                        setPoBlocks(refreshRes.blocks);
+                                      }
+                                      setPoSelectedActivityIds([]);
+                                      setNewBlockName('');
+                                    }
+                                  }}
+                                  className="w-full py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-lg transition-all"
+                                >
+                                  Create & Group Activities
+                                </button>
+                              </div>
+
+                              {/* Option B: Add to existing block */}
+                              {poBlocks.length > 0 && (
+                                <div className="space-y-3 p-3 bg-white rounded-xl border border-neutral-200">
+                                  <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider block">Option 2: Add to Existing Block</span>
+                                  <div className="flex gap-2">
+                                    <select
+                                      id="target-po-block-select"
+                                      className="text-xs p-2 border border-neutral-200 rounded-lg bg-white flex-grow focus:outline-none focus:ring-1 focus:ring-emerald-805"
+                                    >
+                                      {poBlocks.map((b: any) => (
+                                        <option key={b.id} value={b.id}>{b.name} ({b.block_type})</option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      onClick={async () => {
+                                        const selectEl = document.getElementById('target-po-block-select') as HTMLSelectElement;
+                                        const targetId = selectEl?.value;
+                                        const targetBlock = poBlocks.find((b: any) => b.id === targetId);
+                                        if (targetBlock) {
+                                          const existingIds = targetBlock.daily_activities?.map((a: any) => a.id) || [];
+                                          const combinedIds = Array.from(new Set([...existingIds, ...poSelectedActivityIds]));
+                                          const res = await updatePOBlockAction(targetBlock.id, targetBlock.name, targetBlock.block_type, combinedIds);
+                                          if (res.success) {
+                                            const refreshRes = await getPOBlocksAction(tourId);
+                                            if (refreshRes.success && refreshRes.blocks) {
+                                              setPoBlocks(refreshRes.blocks);
+                                            }
+                                            setPoSelectedActivityIds([]);
+                                          }
+                                        }
+                                      }}
+                                      className="px-4 py-2 bg-neutral-800 hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-all"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* List of activities */}
+                          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                            {[...dbActivities]
+                              .sort((a: any, b: any) => {
+                                const dayA = a.tour_itineraries?.day_number || 0;
+                                const dayB = b.tour_itineraries?.day_number || 0;
+                                return dayA - dayB;
+                              })
+                              .map((act: any) => {
+                                const isChecked = poSelectedActivityIds.includes(act.id);
+                                const assignedBlock = poBlocks.find((b: any) => 
+                                  b.daily_activities?.some((a: any) => a.id === act.id)
+                                );
+
+                                return (
+                                  <label key={act.id} className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-neutral-200 hover:bg-neutral-50/50 transition-all cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setPoSelectedActivityIds(prev => 
+                                          prev.includes(act.id)
+                                            ? prev.filter(id => id !== act.id)
+                                            : [...prev, act.id]
+                                        );
+                                      }}
+                                      className="mt-1 w-4 h-4 accent-emerald-800 cursor-pointer"
+                                    />
+                                    <div className="flex-grow space-y-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-bold text-neutral-700">Day {act.tour_itineraries?.day_number || 1}</span>
+                                        <span className="text-xs text-neutral-800">{act.title || 'Unlabeled Itinerary Item'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[10px] text-neutral-400 capitalize">Type: {act.activity_type}</span>
+                                        {act.location_name && (
+                                          <span className="text-[10px] text-neutral-400">• Location: {act.location_name}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      {assignedBlock ? (
+                                        <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 max-w-[120px] truncate block">
+                                          {assignedBlock.name}
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-neutral-100 text-neutral-400 border border-neutral-200 block">
+                                          Unassigned
+                                        </span>
+                                      )}
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : track === 'final' && currentStep.id === 'hotel-selection' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
-                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
-                        <BedDouble className="w-5 h-5 text-emerald-800" />
-                        Hotel Accommodations Selection
+                      <h3 className="text-xl font-serif font-bold text-neutral-855 flex items-center gap-2">
+                        <BedDouble className="w-5 h-5 text-emerald-805" />
+                        Hotel Accommodations Selection (PO Blocks)
                       </h3>
                       <p className="text-xs text-neutral-400">
-                        Review all hotel accommodations scheduled for this tour, consolidated by property.
+                        Review and manage hotel accommodations scheduled for this tour, grouped by stay blocks.
                       </p>
                     </div>
 
                     <div className="space-y-6">
                       {(() => {
-                        const sleepActivities = dbActivities.filter(a => a.activity_type === 'sleep' || a.hotel_id);
-                        
-                        const numDays = touristData?.preferences?.duration_days || 5;
-                        const daysList = Array.from({ length: numDays }, (_, idx) => {
-                          const dayNum = idx + 1;
-                          let dateStr = '';
-                          if (touristData?.preferences?.arrival_date) {
-                            try {
-                              const d = new Date(touristData.preferences.arrival_date);
-                              d.setDate(d.getDate() + idx);
-                              dateStr = d.toISOString().split('T')[0];
-                            } catch (e) {}
-                          }
-                          return { dayNum, dateStr };
-                        });
-                        
-                        // Group by hotel_id
-                        const groups: Record<string, any[]> = {};
-                        sleepActivities.forEach(act => {
-                          const hId = act.hotel_id;
-                          if (!hId) return;
-                          if (!groups[hId]) {
-                            groups[hId] = [];
-                          }
-                          groups[hId].push(act);
+                        const accommodationBlocks = poBlocks.filter((b: any) => b.block_type === 'accommodation' || b.block_type === 'sleep');
+                        const sortedBlocks = [...accommodationBlocks].sort((a: any, b: any) => {
+                          const firstA = a.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          const firstB = b.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          return firstA - firstB;
                         });
 
                         const formatDate = (dateStr: string) => {
@@ -5590,96 +5982,82 @@ function PlannerWizardWorkspace() {
                           }
                         };
 
-                        const clubbed = Object.entries(groups).map(([hotelId, activities]) => {
-                          const hotel = masterData.hotels.find((h: any) => h.id === hotelId);
-                          const sortedActivities = [...activities].sort((a, b) => {
-                            const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
-                            const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
-                            return dayA - dayB;
-                          });
-                          return { hotelId, hotel, activities: sortedActivities };
-                        });
-
-                        // Sort the list of hotels based on the first stay date/day number
-                        clubbed.sort((a, b) => {
-                          const firstA = a.activities.find((x: any) => !x.isCustomPO) || a.activities[0];
-                          const firstB = b.activities.find((x: any) => !x.isCustomPO) || b.activities[0];
-                          if (!firstA) return 1;
-                          if (!firstB) return -1;
-                          
-                          const dateA = firstA.tour_itineraries?.date;
-                          const dateB = firstB.tour_itineraries?.date;
-                          
-                          if (dateA && dateB) {
-                            return dateA.localeCompare(dateB);
-                          }
-                          
-                          const dayA = firstA.tour_itineraries?.day_number || firstA.day_number || firstA.dayNumber || 0;
-                          const dayB = firstB.tour_itineraries?.day_number || firstB.day_number || firstB.dayNumber || 0;
-                          return dayA - dayB;
-                        });
-
-                        if (clubbed.length === 0) {
+                        if (sortedBlocks.length === 0) {
                           return (
                             <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
                               <BedDouble className="w-8 h-8 text-neutral-300 mb-2" />
-                              <span className="text-xs font-bold text-neutral-500">No hotel accommodations booked</span>
+                              <span className="text-xs font-bold text-neutral-500">No hotel stay blocks configured</span>
                               <span className="text-[10px] text-neutral-400 mt-1">
-                                There are no sleep/accommodation entries in the daily activities for this tour.
+                                There are no accommodation blocks set up. Please configure blocks in the PO Blocks Configuration step.
                               </span>
                             </div>
                           );
                         }
 
-                        return clubbed.map(({ hotelId, hotel, activities: acts }) => {
-                          const standardStays = acts.filter(act => !act.isCustomPO);
-                          const customPOs = acts.filter(act => act.isCustomPO);
+                        return sortedBlocks.map((block: any) => {
+                          const blockActivities = block.daily_activities || [];
+                          const standardStays = blockActivities.filter((a: any) => a.activity_type === 'sleep');
+                          const customPOs = blockActivities.filter((a: any) => a.activity_type !== 'sleep');
+                          
+                          const selectedHotelId = blockActivities.find((a: any) => a.hotel_id)?.hotel_id;
+                          const hotel = selectedHotelId ? masterData.hotels?.find((h: any) => h.id === selectedHotelId) : null;
+
+                          // Find quotes/candidates for this block
+                          const blockQuotes = quotationRequests.filter(q => 
+                            q.quotation?.po_block_id === block.id || 
+                            blockActivities.some((a: any) => a.id === q.daily_activity_id)
+                          );
 
                           return (
-                            <div key={hotelId} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-4 shadow-sm hover:shadow-md transition-all animate-in fade-in duration-200">
+                            <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              {/* Block Header */}
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
-                                      {hotel?.name || 'Loading Hotel Details...'}
+                                    <span className="px-2 py-0.5 bg-neutral-200 text-neutral-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      {block.name}
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-855 font-serif">
+                                      {hotel ? hotel.name : 'No Hotel Finalized Yet'}
                                     </h4>
                                     {hotel?.hotel_class && (
-                                      <span className="px-2 py-0.5 bg-emerald-800/10 text-emerald-855 border border-emerald-800/20 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      <span className="px-2 py-0.5 bg-emerald-805/10 text-emerald-805 border border-emerald-805/20 text-[9px] font-bold rounded-full uppercase tracking-wider">
                                         {hotel.hotel_class}
                                       </span>
                                     )}
-                                     {acts.length > 0 && (
-                                       <div className="flex items-center gap-2">
-                                         {standardStays.length > 0 && (
-                                           <button
-                                             type="button"
-                                             onClick={() => {
-                                               const firstAct = standardStays[0];
-                                               if (firstAct) {
-                                                 handleOpenChangeHotelDrawer(firstAct, standardStays);
-                                               }
-                                             }}
-                                             disabled={isLockedByOther}
-                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
-                                             title="Change Hotel"
-                                           >
-                                             <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
-                                             <span>Change Hotel</span>
-                                           </button>
-                                         )}
-                                         <button
-                                           type="button"
-                                           onClick={() => handleOpenRfqModal(hotel, acts)}
-                                           disabled={isLockedByOther}
-                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
-                                           title="Request Quote"
-                                         >
-                                           <Mail className="w-3.5 h-3.5 text-emerald-800" />
-                                           <span>Request Quote</span>
-                                         </button>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      {standardStays.length > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const firstAct = standardStays[0];
+                                            if (firstAct) {
+                                              handleOpenChangeHotelDrawer(firstAct, standardStays);
+                                            }
+                                          }}
+                                          disabled={isLockedByOther}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-emerald-805/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-805 transition-all shadow-sm disabled:opacity-40"
+                                          title="Change Hotel"
+                                        >
+                                          <LinkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                                          <span>{hotel ? 'Change Hotel' : 'Assign Hotel'}</span>
+                                        </button>
+                                      )}
+                                      {hotel && (
+                                        <>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPoModal(hotel, acts)}
+                                            onClick={() => handleOpenRfqModal(hotel, standardStays, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-805/40 hover:border-emerald-805 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-805 transition-all shadow-sm disabled:opacity-40"
+                                            title="Request Quote"
+                                          >
+                                            <Mail className="w-3.5 h-3.5 text-emerald-805" />
+                                            <span>Request Quote</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPoModal(hotel, standardStays, block.id)}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
                                             title="Create PO"
@@ -5687,53 +6065,54 @@ function PlannerWizardWorkspace() {
                                             <FileText className="w-3.5 h-3.5 text-amber-600" />
                                             <span>Create PO</span>
                                           </button>
-                                       </div>
-                                     )}
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-neutral-500">
-                                    {hotel?.location_address || hotel?.closest_city || 'Location Address not specified'}
+                                  <p className="text-xs text-neutral-505">
+                                    {hotel ? (hotel.location_address || hotel.closest_city || 'Location Address not specified') : 'Assign hotel using button or choose a candidate hotel below.'}
                                   </p>
                                 </div>
                                 <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm self-start md:self-auto shrink-0">
                                   <span>Total Nights:</span>
-                                  <span className="text-emerald-800 font-extrabold text-xs">{standardStays.length}</span>
+                                  <span className="text-emerald-805 font-extrabold text-xs">{standardStays.length}</span>
                                 </div>
                               </div>
 
                               {/* Nights Detail Rows */}
-                              {standardStays.length > 0 && (
+                              {hotel && standardStays.length > 0 && (
                                 <div className="divide-y divide-neutral-150">
-                                  {standardStays.map((act) => {
-                                    const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-                                    const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-                                    const dateVal = act.tour_itineraries?.date;
+                                  {standardStays.map((stay: any) => {
+                                    const room = hotel.hotel_rooms?.find((r: any) => r.id === stay.hotel_room_id);
+                                    const dayNum = stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0;
+                                    const dateVal = stay.tour_itineraries?.date;
                                     const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
                                     const hasCustomRate = acc && (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined);
                                     return (
-                                      <div key={act.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
+                                      <div key={stay.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
                                         <div className="flex items-start gap-3">
-                                          <div className="px-2.5 py-1 bg-emerald-800 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                          <div className="px-2.5 py-1 bg-emerald-805 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
                                             {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
                                           </div>
                                           <div>
                                             <span className="text-xs font-bold text-neutral-800 block">
                                               {room?.room_name || 'Room Name Not Specified'}
                                             </span>
-                                            {act.title && (
+                                            {stay.title && (
                                               <span className="text-[10px] text-neutral-400 block mt-0.5">
-                                                {act.title}
+                                                {stay.title}
                                               </span>
                                             )}
-                                            {(acc?.customRateNote || act.description) && (
+                                            {(acc?.customRateNote || stay.description) && (
                                               <span className="text-[10px] text-amber-600 italic block mt-0.5 font-medium">
-                                                Note: {acc?.customRateNote || act.description}
+                                                Note: {acc?.customRateNote || stay.description}
                                               </span>
                                             )}
                                             <div className="flex flex-wrap items-center gap-2 mt-1">
                                               {(() => {
                                                 const sizes: any[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
                                                 const activeRooms = sizes.map(size => {
-                                                  const count = (act as any)[`${size}_count`] || 0;
+                                                  const count = (stay as any)[`${size}_count`] || 0;
                                                   const label = size.split('_')[0];
                                                   const displayType = label.charAt(0).toUpperCase() + label.slice(1);
                                                   return { type: displayType, count };
@@ -5741,21 +6120,21 @@ function PlannerWizardWorkspace() {
                                                 
                                                 if (activeRooms.length === 0) {
                                                   return room?.room_standard ? (
-                                                    <span className="px-2 py-0.5 bg-amber-55 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                    <span className="px-2 py-0.5 bg-amber-50 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
                                                       {room.room_standard}
                                                     </span>
                                                   ) : null;
                                                 }
                                                 
                                                 return activeRooms.map(r => (
-                                                  <span key={r.type} className="px-2 py-0.5 bg-amber-55 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
+                                                  <span key={r.type} className="px-2 py-0.5 bg-amber-50 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
                                                     {r.count} x {r.type}
                                                   </span>
                                                 ));
                                               })()}
-                                              {act.meal_plan && (
+                                              {stay.meal_plan && (
                                                 <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-150 text-indigo-700 font-bold rounded text-[9px] uppercase tracking-wider">
-                                                  {act.meal_plan}
+                                                  {stay.meal_plan}
                                                 </span>
                                               )}
                                               {room?.breakfast_included && (
@@ -5765,7 +6144,7 @@ function PlannerWizardWorkspace() {
                                               )}
                                               {hasCustomRate && (
                                                 <span className="px-2 py-0.5 bg-amber-100 border border-amber-300 text-amber-800 font-bold rounded text-[9px] uppercase tracking-wider flex items-center gap-1">
-                                                  <CircleDollarSign className="w-3 h-3 text-amber-700" />
+                                                  <CircleDollarSign className="w-3 h-3 text-amber-707" />
                                                   Custom Buying Rate
                                                 </span>
                                               )}
@@ -5776,28 +6155,28 @@ function PlannerWizardWorkspace() {
                                         <div className="flex items-center justify-between sm:justify-end gap-6 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
                                           <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
                                             <span className="text-neutral-400">Qty:</span>
-                                            <span className="text-neutral-700 font-bold">{act.quantity || 1}</span>
+                                            <span className="text-neutral-700 font-bold">{stay.quantity || 1}</span>
                                           </div>
-                                          {(act.contracted_price ?? act.charged_unit_price) !== undefined && (act.contracted_price ?? act.charged_unit_price) !== null && (
+                                          {(stay.contracted_price ?? stay.charged_unit_price) !== undefined && (stay.contracted_price ?? stay.charged_unit_price) !== null && (
                                             <div className="text-right">
-                                              <span className="text-[9px] text-neutral-450 uppercase block font-mono">Unit Rate (Cost)</span>
-                                              <span className="font-mono text-neutral-600 font-bold">${Number(act.contracted_price ?? act.charged_unit_price).toFixed(2)}</span>
+                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate (Cost)</span>
+                                              <span className="font-mono text-neutral-600 font-bold">${Number(stay.contracted_price ?? stay.charged_unit_price).toFixed(2)}</span>
                                             </div>
                                           )}
-                                          {(act.contracted_total_price ?? act.charged_total_price) !== undefined && (act.contracted_total_price ?? act.charged_total_price) !== null && (
+                                          {(stay.contracted_total_price ?? stay.charged_total_price) !== undefined && (stay.contracted_total_price ?? stay.charged_total_price) !== null && (
                                             <div className="text-right">
-                                              <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total Rate (Cost)</span>
-                                              <span className="font-mono text-emerald-800 font-bold">${Number(act.contracted_total_price ?? act.charged_total_price).toFixed(2)}</span>
+                                              <span className="text-[9px] text-emerald-605 uppercase block font-mono">Total Rate (Cost)</span>
+                                              <span className="font-mono text-emerald-850 font-bold">${Number(stay.contracted_total_price ?? stay.charged_total_price).toFixed(2)}</span>
                                             </div>
                                           )}
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenCustomRateModal(act)}
+                                            onClick={() => handleOpenCustomRateModal(stay)}
                                             disabled={isLockedByOther}
                                             className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${
                                               hasCustomRate 
                                                 ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50" 
-                                                : "border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800"
+                                                : "border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805"
                                             }`}
                                             title="Override Contracted Rates"
                                           >
@@ -5805,9 +6184,9 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenHotelDrawer(act)}
+                                            onClick={() => handleOpenHotelDrawer(stay)}
                                             disabled={isLockedByOther}
-                                            className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                            className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805 transition-all shadow-sm shrink-0 disabled:opacity-40"
                                             title="Edit Night Accommodation"
                                           >
                                             <Pencil className="w-3.5 h-3.5" />
@@ -5820,335 +6199,31 @@ function PlannerWizardWorkspace() {
                               )}
 
                               {/* Custom Hotel PO Items List */}
-                              {customPOs.length > 0 && (
+                              {hotel && customPOs.length > 0 && (
                                 <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
                                   <h5 className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
                                     Custom Hotel PO & Quote Items
                                   </h5>
                                   <div className="space-y-3">
-                                    {customPOs.map((act) => {
-                                      const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
-                                      const activeQuote = actQuotes.find(q => q.quotation?.selected_vendor)?.quotation || actQuotes[0]?.quotation;
-                                      
-                                      const booking = vendorBookings.find(b => b.daily_activity_ids?.includes(act.id));
-                                      const po = booking?.purchase_order_id 
-                                        ? purchaseOrders.find(p => p.id === booking.purchase_order_id)
-                                        : purchaseOrders.find(p => p.items?.some((item: any) => item.daily_activity_id === act.id || item.tour_itinerary_id === act.id));
-
+                                    {customPOs.map((customPo: any) => {
                                       return (
-                                        <div key={act.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col gap-4 transition-all hover:shadow-md">
-                                          {/* Header / Meta Row */}
-                                          <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-[10px] bg-emerald-800/10 text-emerald-805 font-mono font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                                {act.activity_type || act.type || 'activity'}
-                                              </span>
-                                              {po && (
-                                                <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
-                                                  po.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                  po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
-                                                  po.status === 'Cancelled' ? 'bg-red-105 text-red-800' :
-                                                  'bg-neutral-100 text-neutral-600'
-                                                }`}>
-                                                  PO: {po.status}
-                                                </span>
-                                              )}
-                                              {activeQuote && !po && (
-                                                <span className={`px-2 py-0.5 text-[8px] font-extrabold rounded-full ${
-                                                  activeQuote.status === 'Selected' ? 'bg-green-150 text-green-800' :
-                                                  activeQuote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
-                                                  'bg-neutral-100 text-neutral-600'
-                                                }`}>
-                                                  RFQ: {activeQuote.status}
-                                                </span>
-                                              )}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setCustomHotelItemBaseHotel(hotel);
-                                                  setCustomHotelItemStays(standardStays);
-                                                  setEditingCustomHotelItem(act);
-                                                  
-                                                  // Prefill all modal form states
-                                                  setCustomHotelItemType(act.activity_type || act.type || 'activity');
-                                                  setCustomHotelItemDayNum(act.day_number || act.dayNumber || 1);
-                                                  setCustomHotelItemTitle(act.title || act.name || '');
-                                                  setCustomHotelItemDescription(act.description || act.internalNotes || '');
-                                                  setCustomHotelItemLocation(act.location_name || act.locationName || '');
-                                                  setCustomHotelItemDistance(act.distance || '');
-                                                  setCustomHotelItemTimeStart(act.time_start || act.startTime || '00:00');
-                                                  setCustomHotelItemTimeEnd(act.time_end || act.endTime || '00:00');
-                                                  setCustomHotelItemContractedPrice(act.contracted_price || 0);
-                                                  setCustomHotelItemChargedUnitPrice(act.charged_unit_price || act.agreedPrice || 0);
-                                                  setCustomHotelItemQuantity(act.quantity || 1);
-                                                  
-                                                  setShowCustomHotelItemModal(true);
-                                                }}
-                                                className="p-1.5 rounded-xl border border-neutral-200 hover:border-emerald-800/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-800 transition-all shadow-sm shrink-0"
-                                                title="Edit Custom Item"
-                                              >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                              </button>
-                                              
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setDbActivities(prev => prev.filter(item => item.id !== act.id));
-                                                  setItinerary(prev => prev.filter(item => item.id !== act.id));
-                                                }}
-                                                className="p-1.5 rounded-xl border border-neutral-200 hover:border-red-300 hover:bg-red-50 text-neutral-400 hover:text-red-600 transition-all shadow-sm shrink-0"
-                                                title="Delete Item"
-                                              >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                              </button>
-                                            </div>
-                                          </div>
-
-                                          {/* Form Grid Row 1 */}
-                                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                                            {/* Title */}
-                                            <div className="md:col-span-3 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Item Title</label>
-                                              <input
-                                                type="text"
-                                                value={act.title || act.name || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, title: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, name: val } : item));
-                                                }}
-                                                className="w-full text-xs font-bold text-neutral-800 border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
-                                                placeholder="e.g. Jeep Tour"
-                                              />
-                                            </div>
-
-                                            {/* Service Date */}
-                                            <div className="md:col-span-2 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Service Date</label>
-                                              <select
-                                                value={act.day_number || act.dayNumber || 1}
-                                                onChange={(e) => {
-                                                  const dayNum = parseInt(e.target.value) || 1;
-                                                  const targetDay = daysList.find(d => d.dayNum === dayNum);
-                                                  const dateStr = targetDay?.dateStr || '';
-                                                  
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    day_number: dayNum,
-                                                    dayNumber: dayNum,
-                                                    tour_itineraries: {
-                                                      day_number: dayNum,
-                                                      date: dateStr
-                                                    }
-                                                  } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    dayNumber: dayNum
-                                                  } : item));
-                                                }}
-                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700 cursor-pointer"
-                                              >
-                                                {daysList.map(({ dayNum, dateStr }) => (
-                                                  <option key={dayNum} value={dayNum}>
-                                                    Day {dayNum} {dateStr ? `(${formatDate(dateStr)})` : ''}
-                                                  </option>
-                                                ))}
-                                              </select>
-                                            </div>
-
-                                            {/* Type Dropdown */}
-                                            <div className="md:col-span-2 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Type</label>
-                                              <select
-                                                value={act.activity_type || act.type || 'activity'}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, activity_type: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, type: val as any } : item));
-                                                }}
-                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700 cursor-pointer"
-                                              >
-                                                <option value="activity">Activity</option>
-                                                <option value="meal">Meal</option>
-                                                <option value="travel">Travel</option>
-                                              </select>
-                                            </div>
-
-                                            {/* Qty */}
-                                            <div className="md:col-span-1 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Qty</label>
-                                              <input
-                                                type="number"
-                                                min="1"
-                                                value={act.quantity || 1}
-                                                onChange={(e) => {
-                                                  const qty = parseInt(e.target.value) || 1;
-                                                  const unitPrice = act.contracted_price || 0;
-                                                  const chargedPrice = act.charged_unit_price || 0;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    quantity: qty,
-                                                    contracted_total_price: qty * unitPrice,
-                                                    charged_total_price: qty * chargedPrice
-                                                  } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    quantity: qty,
-                                                    contractedTotalPrice: qty * unitPrice,
-                                                    agreedPrice: chargedPrice
-                                                  } : item));
-                                                }}
-                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
-                                              />
-                                            </div>
-
-                                            {/* Contracted Price (Unit Cost) */}
-                                            <div className="md:col-span-2 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Unit Cost ($)</label>
-                                              <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={act.contracted_price || 0}
-                                                onChange={(e) => {
-                                                  const price = parseFloat(e.target.value) || 0;
-                                                  const qty = act.quantity || 1;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    contracted_price: price,
-                                                    contracted_total_price: qty * price
-                                                  } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    contractedPrice: price,
-                                                    contractedTotalPrice: qty * price
-                                                  } : item));
-                                                }}
-                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
-                                              />
-                                            </div>
-
-                                            {/* Charged Unit Price (Unit Sell) */}
-                                            <div className="md:col-span-2 flex flex-col">
-                                              <label className="text-[9px] text-neutral-450 uppercase font-mono font-bold mb-1">Unit Sell ($)</label>
-                                              <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={act.charged_unit_price || act.agreedPrice || 0}
-                                                onChange={(e) => {
-                                                  const price = parseFloat(e.target.value) || 0;
-                                                  const qty = act.quantity || 1;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    charged_unit_price: price,
-                                                    charged_total_price: qty * price
-                                                  } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? {
-                                                    ...item,
-                                                    agreedPrice: price
-                                                  } : item));
-                                                }}
-                                                className="w-full text-xs font-bold bg-neutral-50 border border-neutral-200 focus:border-emerald-800 outline-none rounded-xl px-2 py-1.5 text-neutral-700"
-                                              />
-                                            </div>
-                                          </div>
-
-                                          {/* Form Grid Row 2 */}
-                                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-neutral-100">
-                                            {/* Location */}
-                                            <div className="md:col-span-3 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Location</label>
-                                              <input
-                                                type="text"
-                                                value={act.location_name || act.locationName || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, location_name: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, locationName: val } : item));
-                                                }}
-                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
-                                                placeholder="e.g. Hotel Beach"
-                                              />
-                                            </div>
-
-                                            {/* Distance */}
-                                            <div className="md:col-span-1 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Distance</label>
-                                              <input
-                                                type="text"
-                                                value={act.distance || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, distance: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, distance: val } : item));
-                                                }}
-                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
-                                                placeholder="e.g. 10 km"
-                                              />
-                                            </div>
-
-                                            {/* Start Time */}
-                                            <div className="md:col-span-1 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Start Time</label>
-                                              <input
-                                                type="text"
-                                                value={act.time_start || act.startTime || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, time_start: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, startTime: val } : item));
-                                                }}
-                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
-                                                placeholder="09:00"
-                                              />
-                                            </div>
-
-                                            {/* End Time */}
-                                            <div className="md:col-span-1 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">End Time</label>
-                                              <input
-                                                type="text"
-                                                value={act.time_end || act.endTime || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, time_end: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, endTime: val } : item));
-                                                }}
-                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
-                                                placeholder="17:00"
-                                              />
-                                            </div>
-
-                                            {/* Description */}
-                                            <div className="md:col-span-6 flex flex-col">
-                                              <label className="text-[9px] text-neutral-400 uppercase font-mono font-bold mb-1">Description / Comment</label>
-                                              <input
-                                                type="text"
-                                                value={act.description || act.internalNotes || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setDbActivities(prev => prev.map(item => item.id === act.id ? { ...item, description: val } : item));
-                                                  setItinerary(prev => prev.map(item => item.id === act.id ? { ...item, internalNotes: val } : item));
-                                                }}
-                                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 focus:border-emerald-800 outline-none"
-                                                placeholder="Details..."
-                                              />
-                                            </div>
-                                          </div>
-
-                                          {/* Totals Summary */}
-                                          <div className="flex justify-end gap-6 bg-neutral-50 p-2.5 rounded-xl border border-neutral-150 text-[10px] font-bold">
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="text-neutral-450 font-medium">Total Cost:</span>
-                                              <span className="text-neutral-700 font-mono font-extrabold">${Number(act.contracted_total_price || 0).toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="text-emerald-600 font-medium">Total Sell:</span>
-                                              <span className="text-emerald-800 font-mono font-extrabold">${Number(act.charged_total_price || 0).toFixed(2)}</span>
-                                            </div>
+                                        <div key={customPo.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex items-center justify-between">
+                                          <span className="text-xs font-bold text-neutral-800">{customPo.title || customPo.name || 'Custom Item'}</span>
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setCustomHotelItemDayNum(customPo.day_number || customPo.dayNumber || 1);
+                                                setCustomHotelItemTitle(customPo.title || customPo.name || '');
+                                                setCustomHotelItemDescription(customPo.description || customPo.internalNotes || '');
+                                                setCustomHotelItemLocation(customPo.location_name || customPo.locationName || '');
+                                                setCustomHotelItemDistance(customPo.distance || '');
+                                              }}
+                                              className="p-1 text-neutral-400 hover:text-emerald-808 hover:bg-neutral-55 rounded-lg transition-colors"
+                                              title="Edit Details"
+                                            >
+                                              <Pencil className="w-3.5 h-3.5" />
+                                            </button>
                                           </div>
                                         </div>
                                       );
@@ -6157,197 +6232,146 @@ function PlannerWizardWorkspace() {
                                 </div>
                               )}
 
-                              {/* Add Custom Record for this Hotel */}
-                              <div className="flex justify-end pt-2 border-t border-neutral-100/60">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCustomHotelItemBaseHotel(hotel);
-                                    setCustomHotelItemStays(standardStays);
-                                    setEditingCustomHotelItem(null);
-                                    
-                                    const firstStay = standardStays[0];
-                                    const initialDay = firstStay ? (firstStay.tour_itineraries?.day_number || firstStay.day_number || firstStay.dayNumber || 1) : 1;
-                                    
-                                    setCustomHotelItemType('activity');
-                                    setCustomHotelItemDayNum(initialDay);
-                                    setCustomHotelItemTitle('');
-                                    setCustomHotelItemDescription('');
-                                    setCustomHotelItemLocation('');
-                                    setCustomHotelItemDistance('');
-                                    setCustomHotelItemTimeStart('00:00');
-                                    setCustomHotelItemTimeEnd('00:00');
-                                    setCustomHotelItemContractedPrice(0);
-                                    setCustomHotelItemChargedUnitPrice(0);
-                                    setCustomHotelItemQuantity(1);
-                                    
-                                    setShowCustomHotelItemModal(true);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold shadow-sm hover:shadow-md transition-all uppercase tracking-wider"
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
-                                  <span>Add Custom Hotel Item</span>
-                                </button>
-                              </div>
+                              {/* Candidate Bids & Proposals Section */}
+                              <div className="border-t border-neutral-200/60 pt-4 space-y-4">
+                                <h5 className="text-xs font-bold text-neutral-700 flex items-center gap-2">
+                                  <Briefcase className="w-4 h-4 text-emerald-805" />
+                                  Candidate Proposals & RFQs ({blockQuotes.length})
+                                </h5>
 
-                              {hotel && (hotel.reservation_agent_name || hotel.reservation_email || hotel.reservation_agent_contact) && (
-                                <div className="mt-3 pt-3 border-t border-neutral-200/60 flex flex-wrap gap-x-6 gap-y-2 text-[10px] text-neutral-400 font-medium">
-                                  {hotel.reservation_agent_name && (
-                                    <div>
-                                      <span className="text-neutral-455 font-semibold">Reservation Contact:</span> <span className="text-neutral-600 font-bold">{hotel.reservation_agent_name}</span>
-                                    </div>
-                                  )}
-                                  {hotel.reservation_email && (
-                                    <div>
-                                      <span className="text-neutral-455 font-semibold">Email:</span> <span className="text-neutral-600 font-mono font-bold">{hotel.reservation_email}</span>
-                                    </div>
-                                  )}
-                                  {hotel.reservation_agent_contact && (
-                                    <div>
-                                      <span className="text-neutral-455 font-semibold">Phone:</span> <span className="text-neutral-600 font-mono font-bold">{hotel.reservation_agent_contact}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                {blockQuotes.length === 0 ? (
+                                  <p className="text-[11px] text-neutral-400 italic">No alternative hotel bids or RFQs dispatch logs found for this stay block.</p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {blockQuotes.map((blockQuote) => {
+                                      const quote = blockQuote.quotation;
+                                      if (!quote) return null;
+                                      const isSelected = hotel?.id === quote.vendor_id;
 
-                              {/* Collapsible Email History Section */}
-                              {(() => {
-                                const hotelPurchaseOrderIds = new Set(
-                                  purchaseOrders
-                                    .filter(po => po.hotel_id === hotelId)
-                                    .map(po => po.id)
-                                );
-                                const myRfqEmails = rfqEmails.filter(email => email.vendor_id === hotelId);
-                                const myRfpEmails = rfpEmails.filter(email => email.purchase_order_id && hotelPurchaseOrderIds.has(email.purchase_order_id));
-                                const totalEmails = myRfqEmails.length + myRfpEmails.length;
-                                const isExpanded = !!expandedHotelHistory[hotelId];
+                                      // Get email logs specifically for this quote
+                                      const myRfqEmails = rfqEmails.filter(e => e.daily_activity_vendor_id === blockQuote.quotation.id);
+                                      const myRfpEmails = rfpEmails.filter(e => e.purchase_order_id && purchaseOrders.some(p => p.id === e.purchase_order_id && p.daily_activity_vendor_id === blockQuote.quotation.id));
+                                      const combinedEmails = [...myRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })), ...myRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))]
+                                        .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
 
-                                const toggleHotelHistory = (hId: string) => {
-                                  setExpandedHotelHistory(prev => ({
-                                    ...prev,
-                                    [hId]: !prev[hId]
-                                  }));
-                                };
+                                      const isEmailLogsExpanded = expandedEmailId === blockQuote.id;
 
-                                const hotelPurchaseOrders = purchaseOrders.filter(po => po.hotel_id === hotelId);
+                                      return (
+                                        <div key={blockQuote.id} className={`p-4 rounded-2xl border flex flex-col gap-3 transition-all bg-white ${
+                                          isSelected ? 'border-emerald-805/30 bg-emerald-50/5 ring-1 ring-emerald-805/10' : 'border-neutral-200'
+                                        }`}>
+                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                            <div>
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-neutral-800">{quote.vendor_name}</span>
+                                                <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
+                                                  isSelected ? 'bg-emerald-805 text-white' :
+                                                  quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
+                                                  'bg-neutral-100 text-neutral-600'
+                                                }`}>
+                                                  {isSelected ? 'Active / Selected' : quote.status}
+                                                </span>
+                                              </div>
+                                              {quote.replied_date && (
+                                                <p className="text-[9px] text-neutral-400 mt-0.5">
+                                                  Replied: {new Date(quote.replied_date).toLocaleDateString()}
+                                                </p>
+                                              )}
+                                              {quote.notes && (
+                                                <p className="text-[10px] text-neutral-500 mt-1 italic">"{quote.notes}"</p>
+                                              )}
+                                            </div>
 
-                                return (
-                                  <div className="mt-4 pt-4 border-t border-neutral-200/60">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleHotelHistory(hotelId)}
-                                      className="flex items-center justify-between w-full text-left text-neutral-600 hover:text-neutral-900 transition-colors"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <History className="w-4 h-4 text-neutral-400" />
-                                        <span className="text-xs font-bold font-serif">Email History ({totalEmails})</span>
-                                      </div>
-                                      {isExpanded ? (
-                                        <ChevronUp className="w-4 h-4 text-neutral-400" />
-                                      ) : (
-                                        <ChevronDown className="w-4 h-4 text-neutral-400" />
-                                      )}
-                                    </button>
+                                            <div className="flex items-center gap-3">
+                                              {quote.quoted_price !== undefined && quote.quoted_price !== null && (
+                                                <span className="text-xs font-bold text-emerald-805">${quote.quoted_price}</span>
+                                              )}
 
-                                    {isExpanded && (
-                                      <div className="mt-3 space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                                        {totalEmails === 0 ? (
-                                          <p className="text-[10px] text-neutral-400 italic">No email history for this hotel.</p>
-                                        ) : (
-                                          [...myRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })), ...myRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))]
-                                            .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())
-                                            .map((email) => {
-                                              const emailId = email.id;
-                                              const isEmailBodyExpanded = expandedEmailId === emailId;
-                                              const attachmentsArray = Array.isArray(email.attachments) ? email.attachments : [];
-                                              const matchingPo = email.logType === 'RFP' && email.purchase_order_id
-                                                ? purchaseOrders.find(p => p.id === email.purchase_order_id)
-                                                : null;
-                                              const matchingQuote = email.logType === 'RFQ' && email.quotation_request_id
-                                                ? (email.quotation || quotationRequests.find(q => q.quotation?.id === email.quotation_request_id)?.quotation)
-                                                : null;
+                                              {/* Action Buttons */}
+                                              {!isSelected && (
+                                                <button
+                                                  onClick={() => handleSelectBlockCandidateHotel(block, quote)}
+                                                  className="px-3 py-1.5 bg-emerald-805 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold transition-all shadow-sm"
+                                                >
+                                                  Select Hotel
+                                                </button>
+                                              )}
+                                              <button
+                                                onClick={() => openEditRfqModal(blockQuote)}
+                                                className="px-2.5 py-1.5 border border-neutral-200 hover:bg-neutral-55 text-neutral-650 rounded-xl text-[10px] font-bold transition-all shadow-sm"
+                                              >
+                                                Edit
+                                              </button>
+                                              {combinedEmails.length > 0 && (
+                                                <button
+                                                  onClick={() => setExpandedEmailId(isEmailLogsExpanded ? null : blockQuote.id)}
+                                                  className="px-2.5 py-1.5 border border-neutral-200 hover:bg-neutral-55 text-neutral-655 rounded-xl text-[10px] font-bold transition-all shadow-sm"
+                                                >
+                                                  {isEmailLogsExpanded ? 'Hide Emails' : `Emails (${combinedEmails.length})`}
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
 
-                                              return (
-                                                <div key={emailId} className="border border-neutral-200/80 rounded-2xl p-3 bg-white shadow-sm space-y-2">
-                                                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                      <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                                        email.logType === 'RFQ' 
-                                                          ? 'bg-emerald-800/10 text-emerald-800 border border-emerald-800/20' 
-                                                          : 'bg-amber-650/10 text-amber-700 border border-amber-650/20'
-                                                      }`}>
-                                                        {email.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
-                                                      </span>
-                                                      <span className="text-[10px] font-mono text-neutral-400">
-                                                        {formatDateTime(email.sent_at)}
-                                                      </span>
-                                                    </div>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setExpandedEmailId(isEmailBodyExpanded ? null : emailId)}
-                                                      className="text-[10px] text-emerald-850 font-bold hover:underline"
-                                                    >
-                                                      {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
-                                                    </button>
-                                                  </div>
+                                          {/* Nested Email History Logs for this quote */}
+                                          {isEmailLogsExpanded && combinedEmails.length > 0 && (
+                                            <div className="border-t border-neutral-100 pt-3 mt-1 space-y-2">
+                                              <span className="text-[9px] text-neutral-405 uppercase font-black tracking-wider block">RFQ/RFP Dispatch Log ({combinedEmails.length})</span>
+                                              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                                                {combinedEmails.map((emailLog) => {
+                                                  const emailId = emailLog.id;
+                                                  const isEmailBodyExpanded = expandedEmailId === emailId;
+                                                  const attachmentsArray = Array.isArray(emailLog.attachments) ? emailLog.attachments : [];
 
-                                                  <div className="text-[10px] space-y-0.5 text-neutral-600">
-                                                    <div><span className="font-semibold text-neutral-450">To:</span> <span className="font-medium font-mono">{email.recipient_email}</span></div>
-                                                    <div><span className="font-semibold text-neutral-455">Subject:</span> <span className="font-bold text-neutral-700">{email.subject}</span></div>
-                                                    {attachmentsArray.length > 0 && (
-                                                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                                                        <span className="font-semibold text-neutral-455">Attachments:</span>
-                                                        {attachmentsArray.map((att: any, attIdx: number) => (
-                                                          <span key={attIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 text-neutral-600 rounded text-[9px] font-medium font-mono">
-                                                            <FileText className="w-3 h-3 text-neutral-400" />
-                                                            {att.filename || att.name || 'Attachment'}
+                                                  return (
+                                                    <div key={emailId} className="border border-neutral-200 rounded-xl p-2.5 bg-neutral-50/50 shadow-sm space-y-2">
+                                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                          <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                            emailLog.logType === 'RFQ' 
+                                                              ? 'bg-emerald-805/10 text-emerald-805 border border-emerald-805/20' 
+                                                              : 'bg-amber-650/10 text-amber-707 border border-amber-650/20'
+                                                          }`}>
+                                                            {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                           </span>
-                                                        ))}
+                                                          <span className="text-[9px] font-mono text-neutral-400">
+                                                            {new Date(emailLog.sent_at).toLocaleString()}
+                                                          </span>
+                                                        </div>
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => setExpandedEmailId(isEmailBodyExpanded ? null : emailId)}
+                                                          className="text-[9px] text-emerald-850 font-bold hover:underline"
+                                                        >
+                                                          {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                                        </button>
                                                       </div>
-                                                    )}
-                                                  </div>
 
-                                                  {isEmailBodyExpanded && (
-                                                    <div className="mt-2 pt-2 border-t border-neutral-100">
-                                                      <div 
-                                                        className="text-[11px] text-neutral-700 bg-neutral-50/50 p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[200px] font-sans prose prose-sm max-w-none"
-                                                        dangerouslySetInnerHTML={{ __html: email.body_html }}
-                                                      />
+                                                      <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                                        <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                                        <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-707">{emailLog.subject}</span></div>
+                                                      </div>
+
+                                                      {isEmailBodyExpanded && (
+                                                        <div className="mt-2 pt-2 border-t border-neutral-150">
+                                                          <div 
+                                                            className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[180px] font-sans prose prose-sm max-w-none"
+                                                            dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
+                                                          />
+                                                        </div>
+                                                      )}
                                                     </div>
-                                                  )}
-                                                  {matchingPo && (
-                                                    <div className="flex justify-end pt-2 border-t border-neutral-100/60 mt-2">
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => openEditPoModal(matchingPo)}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-[9px] font-bold transition-all shadow-sm hover:shadow-md"
-                                                      >
-                                                        <Pencil className="w-2.5 h-2.5 text-neutral-500" />
-                                                        <span>Edit Details</span>
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                  {matchingQuote && (
-                                                    <div className="flex justify-end pt-2 border-t border-neutral-100/60 mt-2">
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => openEditRfqModal(matchingQuote)}
-                                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-600 rounded-xl text-[9px] font-bold transition-all shadow-sm hover:shadow-md"
-                                                      >
-                                                        <Pencil className="w-2.5 h-2.5 text-neutral-500" />
-                                                        <span>Edit Details</span>
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              );
-                                            })
-                                        )}
-                                      </div>
-                                    )}
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
-                                );
-                              })()}
+                                )}
+                              </div>
                             </div>
                           );
                         });

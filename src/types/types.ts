@@ -11,6 +11,7 @@ export type PrepareBasicSubStep =
 
 export type FinalStep =
   | 'element-selection'
+  | 'po-creation'
   | 'hotel-selection'
   | 'activity-provider'
   | 'restaurant-selection'

@@ -147,7 +147,8 @@ export class VendorBookingService {
             balance_payable: totalAmount,
             cancellation_policy: bookingData.cancellation_policy || undefined,
             vendor_notes: bookingData.notes || undefined,
-            daily_activity_vendor_id: bookingData.quotation_request_id || null
+            daily_activity_vendor_id: bookingData.quotation_request_id || null,
+            po_block_id: bookingData.po_block_id || null
         };
 
         if (bookingData.vendor_type === 'hotel') poPayload.hotel_id = bookingData.vendor_id;

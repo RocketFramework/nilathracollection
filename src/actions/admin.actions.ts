@@ -221,7 +221,7 @@ export async function saveTouristDataAction(tourId: string, data: any) {
         return { success: true };
     } catch (error: any) {
         console.error("Error saving tourist DTO data:", error);
-        return { error: error.message || "Failed to save tourist data." };
+        return { error: error.stack || error.message || "Failed to save tourist data." };
     }
 }
 
@@ -1489,7 +1489,7 @@ export async function saveDraftVersionAction(
         return { success: true, version };
     } catch (error: any) {
         console.error("Error in saveDraftVersionAction:", error);
-        return { success: false, error: error.message || "Failed to save draft version." };
+        return { success: false, error: error.stack || error.message || "Failed to save draft version." };
     }
 }
 

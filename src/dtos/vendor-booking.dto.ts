@@ -13,6 +13,7 @@ export interface CreateVendorBookingDTO {
     po_number?: string;
     discount?: number;
     tax?: number;
+    po_block_id?: string;
 }
 
 export interface ConfirmFinalBookingDTO {

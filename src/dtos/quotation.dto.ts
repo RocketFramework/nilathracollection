@@ -10,6 +10,7 @@ export interface CreateQuotationRequestDTO {
     tour_id: string;
     itinerary_id: string;
     activity_type: string;
+    po_block_id?: string;
 }
 
 export interface UpdateQuotationDTO {

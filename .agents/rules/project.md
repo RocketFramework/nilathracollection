@@ -12,4 +12,5 @@ trigger: always_on
 
 ## Coding Rules
 - All database access must go through service classes
-- DTOs should be the object that UI should use to carries or display data 
+- DTOs should be the object that UI should use to carries or display data
+- No need to request approval for running commands

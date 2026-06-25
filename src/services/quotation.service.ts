@@ -21,7 +21,8 @@ export class QuotationService {
                 status: 'Sent',
                 created_by: createdBy,
                 vendor_type: dto.activity_type || null,
-                tour_id: dto.tour_id || null
+                tour_id: dto.tour_id || null,
+                po_block_id: dto.po_block_id || null
             }])
             .select()
             .single();
@@ -29,9 +30,19 @@ export class QuotationService {
         if (qError) throw qError;
 
         // 2. Fetch daily activities to get the correct tour_id and itinerary_id from the database
-        const activityIds = dto.daily_activity_ids && dto.daily_activity_ids.length > 0
+        let activityIds = dto.daily_activity_ids && dto.daily_activity_ids.length > 0
             ? dto.daily_activity_ids
             : [dto.daily_activity_id].filter(Boolean) as string[];
+
+        if (dto.po_block_id && activityIds.length === 0) {
+            const { data: blockActs } = await adminSupabase
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .eq('po_block_id', dto.po_block_id);
+            if (blockActs) {
+                activityIds = blockActs.map(ba => ba.daily_activity_id);
+            }
+        }
 
         let dbActivities: { id: string; tour_id: string | null; itinerary_id: string | null }[] = [];
         if (activityIds.length > 0) {
