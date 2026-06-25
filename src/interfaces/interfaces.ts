@@ -6,6 +6,7 @@ export interface POBlock {
     name: string;
     block_type: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity';
     block_number: number;
+    has_finalized?: boolean;
     created_at?: string;
     updated_at?: string;
     // Client-side joins

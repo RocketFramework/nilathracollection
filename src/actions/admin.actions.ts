@@ -689,7 +689,18 @@ export async function getDailyActivitiesAction(tourId: string) {
             .eq('tour_id', tourId);
 
         if (error) throw error;
-        return { success: true, activities: data || [] };
+        
+        // Filter out records that are activity_type === 'activity' or 'meal' and all vendor/booking references are null
+        const filteredData = (data || []).filter((act: any) => {
+            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+                !act.vendor_id &&
+                !act.restaurant_id &&
+                !act.vendor_activity_id &&
+                !act.hotel_id;
+            return !isInvalidActivity;
+        });
+
+        return { success: true, activities: filteredData };
     } catch (error: any) {
         console.error("Error fetching daily activities:", error);
         return { success: false, error: error.message || "Failed to load daily activities." };

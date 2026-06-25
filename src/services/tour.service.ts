@@ -412,6 +412,22 @@ export class TourService {
         
         const { data: existingMappings } = await query;
 
+        // Fetch existing PO block mappings before any deletions
+        const { data: tourBlocks } = await supabaseAdmin
+            .from('po_blocks')
+            .select('id')
+            .eq('tour_id', tourId);
+        
+        const tourBlockIds = tourBlocks?.map(b => b.id) || [];
+        let existingPOBlockMappings: any[] = [];
+        if (tourBlockIds.length > 0) {
+            const { data: mappingsData } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('po_block_id, daily_activity_id')
+                .in('po_block_id', tourBlockIds);
+            existingPOBlockMappings = mappingsData || [];
+        }
+
         const allInsertedActivities: any[] = [];
         const { data: dbActivities } = await supabaseAdmin.from('activities').select('id, activity_name');
 
@@ -776,7 +792,7 @@ export class TourService {
                     contracted_price: b.contractedPrice,
                     charged_unit_price: b.agreedPrice,
                     charged_total_price: b.agreedPrice,
-                    transport_id: (b.transportId && isUuid(b.transportId)) ? b.transportId : (tripData.defaultTransportId || null),
+                    transport_id: (b.transportId && isUuid(b.transportId)) ? b.transportId : (b.type === 'travel' ? (tripData.defaultTransportId || null) : null),
                     vehicle_id: (b.vehicleId && isUuid(b.vehicleId)) ? b.vehicleId : (tripData.defaultVehicleId || null),
                     driver_id: (b.driverId && isUuid(b.driverId)) ? b.driverId : (tripData.defaultDriverId || null),
                     guide_id: (b.guideId && isUuid(b.guideId)) ? b.guideId : (tripData.defaultGuideId || null),
@@ -1099,6 +1115,28 @@ export class TourService {
                 
                 if (reinsertErr) {
                     console.error("Failed to restore daily_activity_vendor_links mappings:", reinsertErr);
+                }
+            }
+        }
+
+        // D) Restore po_block_daily_activities mappings
+        if (existingPOBlockMappings && existingPOBlockMappings.length > 0) {
+            const insertedActivityIds = new Set(allInsertedActivities.map(act => act.id).filter(Boolean));
+            
+            const poMappingsToReinsert = existingPOBlockMappings
+                .filter(m => insertedActivityIds.has(m.daily_activity_id))
+                .map(m => ({
+                    po_block_id: m.po_block_id,
+                    daily_activity_id: m.daily_activity_id
+                }));
+
+            if (poMappingsToReinsert.length > 0) {
+                const { error: poReinsertErr } = await supabaseAdmin
+                    .from('po_block_daily_activities')
+                    .insert(poMappingsToReinsert);
+                
+                if (poReinsertErr) {
+                    console.error("Failed to restore po_block_daily_activities mappings:", poReinsertErr);
                 }
             }
         }

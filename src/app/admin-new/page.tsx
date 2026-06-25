@@ -2174,10 +2174,19 @@ function PlannerWizardWorkspace() {
             }
           }
 
-          const mapped = activitiesList.map((a: any) => ({
-            ...a,
-            isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
-          }));
+          const mapped = activitiesList
+            .filter((act: any) => {
+              const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+                !act.vendor_id &&
+                !act.restaurant_id &&
+                !act.vendor_activity_id &&
+                !act.hotel_id;
+              return !isInvalidActivity;
+            })
+            .map((a: any) => ({
+              ...a,
+              isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+            }));
           setDbActivities(mapped);
 
           // Populate procurement data fetched in parallel
@@ -2209,7 +2218,19 @@ function PlannerWizardWorkspace() {
               setItinerary(sortItineraryChronologically(state.itinerary));
             }
             if (state.dbActivities) {
-              setDbActivities(state.dbActivities);
+              const filtered = state.dbActivities.filter((act: any) => {
+                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+                  !act.vendor_id &&
+                  !act.transport_id &&
+                  !act.driver_id &&
+                  !act.guide_id &&
+                  !act.restaurant_id &&
+                  !act.vehicle_id &&
+                  !act.vendor_activity_id &&
+                  !act.hotel_id;
+                return !isInvalidActivity;
+              });
+              setDbActivities(filtered);
             }
             restoredFromDb = true;
           }
@@ -2229,7 +2250,19 @@ function PlannerWizardWorkspace() {
               setItinerary(sortItineraryChronologically(parsed.itinerary));
             }
             if (parsed.dbActivities) {
-              setDbActivities(parsed.dbActivities);
+              const filtered = parsed.dbActivities.filter((act: any) => {
+                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+                  !act.vendor_id &&
+                  !act.transport_id &&
+                  !act.driver_id &&
+                  !act.guide_id &&
+                  !act.restaurant_id &&
+                  !act.vehicle_id &&
+                  !act.vendor_activity_id &&
+                  !act.hotel_id;
+                return !isInvalidActivity;
+              });
+              setDbActivities(filtered);
             }
           }
         }
@@ -2308,10 +2341,23 @@ function PlannerWizardWorkspace() {
     try {
       const res = await getDailyActivitiesAction(tid);
       if (res.success && res.activities) {
-        const mapped = res.activities.map((a: any) => ({
-          ...a,
-          isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
-        }));
+        const mapped = res.activities
+          .filter((act: any) => {
+            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+              !act.vendor_id &&
+              !act.transport_id &&
+              !act.driver_id &&
+              !act.guide_id &&
+              !act.restaurant_id &&
+              !act.vehicle_id &&
+              !act.vendor_activity_id &&
+              !act.hotel_id;
+            return !isInvalidActivity;
+          })
+          .map((a: any) => ({
+            ...a,
+            isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+          }));
         setDbActivities(mapped);
         
         // Restore custom POs to the itinerary state if they exist in daily activities but not in itinerary yet
@@ -5890,6 +5936,18 @@ function PlannerWizardWorkspace() {
                           {/* List of activities */}
                           <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
                             {[...dbActivities]
+                              .filter((act: any) => {
+                                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+                                  !act.vendor_id &&
+                                  !act.transport_id &&
+                                  !act.driver_id &&
+                                  !act.guide_id &&
+                                  !act.restaurant_id &&
+                                  !act.vehicle_id &&
+                                  !act.vendor_activity_id &&
+                                  !act.hotel_id;
+                                return !isInvalidActivity;
+                              })
                               .sort((a: any, b: any) => {
                                 const dayA = a.tour_itineraries?.day_number || 0;
                                 const dayB = b.tour_itineraries?.day_number || 0;
@@ -13380,6 +13438,50 @@ function AIItineraryBuilder({
               <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
               <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
               <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            </select>
+          </div>
+
+          {/* Transport Provider Dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide font-sans">Provider:</span>
+            <select
+              value={tripData?.defaultTransportId || ''}
+              onChange={(e) => {
+                const val = e.target.value || undefined;
+                setTripData(prev => prev ? { ...prev, defaultTransportId: val } : prev);
+                onChauffeurNeededChange(!!val);
+              }}
+              disabled={isLockedByOther}
+              className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-855 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-808/10 focus:border-emerald-808 transition-all cursor-pointer shadow-sm disabled:opacity-50 max-w-[220px]"
+            >
+              <option value="">Select Default Transport...</option>
+              {(masterData?.transportProviders || []).map((provider: any) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Guide Dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide font-sans">Guide:</span>
+            <select
+              value={tripData?.defaultGuideId || ''}
+              onChange={(e) => {
+                const val = e.target.value || undefined;
+                setTripData(prev => prev ? { ...prev, defaultGuideId: val } : prev);
+                onGuideNeededChange(!!val);
+              }}
+              disabled={isLockedByOther}
+              className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-855 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-808/10 focus:border-emerald-808 transition-all cursor-pointer shadow-sm disabled:opacity-50 max-w-[220px]"
+            >
+              <option value="">Select Default Guide...</option>
+              {(masterData?.guides || []).map((guide: any) => (
+                <option key={guide.id} value={guide.id}>
+                  {guide.first_name} {guide.last_name || ''}
+                </option>
+              ))}
             </select>
           </div>
 
