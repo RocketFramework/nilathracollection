@@ -25,22 +25,22 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const db = createClient(supabaseUrl, supabaseServiceKey);
 
 async function run() {
-  const blockId = '0b508a8a-42b3-45d8-8c64-b911b9cc134a';
+  const tourId = '60dec7e8-cbd9-4801-9f97-b41e5062fcc2';
   
   const { data: rfq, error: rfqErr } = await db
     .from('tour_rfq_emails')
     .select('id, subject, sent_at, po_block_id')
-    .eq('po_block_id', blockId);
+    .eq('tour_id', tourId);
 
-  console.log("RFQ emails matching block ID:");
+  console.log("RFQ emails for tour:");
   console.log(rfq || rfqErr);
 
   const { data: rfp, error: rfpErr } = await db
     .from('tour_rfp_emails')
     .select('id, subject, sent_at, po_block_id')
-    .eq('po_block_id', blockId);
+    .eq('tour_id', tourId);
 
-  console.log("RFP emails matching block ID:");
+  console.log("RFP emails for tour:");
   console.log(rfp || rfpErr);
 }
 

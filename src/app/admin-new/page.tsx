@@ -6320,14 +6320,6 @@ function PlannerWizardWorkspace() {
                                       if (!quote) return null;
                                       const isSelected = hotel?.id === quote.vendor_id;
 
-                                      // Get email logs specifically for this quote
-                                      const myRfqEmails = rfqEmails.filter(e => e.daily_activity_vendor_id === blockQuote.quotation.id);
-                                      const myRfpEmails = rfpEmails.filter(e => e.purchase_order_id && purchaseOrders.some(p => p.id === e.purchase_order_id && p.daily_activity_vendor_id === blockQuote.quotation.id));
-                                      const combinedEmails = [...myRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })), ...myRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))]
-                                        .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
-
-                                      const isEmailLogsExpanded = expandedEmailId === blockQuote.id;
-
                                       return (
                                         <div key={blockQuote.id} className={`p-4 rounded-2xl border flex flex-col gap-3 transition-all bg-white ${
                                           isSelected ? 'border-emerald-805/30 bg-emerald-50/5 ring-1 ring-emerald-805/10' : 'border-neutral-200'
@@ -6345,7 +6337,7 @@ function PlannerWizardWorkspace() {
                                                 </span>
                                               </div>
                                               {quote.replied_date && (
-                                                <p className="text-[9px] text-neutral-400 mt-0.5">
+                                                <p className="text-[9px] text-neutral-405 mt-0.5">
                                                   Replied: {new Date(quote.replied_date).toLocaleDateString()}
                                                 </p>
                                               )}
@@ -6372,79 +6364,83 @@ function PlannerWizardWorkspace() {
                                               <button
                                                 onClick={() => openEditRfqModal(blockQuote)}
                                                 disabled={isLockedByOther || block.has_finalized}
-                                                className="px-2.5 py-1.5 border border-neutral-200 hover:bg-neutral-55 text-neutral-650 rounded-xl text-[10px] font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                                className="px-2.5 py-1.5 border border-neutral-205 hover:bg-neutral-55 text-neutral-655 rounded-xl text-[10px] font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                                               >
                                                 Edit
                                               </button>
-                                              {combinedEmails.length > 0 && (
-                                                <button
-                                                  onClick={() => setExpandedEmailId(isEmailLogsExpanded ? null : blockQuote.id)}
-                                                  className="px-2.5 py-1.5 border border-neutral-200 hover:bg-neutral-55 text-neutral-655 rounded-xl text-[10px] font-bold transition-all shadow-sm"
-                                                >
-                                                  {isEmailLogsExpanded ? 'Hide Emails' : `Emails (${combinedEmails.length})`}
-                                                </button>
-                                              )}
                                             </div>
                                           </div>
-
-                                          {/* Nested Email History Logs for this quote */}
-                                          {isEmailLogsExpanded && combinedEmails.length > 0 && (
-                                            <div className="border-t border-neutral-100 pt-3 mt-1 space-y-2">
-                                              <span className="text-[9px] text-neutral-405 uppercase font-black tracking-wider block">RFQ/RFP Dispatch Log ({combinedEmails.length})</span>
-                                              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                                                {combinedEmails.map((emailLog) => {
-                                                  const emailId = emailLog.id;
-                                                  const isEmailBodyExpanded = expandedEmailId === emailId;
-                                                  const attachmentsArray = Array.isArray(emailLog.attachments) ? emailLog.attachments : [];
-
-                                                  return (
-                                                    <div key={emailId} className="border border-neutral-200 rounded-xl p-2.5 bg-neutral-50/50 shadow-sm space-y-2">
-                                                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                                          <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                            emailLog.logType === 'RFQ' 
-                                                              ? 'bg-emerald-805/10 text-emerald-805 border border-emerald-805/20' 
-                                                              : 'bg-amber-650/10 text-amber-707 border border-amber-650/20'
-                                                          }`}>
-                                                            {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
-                                                          </span>
-                                                          <span className="text-[9px] font-mono text-neutral-400">
-                                                            {new Date(emailLog.sent_at).toLocaleString()}
-                                                          </span>
-                                                        </div>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => setExpandedEmailId(isEmailBodyExpanded ? null : emailId)}
-                                                          className="text-[9px] text-emerald-850 font-bold hover:underline"
-                                                        >
-                                                          {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
-                                                        </button>
-                                                      </div>
-
-                                                      <div className="text-[10px] space-y-0.5 text-neutral-600">
-                                                        <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
-                                                        <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-707">{emailLog.subject}</span></div>
-                                                      </div>
-
-                                                      {isEmailBodyExpanded && (
-                                                        <div className="mt-2 pt-2 border-t border-neutral-150">
-                                                          <div 
-                                                            className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[180px] font-sans prose prose-sm max-w-none"
-                                                            dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
-                                                          />
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                            </div>
-                                          )}
                                         </div>
                                       );
                                     })}
                                   </div>
                                 )}
+
+                                {/* Unified RFQ/RFP Email Dispatch Logs for this Block */}
+                                {(() => {
+                                  const blockRfqEmails = rfqEmails.filter(e => e.po_block_id === block.id);
+                                  const blockRfpEmails = rfpEmails.filter(e => e.po_block_id === block.id);
+                                  const combinedBlockEmails = [
+                                    ...blockRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })),
+                                    ...blockRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))
+                                  ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+
+                                  if (combinedBlockEmails.length === 0) return null;
+
+                                  return (
+                                    <div className="mt-4 pt-4 border-t border-neutral-100 space-y-3">
+                                      <h6 className="text-[11px] font-bold text-neutral-605 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                        RFQ & RFP Email Dispatch History ({combinedBlockEmails.length})
+                                      </h6>
+                                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                        {combinedBlockEmails.map((emailLog) => {
+                                          const emailId = emailLog.id;
+                                          const isEmailBodyExpanded = expandedEmailId === emailId;
+                                          return (
+                                            <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                    emailLog.logType === 'RFQ' 
+                                                      ? 'bg-emerald-805/10 text-emerald-805 border border-emerald-805/20' 
+                                                      : 'bg-amber-650/10 text-amber-707 border border-amber-650/20'
+                                                  }`}>
+                                                    {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                                  </span>
+                                                  <span className="text-[9px] font-mono text-neutral-400">
+                                                    {new Date(emailLog.sent_at).toLocaleString()}
+                                                  </span>
+                                                </div>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setExpandedEmailId(isEmailBodyExpanded ? null : emailId)}
+                                                  className="text-[9px] text-emerald-850 font-bold hover:underline"
+                                                >
+                                                  {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                                </button>
+                                              </div>
+
+                                              <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                                <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                                <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-707">{emailLog.subject}</span></div>
+                                              </div>
+
+                                              {isEmailBodyExpanded && (
+                                                <div className="mt-2 pt-2 border-t border-neutral-150">
+                                                  <div 
+                                                    className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[200px] font-sans prose prose-sm max-w-none"
+                                                    dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
                           );
