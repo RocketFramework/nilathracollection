@@ -14,7 +14,8 @@ export class VendorEmailHistoryService {
             body_html: (data as any).body_html,
             attachments: data.attachments || [],
             sent_by: data.sent_by || null,
-            daily_activity_vendor_id: (data as any).daily_activity_vendor_id || (data as any).quotation_request_id || null
+            daily_activity_vendor_id: (data as any).daily_activity_vendor_id || (data as any).quotation_request_id || null,
+            po_block_id: data.po_block_id || null
         };
 
         const { data: inserted, error } = await db
@@ -42,6 +43,7 @@ export class VendorEmailHistoryService {
                 sent_at,
                 sent_by,
                 daily_activity_vendor_id,
+                po_block_id,
                 daily_activity_vendor:daily_activity_vendor_id (
                     *
                 )
@@ -77,7 +79,8 @@ export class VendorEmailHistoryService {
                 subject: data.subject,
                 body_html: (data as any).body_html,
                 attachments: data.attachments || [],
-                sent_by: data.sent_by || null
+                sent_by: data.sent_by || null,
+                po_block_id: data.po_block_id || null
             }])
             .select('id')
             .single();
@@ -99,7 +102,8 @@ export class VendorEmailHistoryService {
                 subject,
                 attachments,
                 sent_at,
-                sent_by
+                sent_by,
+                po_block_id
             `)
             .eq('tour_id', tourId)
             .order('sent_at', { ascending: false });

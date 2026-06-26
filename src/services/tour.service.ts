@@ -1442,6 +1442,23 @@ export class TourService {
                 .update({ itinerary_data: updatedDraftItinerary })
                 .eq('id', latestDraft.id);
         }
+
+        // E. Update the name of the associated po_blocks
+        const { data: junctionRows } = await supabaseAdmin
+            .from('po_block_daily_activities')
+            .select('po_block_id')
+            .in('daily_activity_id', stayIds);
+
+        const poBlockIds = Array.from(new Set(junctionRows?.map(r => r.po_block_id).filter(Boolean)));
+        if (poBlockIds.length > 0) {
+            await supabaseAdmin
+                .from('po_blocks')
+                .update({ 
+                    name: `${newHotel.name} Block`,
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', poBlockIds);
+        }
     }
 }
 

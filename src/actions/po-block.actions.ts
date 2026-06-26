@@ -67,3 +67,14 @@ export async function deletePOBlockAction(blockId: string) {
         return { success: false, error: error.message || "Failed to delete block." };
     }
 }
+
+export async function finalizePOBlockAction(blockId: string) {
+    try {
+        await POBlockService.finalizePOBlock(blockId);
+        revalidatePath(`/admin-new`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error finalizing block:", error);
+        return { success: false, error: error.message || "Failed to finalize block." };
+    }
+}

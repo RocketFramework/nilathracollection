@@ -1,44 +1,56 @@
-const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 // Manually parse .env.local
-try {
-    const envPath = path.join(__dirname, '../.env.local');
-    if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        envContent.split('\n').forEach(line => {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) return;
-            const idx = trimmed.indexOf('=');
-            if (idx !== -1) {
-                const key = trimmed.substring(0, idx).trim();
-                let value = trimmed.substring(idx + 1).trim();
-                if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-                    value = value.substring(1, value.length - 1);
-                }
-                process.env[key] = value;
-            }
-        });
+const envPath = path.join(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  envContent.split('\n').forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+      const key = match[1];
+      let value = match[2] || '';
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
     }
-} catch (err) {
-    console.error('Error parsing .env.local:', err);
+  });
 }
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-console.log('URL:', url);
-console.log('Service Role Key starts with:', key ? key.substring(0, 10) + '...' : 'undefined');
-const supabase = createClient(url, key);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-async function check() {
-    console.log('Querying one record from hotels...');
-    const { data, error } = await supabase.from('hotels').select('*').limit(1);
-    if (error) {
-        console.error('Error querying:', error.message);
-    } else {
-        console.log('Query success! Record structure:', data);
-    }
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("Missing supabase env variables");
+  process.exit(1);
 }
 
-check();
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+async function run() {
+  const { data: rfq, error: rfqErr } = await supabase
+    .from('tour_rfq_emails')
+    .select('*')
+    .limit(1);
+
+  if (rfqErr) {
+    console.error("rfqErr:", rfqErr);
+  } else {
+    console.log("tour_rfq_emails fields:", Object.keys(rfq[0] || {}));
+  }
+
+  const { data: rfp, error: rfpErr } = await supabase
+    .from('tour_rfp_emails')
+    .select('*')
+    .limit(1);
+
+  if (rfpErr) {
+    console.error("rfpErr:", rfpErr);
+  } else {
+    console.log("tour_rfp_emails fields:", Object.keys(rfp[0] || {}));
+  }
+}
+
+run();

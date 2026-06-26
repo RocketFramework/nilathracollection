@@ -145,7 +145,8 @@ import {
   getPOBlocksAction,
   createPOBlockAction,
   updatePOBlockAction,
-  deletePOBlockAction
+  deletePOBlockAction,
+  finalizePOBlockAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -3174,6 +3175,11 @@ function PlannerWizardWorkspace() {
         alert("Request for Quotation sent successfully!");
         setShowRfqModal(false);
 
+        // Finalize the block in the database so it freezes and is preserved on reload
+        if (rfqBlockId) {
+          await finalizePOBlockAction(rfqBlockId);
+        }
+
         // Log RFQ email history
         try {
           await logRfqEmailAction(
@@ -3184,10 +3190,17 @@ function PlannerWizardWorkspace() {
             rfqEmailSubject,
             processedBody,
             pdfFilename ? [{ filename: pdfFilename }] : [],
-            resDb.quote.id
+            resDb.quote.id,
+            rfqBlockId || undefined
           );
         } catch (logErr) {
           console.error("Failed to log RFQ email history:", logErr);
+        }
+
+        // Reload the poBlocks state immediately to reflect finalized status in the UI
+        const blocksRes = await getPOBlocksAction(tourId);
+        if (blocksRes.success && blocksRes.blocks) {
+          setPoBlocks(blocksRes.blocks);
         }
 
         loadProcurementData(tourId);
@@ -3489,7 +3502,8 @@ function PlannerWizardWorkspace() {
             'concierge@nilathra.com',
             poEmailSubject,
             poEmailBody,
-            pdfFilename ? [{ filename: pdfFilename }] : []
+            pdfFilename ? [{ filename: pdfFilename }] : [],
+            poBlockId || undefined
           );
         } catch (logErr) {
           console.error("Failed to log PO email history:", logErr);
@@ -6093,7 +6107,7 @@ function PlannerWizardWorkspace() {
                                               handleOpenChangeHotelDrawer(firstAct, standardStays);
                                             }
                                           }}
-                                          disabled={isLockedByOther}
+                                          disabled={isLockedByOther || block.has_finalized}
                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-emerald-805/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-805 transition-all shadow-sm disabled:opacity-40"
                                           title="Change Hotel"
                                         >
@@ -6149,7 +6163,7 @@ function PlannerWizardWorkspace() {
                                     return (
                                       <div key={stay.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
                                         <div className="flex items-start gap-3">
-                                          <div className="px-2.5 py-1 bg-emerald-805 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                          <div className="px-2.5 py-1 bg-emerald-800 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
                                             {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
                                           </div>
                                           <div>
@@ -6230,7 +6244,7 @@ function PlannerWizardWorkspace() {
                                           <button
                                             type="button"
                                             onClick={() => handleOpenCustomRateModal(stay)}
-                                            disabled={isLockedByOther}
+                                            disabled={isLockedByOther || block.has_finalized}
                                             className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${
                                               hasCustomRate 
                                                 ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50" 
@@ -6243,7 +6257,7 @@ function PlannerWizardWorkspace() {
                                           <button
                                             type="button"
                                             onClick={() => handleOpenHotelDrawer(stay)}
-                                            disabled={isLockedByOther}
+                                            disabled={isLockedByOther || block.has_finalized}
                                             className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805 transition-all shadow-sm shrink-0 disabled:opacity-40"
                                             title="Edit Night Accommodation"
                                           >
@@ -6349,14 +6363,16 @@ function PlannerWizardWorkspace() {
                                               {!isSelected && (
                                                 <button
                                                   onClick={() => handleSelectBlockCandidateHotel(block, quote)}
-                                                  className="px-3 py-1.5 bg-emerald-805 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold transition-all shadow-sm"
+                                                  disabled={isLockedByOther || block.has_finalized}
+                                                  className="px-3 py-1.5 bg-emerald-805 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                                                 >
                                                   Select Hotel
                                                 </button>
                                               )}
                                               <button
                                                 onClick={() => openEditRfqModal(blockQuote)}
-                                                className="px-2.5 py-1.5 border border-neutral-200 hover:bg-neutral-55 text-neutral-650 rounded-xl text-[10px] font-bold transition-all shadow-sm"
+                                                disabled={isLockedByOther || block.has_finalized}
+                                                className="px-2.5 py-1.5 border border-neutral-200 hover:bg-neutral-55 text-neutral-650 rounded-xl text-[10px] font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                                               >
                                                 Edit
                                               </button>
@@ -9411,9 +9427,18 @@ function PlannerWizardWorkspace() {
                                                               });
 
                                                               // Sync to DB immediately for only this stay ID
-                                                              changeHotelDatabaseAction(tourId, [activeAssignment.blockId], h.id, newSelected).catch(err => {
-                                                                console.error("Failed to sync edited night accommodation to DB:", err);
-                                                              });
+                                                              changeHotelDatabaseAction(tourId, [activeAssignment.blockId], h.id, newSelected)
+                                                                .then(async (res) => {
+                                                                  if (res.success) {
+                                                                    const blocksRes = await getPOBlocksAction(tourId);
+                                                                    if (blocksRes.success && blocksRes.blocks) {
+                                                                      setPoBlocks(blocksRes.blocks);
+                                                                    }
+                                                                  }
+                                                                })
+                                                                .catch(err => {
+                                                                  console.error("Failed to sync edited night accommodation to DB:", err);
+                                                                });
 
                                                               const oldHotelId = currentStay?.hotel_id;
                                                               const dayNum = Number(currentStay?.day_number || currentStay?.dayNumber || activeBlock?.dayNumber || 0);
@@ -10637,9 +10662,18 @@ function PlannerWizardWorkspace() {
                                                           }));
 
                                                           // Sync to Database immediately
-                                                          changeHotelDatabaseAction(tourId, stayIds, h.id, newSelected).catch(err => {
-                                                            console.error("Failed to sync changed hotel to DB:", err);
-                                                          });
+                                                          changeHotelDatabaseAction(tourId, stayIds, h.id, newSelected)
+                                                            .then(async (res) => {
+                                                              if (res.success) {
+                                                                const blocksRes = await getPOBlocksAction(tourId);
+                                                                if (blocksRes.success && blocksRes.blocks) {
+                                                                  setPoBlocks(blocksRes.blocks);
+                                                                }
+                                                              }
+                                                            })
+                                                            .catch(err => {
+                                                              console.error("Failed to sync changed hotel to DB:", err);
+                                                            });
 
                                                           // 1. Update all related columns in dbActivities state for activities in this block
                                                           setDbActivities(prev => prev.map(act => {

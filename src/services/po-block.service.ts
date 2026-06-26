@@ -351,4 +351,16 @@ export class POBlockService {
 
         return this.getPOBlocksForTour(tourId);
     }
+
+    static async finalizePOBlock(blockId: string): Promise<void> {
+        const adminSupabase = createAdminClient();
+        const { error } = await adminSupabase
+            .from('po_blocks')
+            .update({ 
+                has_finalized: true, 
+                updated_at: new Date().toISOString() 
+            })
+            .eq('id', blockId);
+        if (error) throw error;
+    }
 }

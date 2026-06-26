@@ -428,6 +428,7 @@ export interface TourRfqEmail {
     sent_by?: string;
     daily_activity_vendor_id?: string;
     daily_activity_vendor?: any;
+    po_block_id?: string;
 }
 
 export interface DailyActivityVendor {
@@ -478,6 +479,7 @@ export interface TourRfpEmail {
     attachments: any;
     sent_at: string;
     sent_by?: string;
+    po_block_id?: string;
 }
 
 export interface GenerateCustomerInvoiceOptions {

@@ -1750,7 +1750,8 @@ export async function logRfqEmailAction(
     subject: string,
     bodyHtml: string,
     attachments: any,
-    quotationRequestId?: string
+    quotationRequestId?: string,
+    poBlockId?: string
 ) {
     try {
         const supabase = await createClient();
@@ -1766,7 +1767,8 @@ export async function logRfqEmailAction(
             body_html: bodyHtml,
             attachments: attachments,
             sent_by: sentBy,
-            daily_activity_vendor_id: quotationRequestId
+            daily_activity_vendor_id: quotationRequestId,
+            po_block_id: poBlockId
         });
 
         return { success: true, logId };
@@ -1793,7 +1795,8 @@ export async function logRfpEmailAction(
     senderEmail: string,
     subject: string,
     bodyHtml: string,
-    attachments: any
+    attachments: any,
+    poBlockId?: string
 ) {
     try {
         const supabase = await createClient();
@@ -1808,7 +1811,8 @@ export async function logRfpEmailAction(
             subject: subject,
             body_html: bodyHtml,
             attachments: attachments,
-            sent_by: sentBy
+            sent_by: sentBy,
+            po_block_id: poBlockId
         });
 
         return { success: true, logId };
