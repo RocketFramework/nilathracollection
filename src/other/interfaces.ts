@@ -418,7 +418,6 @@ export interface TourSharedEmail {
 export interface TourRfqEmail {
     id: string;
     tour_id: string;
-    vendor_id?: string;
     recipient_email: string;
     sender_email: string;
     subject: string;
@@ -427,8 +426,15 @@ export interface TourRfqEmail {
     sent_at: string;
     sent_by?: string;
     daily_activity_vendor_id?: string;
-    daily_activity_vendor?: any;
     po_block_id?: string;
+    vendor_id?: string | null;
+    vendor_name?: string | null;
+    vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
+    status?: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
+    replied_date?: string | null;
+    quoted_price?: number | null;
+    notes?: string | null;
+    selected_vendor?: boolean;
 }
 
 export interface DailyActivityVendor {
@@ -480,6 +486,14 @@ export interface TourRfpEmail {
     sent_at: string;
     sent_by?: string;
     po_block_id?: string;
+    vendor_id?: string | null;
+    vendor_name?: string | null;
+    vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
+    status?: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
+    replied_date?: string | null;
+    quoted_price?: number | null;
+    notes?: string | null;
+    selected_vendor?: boolean;
 }
 
 export interface GenerateCustomerInvoiceOptions {

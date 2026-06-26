@@ -1896,6 +1896,92 @@ export async function registerCustomerPaymentAction(dto: any) {
     }
 }
 
+export async function updateEmailProposalAction(
+    id: string,
+    isRfq: boolean,
+    updates: {
+        status?: string;
+        quoted_price?: number | null;
+        replied_date?: string | null;
+        notes?: string | null;
+        selected_vendor?: boolean;
+    }
+) {
+    try {
+        const supabase = await createClient();
+        const tableName = isRfq ? 'tour_rfq_emails' : 'tour_rfp_emails';
+
+        // 1. Update the email record
+        const { data: updated, error: updateErr } = await supabase
+            .from(tableName)
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (updateErr) throw updateErr;
+
+        // 2. If status was changed to Selected OR selected_vendor was set to true:
+        if (updates.status === 'Selected' || updates.selected_vendor === true) {
+            const poBlockId = updated.po_block_id;
+            if (poBlockId) {
+                // A. Reset selection on other RFQ/RFP emails for this PO Block
+                const { error: resetErr } = await supabase
+                    .from(tableName)
+                    .update({ selected_vendor: false, status: 'Sent' })
+                    .eq('po_block_id', poBlockId)
+                    .neq('id', id);
+
+                if (resetErr) throw resetErr;
+
+                // B. Fetch PO block to check its block_type and find daily activity mappings
+                const { data: block, error: blockErr } = await supabase
+                    .from('po_blocks')
+                    .select('*')
+                    .eq('id', poBlockId)
+                    .single();
+
+                if (!blockErr && block) {
+                    // Fetch mapped daily activities
+                    const { data: mappings } = await supabase
+                        .from('po_block_daily_activities')
+                        .select('daily_activity_id')
+                        .eq('po_block_id', poBlockId);
+
+                    const activityIds = mappings?.map(m => m.daily_activity_id) || [];
+                    if (activityIds.length > 0) {
+                        const actUpdates: any = {};
+                        if (block.block_type === 'sleep' || block.block_type === 'accommodation') {
+                            actUpdates.hotel_id = updated.vendor_id;
+                        } else if (block.block_type === 'meal') {
+                            actUpdates.restaurant_id = updated.vendor_id;
+                        } else if (block.block_type === 'travel') {
+                            actUpdates.transport_id = updated.vendor_id;
+                        } else if (block.block_type === 'activity') {
+                            actUpdates.vendor_id = updated.vendor_id;
+                        }
+
+                        if (Object.keys(actUpdates).length > 0) {
+                            const { error: actUpdateErr } = await supabase
+                                .from('daily_activities')
+                                .update(actUpdates)
+                                .in('id', activityIds);
+
+                            if (actUpdateErr) throw actUpdateErr;
+                        }
+                    }
+                }
+            }
+        }
+
+        revalidatePath("/admin-new");
+        return { success: true, quote: updated };
+    } catch (error: any) {
+        console.error("Error in updateEmailProposalAction:", error);
+        return { success: false, error: error.message || "Failed to update email proposal." };
+    }
+}
+
 
 
 

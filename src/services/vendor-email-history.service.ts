@@ -5,6 +5,27 @@ import { LogRfqEmailDTO, LogRfpEmailDTO } from '@/dtos/email-history.dto';
 export class VendorEmailHistoryService {
     static async logRfqEmail(data: LogRfqEmailDTO, client?: any): Promise<string> {
         const db = client || createAdminClient();
+        const rfqId = (data as any).daily_activity_vendor_id || (data as any).quotation_request_id;
+
+        if (rfqId) {
+            const { data: updated, error } = await db
+                .from('tour_rfq_emails')
+                .update({
+                    subject: data.subject,
+                    body_html: (data as any).body_html,
+                    attachments: data.attachments || [],
+                    sent_by: data.sent_by || null,
+                    po_block_id: data.po_block_id || null
+                })
+                .eq('id', rfqId)
+                .select('id')
+                .maybeSingle();
+
+            if (!error && updated) {
+                return updated.id;
+            }
+        }
+
         const insertData: any = {
             tour_id: data.tour_id,
             vendor_id: data.vendor_id || null,
@@ -14,7 +35,7 @@ export class VendorEmailHistoryService {
             body_html: (data as any).body_html,
             attachments: data.attachments || [],
             sent_by: data.sent_by || null,
-            daily_activity_vendor_id: (data as any).daily_activity_vendor_id || (data as any).quotation_request_id || null,
+            daily_activity_vendor_id: rfqId || null,
             po_block_id: data.po_block_id || null
         };
 
@@ -44,9 +65,13 @@ export class VendorEmailHistoryService {
                 sent_by,
                 daily_activity_vendor_id,
                 po_block_id,
-                daily_activity_vendor:daily_activity_vendor_id (
-                    *
-                )
+                vendor_name,
+                vendor_type,
+                status,
+                quoted_price,
+                replied_date,
+                notes,
+                selected_vendor
             `)
             .eq('tour_id', tourId)
             .order('sent_at', { ascending: false });

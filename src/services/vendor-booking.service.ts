@@ -160,10 +160,10 @@ export class VendorBookingService {
 
         const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);
 
-        // 4. Update the daily_activity_vendors status if this was initiated from a quote
+        // 4. Update the tour_rfq_emails status if this was initiated from a quote
         if (bookingData.quotation_request_id) {
             await supabase
-                .from('daily_activity_vendors')
+                .from('tour_rfq_emails')
                 .update({ status: 'Selected', selected_vendor: true })
                 .eq('id', bookingData.quotation_request_id);
         }
@@ -266,7 +266,7 @@ export class VendorBookingService {
 
         if (error) throw error;
 
-        // Sync back to daily_activity_vendors status
+        // Sync back to tour_rfq_emails status
         if (data.daily_activity_vendor_id) {
             let unifiedStatus = 'Pending';
             if (status === 'Confirmed') unifiedStatus = 'Sent';
@@ -274,7 +274,7 @@ export class VendorBookingService {
             else if (status === 'Cancelled') unifiedStatus = 'Cancelled';
 
             await supabase
-                .from('daily_activity_vendors')
+                .from('tour_rfq_emails')
                 .update({ status: unifiedStatus, selected_vendor: status === 'Went Ahead' })
                 .eq('id', data.daily_activity_vendor_id);
         }
@@ -311,7 +311,7 @@ export class VendorBookingService {
 
         if (po && po.daily_activity_vendor_id) {
             await supabase
-                .from('daily_activity_vendors')
+                .from('tour_rfq_emails')
                 .update({ status: 'Cancelled', selected_vendor: false })
                 .eq('id', po.daily_activity_vendor_id);
         }
@@ -381,7 +381,7 @@ export class VendorBookingService {
             const otherVendorIds = otherPOs ? otherPOs.map(p => p.daily_activity_vendor_id).filter(Boolean) : [];
             if (otherVendorIds.length > 0) {
                 await supabase
-                    .from('daily_activity_vendors')
+                    .from('tour_rfq_emails')
                     .update({ selected_vendor: false, status: 'Declined' })
                     .in('id', otherVendorIds);
             }
@@ -397,7 +397,7 @@ export class VendorBookingService {
 
         if (targetPO.daily_activity_vendor_id) {
             await supabase
-                .from('daily_activity_vendors')
+                .from('tour_rfq_emails')
                 .update({ selected_vendor: true, status: 'Selected' })
                 .eq('id', targetPO.daily_activity_vendor_id);
         }

@@ -400,17 +400,7 @@ export class TourService {
         
         const itinIds = existingItins?.map(i => i.id) || [];
         
-        let query = supabaseAdmin
-            .from('daily_activity_vendor_links')
-            .select('*');
-            
-        if (itinIds.length > 0) {
-            query = query.or(`tour_id.eq.${tourId},itinerary_id.in.(${itinIds.join(',')})`);
-        } else {
-            query = query.eq('tour_id', tourId);
-        }
-        
-        const { data: existingMappings } = await query;
+        const existingMappings: any[] = [];
 
         // Fetch existing PO block mappings before any deletions
         const { data: tourBlocks } = await supabaseAdmin
@@ -1085,39 +1075,7 @@ export class TourService {
             }
         }
 
-        // C) Restore daily_activity_vendor_links mappings
-        if (existingMappings && existingMappings.length > 0) {
-            const newItinIdMap = new Map<string, string>();
-            for (const act of allInsertedActivities) {
-                if (act.id && act.itinerary_id) {
-                    newItinIdMap.set(act.id, act.itinerary_id);
-                }
-            }
-
-            const mappingsToReinsert = existingMappings
-                .map(m => {
-                    const newItinId = newItinIdMap.get(m.daily_activity_id);
-                    if (!newItinId) return null;
-                    return {
-                        daily_activity_id: m.daily_activity_id,
-                        tour_id: m.tour_id || tourId, // Auto-heal/backfill tour_id if it was null
-                        itinerary_id: newItinId,
-                        activity_type: m.activity_type,
-                        daily_activity_vendor_id: m.daily_activity_vendor_id || m.quotation_request_id
-                    };
-                })
-                .filter(Boolean);
-
-            if (mappingsToReinsert.length > 0) {
-                const { error: reinsertErr } = await supabaseAdmin
-                    .from('daily_activity_vendor_links')
-                    .insert(mappingsToReinsert);
-                
-                if (reinsertErr) {
-                    console.error("Failed to restore daily_activity_vendor_links mappings:", reinsertErr);
-                }
-            }
-        }
+        // C) daily_activity_vendor_links restore removed as table is deprecated
 
         // D) Restore po_block_daily_activities mappings
         if (existingPOBlockMappings && existingPOBlockMappings.length > 0) {

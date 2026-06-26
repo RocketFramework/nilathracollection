@@ -131,6 +131,7 @@ import {
   getRfqEmailsForTourAction,
   logRfpEmailAction,
   getRfpEmailsForTourAction,
+  updateEmailProposalAction,
   updatePurchaseOrderAction,
   previewCustomerInvoiceAction,
   generateCustomerInvoiceAction,
@@ -448,6 +449,7 @@ function PlannerWizardWorkspace() {
   const [editRfqRepliedDate, setEditRfqRepliedDate] = useState('');
   const [editRfqNotes, setEditRfqNotes] = useState('');
   const [isSavingEditRfq, setIsSavingEditRfq] = useState(false);
+  const [editRfqSelected, setEditRfqSelected] = useState<boolean>(false);
 
   // Digital Signature PO states
   const [poRequireSignature, setPoRequireSignature] = useState(false);
@@ -3633,6 +3635,61 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  const handleSaveInlineRfq = async (emailLog: any) => {
+    setIsSavingEditRfq(true);
+    try {
+      const updates = {
+        status: editRfqStatus,
+        quoted_price: editRfqQuotedPrice ? Number(editRfqQuotedPrice) : null,
+        replied_date: new Date().toISOString(),
+        notes: editRfqNotes || null,
+        selected_vendor: editRfqSelected
+      };
+
+      const isRfq = emailLog.logType === 'RFQ';
+      const res = await updateEmailProposalAction(emailLog.id, isRfq, updates);
+      if (!res.success) {
+        throw new Error(res.error || "Failed to update email proposal.");
+      }
+
+      // Reload all relevant data
+      await loadProcurementData(tourId);
+      
+      const [blocksRes, daRes] = await Promise.all([
+        getPOBlocksAction(tourId),
+        getDailyActivitiesAction(tourId)
+      ]);
+
+      if (blocksRes.success && blocksRes.blocks) {
+        setPoBlocks(blocksRes.blocks);
+      }
+      
+      if (daRes.success && daRes.activities) {
+        const mapped = daRes.activities
+          .filter((act: any) => {
+            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+              !act.vendor_id &&
+              !act.restaurant_id &&
+              !act.vendor_activity_id &&
+              !act.hotel_id;
+            return !isInvalidActivity;
+          })
+          .map((a: any) => ({
+            ...a,
+            isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+          }));
+        setDbActivities(mapped);
+      }
+
+      setExpandedEmailId(null);
+      setEditingRfq(null);
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setIsSavingEditRfq(false);
+    }
+  };
+
   const handleSendRFQ = async (act: any, vendor: any) => {
     if (!vendor) return;
     setIsSubmittingRfq(true);
@@ -6304,144 +6361,193 @@ function PlannerWizardWorkspace() {
                                 </div>
                               )}
 
-                              {/* Candidate Bids & Proposals Section */}
-                              <div className="border-t border-neutral-200/60 pt-4 space-y-4">
-                                <h5 className="text-xs font-bold text-neutral-700 flex items-center gap-2">
-                                  <Briefcase className="w-4 h-4 text-emerald-805" />
-                                  Candidate Proposals & RFQs ({blockQuotes.length})
-                                </h5>
+                              {/* Unified RFQ/RFP Email Dispatch Logs for this Stay Block */}
+                              {(() => {
+                                const blockRfqEmails = rfqEmails.filter(e => e.po_block_id === block.id);
+                                const blockRfpEmails = rfpEmails.filter(e => e.po_block_id === block.id);
+                                const combinedBlockEmails = [
+                                  ...blockRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })),
+                                  ...blockRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))
+                                ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
 
-                                {blockQuotes.length === 0 ? (
-                                  <p className="text-[11px] text-neutral-400 italic">No alternative hotel bids or RFQs dispatch logs found for this stay block.</p>
-                                ) : (
-                                  <div className="space-y-3">
-                                    {blockQuotes.map((blockQuote) => {
-                                      const quote = blockQuote.quotation;
-                                      if (!quote) return null;
-                                      const isSelected = hotel?.id === quote.vendor_id;
+                                if (combinedBlockEmails.length === 0) return null;
 
-                                      return (
-                                        <div key={blockQuote.id} className={`p-4 rounded-2xl border flex flex-col gap-3 transition-all bg-white ${
-                                          isSelected ? 'border-emerald-805/30 bg-emerald-50/5 ring-1 ring-emerald-805/10' : 'border-neutral-200'
-                                        }`}>
-                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                            <div>
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-neutral-800">{quote.vendor_name}</span>
-                                                <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                                  isSelected ? 'bg-emerald-805 text-white' :
-                                                  quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
-                                                  'bg-neutral-100 text-neutral-600'
+                                return (
+                                  <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                    <h6 className="text-[11px] font-bold text-neutral-605 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                      RFQ & RFP Email Dispatch History ({combinedBlockEmails.length})
+                                    </h6>
+                                    <div className="space-y-2 pr-1">
+                                      {combinedBlockEmails.map((emailLog) => {
+                                        const emailId = emailLog.id;
+                                        const isEmailBodyExpanded = expandedEmailId === emailId;
+                                        return (
+                                          <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                  emailLog.logType === 'RFQ' 
+                                                    ? 'bg-emerald-805/10 text-emerald-805 border border-emerald-805/20' 
+                                                    : 'bg-amber-650/10 text-amber-707 border border-amber-650/20'
                                                 }`}>
-                                                  {isSelected ? 'Active / Selected' : quote.status}
+                                                  {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                                </span>
+                                                <span className="text-[9px] font-mono text-neutral-400">
+                                                  {new Date(emailLog.sent_at).toLocaleString()}
                                                 </span>
                                               </div>
-                                              {quote.replied_date && (
-                                                <p className="text-[9px] text-neutral-405 mt-0.5">
-                                                  Replied: {new Date(quote.replied_date).toLocaleDateString()}
-                                                </p>
-                                              )}
-                                              {quote.notes && (
-                                                <p className="text-[10px] text-neutral-500 mt-1 italic">"{quote.notes}"</p>
-                                              )}
-                                            </div>
-
-                                            <div className="flex items-center gap-3">
-                                              {quote.quoted_price !== undefined && quote.quoted_price !== null && (
-                                                <span className="text-xs font-bold text-emerald-805">${quote.quoted_price}</span>
-                                              )}
-
-                                              {/* Action Buttons */}
-                                              {!isSelected && (
-                                                <button
-                                                  onClick={() => handleSelectBlockCandidateHotel(block, quote)}
-                                                  disabled={isLockedByOther || block.has_finalized}
-                                                  className="px-3 py-1.5 bg-emerald-805 hover:bg-emerald-900 text-white rounded-xl text-[10px] font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                                                >
-                                                  Select Hotel
-                                                </button>
-                                              )}
                                               <button
-                                                onClick={() => openEditRfqModal(blockQuote)}
-                                                disabled={isLockedByOther || block.has_finalized}
-                                                className="px-2.5 py-1.5 border border-neutral-205 hover:bg-neutral-55 text-neutral-655 rounded-xl text-[10px] font-bold transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                                type="button"
+                                                onClick={() => {
+                                                  if (isEmailBodyExpanded) {
+                                                    setExpandedEmailId(null);
+                                                    setEditingRfq(null);
+                                                  } else {
+                                                    setExpandedEmailId(emailId);
+                                                    setEditingRfq(emailLog);
+                                                    setEditRfqStatus((emailLog.status || 'Sent') as any);
+                                                    setEditRfqQuotedPrice(emailLog.quoted_price || 0);
+                                                    setEditRfqNotes(emailLog.notes || '');
+                                                    setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  }
+                                                }}
+                                                className="text-[9px] text-emerald-850 font-bold hover:underline"
                                               >
-                                                Edit
+                                                {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
                                               </button>
                                             </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
 
-                                {/* Unified RFQ/RFP Email Dispatch Logs for this Block */}
-                                {(() => {
-                                  const blockRfqEmails = rfqEmails.filter(e => e.po_block_id === block.id);
-                                  const blockRfpEmails = rfpEmails.filter(e => e.po_block_id === block.id);
-                                  const combinedBlockEmails = [
-                                    ...blockRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })),
-                                    ...blockRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))
-                                  ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+                                            <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                              <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                              <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-707">{emailLog.subject}</span></div>
+                                            </div>
 
-                                  if (combinedBlockEmails.length === 0) return null;
+                                            {isEmailBodyExpanded && (
+                                              <div className="mt-3 pt-3 border-t border-neutral-150 space-y-4">
+                                                {/* Edit Form */}
+                                                <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
+                                                    Edit Proposal / Bid Details
+                                                  </h6>
+                                                  
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {/* Quoted Price */}
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Quoted Price ($)
+                                                      </label>
+                                                      <input
+                                                        type="number"
+                                                        value={editRfqQuotedPrice}
+                                                        onChange={(e) => setEditRfqQuotedPrice(Number(e.target.value))}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-808 focus:border-emerald-808 transition-all font-medium"
+                                                        placeholder="e.g. 150"
+                                                      />
+                                                    </div>
 
-                                  return (
-                                    <div className="mt-4 pt-4 border-t border-neutral-100 space-y-3">
-                                      <h6 className="text-[11px] font-bold text-neutral-605 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Mail className="w-3.5 h-3.5 text-neutral-500" />
-                                        RFQ & RFP Email Dispatch History ({combinedBlockEmails.length})
-                                      </h6>
-                                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                                        {combinedBlockEmails.map((emailLog) => {
-                                          const emailId = emailLog.id;
-                                          const isEmailBodyExpanded = expandedEmailId === emailId;
-                                          return (
-                                            <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
-                                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                  <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                    emailLog.logType === 'RFQ' 
-                                                      ? 'bg-emerald-805/10 text-emerald-805 border border-emerald-805/20' 
-                                                      : 'bg-amber-650/10 text-amber-707 border border-amber-650/20'
-                                                  }`}>
-                                                    {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
-                                                  </span>
-                                                  <span className="text-[9px] font-mono text-neutral-400">
-                                                    {new Date(emailLog.sent_at).toLocaleString()}
-                                                  </span>
+                                                    {/* Status */}
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Status
+                                                      </label>
+                                                      <select
+                                                        value={editRfqStatus}
+                                                        onChange={(e) => {
+                                                          const newStatus = e.target.value;
+                                                          setEditRfqStatus(newStatus as any);
+                                                          if (newStatus === 'Selected') {
+                                                            setEditRfqSelected(true);
+                                                          }
+                                                        }}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-808 focus:border-emerald-808 transition-all font-medium"
+                                                      >
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Replied">Replied</option>
+                                                        <option value="Declined">Declined</option>
+                                                        <option value="Expired">Expired</option>
+                                                        <option value="Selected">Selected</option>
+                                                      </select>
+                                                    </div>
+
+                                                    {/* Selected Vendor Checkbox */}
+                                                    <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
+                                                      <input
+                                                        type="checkbox"
+                                                        id={`select-vendor-${emailId}`}
+                                                        checked={editRfqSelected}
+                                                        onChange={(e) => {
+                                                          const checked = e.target.checked;
+                                                          setEditRfqSelected(checked);
+                                                          if (checked) {
+                                                            setEditRfqStatus('Selected');
+                                                          } else if (editRfqStatus === 'Selected') {
+                                                            setEditRfqStatus('Replied');
+                                                          }
+                                                        }}
+                                                        className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-808"
+                                                      />
+                                                      <label 
+                                                        htmlFor={`select-vendor-${emailId}`}
+                                                        className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none"
+                                                      >
+                                                        Mark as Selected / Winning Proposal for this stay block
+                                                      </label>
+                                                    </div>
+
+                                                    {/* Notes */}
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Notes
+                                                      </label>
+                                                      <textarea
+                                                        placeholder="Add discounts, availability info, or comments here..."
+                                                        value={editRfqNotes}
+                                                        onChange={(e) => setEditRfqNotes(e.target.value)}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-808 focus:border-emerald-808 transition-all font-medium h-12 resize-none"
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setExpandedEmailId(null);
+                                                        setEditingRfq(null);
+                                                      }}
+                                                      className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleSaveInlineRfq(emailLog)}
+                                                      disabled={isSavingEditRfq}
+                                                      className="px-3 py-1.5 rounded-lg bg-emerald-805 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
+                                                    >
+                                                      {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
+                                                    </button>
+                                                  </div>
                                                 </div>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setExpandedEmailId(isEmailBodyExpanded ? null : emailId)}
-                                                  className="text-[9px] text-emerald-850 font-bold hover:underline"
-                                                >
-                                                  {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
-                                                </button>
-                                              </div>
 
-                                              <div className="text-[10px] space-y-0.5 text-neutral-600">
-                                                <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
-                                                <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-707">{emailLog.subject}</span></div>
-                                              </div>
-
-                                              {isEmailBodyExpanded && (
-                                                <div className="mt-2 pt-2 border-t border-neutral-150">
+                                                {/* Sent Email Body */}
+                                                <div className="space-y-1">
+                                                  <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
                                                   <div 
-                                                    className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[200px] font-sans prose prose-sm max-w-none"
+                                                    className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none"
                                                     dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
                                                   />
                                                 </div>
-                                              )}
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
-                                  );
-                                })()}
-                              </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         });

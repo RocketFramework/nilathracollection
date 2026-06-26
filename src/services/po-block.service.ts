@@ -46,9 +46,9 @@ export class POBlockService {
             activities = filteredActivities;
         }
 
-        // 4. Fetch daily activity vendors (quotation requests/proposals) for these blocks
+        // 4. Fetch daily activity vendors (quotation requests/proposals) from tour_rfq_emails for these blocks
         const { data: vendors, error: venErr } = await adminSupabase
-            .from('daily_activity_vendors')
+            .from('tour_rfq_emails')
             .select('*')
             .in('po_block_id', blockIds);
             
