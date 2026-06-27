@@ -391,6 +391,7 @@ function PlannerWizardWorkspace() {
   // PO Blocks state variables
   const [poBlocks, setPoBlocks] = useState<POBlock[]>([]);
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
+  const [isHotelChanging, setIsHotelChanging] = useState<boolean>(false);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [editingBlockName, setEditingBlockName] = useState<string>('');
   const [poSelectedActivityIds, setPoSelectedActivityIds] = useState<string[]>([]);
@@ -5783,9 +5784,23 @@ function PlannerWizardWorkspace() {
                     </div>
 
                     {loadingBlocks ? (
-                      <div className="flex flex-col items-center justify-center py-12 space-y-3">
-                        <Loader2 className="w-8 h-8 text-emerald-800 animate-spin" />
-                        <span className="text-xs text-neutral-400">Loading procurement blocks...</span>
+                      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                        <div className="relative">
+                          <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-100 animate-ping opacity-30" />
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-semibold text-neutral-700">Organising procurement blocks…</p>
+                          <p className="text-xs text-neutral-400">Grouping hotels, transport & activities</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          {['Hotels', 'Transport', 'Meals', 'Activities'].map((label, i) => (
+                            <div key={label} className="flex items-center gap-1">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                              <span className="text-[9px] text-neutral-400">{label}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -9578,7 +9593,8 @@ function PlannerWizardWorkspace() {
                                                                 roomsMap[r.reqId] = r;
                                                               });
 
-                                                              // Sync to DB immediately for only this stay ID
+                                                              // Sync to DB — show loading indicator while it runs
+                                                              setIsHotelChanging(true);
                                                               changeHotelDatabaseAction(tourId, [activeAssignment.blockId], h.id, newSelected)
                                                                 .then(async (res) => {
                                                                   if (res.success) {
@@ -9590,6 +9606,9 @@ function PlannerWizardWorkspace() {
                                                                 })
                                                                 .catch(err => {
                                                                   console.error("Failed to sync edited night accommodation to DB:", err);
+                                                                })
+                                                                .finally(() => {
+                                                                  setIsHotelChanging(false);
                                                                 });
 
                                                               const oldHotelId = currentStay?.hotel_id;
@@ -10612,14 +10631,14 @@ function PlannerWizardWorkspace() {
                                   newAccs = newAccs.map(a => {
                                     const nightIdx = Number(a.nightIndex);
                                     if (stayDays.has(nightIdx)) {
-                                      const isHotelChanging = a.hotelId !== h.id;
+                                      const isActuallyChangingHotel = a.hotelId !== h.id;
                                       return {
                                         ...a,
                                         hotelId: h.id,
                                         hotelName: h.name,
                                         stayClass: h.hotel_class || a.stayClass || 'Standard',
                                         address: h.location_address || a.address || '',
-                                        ...(isHotelChanging ? {
+                                        ...(isActuallyChangingHotel ? {
                                           roomId: undefined,
                                           roomName: '',
                                           roomStandard: '',
@@ -10813,7 +10832,8 @@ function PlannerWizardWorkspace() {
                                                             return Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0);
                                                           }));
 
-                                                          // Sync to Database immediately
+                                                          // Sync to Database — show loading indicator while it runs
+                                                          setIsHotelChanging(true);
                                                           changeHotelDatabaseAction(tourId, stayIds, h.id, newSelected)
                                                             .then(async (res) => {
                                                               if (res.success) {
@@ -10825,6 +10845,9 @@ function PlannerWizardWorkspace() {
                                                             })
                                                             .catch(err => {
                                                               console.error("Failed to sync changed hotel to DB:", err);
+                                                            })
+                                                            .finally(() => {
+                                                              setIsHotelChanging(false);
                                                             });
 
                                                           // 1. Update all related columns in dbActivities state for activities in this block
@@ -14719,6 +14742,20 @@ function AIItineraryBuilder({
           tripStatus={tripData?.status}
           dayCostOverrides={tripData?.dayCostOverrides}
         />
+
+      {/* Global hotel-change saving toast — always visible while DB sync runs */}
+      {isHotelChanging && (
+        <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-emerald-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
+          <div className="relative flex-shrink-0">
+            <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+            <div className="absolute -inset-1 rounded-full bg-emerald-50 animate-ping opacity-40" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-neutral-800">Saving hotel change…</p>
+            <p className="text-[10px] text-neutral-400">Updating rates, itinerary &amp; blocks in the background</p>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

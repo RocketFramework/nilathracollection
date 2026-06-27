@@ -229,193 +229,214 @@ export class POBlockService {
         if (blockErr) throw blockErr;
     }
 
+    /**
+     * Bulk-inserts multiple PO blocks and their activity mappings in 2 DB round-trips
+     * instead of N×2 serial calls. Preserves block_number ordering.
+     */
+    private static async createPOBlocksBatch(
+        tourId: string,
+        descriptors: Array<{ name: string; blockType: string; blockNumber: number; dailyActivityIds: string[] }>
+    ): Promise<void> {
+        if (descriptors.length === 0) return;
+        const adminSupabase = createAdminClient();
+
+        // 1. Bulk insert all blocks in one call
+        const { data: blocks, error: blockErr } = await adminSupabase
+            .from('po_blocks')
+            .insert(descriptors.map(d => ({
+                tour_id: tourId,
+                name: d.name,
+                block_type: d.blockType,
+                block_number: d.blockNumber
+            })))
+            .select('id, block_number');
+
+        if (blockErr) throw blockErr;
+
+        // 2. Build all mapping rows, matched by block_number
+        const mappings: Array<{ po_block_id: string; daily_activity_id: string }> = [];
+        for (const block of blocks || []) {
+            const desc = descriptors.find(d => d.blockNumber === block.block_number);
+            if (desc) {
+                for (const actId of desc.dailyActivityIds) {
+                    mappings.push({ po_block_id: block.id, daily_activity_id: actId });
+                }
+            }
+        }
+
+        // 3. Bulk insert all mappings in one call
+        if (mappings.length > 0) {
+            const { error: mapErr } = await adminSupabase
+                .from('po_block_daily_activities')
+                .insert(mappings);
+            if (mapErr) throw mapErr;
+        }
+    }
+
     static async initializeDefaultBlocks(tourId: string): Promise<POBlock[]> {
         const adminSupabase = createAdminClient();
 
-        // 1. Fetch all existing blocks for this tour
-        const existingBlocks = await this.getPOBlocksForTour(tourId);
-        
-        // Split existing blocks into finalized and non-finalized
+        // 1. Fetch all existing blocks and all daily activities in parallel
+        const [existingBlocks, activityResult] = await Promise.all([
+            this.getPOBlocksForTour(tourId),
+            adminSupabase
+                .from('daily_activities')
+                .select('id, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vehicle_id, vendor_activity_id, tour_itineraries(day_number, date)')
+                .eq('tour_id', tourId)
+        ]);
+
         const finalizedBlocks = existingBlocks.filter(b => b.has_finalized === true);
         const nonFinalizedBlocks = existingBlocks.filter(b => b.has_finalized !== true);
 
-        // 2. Clear non-finalized blocks (this will cascade delete mapping rows)
-        if (nonFinalizedBlocks.length > 0) {
-            const nonFinalizedIds = nonFinalizedBlocks.map(b => b.id);
-            const { error: deleteErr } = await adminSupabase
-                .from('po_blocks')
-                .delete()
-                .in('id', nonFinalizedIds);
-            if (deleteErr) throw deleteErr;
-        }
+        if (activityResult.error) throw activityResult.error;
+        const rawActivities = activityResult.data || [];
 
-        // Fetch all daily activities for the tour
-        const { data: rawActivities, error: actErr } = await adminSupabase
-            .from('daily_activities')
-            .select('*, tour_itineraries(day_number, date)')
-            .eq('tour_id', tourId);
-
-        if (actErr) throw actErr;
-        if (!rawActivities || rawActivities.length === 0) {
-            return this.getPOBlocksForTour(tourId);
-        }
-
-        // Filter out records that are activity_type === 'activity' or 'meal' and all vendor/booking references are null
+        // Filter to only meaningful activities
         const activities = rawActivities.filter(act => {
             const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                !act.vendor_id &&
-                !act.transport_id &&
-                !act.driver_id &&
-                !act.guide_id &&
-                !act.restaurant_id &&
-                !act.vehicle_id &&
-                !act.vendor_activity_id &&
-                !act.hotel_id;
+                !act.vendor_id && !act.transport_id && !act.driver_id && !act.guide_id &&
+                !act.restaurant_id && !act.vehicle_id && !act.vendor_activity_id && !act.hotel_id;
             return !isInvalidActivity;
         });
 
-        if (activities.length === 0) {
-            return this.getPOBlocksForTour(tourId);
-        }
+        if (activities.length === 0) return existingBlocks;
 
-        // Determine starting block number to keep them consecutive and unique
-        let currentBlockNumber = 1;
-        if (finalizedBlocks.length > 0) {
-            currentBlockNumber = Math.max(...finalizedBlocks.map(b => b.block_number || 0)) + 1;
-        }
-
-        // Find daily activity IDs that are already mapped to finalized blocks
+        // Find activities not already in finalized blocks
         const finalizedActivityIds = new Set<string>();
-        finalizedBlocks.forEach(b => {
-            b.daily_activities?.forEach(act => {
-                if (act.id) finalizedActivityIds.add(act.id);
-            });
-        });
-
-        // Filter out daily activities that are already in finalized blocks
+        finalizedBlocks.forEach(b => b.daily_activities?.forEach(act => { if (act.id) finalizedActivityIds.add(act.id); }));
         const activitiesToGroup = activities.filter(act => !finalizedActivityIds.has(act.id));
-        const createdBlocks: POBlock[] = [];
 
-        // 1. SLEEP: select only sleep, group strictly by hotel_id
-        const sleepActivities = activitiesToGroup.filter(act => act.activity_type === 'sleep');
+        // FIX B: Compare activity signatures — skip full rebuild if nothing changed
+        if (nonFinalizedBlocks.length > 0) {
+            const buildSig = (acts: any[]) =>
+                acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.transport_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}`)
+                    .sort().join('|');
+
+            const incomingSig = buildSig(activitiesToGroup);
+            const existingSig = buildSig(
+                nonFinalizedBlocks.flatMap(b => b.daily_activities || [])
+            );
+
+            if (incomingSig === existingSig) {
+                return existingBlocks; // Nothing changed — skip all writes
+            }
+        }
+
+        // Delete non-finalized blocks (cascade handles mapping rows)
+        if (nonFinalizedBlocks.length > 0) {
+            const { error: deleteErr } = await adminSupabase
+                .from('po_blocks')
+                .delete()
+                .in('id', nonFinalizedBlocks.map(b => b.id));
+            if (deleteErr) throw deleteErr;
+        }
+
+        if (activitiesToGroup.length === 0) return this.getPOBlocksForTour(tourId);
+
+        let currentBlockNumber = finalizedBlocks.length > 0
+            ? Math.max(...finalizedBlocks.map(b => b.block_number || 0)) + 1
+            : 1;
+
+        // FIX C: Collect all block descriptors first, then batch-create in 2 DB calls per category
+
+        // ── 1. SLEEP: group by hotel_id ──────────────────────────────────────────────
         const sleepGroups = new Map<string | null, any[]>();
-        sleepActivities.forEach(act => {
-            const hotelId = act.hotel_id || null;
-            if (!sleepGroups.has(hotelId)) {
-                sleepGroups.set(hotelId, []);
-            }
-            sleepGroups.get(hotelId)!.push(act);
+        activitiesToGroup.filter(a => a.activity_type === 'sleep').forEach(act => {
+            const key = act.hotel_id || null;
+            if (!sleepGroups.has(key)) sleepGroups.set(key, []);
+            sleepGroups.get(key)!.push(act);
         });
 
-        // Resolve hotel names
         const hotelIds = Array.from(sleepGroups.keys()).filter(Boolean) as string[];
-        let hotels: { id: string, name: string }[] = [];
-        if (hotelIds.length > 0) {
-            const { data: hotelData } = await adminSupabase
-                .from('hotels')
-                .select('id, name')
-                .in('id', hotelIds);
-            hotels = hotelData || [];
-        }
+        const [{ data: hotelsData }, travelResult, restaurantResult, vendorResult] = await Promise.all([
+            hotelIds.length > 0
+                ? adminSupabase.from('hotels').select('id, name').in('id', hotelIds)
+                : Promise.resolve({ data: [] as any[], error: null }),
+            // ── 2. TRAVEL: group by transport_id ────────────────────────────────────
+            (async () => {
+                const travelGroups = new Map<string, any[]>();
+                activitiesToGroup.filter(a => a.activity_type === 'travel' && a.transport_id).forEach(act => {
+                    const key = act.transport_id!;
+                    if (!travelGroups.has(key)) travelGroups.set(key, []);
+                    travelGroups.get(key)!.push(act);
+                });
+                const transportIds = Array.from(travelGroups.keys());
+                const { data: providers } = transportIds.length > 0
+                    ? await adminSupabase.from('transport_providers').select('id, name').in('id', transportIds)
+                    : { data: [] as any[] };
+                return { groups: travelGroups, lookup: providers || [] };
+            })(),
+            // ── 3. MEAL: group by restaurant_id ─────────────────────────────────────
+            (async () => {
+                const mealGroups = new Map<string | null, any[]>();
+                activitiesToGroup.filter(a => a.activity_type === 'meal').forEach(act => {
+                    const key = act.restaurant_id || null;
+                    if (!mealGroups.has(key)) mealGroups.set(key, []);
+                    mealGroups.get(key)!.push(act);
+                });
+                const restaurantIds = Array.from(mealGroups.keys()).filter(Boolean) as string[];
+                const { data: rests } = restaurantIds.length > 0
+                    ? await adminSupabase.from('restaurants').select('id, name').in('id', restaurantIds)
+                    : { data: [] as any[] };
+                return { groups: mealGroups, lookup: rests || [] };
+            })(),
+            // ── 4. ACTIVITY: group by vendor_id ─────────────────────────────────────
+            (async () => {
+                const actGroups = new Map<string | null, any[]>();
+                activitiesToGroup.filter(a => a.activity_type === 'activity').forEach(act => {
+                    const key = act.vendor_id || null;
+                    if (!actGroups.has(key)) actGroups.set(key, []);
+                    actGroups.get(key)!.push(act);
+                });
+                const vendorIds = Array.from(actGroups.keys()).filter(Boolean) as string[];
+                const { data: vendors } = vendorIds.length > 0
+                    ? await adminSupabase.from('vendors').select('id, name').in('id', vendorIds)
+                    : { data: [] as any[] };
+                return { groups: actGroups, lookup: vendors || [] };
+            })()
+        ]);
 
-        for (const [hotelId, group] of sleepGroups.entries()) {
-            const hotelObj = hotels.find(h => h.id === hotelId);
-            const hotelName = hotelObj ? hotelObj.name : 'Unassigned Hotel';
-            const name = `${hotelName} Block`;
-            const ids = group.map(a => a.id);
-            const block = await this.createPOBlock(tourId, name, 'sleep', currentBlockNumber++, ids);
-            createdBlocks.push(block);
-        }
+        const hotels = hotelsData || [];
+        const { groups: travelGroups, lookup: transportProviders } = travelResult;
+        const { groups: mealGroups, lookup: restaurants } = restaurantResult;
+        const { groups: activityGroups, lookup: activityVendors } = vendorResult;
 
-        // 2. TRAVEL: select only travel, filter to those with transport_id, group by transport_id
-        const travelActivities = activitiesToGroup.filter(act => act.activity_type === 'travel' && act.transport_id);
-        const travelGroups = new Map<string, any[]>();
-        travelActivities.forEach(act => {
-            const transportId = act.transport_id!;
-            if (!travelGroups.has(transportId)) {
-                travelGroups.set(transportId, []);
-            }
-            travelGroups.get(transportId)!.push(act);
-        });
+        // Build all descriptors, then batch-insert each category
+        const sleepDescriptors = Array.from(sleepGroups.entries()).map(([hotelId, group]) => ({
+            name: `${hotels.find(h => h.id === hotelId)?.name ?? 'Unassigned Hotel'} Block`,
+            blockType: 'sleep',
+            blockNumber: currentBlockNumber++,
+            dailyActivityIds: group.map(a => a.id)
+        }));
 
-        const transportIds = Array.from(travelGroups.keys());
-        let transportProviders: { id: string, name: string }[] = [];
-        if (transportIds.length > 0) {
-            const { data: providerData } = await adminSupabase
-                .from('transport_providers')
-                .select('id, name')
-                .in('id', transportIds);
-            transportProviders = providerData || [];
-        }
+        const travelDescriptors = Array.from(travelGroups.entries()).map(([transportId, group]) => ({
+            name: `${transportProviders.find(p => p.id === transportId)?.name ?? 'Unassigned Transport'} Block`,
+            blockType: 'travel',
+            blockNumber: currentBlockNumber++,
+            dailyActivityIds: group.map(a => a.id)
+        }));
 
-        for (const [transportId, group] of travelGroups.entries()) {
-            const providerObj = transportProviders.find(p => p.id === transportId);
-            const providerName = providerObj ? providerObj.name : 'Unassigned Transport';
-            const name = `${providerName} Block`;
-            const ids = group.map(a => a.id);
-            const block = await this.createPOBlock(tourId, name, 'travel', currentBlockNumber++, ids);
-            createdBlocks.push(block);
-        }
+        const mealDescriptors = Array.from(mealGroups.entries()).map(([restaurantId, group]) => ({
+            name: `${restaurants.find(r => r.id === restaurantId)?.name ?? 'Unassigned Restaurant'} Block`,
+            blockType: 'meal',
+            blockNumber: currentBlockNumber++,
+            dailyActivityIds: group.map(a => a.id)
+        }));
 
-        // 3. MEAL: select only meal, group by restaurant_id
-        const mealActivities = activitiesToGroup.filter(act => act.activity_type === 'meal');
-        const mealGroups = new Map<string | null, any[]>();
-        mealActivities.forEach(act => {
-            const restaurantId = act.restaurant_id || null;
-            if (!mealGroups.has(restaurantId)) {
-                mealGroups.set(restaurantId, []);
-            }
-            mealGroups.get(restaurantId)!.push(act);
-        });
+        const activityDescriptors = Array.from(activityGroups.entries()).map(([vendorId, group]) => ({
+            name: `${activityVendors.find(v => v.id === vendorId)?.name ?? 'Unassigned Activity'} Block`,
+            blockType: 'activity',
+            blockNumber: currentBlockNumber++,
+            dailyActivityIds: group.map(a => a.id)
+        }));
 
-        const restaurantIds = Array.from(mealGroups.keys()).filter(Boolean) as string[];
-        let restaurants: { id: string, name: string }[] = [];
-        if (restaurantIds.length > 0) {
-            const { data: restData } = await adminSupabase
-                .from('restaurants')
-                .select('id, name')
-                .in('id', restaurantIds);
-            restaurants = restData || [];
-        }
-
-        for (const [restaurantId, group] of mealGroups.entries()) {
-            const restObj = restaurants.find(r => r.id === restaurantId);
-            const restName = restObj ? restObj.name : 'Unassigned Restaurant';
-            const name = `${restName} Block`;
-            const ids = group.map(a => a.id);
-            const block = await this.createPOBlock(tourId, name, 'meal', currentBlockNumber++, ids);
-            createdBlocks.push(block);
-        }
-
-        // 4. ACTIVITY: select only activity, group by vendor_id
-        const regularActivities = activitiesToGroup.filter(act => act.activity_type === 'activity');
-        const activityGroups = new Map<string | null, any[]>();
-        regularActivities.forEach(act => {
-            const vendorId = act.vendor_id || null;
-            if (!activityGroups.has(vendorId)) {
-                activityGroups.set(vendorId, []);
-            }
-            activityGroups.get(vendorId)!.push(act);
-        });
-
-        const activityVendorIds = Array.from(activityGroups.keys()).filter(Boolean) as string[];
-        let activityVendors: { id: string, name: string }[] = [];
-        if (activityVendorIds.length > 0) {
-            const { data: vData } = await adminSupabase
-                .from('vendors')
-                .select('id, name')
-                .in('id', activityVendorIds);
-            activityVendors = vData || [];
-        }
-
-        for (const [vendorId, group] of activityGroups.entries()) {
-            const vendorObj = activityVendors.find(v => v.id === vendorId);
-            const vendorName = vendorObj ? vendorObj.name : 'Unassigned Activity';
-            const name = `${vendorName} Block`;
-            const ids = group.map(a => a.id);
-            const block = await this.createPOBlock(tourId, name, 'activity', currentBlockNumber++, ids);
-            createdBlocks.push(block);
-        }
+        // Batch create all block types in parallel (each batch is 2 calls: insert blocks + insert mappings)
+        await Promise.all([
+            this.createPOBlocksBatch(tourId, sleepDescriptors),
+            this.createPOBlocksBatch(tourId, travelDescriptors),
+            this.createPOBlocksBatch(tourId, mealDescriptors),
+            this.createPOBlocksBatch(tourId, activityDescriptors)
+        ]);
 
         return this.getPOBlocksForTour(tourId);
     }
