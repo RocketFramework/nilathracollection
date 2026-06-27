@@ -88,6 +88,7 @@ import {
   getDailyActivitiesAction,
   saveTourAction, 
   changeHotelDatabaseAction,
+  changeRestaurantAction,
   getAIRulesAction, 
   saveAIRuleAction,
   getDraftVersionsAction,
@@ -392,6 +393,9 @@ function PlannerWizardWorkspace() {
   const [poBlocks, setPoBlocks] = useState<POBlock[]>([]);
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
   const [isHotelChanging, setIsHotelChanging] = useState<boolean>(false);
+  const [isRestaurantChanging, setIsRestaurantChanging] = useState<boolean>(false);
+  const [restaurantPickerOpenBlockId, setRestaurantPickerOpenBlockId] = useState<string | null>(null);
+  const [restaurantPickerSearch, setRestaurantPickerSearch] = useState<string>('');
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [editingBlockName, setEditingBlockName] = useState<string>('');
   const [poSelectedActivityIds, setPoSelectedActivityIds] = useState<string[]>([]);
@@ -6619,6 +6623,434 @@ function PlannerWizardWorkspace() {
                       })()}
                     </div>
                   </div>
+                ) : track === 'final' && currentStep.id === 'restaurant-selection' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <Utensils className="w-5 h-5 text-emerald-800" />
+                        Restaurant Dining Selection (PO Blocks)
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Review and manage restaurant dining scheduled for this tour, grouped by meal blocks.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(() => {
+                        const mealBlocks = poBlocks.filter((b: any) => b.block_type === 'meal');
+                        const sortedBlocks = [...mealBlocks].sort((a: any, b: any) => {
+                          const firstA = a.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          const firstB = b.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          return firstA - firstB;
+                        });
+
+                        const formatDate = (dateStr: string) => {
+                          if (!dateStr) return '';
+                          try {
+                            const d = new Date(dateStr);
+                            if (isNaN(d.getTime())) return dateStr;
+                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                          } catch { return dateStr; }
+                        };
+
+                        if (sortedBlocks.length === 0) {
+                          return (
+                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                              <Utensils className="w-8 h-8 text-neutral-300 mb-2" />
+                              <span className="text-xs font-bold text-neutral-500">No meal blocks configured</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">
+                                There are no meal blocks set up. Please configure blocks in the PO Blocks Configuration step.
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return sortedBlocks.map((block: any) => {
+                          const blockActivities = block.daily_activities || [];
+                          const mealActivities = blockActivities.filter((a: any) => a.activity_type === 'meal');
+
+                          const selectedRestaurantId = blockActivities.find((a: any) => a.restaurant_id)?.restaurant_id;
+                          const restaurant = selectedRestaurantId ? masterData.restaurants?.find((r: any) => r.id === selectedRestaurantId) : null;
+
+                          const isPickerOpen = restaurantPickerOpenBlockId === block.id;
+
+                          // Filtered restaurants for the inline picker
+                          const allRestaurants: any[] = masterData.restaurants || [];
+                          const filteredRestaurants = restaurantPickerSearch.trim()
+                            ? allRestaurants.filter((r: any) =>
+                                [r.name, r.city, r.district, r.cuisine_type].some(f => f?.toLowerCase().includes(restaurantPickerSearch.toLowerCase()))
+                              )
+                            : allRestaurants;
+
+                          const blockRfqEmails = rfqEmails.filter((e: any) => e.po_block_id === block.id);
+                          const blockRfpEmails = rfpEmails.filter((e: any) => e.po_block_id === block.id);
+                          const combinedBlockEmails = [
+                            ...blockRfqEmails.map((e: any) => ({ ...e, logType: 'RFQ' as const })),
+                            ...blockRfpEmails.map((e: any) => ({ ...e, logType: 'RFP' as const }))
+                          ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+
+                          return (
+                            <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              {/* Block Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 bg-neutral-200 text-neutral-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      {block.name}
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                      {restaurant ? restaurant.name : 'No Restaurant Assigned Yet'}
+                                    </h4>
+                                    {restaurant?.cuisine_type && (
+                                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                        {restaurant.cuisine_type}
+                                      </span>
+                                    )}
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setRestaurantPickerOpenBlockId(isPickerOpen ? null : block.id);
+                                          setRestaurantPickerSearch('');
+                                        }}
+                                        disabled={isLockedByOther}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                        title={restaurant ? 'Change Restaurant' : 'Assign Restaurant'}
+                                      >
+                                        <Utensils className="w-3.5 h-3.5 text-neutral-400" />
+                                        <span>{restaurant ? 'Change Restaurant' : 'Assign Restaurant'}</span>
+                                      </button>
+                                      {restaurant && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenRfqModal(restaurant, mealActivities, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                            title="Request Quote"
+                                          >
+                                            <Mail className="w-3.5 h-3.5 text-emerald-800" />
+                                            <span>Request Quote</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPoModal(restaurant, mealActivities, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
+                                            title="Create PO"
+                                          >
+                                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                            <span>Create PO</span>
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-neutral-500">
+                                    {restaurant
+                                      ? (restaurant.city || restaurant.address || 'Location not specified')
+                                      : 'Assign a restaurant using the button above.'}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                                  <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
+                                    <span>Total Meals:</span>
+                                    <span className="text-emerald-800 font-extrabold text-xs">{mealActivities.length}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={isLockedByOther}
+                                    title="Delete Block"
+                                    onClick={async () => {
+                                      if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.")) {
+                                        const res = await deletePOBlockAction(block.id);
+                                        if (res.success) {
+                                          setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                        } else {
+                                          alert(res.error || "Failed to delete block.");
+                                        }
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Inline Restaurant Picker */}
+                              {isPickerOpen && (
+                                <div className="border border-emerald-200 rounded-2xl bg-emerald-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
+                                      {restaurant ? 'Change Restaurant' : 'Select a Restaurant'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setRestaurantPickerOpenBlockId(null)}
+                                      className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
+                                    >
+                                      Close ×
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Search by name, city, cuisine…"
+                                    value={restaurantPickerSearch}
+                                    onChange={e => setRestaurantPickerSearch(e.target.value)}
+                                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all"
+                                    autoFocus
+                                  />
+                                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                    {filteredRestaurants.length === 0 ? (
+                                      <p className="text-[10px] text-neutral-400 text-center py-4">No restaurants found. Try a different search.</p>
+                                    ) : filteredRestaurants.map((r: any) => {
+                                      const isCurrent = r.id === selectedRestaurantId;
+                                      return (
+                                        <button
+                                          key={r.id}
+                                          type="button"
+                                          onClick={() => {
+                                            if (isCurrent) return;
+                                            const mealIds = mealActivities.map((a: any) => a.id);
+                                            // Optimistic update
+                                            setDbActivities(prev => prev.map(act =>
+                                              mealIds.includes(act.id) ? { ...act, restaurant_id: r.id } : act
+                                            ));
+                                            setPoBlocks(prev => prev.map(pb => {
+                                              if (pb.id !== block.id) return pb;
+                                              return {
+                                                ...pb,
+                                                name: `${r.name} Block`,
+                                                daily_activities: (pb.daily_activities || []).map((da: any) =>
+                                                  mealIds.includes(da.id) ? { ...da, restaurant_id: r.id } : da
+                                                )
+                                              };
+                                            }));
+                                            setRestaurantPickerOpenBlockId(null);
+                                            // DB sync
+                                            setIsRestaurantChanging(true);
+                                            changeRestaurantAction(tourId, mealIds, r.id)
+                                              .then(async res => {
+                                                if (res.success) {
+                                                  const blocksRes = await getPOBlocksAction(tourId);
+                                                  if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
+                                                } else {
+                                                  console.error("Restaurant change failed:", res.error);
+                                                }
+                                              })
+                                              .catch(err => console.error("changeRestaurantAction error:", err))
+                                              .finally(() => setIsRestaurantChanging(false));
+                                          }}
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
+                                            isCurrent
+                                              ? 'border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800/10'
+                                              : 'border-neutral-200 bg-white hover:border-emerald-800/50 hover:bg-emerald-50/10'
+                                          }`}
+                                        >
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-neutral-800 truncate">{r.name}</p>
+                                            <p className="text-[10px] text-neutral-400 mt-0.5">{r.city || r.district || 'Location not specified'}{r.cuisine_type ? ` · ${r.cuisine_type}` : ''}</p>
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                              {r.has_breakfast && <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[8px] font-bold rounded uppercase">Breakfast ${r.breakfast_rate_per_head || '—'}</span>}
+                                              {r.has_lunch && <span className="px-1.5 py-0.5 bg-rose-50 border border-rose-100 text-rose-700 text-[8px] font-bold rounded uppercase">Lunch ${r.lunch_rate_per_head || '—'}</span>}
+                                              {r.has_dinner && <span className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[8px] font-bold rounded uppercase">Dinner ${r.dinner_rate_per_head || '—'}</span>}
+                                            </div>
+                                          </div>
+                                          {isCurrent && <Check className="w-4 h-4 text-emerald-800 shrink-0 mt-0.5" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Meal Activity Rows */}
+                              {mealActivities.length > 0 && (
+                                <div className="divide-y divide-neutral-100">
+                                  {mealActivities.map((meal: any) => {
+                                    const dayNum = meal.tour_itineraries?.day_number || meal.day_number || meal.dayNumber || 0;
+                                    const dateVal = meal.tour_itineraries?.date;
+                                    const mealType = meal.meal_type || meal.title || 'Meal';
+                                    const covers = meal.quantity || 1;
+                                    const unitRate = meal.contracted_price ?? meal.charged_unit_price;
+                                    const totalRate = meal.contracted_total_price ?? meal.charged_total_price;
+
+                                    // Meal type colour coding
+                                    const mealTypeLower = mealType.toLowerCase();
+                                    const mealBadgeClass = mealTypeLower.includes('breakfast')
+                                      ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                      : mealTypeLower.includes('dinner')
+                                      ? 'bg-indigo-50 border-indigo-100 text-indigo-700'
+                                      : 'bg-rose-50 border-rose-100 text-rose-700';
+
+                                    return (
+                                      <div key={meal.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
+                                        <div className="flex items-start gap-3">
+                                          <div className="px-2.5 py-1 bg-emerald-800 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                            {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
+                                          </div>
+                                          <div>
+                                            <span className="text-xs font-bold text-neutral-800 block">
+                                              {meal.title || 'Meal'}
+                                            </span>
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                              <span className={`px-2 py-0.5 border text-[9px] font-bold rounded uppercase tracking-wider ${mealBadgeClass}`}>
+                                                {mealType}
+                                              </span>
+                                              {meal.is_buffet && (
+                                                <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-bold rounded uppercase">Buffet</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between sm:justify-end gap-5 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
+                                          <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
+                                            <span className="text-neutral-400">Covers:</span>
+                                            <span className="text-neutral-700 font-bold">{covers}</span>
+                                          </div>
+                                          {unitRate !== undefined && unitRate !== null && (
+                                            <div className="text-right">
+                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono">Per Head</span>
+                                              <span className="font-mono text-neutral-600 font-bold">${Number(unitRate).toFixed(2)}</span>
+                                            </div>
+                                          )}
+                                          {totalRate !== undefined && totalRate !== null && (
+                                            <div className="text-right">
+                                              <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total</span>
+                                              <span className="font-mono text-emerald-800 font-bold">${Number(totalRate).toFixed(2)}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* RFQ & RFP Email Logs — identical to hotel-selection */}
+                              {combinedBlockEmails.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                  <h6 className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                    RFQ &amp; RFP Email Dispatch History ({combinedBlockEmails.length})
+                                  </h6>
+                                  <div className="space-y-2 pr-1">
+                                    {combinedBlockEmails.map((emailLog: any) => {
+                                      const emailId = emailLog.id;
+                                      const isEmailBodyExpanded = expandedEmailId === emailId;
+                                      return (
+                                        <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                emailLog.logType === 'RFQ'
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                              }`}>
+                                                {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                              </span>
+                                              <span className="text-[9px] font-mono text-neutral-400">
+                                                Sent: {new Date(emailLog.sent_at).toLocaleString()}
+                                              </span>
+                                              {emailLog.updated_at && (
+                                                <span className="text-[9px] font-mono text-amber-600 font-semibold">
+                                                  · Updated: {new Date(emailLog.updated_at).toLocaleString()}
+                                                </span>
+                                              )}
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                  : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                              }`}>
+                                                {emailLog.status || 'Sent'}
+                                              </span>
+                                              {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
+                                                <span className="px-2 py-0.5 text-[8px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono">
+                                                  ${Number(emailLog.quoted_price).toFixed(2)}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isEmailBodyExpanded) {
+                                                  setExpandedEmailId(null);
+                                                  setEditingRfq(null);
+                                                } else {
+                                                  setExpandedEmailId(emailId);
+                                                  setEditingRfq(emailLog);
+                                                  setEditRfqStatus((emailLog.status || 'Sent') as any);
+                                                  setEditRfqQuotedPrice(emailLog.quoted_price || 0);
+                                                  setEditRfqNotes(emailLog.notes || '');
+                                                  setEditRfqSelected(!!emailLog.selected_vendor);
+                                                }
+                                              }}
+                                              className="text-[9px] text-emerald-800 font-bold hover:underline"
+                                            >
+                                              {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                            </button>
+                                          </div>
+
+                                          <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                            <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                            <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
+                                          </div>
+
+                                          {isEmailBodyExpanded && (
+                                            <div className="mt-3 pt-3 border-t border-neutral-150 space-y-4">
+                                              <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm space-y-3">
+                                                <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">Edit Proposal / Bid Details</h6>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                  <div>
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Quoted Price ($)</label>
+                                                    <input type="number" value={editRfqQuotedPrice} onChange={e => setEditRfqQuotedPrice(Number(e.target.value))} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium" placeholder="e.g. 150" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Status</label>
+                                                    <select value={editRfqStatus} onChange={e => { const s = e.target.value; setEditRfqStatus(s as any); if (s === 'Selected') setEditRfqSelected(true); }} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium">
+                                                      <option value="Sent">Sent</option>
+                                                      <option value="Replied">Replied</option>
+                                                      <option value="Declined">Declined</option>
+                                                      <option value="Expired">Expired</option>
+                                                      <option value="Selected">Selected</option>
+                                                    </select>
+                                                  </div>
+                                                  <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
+                                                    <input type="checkbox" id={`rest-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
+                                                    <label htmlFor={`rest-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this meal block</label>
+                                                  </div>
+                                                  <div className="col-span-1 sm:col-span-2">
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes</label>
+                                                    <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
+                                                  </div>
+                                                </div>
+                                                <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                                  <button type="button" onClick={() => { setExpandedEmailId(null); setEditingRfq(null); }} className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors">Cancel</button>
+                                                  <button type="button" onClick={() => handleSaveInlineRfq(emailLog)} disabled={isSavingEditRfq} className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
+                                                  </button>
+                                                </div>
+                                              </div>
+                                              <div className="space-y-1">
+                                                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
+                                                <div className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: emailLog.body_html }} />
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
                 ) : track === 'final' && currentStep.id === 'quote-request' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
@@ -6630,6 +7062,7 @@ function PlannerWizardWorkspace() {
                         Dispatch quote requests to vendors, track responses, and select the winning bids for your itinerary activities.
                       </p>
                     </div>
+
 
                     <div className="space-y-6">
                       {dbActivities
@@ -12300,6 +12733,34 @@ function PlannerWizardWorkspace() {
           </div>
         )}
 
+      {/* Global hotel-change saving toast — always visible while DB sync runs */}
+      {isHotelChanging && (
+        <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-emerald-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
+          <div className="relative flex-shrink-0">
+            <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+            <div className="absolute -inset-1 rounded-full bg-emerald-50 animate-ping opacity-40" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-neutral-800">Saving hotel change…</p>
+            <p className="text-[10px] text-neutral-400">Updating rates, itinerary &amp; blocks in the background</p>
+          </div>
+        </div>
+      )}
+
+      {/* Global restaurant-change saving toast */}
+      {isRestaurantChanging && (
+        <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-rose-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
+          <div className="relative flex-shrink-0">
+            <Loader2 className="w-4 h-4 text-rose-600 animate-spin" />
+            <div className="absolute -inset-1 rounded-full bg-rose-50 animate-ping opacity-40" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-neutral-800">Saving restaurant change…</p>
+            <p className="text-[10px] text-neutral-400">Updating meal rates &amp; blocks in the background</p>
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
   );
@@ -14742,22 +15203,8 @@ function AIItineraryBuilder({
           tripStatus={tripData?.status}
           dayCostOverrides={tripData?.dayCostOverrides}
         />
-
-      {/* Global hotel-change saving toast — always visible while DB sync runs */}
-      {isHotelChanging && (
-        <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-emerald-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
-          <div className="relative flex-shrink-0">
-            <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
-            <div className="absolute -inset-1 rounded-full bg-emerald-50 animate-ping opacity-40" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-neutral-800">Saving hotel change…</p>
-            <p className="text-[10px] text-neutral-400">Updating rates, itinerary &amp; blocks in the background</p>
-          </div>
-        </div>
-      )}
-
       </div>
+
     </div>
   );
 }

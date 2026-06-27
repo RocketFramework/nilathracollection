@@ -1743,6 +1743,21 @@ export async function changeHotelDatabaseAction(
     }
 }
 
+export async function changeRestaurantAction(
+    tourId: string,
+    mealActivityIds: string[],
+    newRestaurantId: string
+) {
+    try {
+        await TourService.updateChangedRestaurant(tourId, mealActivityIds, newRestaurantId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in changeRestaurantAction:", error);
+        return { success: false, error: error.message || "Failed to update restaurant assignment." };
+    }
+}
+
+
 export async function logRfqEmailAction(
     tourId: string,
     vendorId: string | null,

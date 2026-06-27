@@ -1302,5 +1302,112 @@ export class TourService {
 
         await Promise.all(finalWrites);
     }
-}
 
+    /**
+     * Updates all meal daily_activities in a block to point at a new restaurant,
+     * recalculates per-head contracted rates from the restaurant's rate card,
+     * and syncs tours.planner_data + draft versions.
+     */
+    static async updateChangedRestaurant(
+        tourId: string,
+        mealActivityIds: string[],
+        newRestaurantId: string
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // Parallel initial fetches
+        const [restaurantResult, activitiesResult] = await Promise.all([
+            supabaseAdmin.from('restaurants').select('name, address, city, cuisine_type, breakfast_rate_per_head, lunch_rate_per_head, dinner_rate_per_head, tea_cafe_rate_per_head, coffee_cafe_rate_per_head, juice_bar_rate_per_head').eq('id', newRestaurantId).single(),
+            supabaseAdmin.from('daily_activities').select('id, itinerary_id, title, meal_type, quantity').in('id', mealActivityIds)
+        ]);
+
+        if (restaurantResult.error || !restaurantResult.data) throw new Error("Restaurant not found: " + restaurantResult.error?.message);
+        const restaurant = restaurantResult.data as any;
+        const activities: any[] = activitiesResult.data || [];
+        if (activities.length === 0) throw new Error("No meal activities found matching provided IDs");
+
+        // Helper: pick rate based on meal type string
+        const getRateForMealType = (mealType: string): number => {
+            const t = (mealType || '').toLowerCase();
+            if (t.includes('breakfast') || t.includes('bb') || t.includes('hb')) return restaurant.breakfast_rate_per_head || 0;
+            if (t.includes('dinner') || t.includes('hb')) return restaurant.dinner_rate_per_head || 0;
+            if (t.includes('tea')) return restaurant.tea_cafe_rate_per_head || 0;
+            if (t.includes('coffee')) return restaurant.coffee_cafe_rate_per_head || 0;
+            if (t.includes('juice')) return restaurant.juice_bar_rate_per_head || 0;
+            return restaurant.lunch_rate_per_head || 0; // default to lunch
+        };
+
+        const itinIds = activities.map((a: any) => a.itinerary_id).filter(Boolean);
+
+        // Parallel: update all meal activities + fetch itineraries for day_number
+        const [, itinerariesResult] = await Promise.all([
+            Promise.all(activities.map(async (act: any) => {
+                const mealType = act.meal_type || act.title || 'Lunch';
+                const unitRate = getRateForMealType(mealType);
+                const qty = act.quantity || 1;
+                return supabaseAdmin.from('daily_activities').update({
+                    restaurant_id: newRestaurantId,
+                    location_name: restaurant.city || restaurant.address || '',
+                    contracted_price: unitRate,
+                    contracted_total_price: unitRate * qty,
+                    charged_unit_price: unitRate,
+                    charged_total_price: unitRate * qty,
+                }).eq('id', act.id);
+            })),
+            itinIds.length > 0
+                ? supabaseAdmin.from('tour_itineraries').select('id, day_number').in('id', itinIds)
+                : Promise.resolve({ data: [] as any[], error: null })
+        ]);
+
+        const itineraries: any[] = (itinerariesResult as any).data || [];
+        const dayNumbers = itineraries.map((i: any) => Number(i.day_number)).filter(Boolean);
+
+        // Update tour_itineraries.restaurant_id for matched itinIds
+        const itinUpdates: PromiseLike<any>[] = [];
+        if (itinIds.length > 0) {
+            itinUpdates.push(supabaseAdmin.from('tour_itineraries').update({ restaurant_id: newRestaurantId }).in('id', itinIds));
+        }
+
+        // Fetch po_block junction + tours planner_data + latest draft in parallel
+        const [junctionResult, tourRecord, latestDraftResult] = await Promise.all([
+            supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', mealActivityIds),
+            supabaseAdmin.from('tours').select('planner_data').eq('id', tourId).single(),
+            supabaseAdmin.from('draft_itinerary_versions').select('id, itinerary_data').eq('tour_id', tourId).order('version_number', { ascending: false }).limit(1).single()
+        ]);
+
+        const finalWrites: PromiseLike<any>[] = [...itinUpdates];
+
+        // Update po_blocks name
+        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+        if (poBlockIds.length > 0) {
+            finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${restaurant.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds).then(r => r));
+        }
+
+        // Update tours.planner_data — update restaurant references in itinerary blocks
+        if (tourRecord.data?.planner_data) {
+            const pData = tourRecord.data.planner_data as any;
+            if (Array.isArray(pData.itinerary)) {
+                pData.itinerary = pData.itinerary.map((b: any) => {
+                    if (b.type === 'meal' && dayNumbers.includes(Number(b.dayNumber))) {
+                        return { ...b, restaurantId: newRestaurantId, restaurantName: restaurant.name, locationName: restaurant.city || restaurant.address || '' };
+                    }
+                    return b;
+                });
+            }
+            finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId).then(r => r));
+        }
+
+        // Update latest draft
+        if (latestDraftResult.data && Array.isArray((latestDraftResult.data as any).itinerary_data)) {
+            const updatedDraft = (latestDraftResult.data as any).itinerary_data.map((b: any) => {
+                if (b.type === 'meal' && dayNumbers.includes(Number(b.dayNumber))) {
+                    return { ...b, restaurantId: newRestaurantId, restaurantName: restaurant.name };
+                }
+                return b;
+            });
+            finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraftResult.data as any).id).then(r => r));
+        }
+
+        await Promise.all(finalWrites);
+    }
+}
