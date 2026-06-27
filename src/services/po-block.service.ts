@@ -161,6 +161,74 @@ export class POBlockService {
         if (error) throw error;
     }
 
+    /**
+     * Safely deletes a PO block and all associated records.
+     * Throws an error if supplier_invoices are linked (cannot delete — invoices exist).
+     * Deletes in order: tour_rfq_emails, tour_rfp_emails, purchase_order_items,
+     * purchase_orders, po_block_daily_activities, then po_blocks.
+     */
+    static async deleteBlockWithCascade(blockId: string): Promise<void> {
+        const adminSupabase = createAdminClient();
+
+        // 1. Guard: check for supplier invoices linked to this block
+        const { data: invoices, error: invErr } = await adminSupabase
+            .from('supplier_invoices')
+            .select('id')
+            .eq('po_block_id', blockId)
+            .limit(1);
+
+        if (invErr) throw invErr;
+        if (invoices && invoices.length > 0) {
+            throw new Error(
+                'This block has a supplier invoice associated with it. Please remove the invoice before deleting this block.'
+            );
+        }
+
+        // 2. Delete tour_rfq_emails for this block
+        const { error: rfqErr } = await adminSupabase
+            .from('tour_rfq_emails')
+            .delete()
+            .eq('po_block_id', blockId);
+        if (rfqErr) throw rfqErr;
+
+        // 3. Delete tour_rfp_emails for this block
+        const { error: rfpErr } = await adminSupabase
+            .from('tour_rfp_emails')
+            .delete()
+            .eq('po_block_id', blockId);
+        if (rfpErr) throw rfpErr;
+
+        // 4. Find purchase orders linked to this block, delete their items, then delete the POs
+        const { data: pos, error: posErr } = await adminSupabase
+            .from('purchase_orders')
+            .select('id')
+            .eq('po_block_id', blockId);
+        if (posErr) throw posErr;
+
+        if (pos && pos.length > 0) {
+            const poIds = pos.map(p => p.id);
+
+            const { error: itemsErr } = await adminSupabase
+                .from('purchase_order_items')
+                .delete()
+                .in('purchase_order_id', poIds);
+            if (itemsErr) throw itemsErr;
+
+            const { error: poDelErr } = await adminSupabase
+                .from('purchase_orders')
+                .delete()
+                .in('id', poIds);
+            if (poDelErr) throw poDelErr;
+        }
+
+        // 5. Delete the block itself (cascade handles po_block_daily_activities via FK ON DELETE CASCADE)
+        const { error: blockErr } = await adminSupabase
+            .from('po_blocks')
+            .delete()
+            .eq('id', blockId);
+        if (blockErr) throw blockErr;
+    }
+
     static async initializeDefaultBlocks(tourId: string): Promise<POBlock[]> {
         const adminSupabase = createAdminClient();
 

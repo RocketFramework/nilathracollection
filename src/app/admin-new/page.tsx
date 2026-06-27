@@ -3193,7 +3193,9 @@ function PlannerWizardWorkspace() {
             processedBody,
             pdfFilename ? [{ filename: pdfFilename }] : [],
             resDb.quote.id,
-            rfqBlockId || undefined
+            rfqBlockId || undefined,
+            selectedRfqHotel.name || null,
+            'hotel'
           );
         } catch (logErr) {
           console.error("Failed to log RFQ email history:", logErr);
@@ -3505,7 +3507,10 @@ function PlannerWizardWorkspace() {
             poEmailSubject,
             poEmailBody,
             pdfFilename ? [{ filename: pdfFilename }] : [],
-            poBlockId || undefined
+            poBlockId || undefined,
+            selectedPoHotel.id || null,
+            selectedPoHotel.name || null,
+            'hotel'
           );
         } catch (logErr) {
           console.error("Failed to log PO email history:", logErr);
@@ -5861,14 +5866,17 @@ function PlannerWizardWorkspace() {
                                         )}
                                         <button
                                           onClick={async () => {
-                                            if (confirm("Are you sure you want to delete this block? Linked activities will become unassigned.")) {
+                                            if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This action cannot be undone.")) {
                                               const res = await deletePOBlockAction(block.id);
                                               if (res.success) {
                                                 setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                              } else {
+                                                alert(res.error || "Failed to delete block.");
                                               }
                                             }
                                           }}
                                           className="p-1 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                                          title="Delete Block"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -6164,7 +6172,7 @@ function PlannerWizardWorkspace() {
                                               handleOpenChangeHotelDrawer(firstAct, standardStays);
                                             }
                                           }}
-                                          disabled={isLockedByOther || block.has_finalized}
+                                          disabled={isLockedByOther}
                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-emerald-805/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-805 transition-all shadow-sm disabled:opacity-40"
                                           title="Change Hotel"
                                         >
@@ -6202,9 +6210,29 @@ function PlannerWizardWorkspace() {
                                     {hotel ? (hotel.location_address || hotel.closest_city || 'Location Address not specified') : 'Assign hotel using button or choose a candidate hotel below.'}
                                   </p>
                                 </div>
-                                <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm self-start md:self-auto shrink-0">
-                                  <span>Total Nights:</span>
-                                  <span className="text-emerald-805 font-extrabold text-xs">{standardStays.length}</span>
+                                <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                                  <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
+                                    <span>Total Nights:</span>
+                                    <span className="text-emerald-805 font-extrabold text-xs">{standardStays.length}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={isLockedByOther}
+                                    title="Delete Block"
+                                    onClick={async () => {
+                                      if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.")) {
+                                        const res = await deletePOBlockAction(block.id);
+                                        if (res.success) {
+                                          setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                        } else {
+                                          alert(res.error || "Failed to delete block.");
+                                        }
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
 
@@ -6301,7 +6329,7 @@ function PlannerWizardWorkspace() {
                                           <button
                                             type="button"
                                             onClick={() => handleOpenCustomRateModal(stay)}
-                                            disabled={isLockedByOther || block.has_finalized}
+                                            disabled={isLockedByOther}
                                             className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${
                                               hasCustomRate 
                                                 ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50" 
@@ -6314,7 +6342,7 @@ function PlannerWizardWorkspace() {
                                           <button
                                             type="button"
                                             onClick={() => handleOpenHotelDrawer(stay)}
-                                            disabled={isLockedByOther || block.has_finalized}
+                                            disabled={isLockedByOther}
                                             className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805 transition-all shadow-sm shrink-0 disabled:opacity-40"
                                             title="Edit Night Accommodation"
                                           >
@@ -6388,14 +6416,33 @@ function PlannerWizardWorkspace() {
                                               <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
                                                   emailLog.logType === 'RFQ' 
-                                                    ? 'bg-emerald-805/10 text-emerald-805 border border-emerald-805/20' 
-                                                    : 'bg-amber-650/10 text-amber-707 border border-amber-650/20'
+                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
+                                                    : 'bg-amber-50 text-amber-800 border border-amber-100'
                                                 }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
                                                 <span className="text-[9px] font-mono text-neutral-400">
                                                   {new Date(emailLog.sent_at).toLocaleString()}
                                                 </span>
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                  emailLog.status === 'Selected'
+                                                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                    : emailLog.status === 'Declined'
+                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                }`}>
+                                                  {emailLog.status || 'Sent'}
+                                                </span>
+                                                {emailLog.selected_vendor && (
+                                                  <span className="px-2 py-0.5 text-[8px] font-extrabold rounded-full bg-emerald-800 text-white shadow-sm flex items-center gap-0.5">
+                                                    ★ Selected
+                                                  </span>
+                                                )}
+                                                {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
+                                                  <span className="px-2 py-0.5 text-[8px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono">
+                                                    ${Number(emailLog.quoted_price).toFixed(2)}
+                                                  </span>
+                                                )}
                                               </div>
                                               <button
                                                 type="button"
@@ -6412,7 +6459,7 @@ function PlannerWizardWorkspace() {
                                                     setEditRfqSelected(!!emailLog.selected_vendor);
                                                   }
                                                 }}
-                                                className="text-[9px] text-emerald-850 font-bold hover:underline"
+                                                className="text-[9px] text-emerald-800 font-bold hover:underline"
                                               >
                                                 {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
                                               </button>
@@ -6420,7 +6467,7 @@ function PlannerWizardWorkspace() {
 
                                             <div className="text-[10px] space-y-0.5 text-neutral-600">
                                               <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
-                                              <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-707">{emailLog.subject}</span></div>
+                                              <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
                                             </div>
 
                                             {isEmailBodyExpanded && (
@@ -6441,7 +6488,7 @@ function PlannerWizardWorkspace() {
                                                         type="number"
                                                         value={editRfqQuotedPrice}
                                                         onChange={(e) => setEditRfqQuotedPrice(Number(e.target.value))}
-                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-808 focus:border-emerald-808 transition-all font-medium"
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
                                                         placeholder="e.g. 150"
                                                       />
                                                     </div>
@@ -6460,7 +6507,7 @@ function PlannerWizardWorkspace() {
                                                             setEditRfqSelected(true);
                                                           }
                                                         }}
-                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-808 focus:border-emerald-808 transition-all font-medium"
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
                                                       >
                                                         <option value="Sent">Sent</option>
                                                         <option value="Replied">Replied</option>
@@ -6485,7 +6532,7 @@ function PlannerWizardWorkspace() {
                                                             setEditRfqStatus('Replied');
                                                           }
                                                         }}
-                                                        className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-808"
+                                                        className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600"
                                                       />
                                                       <label 
                                                         htmlFor={`select-vendor-${emailId}`}
@@ -6504,7 +6551,7 @@ function PlannerWizardWorkspace() {
                                                         placeholder="Add discounts, availability info, or comments here..."
                                                         value={editRfqNotes}
                                                         onChange={(e) => setEditRfqNotes(e.target.value)}
-                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-808 focus:border-emerald-808 transition-all font-medium h-12 resize-none"
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none"
                                                       />
                                                     </div>
                                                   </div>
@@ -6524,7 +6571,7 @@ function PlannerWizardWorkspace() {
                                                       type="button"
                                                       onClick={() => handleSaveInlineRfq(emailLog)}
                                                       disabled={isSavingEditRfq}
-                                                      className="px-3 py-1.5 rounded-lg bg-emerald-805 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
+                                                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
                                                     >
                                                       {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
                                                     </button>

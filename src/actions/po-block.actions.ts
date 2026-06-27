@@ -57,9 +57,14 @@ export async function updatePOBlockAction(
     }
 }
 
+/**
+ * Deletes a PO block along with its associated tour_rfq_emails, tour_rfp_emails,
+ * purchase_order_items, and purchase_orders. Guards against deletion when supplier
+ * invoices exist for the block.
+ */
 export async function deletePOBlockAction(blockId: string) {
     try {
-        await POBlockService.deletePOBlock(blockId);
+        await POBlockService.deleteBlockWithCascade(blockId);
         revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {

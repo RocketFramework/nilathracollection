@@ -27,6 +27,7 @@ import { ItineraryDraftService } from "@/services/itinerary-draft.service";
 import { DraftItineraryVersion, ItineraryLock, InternalItineraryBlock } from "@/other/interfaces";
 import { TourSharedEmailService } from "@/services/tour-shared-email.service";
 import { VendorEmailHistoryService } from "@/services/vendor-email-history.service";
+import { POBlockService } from "@/services/po-block.service";
 import { enforcePermission } from "@/utils/auth-enforcer";
 import { AppSettingsService } from "@/services/app-settings.service";
 import { CustomerInvoiceService } from "@/services/customer-invoice.service";
@@ -1751,7 +1752,9 @@ export async function logRfqEmailAction(
     bodyHtml: string,
     attachments: any,
     quotationRequestId?: string,
-    poBlockId?: string
+    poBlockId?: string,
+    vendorName?: string | null,
+    vendorType?: string | null
 ) {
     try {
         const supabase = await createClient();
@@ -1761,6 +1764,8 @@ export async function logRfqEmailAction(
         const logId = await VendorEmailHistoryService.logRfqEmail({
             tour_id: tourId,
             vendor_id: vendorId || undefined,
+            vendor_name: vendorName || undefined,
+            vendor_type: vendorType || undefined,
             recipient_email: recipientEmail,
             sender_email: senderEmail,
             subject: subject,
@@ -1769,7 +1774,7 @@ export async function logRfqEmailAction(
             sent_by: sentBy,
             daily_activity_vendor_id: quotationRequestId,
             po_block_id: poBlockId
-        });
+        } as any);
 
         return { success: true, logId };
     } catch (error: any) {
@@ -1796,7 +1801,10 @@ export async function logRfpEmailAction(
     subject: string,
     bodyHtml: string,
     attachments: any,
-    poBlockId?: string
+    poBlockId?: string,
+    vendorId?: string | null,
+    vendorName?: string | null,
+    vendorType?: string | null
 ) {
     try {
         const supabase = await createClient();
@@ -1806,6 +1814,9 @@ export async function logRfpEmailAction(
         const logId = await VendorEmailHistoryService.logRfpEmail({
             tour_id: tourId,
             purchase_order_id: purchaseOrderId || undefined,
+            vendor_id: vendorId || undefined,
+            vendor_name: vendorName || undefined,
+            vendor_type: vendorType || undefined,
             recipient_email: recipientEmail,
             sender_email: senderEmail,
             subject: subject,
@@ -1813,7 +1824,7 @@ export async function logRfpEmailAction(
             attachments: attachments,
             sent_by: sentBy,
             po_block_id: poBlockId
-        });
+        } as any);
 
         return { success: true, logId };
     } catch (error: any) {
@@ -1908,7 +1919,11 @@ export async function updateEmailProposalAction(
     }
 ) {
     try {
-        const supabase = await createClient();
+        const clientSupabase = await createClient();
+        const { data: { user } } = await clientSupabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const supabase = createAdminClient();
         const tableName = isRfq ? 'tour_rfq_emails' : 'tour_rfp_emails';
 
         // 1. Update the email record
@@ -1985,5 +2000,17 @@ export async function updateEmailProposalAction(
 
 
 
+export async function deletePoBlockAction(blockId: string) {
+    try {
+        const clientSupabase = await createClient();
+        const { data: { user } } = await clientSupabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
 
-
+        await POBlockService.deleteBlockWithCascade(blockId);
+        revalidatePath("/admin-new");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in deletePoBlockAction:", error);
+        return { success: false, error: error.message || "Failed to delete block." };
+    }
+}

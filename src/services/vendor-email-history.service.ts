@@ -29,6 +29,8 @@ export class VendorEmailHistoryService {
         const insertData: any = {
             tour_id: data.tour_id,
             vendor_id: data.vendor_id || null,
+            vendor_name: (data as any).vendor_name || null,
+            vendor_type: (data as any).vendor_type || null,
             recipient_email: data.recipient_email,
             sender_email: data.sender_email,
             subject: data.subject,
@@ -36,7 +38,8 @@ export class VendorEmailHistoryService {
             attachments: data.attachments || [],
             sent_by: data.sent_by || null,
             daily_activity_vendor_id: rfqId || null,
-            po_block_id: data.po_block_id || null
+            po_block_id: data.po_block_id || null,
+            status: 'Sent'
         };
 
         const { data: inserted, error } = await db
@@ -99,13 +102,17 @@ export class VendorEmailHistoryService {
             .insert([{
                 tour_id: data.tour_id,
                 purchase_order_id: data.purchase_order_id || null,
+                vendor_id: (data as any).vendor_id || null,
+                vendor_name: (data as any).vendor_name || null,
+                vendor_type: (data as any).vendor_type || null,
                 recipient_email: data.recipient_email,
                 sender_email: data.sender_email,
                 subject: data.subject,
                 body_html: (data as any).body_html,
                 attachments: data.attachments || [],
                 sent_by: data.sent_by || null,
-                po_block_id: data.po_block_id || null
+                po_block_id: data.po_block_id || null,
+                status: 'Sent'
             }])
             .select('id')
             .single();
@@ -122,13 +129,21 @@ export class VendorEmailHistoryService {
                 id,
                 tour_id,
                 purchase_order_id,
+                vendor_id,
+                vendor_name,
+                vendor_type,
                 recipient_email,
                 sender_email,
                 subject,
                 attachments,
                 sent_at,
                 sent_by,
-                po_block_id
+                po_block_id,
+                status,
+                replied_date,
+                quoted_price,
+                notes,
+                selected_vendor
             `)
             .eq('tour_id', tourId)
             .order('sent_at', { ascending: false });
