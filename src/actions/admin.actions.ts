@@ -1913,7 +1913,7 @@ export async function updateEmailProposalAction(
     updates: {
         status?: string;
         quoted_price?: number | null;
-        replied_date?: string | null;
+        updated_at?: string | null;
         notes?: string | null;
         selected_vendor?: boolean;
     }
@@ -1926,10 +1926,13 @@ export async function updateEmailProposalAction(
         const supabase = createAdminClient();
         const tableName = isRfq ? 'tour_rfq_emails' : 'tour_rfp_emails';
 
+        // Always stamp updated_at when saving changes
+        const payload = { ...updates, updated_at: new Date().toISOString() };
+
         // 1. Update the email record
         const { data: updated, error: updateErr } = await supabase
             .from(tableName)
-            .update(updates)
+            .update(payload)
             .eq('id', id)
             .select()
             .single();

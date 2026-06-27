@@ -431,7 +431,7 @@ export interface TourRfqEmail {
     vendor_name?: string | null;
     vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
     status?: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
-    replied_date?: string | null;
+    updated_at?: string | null;
     quoted_price?: number | null;
     notes?: string | null;
     selected_vendor?: boolean;
@@ -448,7 +448,7 @@ export interface DailyActivityVendor {
     subject?: string | null;
     email_content?: string | null;
     sent_date?: string | null;
-    replied_date?: string | null;
+    updated_at?: string | null;
     quoted_price?: number | null;
     currency?: string;
     status: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
@@ -456,7 +456,6 @@ export interface DailyActivityVendor {
     notes?: string | null;
     created_by?: string | null;
     created_at?: string;
-    updated_at?: string;
     booking_reference?: string | null;
     cancellation_deadline?: string | null;
     cancellation_policy?: string | null;
@@ -490,7 +489,7 @@ export interface TourRfpEmail {
     vendor_name?: string | null;
     vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
     status?: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
-    replied_date?: string | null;
+    updated_at?: string | null;
     quoted_price?: number | null;
     notes?: string | null;
     selected_vendor?: boolean;

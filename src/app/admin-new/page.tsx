@@ -3589,7 +3589,7 @@ function PlannerWizardWorkspace() {
     setEditRfqStatus(rfq.status || 'Pending');
     setEditRfqQuotedPrice(rfq.quoted_price || 0);
     setEditRfqCurrency(rfq.currency || 'USD');
-    setEditRfqRepliedDate(rfq.replied_date ? new Date(rfq.replied_date).toISOString().split('T')[0] : '');
+    setEditRfqRepliedDate(rfq.updated_at ? new Date(rfq.updated_at).toISOString().split('T')[0] : '');
     setEditRfqNotes(rfq.notes || '');
     setShowEditRfqModal(true);
   };
@@ -3600,7 +3600,7 @@ function PlannerWizardWorkspace() {
     try {
       const updates = {
         status: editRfqStatus,
-        replied_date: editRfqRepliedDate ? new Date(editRfqRepliedDate).toISOString() : null,
+        updated_at: editRfqRepliedDate ? new Date(editRfqRepliedDate).toISOString() : null,
         notes: editRfqNotes || null
       };
 
@@ -3646,7 +3646,6 @@ function PlannerWizardWorkspace() {
       const updates = {
         status: editRfqStatus,
         quoted_price: editRfqQuotedPrice ? Number(editRfqQuotedPrice) : null,
-        replied_date: new Date().toISOString(),
         notes: editRfqNotes || null,
         selected_vendor: editRfqSelected
       };
@@ -3737,7 +3736,6 @@ function PlannerWizardWorkspace() {
       const res = await updateQuotationAction(quoteId, {
         status: 'Replied',
         quoted_price: price,
-        replied_date: new Date().toISOString(),
         notes: inputQuoteNotes || undefined
       });
       if (res.success) {
@@ -6422,8 +6420,13 @@ function PlannerWizardWorkspace() {
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
                                                 <span className="text-[9px] font-mono text-neutral-400">
-                                                  {new Date(emailLog.sent_at).toLocaleString()}
+                                                  Sent: {new Date(emailLog.sent_at).toLocaleString()}
                                                 </span>
+                                                {emailLog.updated_at && (
+                                                  <span className="text-[9px] font-mono text-amber-600 font-semibold">
+                                                    · Updated: {new Date(emailLog.updated_at).toLocaleString()}
+                                                  </span>
+                                                )}
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
                                                   emailLog.status === 'Selected'
                                                     ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
@@ -6668,9 +6671,9 @@ function PlannerWizardWorkspace() {
                                                 {quote.status}
                                               </span>
                                             </div>
-                                            {quote.replied_date && (
+                                            {quote.updated_at && (
                                               <p className="text-[10px] text-neutral-400 mt-1">
-                                                Replied on: {new Date(quote.replied_date).toLocaleDateString()}
+                                                Updated: {new Date(quote.updated_at).toLocaleDateString()}
                                               </p>
                                             )}
                                             {quote.notes && (
