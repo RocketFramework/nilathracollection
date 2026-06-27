@@ -1987,17 +1987,25 @@ function PlannerWizardWorkspace() {
   // Initialize and load PO Blocks
   useEffect(() => {
     if (!tourId || tourId === 'draft-tour') return;
-    if (currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection') {
-      setLoadingBlocks(true);
-      initializeDefaultBlocksAction(tourId).then(res => {
-        if (res.success && res.blocks) {
-          setPoBlocks(res.blocks);
-        } else {
-          console.error("Failed to initialize PO blocks:", res.error);
-        }
-        setLoadingBlocks(false);
-      });
-    }
+    const isPoStep = currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection' || currentStep?.id === 'restaurant-selection';
+    if (!isPoStep) return;
+
+    setLoadingBlocks(true);
+
+    const loader = poBlocks.length === 0
+      // First visit: run full initialize (signature-check, rebuild if needed)
+      ? initializeDefaultBlocksAction(tourId)
+      // Revisit: blocks already in state — just refresh from DB (fast parallel reads)
+      : getPOBlocksAction(tourId);
+
+    loader.then(res => {
+      if (res.success && res.blocks) {
+        setPoBlocks(res.blocks);
+      } else {
+        console.error("Failed to load PO blocks:", res.error);
+      }
+      setLoadingBlocks(false);
+    });
   }, [tourId, currentStep?.id]);
 
   // Load email sharing history logs

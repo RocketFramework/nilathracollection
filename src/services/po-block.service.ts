@@ -5,7 +5,7 @@ export class POBlockService {
     static async getPOBlocksForTour(tourId: string): Promise<POBlock[]> {
         const adminSupabase = createAdminClient();
         
-        // 1. Fetch blocks
+        // 1. Fetch blocks first (needed to derive blockIds for subsequent queries)
         const { data: blocks, error: blocksErr } = await adminSupabase
             .from('po_blocks')
             .select('*')
@@ -15,17 +15,25 @@ export class POBlockService {
         if (blocksErr) throw blocksErr;
         if (!blocks || blocks.length === 0) return [];
 
-        // 2. Fetch block daily activities mappings
         const blockIds = blocks.map(b => b.id);
-        const { data: mappings, error: mapErr } = await adminSupabase
-            .from('po_block_daily_activities')
-            .select('*')
-            .in('po_block_id', blockIds);
 
-        if (mapErr) throw mapErr;
+        // 2. Fetch mappings, activities, and rfq vendors in parallel
+        const [mappingsResult, vendorsResult] = await Promise.all([
+            adminSupabase
+                .from('po_block_daily_activities')
+                .select('*')
+                .in('po_block_id', blockIds),
+            adminSupabase
+                .from('tour_rfq_emails')
+                .select('*')
+                .in('po_block_id', blockIds)
+        ]);
 
-        // 3. Fetch all daily activities for these mappings
-        const dailyActivityIds = mappings?.map(m => m.daily_activity_id) || [];
+        if (mappingsResult.error) throw mappingsResult.error;
+        const mappings = mappingsResult.data || [];
+
+        // 3. Fetch daily activities in parallel with the vendor fetch above
+        const dailyActivityIds = mappings.map(m => m.daily_activity_id);
         let activities: any[] = [];
         if (dailyActivityIds.length > 0) {
             const { data: actData, error: actErr } = await adminSupabase
@@ -35,7 +43,7 @@ export class POBlockService {
             if (actErr) throw actErr;
             
             // Filter out records that are activity_type === 'activity' or 'meal' and all vendor/booking references are null
-            const filteredActivities = (actData || []).filter(act => {
+            activities = (actData || []).filter(act => {
                 const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
                     !act.vendor_id &&
                     !act.restaurant_id &&
@@ -43,24 +51,17 @@ export class POBlockService {
                     !act.hotel_id;
                 return !isInvalidActivity;
             });
-            activities = filteredActivities;
         }
 
-        // 4. Fetch daily activity vendors (quotation requests/proposals) from tour_rfq_emails for these blocks
-        const { data: vendors, error: venErr } = await adminSupabase
-            .from('tour_rfq_emails')
-            .select('*')
-            .in('po_block_id', blockIds);
-            
-        if (venErr) throw venErr;
+        const vendors = vendorsResult.data || [];
 
         // Assemble joins in memory
         return blocks.map(block => {
-            const blockMappings = mappings?.filter(m => m.po_block_id === block.id) || [];
+            const blockMappings = mappings.filter(m => m.po_block_id === block.id);
             const blockActivities = activities.filter(act => 
                 blockMappings.some(m => m.daily_activity_id === act.id)
             );
-            const blockVendors = vendors?.filter(v => v.po_block_id === block.id) || [];
+            const blockVendors = vendors.filter(v => v.po_block_id === block.id);
 
             return {
                 ...block,
@@ -69,6 +70,7 @@ export class POBlockService {
             };
         });
     }
+
 
     static async createPOBlock(
         tourId: string, 
