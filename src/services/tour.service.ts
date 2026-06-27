@@ -162,11 +162,13 @@ export class TourService {
                 await supabaseAdmin.from('daily_activities').insert([{
                     tour_id: newTour.id,
                     itinerary_id: itin.id,
+                    service_date: dayDate || null,
                     title: 'New Activity',
                     activity_type: 'activity',
                     time_start: '09:00:00',
                     time_end: '10:00:00'
                 }]);
+
             } else if (itinErr) {
                 console.error(`Failed to scaffold itinerary day ${i}:`, itinErr);
             }
@@ -769,6 +771,7 @@ export class TourService {
                     id: b.id, // Bind directly to the JSON block ID to ensure 1:1 mapping with the UI
                     tour_id: tourId,
                     itinerary_id: dbItin.id,
+                    service_date: dayDate || null,
                     title: b.name,
                     activity_type: b.type || null,
                     location_name: b.locationName || null,
@@ -794,6 +797,7 @@ export class TourService {
                     parking_included: b.parkingIncluded || false,
                     price_finalized: b.priceFinalized || false
                 };
+
 
                 if (b.isCustomPO) {
                     basePayload.vendor_id = null;

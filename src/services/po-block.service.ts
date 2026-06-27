@@ -38,7 +38,7 @@ export class POBlockService {
         if (dailyActivityIds.length > 0) {
             const { data: actData, error: actErr } = await adminSupabase
                 .from('daily_activities')
-                .select('*, tour_itineraries(day_number, date)')
+                .select('*, tour_itineraries(day_number, date), service_date')
                 .in('id', dailyActivityIds);
             if (actErr) throw actErr;
             
@@ -55,12 +55,19 @@ export class POBlockService {
 
         const vendors = vendorsResult.data || [];
 
-        // Assemble joins in memory
+        // Assemble joins in memory — sort activities within each block by service_date ascending
         return blocks.map(block => {
             const blockMappings = mappings.filter(m => m.po_block_id === block.id);
-            const blockActivities = activities.filter(act => 
-                blockMappings.some(m => m.daily_activity_id === act.id)
-            );
+            const blockActivities = activities
+                .filter(act => blockMappings.some(m => m.daily_activity_id === act.id))
+                .sort((a, b) => {
+                    const dateA = a.service_date || a.tour_itineraries?.date || '';
+                    const dateB = b.service_date || b.tour_itineraries?.date || '';
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;  // nulls last
+                    if (!dateB) return -1;
+                    return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
+                });
             const blockVendors = vendors.filter(v => v.po_block_id === block.id);
 
             return {
@@ -70,6 +77,7 @@ export class POBlockService {
             };
         });
     }
+
 
 
     static async createPOBlock(
@@ -319,10 +327,15 @@ export class POBlockService {
                 nonFinalizedBlocks.flatMap(b => b.daily_activities || [])
             );
 
-            if (incomingSig === existingSig) {
+            // Guard: if all non-finalized blocks have zero activities mapped,
+            // the mappings are missing — force a rebuild regardless of signatures.
+            const allBlocksHaveNoMappings = nonFinalizedBlocks.every(b => (b.daily_activities || []).length === 0);
+
+            if (!allBlocksHaveNoMappings && incomingSig === existingSig) {
                 return existingBlocks; // Nothing changed — skip all writes
             }
         }
+
 
         // Delete non-finalized blocks (cascade handles mapping rows)
         if (nonFinalizedBlocks.length > 0) {

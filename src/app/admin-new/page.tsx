@@ -394,6 +394,7 @@ function PlannerWizardWorkspace() {
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
   const [isHotelChanging, setIsHotelChanging] = useState<boolean>(false);
   const [isRestaurantChanging, setIsRestaurantChanging] = useState<boolean>(false);
+  const [isApplyingRateOverride, setIsApplyingRateOverride] = useState<boolean>(false);
   const [restaurantPickerOpenBlockId, setRestaurantPickerOpenBlockId] = useState<string | null>(null);
   const [restaurantPickerSearch, setRestaurantPickerSearch] = useState<string>('');
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -1321,6 +1322,8 @@ function PlannerWizardWorkspace() {
     const totalPrice = isNaN(parsedTotal) ? undefined : parsedTotal;
     const note = customRateNote.trim() || undefined;
 
+    setIsApplyingRateOverride(true);
+
     setTripData({
       ...tripData,
       accommodations: tripData.accommodations.map(a => {
@@ -1335,7 +1338,30 @@ function PlannerWizardWorkspace() {
         return a;
       })
     });
+
+    // Also patch poBlocks state immediately so hotel-selection reflects the new
+    // contracted rates without requiring a full page reload.
+    const actId = editingCustomRateAct.id;
+    if (actId && (unitPrice !== undefined || totalPrice !== undefined)) {
+      setPoBlocks(prev =>
+        prev.map(block => ({
+          ...block,
+          daily_activities: (block.daily_activities || []).map((act: any) => {
+            if (act.id !== actId) return act;
+            return {
+              ...act,
+              contracted_price: unitPrice ?? act.contracted_price,
+              contracted_total_price: totalPrice ?? act.contracted_total_price,
+              description: note ?? act.description,
+            };
+          }),
+        }))
+      );
+    }
+
     setEditingCustomRateAct(null);
+    // Clear the progress indicator after React has flushed the state updates
+    setTimeout(() => setIsApplyingRateOverride(false), 400);
   };
 
   const handleResetCustomRateOverride = () => {
@@ -1992,10 +2018,14 @@ function PlannerWizardWorkspace() {
 
     setLoadingBlocks(true);
 
-    const loader = poBlocks.length === 0
-      // First visit: run full initialize (signature-check, rebuild if needed)
+    // Run full initialize when:
+    // 1. No blocks in state yet (first visit), OR
+    // 2. Blocks exist but ALL have empty daily_activities — mappings are missing in DB
+    const blocksMissingMappings = poBlocks.length > 0 && poBlocks.every(b => (b.daily_activities || []).length === 0);
+    const needsInitialize = poBlocks.length === 0 || blocksMissingMappings;
+
+    const loader = needsInitialize
       ? initializeDefaultBlocksAction(tourId)
-      // Revisit: blocks already in state — just refresh from DB (fast parallel reads)
       : getPOBlocksAction(tourId);
 
     loader.then(res => {
@@ -2007,6 +2037,7 @@ function PlannerWizardWorkspace() {
       setLoadingBlocks(false);
     });
   }, [tourId, currentStep?.id]);
+
 
   // Load email sharing history logs
   useEffect(() => {
@@ -4690,6 +4721,53 @@ function PlannerWizardWorkspace() {
           </button>
         </div>
       </header>
+
+      {/* Global background-work progress bar */}
+      {(() => {
+        const busy =
+          isHotelChanging ||
+          isRestaurantChanging ||
+          isApplyingRateOverride ||
+          loadingBlocks ||
+          isLoadingDbActivities ||
+          isLoadingProcurement ||
+          isSubmittingRfq ||
+          isUploadingPayslip ||
+          isGeneratingCustomerInvoice;
+
+        const label = isHotelChanging ? 'Saving hotel change…'
+          : isRestaurantChanging ? 'Saving restaurant change…'
+          : isApplyingRateOverride ? 'Applying rate override…'
+          : loadingBlocks ? 'Loading blocks…'
+          : isLoadingDbActivities ? 'Syncing itinerary data…'
+          : isLoadingProcurement ? 'Loading procurement data…'
+          : isSubmittingRfq ? 'Sending RFQ email…'
+          : isUploadingPayslip ? 'Uploading payslip…'
+          : isGeneratingCustomerInvoice ? 'Generating invoice…'
+          : '';
+
+        return (
+          <div
+            className="shrink-0 h-[3px] bg-neutral-100 overflow-hidden relative"
+            aria-hidden={!busy}
+          >
+            {busy && (
+              <>
+                <div
+                  className="absolute inset-0 h-full bg-emerald-500/20"
+                />
+                <div
+                  className="absolute inset-y-0 left-0 h-full bg-emerald-600 rounded-full"
+                  style={{ animation: 'progressSlide 1.4s ease-in-out infinite' }}
+                />
+                <div className="absolute right-4 -bottom-5 text-[9px] font-bold text-emerald-700 uppercase tracking-wider whitespace-nowrap pointer-events-none">
+                  {label}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 2. Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden">
