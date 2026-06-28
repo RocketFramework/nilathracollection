@@ -151,7 +151,9 @@ import {
   createPOBlockAction,
   updatePOBlockAction,
   deletePOBlockAction,
-  finalizePOBlockAction
+  finalizePOBlockAction,
+  getGuideDailyActivitiesAction,
+  saveGuideDailyActivitiesAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -582,6 +584,67 @@ function PlannerWizardWorkspace() {
   const [manualDouble, setManualDouble] = useState<number>(1);
   const [manualTriple, setManualTriple] = useState<number>(0);
   const [manualFamily, setManualFamily] = useState<number>(0);
+
+  // Guide-Selection states
+  const [guideActivities, setGuideActivities] = useState<any[]>([]);
+  const [guideRatesState, setGuideRatesState] = useState<Record<string, Record<number, { rateType: string; contractedPrice: number; chargedPrice: number; note: string }>>>({});
+
+
+  const [isSavingGuideRates, setIsSavingGuideRates] = useState<string | null>(null);
+
+  const saveGuideRates = async (guideId: string) => {
+    setIsSavingGuideRates(guideId);
+    try {
+      const guideRates = guideRatesState[guideId];
+      if (!guideRates) return;
+      
+      const arrivalDate = touristData?.preferences?.arrival_date || '';
+      const numDays = touristData?.preferences?.duration_days || 5;
+      
+      const activitiesToSave = [];
+      
+      for (let idx = 0; idx < numDays; idx++) {
+        const dayNum = idx + 1;
+        const rateData = guideRates[dayNum];
+        if (!rateData) continue;
+        
+        let dateStr = '';
+        if (arrivalDate) {
+          try {
+            const d = new Date(arrivalDate);
+            d.setDate(d.getDate() + idx);
+            dateStr = d.toISOString().split('T')[0];
+          } catch (e) {}
+        }
+        
+        activitiesToSave.push({
+          service_date: dateStr || null,
+          quantity: 1,
+          contracted_price: rateData.contractedPrice,
+          contracted_total_price: rateData.contractedPrice,
+          charged_unit_price: rateData.chargedPrice,
+          charged_total_price: rateData.chargedPrice,
+          description: rateData.note || `Rate Type: ${rateData.rateType}`
+        });
+      }
+      
+      const res = await saveGuideDailyActivitiesAction(tourId, guideId, activitiesToSave);
+      if (res.success) {
+        const reloadRes = await getGuideDailyActivitiesAction(tourId);
+        if (reloadRes.success && reloadRes.activities) {
+          setGuideActivities(reloadRes.activities);
+        }
+        alert("Guide rates saved successfully!");
+      } else {
+        alert(res.error || "Failed to save guide rates.");
+      }
+    } catch (err) {
+      console.error("Error saving guide rates:", err);
+      alert("Error saving guide rates.");
+    } finally {
+      setIsSavingGuideRates(null);
+    }
+  };
 
   // Master Data State for Binders
   const [masterData, setMasterData] = useState<any>({
@@ -1986,7 +2049,8 @@ function PlannerWizardWorkspace() {
         icon: Shield 
       });
     }
-    if (elements.guide) {
+    const hasGuideBlock = poBlocks.some((b: any) => b.block_type === 'guide');
+    if (elements.guide && hasGuideBlock) {
       list.push({ 
         id: 'guide-selection', 
         label: 'Guide Selection', 
@@ -2166,6 +2230,100 @@ function PlannerWizardWorkspace() {
       loadCustomerInvoices();
     }
   }, [currentStep?.id, tourId]);
+
+  // Load guide daily activities & initialize rates editing state
+  useEffect(() => {
+    if (currentStep?.id === 'guide-selection' && tourId) {
+      (async () => {
+        const res = await getGuideDailyActivitiesAction(tourId);
+        if (res.success && res.activities) {
+          setGuideActivities(res.activities);
+        }
+      })();
+    }
+  }, [currentStep?.id, tourId]);
+
+  useEffect(() => {
+    if (currentStep?.id === 'guide-selection' && tourId && poBlocks.length > 0) {
+      const guideBlocks = poBlocks.filter((b: any) => b.block_type === 'guide');
+      const arrivalDate = touristData?.preferences?.arrival_date || '';
+      const numDays = touristData?.preferences?.duration_days || 5;
+      
+      const initialRates: typeof guideRatesState = {};
+      
+      guideBlocks.forEach((block: any) => {
+        const guideId = block.name.split(' | ID: ')[1];
+        if (!guideId) return;
+        
+        initialRates[guideId] = {};
+        
+        const guideActsForThisGuide = guideActivities.filter((act: any) => act.guide_id === guideId);
+        
+        for (let idx = 0; idx < numDays; idx++) {
+          const dayNum = idx + 1;
+          let dateStr = '';
+          if (arrivalDate) {
+            try {
+              const d = new Date(arrivalDate);
+              d.setDate(d.getDate() + idx);
+              dateStr = d.toISOString().split('T')[0];
+            } catch (e) {}
+          }
+          
+          const existingAct = guideActsForThisGuide.find((act: any) => {
+            const actDate = act.service_date?.split('T')[0];
+            return actDate === dateStr;
+          });
+          
+          if (existingAct) {
+            initialRates[guideId][dayNum] = {
+              rateType: existingAct.description?.startsWith('Rate Type: ') 
+                ? existingAct.description.substring(11).split(' - ')[0] 
+                : 'Custom',
+              contractedPrice: existingAct.contracted_price || 0,
+              chargedPrice: existingAct.charged_unit_price || 0,
+              note: existingAct.description || ''
+            };
+          } else {
+            const guide = masterData.guides?.find((g: any) => g.id === guideId);
+            const defaultRate = guide?.daily_rate || 20;
+            
+            let defaultRateType = 'Guide Default';
+            let initialContracted = defaultRate;
+            
+            const styleKey = (TravelStyleSettingKeys as Record<string, string>)[touristData?.preferences?.travel_style || 'Luxury'] || 'luxury';
+            let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
+            if (touristData?.preferences?.travel_style === TRAVEL_STYLES.REGULAR) {
+              guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
+              defaultRateType = 'Location Rate';
+            } else if (touristData?.preferences?.travel_style === TRAVEL_STYLES.PREMIUM) {
+              guideDayRateKey = GUIDE_RATE_KEYS.REGULAR;
+              defaultRateType = 'Regular Rate';
+            } else {
+              guideDayRateKey = GUIDE_RATE_KEYS.NATIONAL;
+              defaultRateType = 'National Rate';
+            }
+            
+            if (appSettings && appSettings[guideDayRateKey] !== undefined) {
+              initialContracted = Number(appSettings[guideDayRateKey]) || defaultRate;
+            }
+            
+            const markupPercent = Number(appSettings?.[Settings.Tour_Guide_Markup]) || 0;
+            const initialCharged = initialContracted * (1 + markupPercent / 100);
+            
+            initialRates[guideId][dayNum] = {
+              rateType: defaultRateType,
+              contractedPrice: initialContracted,
+              chargedPrice: initialCharged,
+              note: `Rate Type: ${defaultRateType}`
+            };
+          }
+        }
+      });
+      
+      setGuideRatesState(initialRates);
+    }
+  }, [currentStep?.id, guideActivities, poBlocks, touristData, appSettings, masterData.guides]);
 
   // Sync shareEditorRef on navigation/tab switch
   useEffect(() => {
@@ -2441,7 +2599,7 @@ function PlannerWizardWorkspace() {
             activeElements.restaurant && 'restaurant-selection',
             activeElements.transport && 'transport-provider',
             activeElements.security && 'security-service',
-            activeElements.guide && 'guide-selection',
+            (activeElements.guide && poBlocks.some((b: any) => b.block_type === 'guide')) && 'guide-selection',
             activeElements.driver && 'driver-selection',
             'payment-receive',
             'finance-controlling',
@@ -3436,11 +3594,11 @@ function PlannerWizardWorkspace() {
 
         let reqStr = '';
         let totalQty = 0;
-        if (act.isCustomPO) {
-            reqStr = `Custom: ${act.title || act.name || 'Additional Service'}`;
+        if (act.isCustomPO || act.title === 'Tour Guide Services' || act.activity_type === 'travel') {
+            reqStr = act.title || act.name || act.description || 'Service';
             totalQty = act.quantity || 1;
         } else if (activeRooms.length === 0) {
-            reqStr = room?.room_name || 'Room';
+            reqStr = room?.room_name || act.title || act.name || 'Room';
             totalQty = act.quantity || 1;
         } else {
             reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
@@ -6013,6 +6171,7 @@ function PlannerWizardWorkspace() {
                                           (block.block_type === 'accommodation' || block.block_type === 'sleep') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
                                           block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
                                           (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                          block.block_type === 'guide' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
                                           'bg-emerald-50 text-emerald-700 border border-emerald-100'
                                         }`}>
                                           {block.block_type.toUpperCase()}
@@ -6026,7 +6185,9 @@ function PlannerWizardWorkspace() {
                                             autoFocus
                                           />
                                         ) : (
-                                          <span className="text-xs font-bold text-neutral-700">{block.name}</span>
+                                          <span className="text-xs font-bold text-neutral-700">
+                                            {block.name.replace(/ \| ID: .*/, '')}
+                                          </span>
                                         )}
                                       </div>
                                       <div className="flex items-center gap-1">
@@ -8351,6 +8512,297 @@ function PlannerWizardWorkspace() {
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'guide-selection' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-emerald-800" />
+                        Guide Selection & Rates
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Review expert guides assigned to the tour, select app setting rates or guide defaults, and save daily rates.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(() => {
+                        const guideBlocks = poBlocks.filter((b: any) => b.block_type === 'guide');
+                        const arrivalDate = touristData?.preferences?.arrival_date || '';
+                        const numDays = touristData?.preferences?.duration_days || 5;
+                        const tourDays = Array.from({ length: numDays }, (_, idx) => {
+                          const dayNum = idx + 1;
+                          let dateStr = '';
+                          if (arrivalDate) {
+                            try {
+                              const d = new Date(arrivalDate);
+                              d.setDate(d.getDate() + idx);
+                              dateStr = d.toISOString().split('T')[0];
+                            } catch (e) {}
+                          }
+                          return { dayNum, dateStr };
+                        });
+
+                        if (guideBlocks.length === 0) {
+                          return (
+                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                              <UserCheck className="w-8 h-8 text-neutral-300 mb-2" />
+                              <span className="text-xs font-bold text-neutral-500">No guides configured</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">
+                                There are no guides assigned to activities in the itinerary.
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return guideBlocks.map((block: any) => {
+                          const guideId = block.name.split(' | ID: ')[1];
+                          const guide = masterData.guides?.find((g: any) => g.id === guideId);
+                          const cleanBlockName = block.name.split(' | ')[0];
+                          const rates = guideRatesState[guideId] || {};
+                          
+                          // Calculate block totals
+                          let totalContracted = 0;
+                          let totalCharged = 0;
+                          Object.values(rates).forEach((r: any) => {
+                            totalContracted += r.contractedPrice || 0;
+                            totalCharged += r.chargedPrice || 0;
+                          });
+
+                          return (
+                            <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              {/* Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 bg-teal-50 text-teal-700 border border-teal-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      Guide Block
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                      {guide ? `${guide.first_name || ''} ${guide.last_name || ''}` : 'Unassigned Guide'}
+                                    </h4>
+                                  </div>
+                                  <p className="text-xs text-neutral-500">
+                                    {guide ? `Phone: ${guide.phone || 'N/A'} | Languages: ${guide.languages || 'N/A'}` : 'Assign a guide in the itinerary.'}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => saveGuideRates(guideId)}
+                                    disabled={isSavingGuideRates === guideId || isLockedByOther}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                  >
+                                    {isSavingGuideRates === guideId ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Saving...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Save className="w-3.5 h-3.5" />
+                                        <span>Save Guide PO & Rates</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {guide && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const guideStays = guideActivities.filter((act: any) => act.guide_id === guideId);
+                                        if (guideStays.length === 0) {
+                                          alert("Please save guide rates first before generating a Purchase Order.");
+                                          return;
+                                        }
+                                        const vendorObj = {
+                                          ...guide,
+                                          name: `${guide.first_name || ''} ${guide.last_name || ''}`,
+                                          reservation_email: ''
+                                        };
+                                        handleOpenPoModal(vendorObj, guideStays, block.id);
+                                      }}
+                                      disabled={isLockedByOther}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" />
+                                      <span>Create PO</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Rates Table */}
+                              <div className="overflow-x-auto border border-neutral-200/60 rounded-2xl bg-white">
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-neutral-50 border-b border-neutral-200/60">
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Day / Date</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Rate Type Preset</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Contracted Price ($)</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Charged Price ($)</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Note / Remarks</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                    {tourDays.map((day) => {
+                                      const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, chargedPrice: 0, note: '' };
+                                      const guideDefaultRate = guide?.daily_rate || 20;
+                                      
+                                      const markupPercent = Number(appSettings?.[Settings.Tour_Guide_Markup]) || 0;
+
+                                      return (
+                                        <tr key={day.dayNum} className="hover:bg-neutral-50/40 transition-colors">
+                                          <td className="p-3.5 font-medium text-neutral-800">
+                                            <span className="font-bold">Day {day.dayNum}</span>
+                                            {day.dateStr && (
+                                              <span className="block text-[10px] text-neutral-400 mt-0.5">
+                                                {formatDate(day.dateStr)}
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="p-3.5">
+                                            <select
+                                              value={dayRate.rateType}
+                                              onChange={(e) => {
+                                                const type = e.target.value;
+                                                let contracted = dayRate.contractedPrice;
+                                                
+                                                if (type === 'National Rate') {
+                                                  contracted = Number(appSettings?.guide_national_day_rate) || 0;
+                                                } else if (type === 'Regular Rate') {
+                                                  contracted = Number(appSettings?.guide_regular_day_rate) || 0;
+                                                } else if (type === 'Location Rate') {
+                                                  contracted = Number(appSettings?.guide_location_day_rate) || 0;
+                                                } else if (type === 'Guide Default') {
+                                                  contracted = guideDefaultRate;
+                                                }
+                                                
+                                                const charged = contracted * (1 + markupPercent / 100);
+                                                
+                                                setGuideRatesState(prev => ({
+                                                  ...prev,
+                                                  [guideId]: {
+                                                    ...prev[guideId],
+                                                    [day.dayNum]: {
+                                                      ...prev[guideId][day.dayNum],
+                                                      rateType: type,
+                                                      contractedPrice: contracted,
+                                                      chargedPrice: parseFloat(charged.toFixed(2)),
+                                                      note: `Rate Type: ${type}`
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="border border-neutral-200 rounded-lg px-2 py-1 text-xs bg-white text-neutral-700 focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            >
+                                              <option value="National Rate">National Rate (${appSettings?.guide_national_day_rate || 0})</option>
+                                              <option value="Regular Rate">Regular Rate (${appSettings?.guide_regular_day_rate || 0})</option>
+                                              <option value="Location Rate">Location Rate (${appSettings?.guide_location_day_rate || 0})</option>
+                                              <option value="Guide Default">Guide Default (${guideDefaultRate})</option>
+                                              <option value="Custom">Custom Rate</option>
+                                            </select>
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={dayRate.contractedPrice}
+                                              onChange={(e) => {
+                                                const contracted = parseFloat(e.target.value) || 0;
+                                                const charged = contracted * (1 + markupPercent / 100);
+                                                setGuideRatesState(prev => ({
+                                                  ...prev,
+                                                  [guideId]: {
+                                                    ...prev[guideId],
+                                                    [day.dayNum]: {
+                                                      ...prev[guideId][day.dayNum],
+                                                      rateType: 'Custom',
+                                                      contractedPrice: contracted,
+                                                      chargedPrice: parseFloat(charged.toFixed(2))
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={dayRate.chargedPrice}
+                                              onChange={(e) => {
+                                                const charged = parseFloat(e.target.value) || 0;
+                                                setGuideRatesState(prev => ({
+                                                  ...prev,
+                                                  [guideId]: {
+                                                    ...prev[guideId],
+                                                    [day.dayNum]: {
+                                                      ...prev[guideId][day.dayNum],
+                                                      chargedPrice: charged
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="text"
+                                              placeholder="Remarks..."
+                                              value={dayRate.note}
+                                              onChange={(e) => {
+                                                const note = e.target.value;
+                                                setGuideRatesState(prev => ({
+                                                  ...prev,
+                                                  [guideId]: {
+                                                    ...prev[guideId],
+                                                    [day.dayNum]: {
+                                                      ...prev[guideId][day.dayNum],
+                                                      note: note
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-full border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Block Summary Footer */}
+                              <div className="bg-emerald-50/20 border border-emerald-100/50 rounded-2xl p-4 flex justify-between items-center mt-2">
+                                <div>
+                                  <span className="text-[9px] text-neutral-450 uppercase block font-mono font-bold">Accumulated Cost (Contracted)</span>
+                                  <span className="font-mono text-neutral-700 font-extrabold text-base">
+                                    ${totalContracted.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[9px] text-emerald-600 uppercase block font-mono font-bold">Accumulated Charged (Selling)</span>
+                                  <span className="font-mono text-emerald-800 font-extrabold text-base">
+                                    ${totalCharged.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           );
                         });

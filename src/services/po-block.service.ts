@@ -83,7 +83,7 @@ export class POBlockService {
     static async createPOBlock(
         tourId: string, 
         name: string, 
-        blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity', 
+        blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide', 
         blockNumber: number, 
         dailyActivityIds: string[]
     ): Promise<POBlock> {
@@ -123,7 +123,7 @@ export class POBlockService {
     static async updatePOBlock(
         blockId: string,
         name: string,
-        blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity',
+        blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide',
         dailyActivityIds: string[]
     ): Promise<void> {
         const adminSupabase = createAdminClient();
@@ -319,7 +319,7 @@ export class POBlockService {
         // FIX B: Compare activity signatures — skip full rebuild if nothing changed
         if (nonFinalizedBlocks.length > 0) {
             const buildSig = (acts: any[]) =>
-                acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.transport_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}`)
+                acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.transport_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}:${a.guide_id || ''}`)
                     .sort().join('|');
 
             const incomingSig = buildSig(activitiesToGroup);
@@ -363,7 +363,7 @@ export class POBlockService {
         });
 
         const hotelIds = Array.from(sleepGroups.keys()).filter(Boolean) as string[];
-        const [{ data: hotelsData }, travelResult, restaurantResult, vendorResult] = await Promise.all([
+        const [{ data: hotelsData }, travelResult, restaurantResult, vendorResult, guideResult] = await Promise.all([
             hotelIds.length > 0
                 ? adminSupabase.from('hotels').select('id, name').in('id', hotelIds)
                 : Promise.resolve({ data: [] as any[], error: null }),
@@ -408,6 +408,14 @@ export class POBlockService {
                     ? await adminSupabase.from('vendors').select('id, name').in('id', vendorIds)
                     : { data: [] as any[] };
                 return { groups: actGroups, lookup: vendors || [] };
+            })(),
+            // ── 5. GUIDE: group by guide_id ─────────────────────────────────────────
+            (async () => {
+                const guideIds = Array.from(new Set(activitiesToGroup.map(a => a.guide_id).filter(Boolean))) as string[];
+                const { data: guides } = guideIds.length > 0
+                    ? await adminSupabase.from('tour_guides').select('id, name, daily_rate').in('id', guideIds)
+                    : { data: [] as any[] };
+                return { guideIds, lookup: guides || [] };
             })()
         ]);
 
@@ -415,6 +423,7 @@ export class POBlockService {
         const { groups: travelGroups, lookup: transportProviders } = travelResult;
         const { groups: mealGroups, lookup: restaurants } = restaurantResult;
         const { groups: activityGroups, lookup: activityVendors } = vendorResult;
+        const { guideIds, lookup: tourGuides } = guideResult;
 
         // Build all descriptors, then batch-insert each category
         const sleepDescriptors = Array.from(sleepGroups.entries()).map(([hotelId, group]) => ({
@@ -445,12 +454,23 @@ export class POBlockService {
             dailyActivityIds: group.map(a => a.id)
         }));
 
+        const guideDescriptors = guideIds.map(guideId => {
+            const guide = tourGuides.find((g: any) => g.id === guideId);
+            return {
+                name: `Guide: ${guide?.name || 'Unassigned Guide'} | ID: ${guideId}`,
+                blockType: 'guide',
+                blockNumber: currentBlockNumber++,
+                dailyActivityIds: [] // Keep empty!
+            };
+        });
+
         // Batch create all block types in parallel (each batch is 2 calls: insert blocks + insert mappings)
         await Promise.all([
             this.createPOBlocksBatch(tourId, sleepDescriptors),
             this.createPOBlocksBatch(tourId, travelDescriptors),
             this.createPOBlocksBatch(tourId, mealDescriptors),
-            this.createPOBlocksBatch(tourId, activityDescriptors)
+            this.createPOBlocksBatch(tourId, activityDescriptors),
+            this.createPOBlocksBatch(tourId, guideDescriptors)
         ]);
 
         return this.getPOBlocksForTour(tourId);
@@ -466,5 +486,55 @@ export class POBlockService {
             })
             .eq('id', blockId);
         if (error) throw error;
+    }
+
+    static async getGuideDailyActivitiesForTour(tourId: string): Promise<any[]> {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('daily_activities')
+            .select('*')
+            .eq('tour_id', tourId)
+            .eq('activity_type', 'travel')
+            .is('transport_id', null)
+            .is('vendor_id', null)
+            .not('guide_id', 'is', null);
+        if (error) throw error;
+        return data || [];
+    }
+
+    static async saveGuideDailyActivities(tourId: string, guideId: string, activities: any[]): Promise<void> {
+        const adminSupabase = createAdminClient();
+        
+        // 1. Delete existing guide activities for this guide
+        const { error: deleteErr } = await adminSupabase
+            .from('daily_activities')
+            .delete()
+            .eq('tour_id', tourId)
+            .eq('activity_type', 'travel')
+            .is('transport_id', null)
+            .is('vendor_id', null)
+            .eq('guide_id', guideId);
+            
+        if (deleteErr) throw deleteErr;
+        
+        // 2. Insert new ones
+        if (activities.length > 0) {
+            const { error: insertErr } = await adminSupabase
+                .from('daily_activities')
+                .insert(activities.map(act => ({
+                    tour_id: tourId,
+                    activity_type: 'travel',
+                    guide_id: guideId,
+                    service_date: act.service_date,
+                    quantity: act.quantity || 1,
+                    contracted_price: act.contracted_price || 0,
+                    contracted_total_price: act.contracted_total_price || 0,
+                    charged_unit_price: act.charged_unit_price || 0,
+                    charged_total_price: act.charged_total_price || 0,
+                    title: 'Tour Guide Services',
+                    description: act.description || ''
+                })));
+            if (insertErr) throw insertErr;
+        }
     }
 }

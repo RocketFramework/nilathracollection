@@ -27,7 +27,7 @@ export async function getPOBlocksAction(tourId: string) {
 export async function createPOBlockAction(
     tourId: string, 
     name: string, 
-    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity', 
+    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide', 
     blockNumber: number, 
     dailyActivityIds: string[]
 ) {
@@ -44,7 +44,7 @@ export async function createPOBlockAction(
 export async function updatePOBlockAction(
     blockId: string,
     name: string,
-    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity',
+    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide',
     dailyActivityIds: string[]
 ) {
     try {
@@ -81,5 +81,26 @@ export async function finalizePOBlockAction(blockId: string) {
     } catch (error: any) {
         console.error("Error finalizing block:", error);
         return { success: false, error: error.message || "Failed to finalize block." };
+    }
+}
+
+export async function getGuideDailyActivitiesAction(tourId: string) {
+    try {
+        const activities = await POBlockService.getGuideDailyActivitiesForTour(tourId);
+        return { success: true, activities };
+    } catch (error: any) {
+        console.error("Error fetching guide activities:", error);
+        return { success: false, error: error.message || "Failed to fetch guide activities." };
+    }
+}
+
+export async function saveGuideDailyActivitiesAction(tourId: string, guideId: string, activities: any[]) {
+    try {
+        await POBlockService.saveGuideDailyActivities(tourId, guideId, activities);
+        revalidatePath(`/admin-new`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving guide activities:", error);
+        return { success: false, error: error.message || "Failed to save guide activities." };
     }
 }
