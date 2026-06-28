@@ -27,7 +27,7 @@ export async function getPOBlocksAction(tourId: string) {
 export async function createPOBlockAction(
     tourId: string, 
     name: string, 
-    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide', 
+    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide' | 'driver', 
     blockNumber: number, 
     dailyActivityIds: string[]
 ) {
@@ -44,7 +44,7 @@ export async function createPOBlockAction(
 export async function updatePOBlockAction(
     blockId: string,
     name: string,
-    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide',
+    blockType: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide' | 'driver',
     dailyActivityIds: string[]
 ) {
     try {
@@ -102,5 +102,26 @@ export async function saveGuideDailyActivitiesAction(tourId: string, guideId: st
     } catch (error: any) {
         console.error("Error saving guide activities:", error);
         return { success: false, error: error.message || "Failed to save guide activities." };
+    }
+}
+
+export async function getDriverDailyActivitiesAction(tourId: string) {
+    try {
+        const activities = await POBlockService.getDriverDailyActivitiesForTour(tourId);
+        return { success: true, activities };
+    } catch (error: any) {
+        console.error("Error fetching driver activities:", error);
+        return { success: false, error: error.message || "Failed to fetch driver activities." };
+    }
+}
+
+export async function saveDriverDailyActivitiesAction(tourId: string, driverId: string, activities: any[]) {
+    try {
+        await POBlockService.saveDriverDailyActivities(tourId, driverId, activities);
+        revalidatePath(`/admin-new`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving driver activities:", error);
+        return { success: false, error: error.message || "Failed to save driver activities." };
     }
 }

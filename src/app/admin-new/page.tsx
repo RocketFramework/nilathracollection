@@ -153,7 +153,9 @@ import {
   deletePOBlockAction,
   finalizePOBlockAction,
   getGuideDailyActivitiesAction,
-  saveGuideDailyActivitiesAction
+  saveGuideDailyActivitiesAction,
+  getDriverDailyActivitiesAction,
+  saveDriverDailyActivitiesAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -643,6 +645,66 @@ function PlannerWizardWorkspace() {
       alert("Error saving guide rates.");
     } finally {
       setIsSavingGuideRates(null);
+    }
+  };
+
+
+  // Driver-Selection states
+  const [driverActivities, setDriverActivities] = useState<any[]>([]);
+  const [driverRatesState, setDriverRatesState] = useState<Record<string, Record<number, { rateType: string; contractedPrice: number; chargedPrice: number; note: string }>>>({});
+  const [isSavingDriverRates, setIsSavingDriverRates] = useState<string | null>(null);
+
+  const saveDriverRates = async (driverId: string) => {
+    setIsSavingDriverRates(driverId);
+    try {
+      const driverRates = driverRatesState[driverId];
+      if (!driverRates) return;
+      
+      const arrivalDate = touristData?.preferences?.arrival_date || '';
+      const numDays = touristData?.preferences?.duration_days || 5;
+      
+      const activitiesToSave = [];
+      
+      for (let idx = 0; idx < numDays; idx++) {
+        const dayNum = idx + 1;
+        const rateData = driverRates[dayNum];
+        if (!rateData) continue;
+        
+        let dateStr = '';
+        if (arrivalDate) {
+          try {
+            const d = new Date(arrivalDate);
+            d.setDate(d.getDate() + idx);
+            dateStr = d.toISOString().split('T')[0];
+          } catch (e) {}
+        }
+        
+        activitiesToSave.push({
+          service_date: dateStr || null,
+          quantity: 1,
+          contracted_price: rateData.contractedPrice,
+          contracted_total_price: rateData.contractedPrice,
+          charged_unit_price: rateData.chargedPrice,
+          charged_total_price: rateData.chargedPrice,
+          description: rateData.note || `Rate Type: ${rateData.rateType}`
+        });
+      }
+      
+      const res = await saveDriverDailyActivitiesAction(tourId, driverId, activitiesToSave);
+      if (res.success) {
+        const reloadRes = await getDriverDailyActivitiesAction(tourId);
+        if (reloadRes.success && reloadRes.activities) {
+          setDriverActivities(reloadRes.activities);
+        }
+        alert("Driver rates saved successfully!");
+      } else {
+        alert(res.error || "Failed to save driver rates.");
+      }
+    } catch (err) {
+      console.error("Error saving driver rates:", err);
+      alert("Error saving driver rates.");
+    } finally {
+      setIsSavingDriverRates(null);
     }
   };
 
@@ -2058,7 +2120,8 @@ function PlannerWizardWorkspace() {
         icon: UserCheck 
       });
     }
-    if (elements.driver) {
+    const hasDriverBlock = poBlocks.some((b: any) => b.block_type === 'driver');
+    if (elements.driver && hasDriverBlock) {
       list.push({ 
         id: 'driver-selection', 
         label: 'Driver Selection', 
@@ -2324,6 +2387,108 @@ function PlannerWizardWorkspace() {
       setGuideRatesState(initialRates);
     }
   }, [currentStep?.id, guideActivities, poBlocks, touristData, appSettings, masterData.guides]);
+
+  // Load driver daily activities & initialize rates editing state
+  useEffect(() => {
+    if (currentStep?.id === 'driver-selection' && tourId) {
+      (async () => {
+        const res = await getDriverDailyActivitiesAction(tourId);
+        if (res.success && res.activities) {
+          setDriverActivities(res.activities);
+        }
+      })();
+    }
+  }, [currentStep?.id, tourId]);
+
+  useEffect(() => {
+    if (currentStep?.id === 'driver-selection' && tourId && poBlocks.length > 0) {
+      const driverBlocks = poBlocks.filter((b: any) => b.block_type === 'driver');
+      const arrivalDate = touristData?.preferences?.arrival_date || '';
+      const numDays = touristData?.preferences?.duration_days || 5;
+      
+      const initialRates: typeof driverRatesState = {};
+      
+      driverBlocks.forEach((block: any) => {
+        const driverId = block.name.split(' | ID: ')[1];
+        if (!driverId) return;
+        
+        initialRates[driverId] = {};
+        
+        const driverActsForThisDriver = driverActivities.filter((act: any) => act.driver_id === driverId);
+        
+        for (let idx = 0; idx < numDays; idx++) {
+          const dayNum = idx + 1;
+          let dateStr = '';
+          if (arrivalDate) {
+            try {
+              const d = new Date(arrivalDate);
+              d.setDate(d.getDate() + idx);
+              dateStr = d.toISOString().split('T')[0];
+            } catch (e) {}
+          }
+          
+          const existingAct = driverActsForThisDriver.find((act: any) => {
+            const actDate = act.service_date?.split('T')[0];
+            return actDate === dateStr;
+          });
+          
+          if (existingAct) {
+            initialRates[driverId][dayNum] = {
+              rateType: existingAct.description?.startsWith('Rate Type: ') 
+                ? existingAct.description.substring(11).split(' - ')[0] 
+                : 'Custom',
+              contractedPrice: existingAct.contracted_price || 0,
+              chargedPrice: existingAct.charged_unit_price || 0,
+              note: existingAct.description || ''
+            };
+          } else {
+            const driver = masterData.drivers?.find((d: any) => d.id === driverId);
+            const defaultRate = driver?.per_day_rate || 15;
+            
+            let driverDayRateKey: string = Settings.Luxury_Chauffeur_Day_Rate;
+            let defaultRateType = 'Chauffeur Default';
+            
+            const style = touristData?.preferences?.travel_style || 'Luxury';
+            if (style === TRAVEL_STYLES.REGULAR) {
+              driverDayRateKey = Settings.Regular_Chauffeur_Day_Rate;
+              defaultRateType = 'Regular Chauffeur Rate';
+            } else if (style === TRAVEL_STYLES.PREMIUM) {
+              driverDayRateKey = Settings.Premium_Chauffeur_Day_Rate;
+              defaultRateType = 'Premium Chauffeur Rate';
+            } else if (style === TRAVEL_STYLES.LUXURY) {
+              driverDayRateKey = Settings.Luxury_Chauffeur_Day_Rate;
+              defaultRateType = 'Luxury Chauffeur Rate';
+            } else if (style === TRAVEL_STYLES.ULTRA_VIP) {
+              driverDayRateKey = Settings.Ultra_Vip_Chauffeur_Day_Rate;
+              defaultRateType = 'Ultra VIP Chauffeur Rate';
+            } else {
+              driverDayRateKey = Settings.Regular_Chauffeur_Day_Rate;
+              defaultRateType = 'Regular Chauffeur Rate';
+            }
+            
+            let initialContracted = defaultRate;
+            if (appSettings && appSettings[driverDayRateKey] !== undefined) {
+              initialContracted = Number(appSettings[driverDayRateKey]) || defaultRate;
+            }
+            
+            const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined 
+              ? Number(appSettings[Settings.Diver_Markup]) 
+              : (Number(appSettings?.[Settings.Driver_Markup]) || 0);
+            const initialCharged = initialContracted * (1 + markupPercent / 100);
+            
+            initialRates[driverId][dayNum] = {
+              rateType: defaultRateType,
+              contractedPrice: initialContracted,
+              chargedPrice: initialCharged,
+              note: `Rate Type: ${defaultRateType}`
+            };
+          }
+        }
+      });
+      
+      setDriverRatesState(initialRates);
+    }
+  }, [currentStep?.id, driverActivities, poBlocks, touristData, appSettings, masterData.drivers]);
 
   // Sync shareEditorRef on navigation/tab switch
   useEffect(() => {
@@ -2600,7 +2765,7 @@ function PlannerWizardWorkspace() {
             activeElements.transport && 'transport-provider',
             activeElements.security && 'security-service',
             (activeElements.guide && poBlocks.some((b: any) => b.block_type === 'guide')) && 'guide-selection',
-            activeElements.driver && 'driver-selection',
+            (activeElements.driver && poBlocks.some((b: any) => b.block_type === 'driver')) && 'driver-selection',
             'payment-receive',
             'finance-controlling',
             'profit-loss'
@@ -6172,6 +6337,7 @@ function PlannerWizardWorkspace() {
                                           block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
                                           (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
                                           block.block_type === 'guide' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
+                                          block.block_type === 'driver' ? 'bg-violet-50 text-violet-700 border border-violet-100' :
                                           'bg-emerald-50 text-emerald-700 border border-emerald-100'
                                         }`}>
                                           {block.block_type.toUpperCase()}
@@ -8772,6 +8938,302 @@ function PlannerWizardWorkspace() {
                                                     ...prev[guideId],
                                                     [day.dayNum]: {
                                                       ...prev[guideId][day.dayNum],
+                                                      note: note
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-full border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Block Summary Footer */}
+                              <div className="bg-emerald-50/20 border border-emerald-100/50 rounded-2xl p-4 flex justify-between items-center mt-2">
+                                <div>
+                                  <span className="text-[9px] text-neutral-450 uppercase block font-mono font-bold">Accumulated Cost (Contracted)</span>
+                                  <span className="font-mono text-neutral-700 font-extrabold text-base">
+                                    ${totalContracted.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-[9px] text-emerald-600 uppercase block font-mono font-bold">Accumulated Charged (Selling)</span>
+                                  <span className="font-mono text-emerald-800 font-extrabold text-base">
+                                    ${totalCharged.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'driver-selection' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <User className="w-5 h-5 text-emerald-800" />
+                        Driver Selection & Rates
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Review chauffeurs / drivers assigned to the tour, select app setting rates or driver defaults, and save daily rates.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(() => {
+                        const driverBlocks = poBlocks.filter((b: any) => b.block_type === 'driver');
+                        const arrivalDate = touristData?.preferences?.arrival_date || '';
+                        const numDays = touristData?.preferences?.duration_days || 5;
+                        const tourDays = Array.from({ length: numDays }, (_, idx) => {
+                          const dayNum = idx + 1;
+                          let dateStr = '';
+                          if (arrivalDate) {
+                            try {
+                              const d = new Date(arrivalDate);
+                              d.setDate(d.getDate() + idx);
+                              dateStr = d.toISOString().split('T')[0];
+                            } catch (e) {}
+                          }
+                          return { dayNum, dateStr };
+                        });
+
+                        if (driverBlocks.length === 0) {
+                          return (
+                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                              <User className="w-8 h-8 text-neutral-300 mb-2" />
+                              <span className="text-xs font-bold text-neutral-500">No drivers configured</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">
+                                There are no drivers assigned in the itinerary.
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return driverBlocks.map((block: any) => {
+                          const driverId = block.name.split(' | ID: ')[1];
+                          const driver = masterData.drivers?.find((d: any) => d.id === driverId);
+                          const cleanBlockName = block.name.split(' | ')[0];
+                          const rates = driverRatesState[driverId] || {};
+                          
+                          // Calculate block totals
+                          let totalContracted = 0;
+                          let totalCharged = 0;
+                          Object.values(rates).forEach((r: any) => {
+                            totalContracted += r.contractedPrice || 0;
+                            totalCharged += r.chargedPrice || 0;
+                          });
+
+                          return (
+                            <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              {/* Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      Driver Block
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                      {driver ? `${driver.first_name || ''} ${driver.last_name || ''}` : 'Unassigned Driver'}
+                                    </h4>
+                                  </div>
+                                  <p className="text-xs text-neutral-500">
+                                    {driver ? `Phone: ${driver.phone || 'N/A'} | License: ${driver.license_number || 'N/A'}` : 'Assign a driver in the itinerary.'}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => saveDriverRates(driverId)}
+                                    disabled={isSavingDriverRates === driverId || isLockedByOther}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                  >
+                                    {isSavingDriverRates === driverId ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Saving...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Save className="w-3.5 h-3.5" />
+                                        <span>Save Driver PO & Rates</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {driver && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                        if (driverStays.length === 0) {
+                                          alert("Please save driver rates first before generating a Purchase Order.");
+                                          return;
+                                        }
+                                        const vendorObj = {
+                                          ...driver,
+                                          name: `${driver.first_name || ''} ${driver.last_name || ''}`,
+                                          reservation_email: ''
+                                        };
+                                        handleOpenPoModal(vendorObj, driverStays, block.id);
+                                      }}
+                                      disabled={isLockedByOther}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" />
+                                      <span>Create PO</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Rates Table */}
+                              <div className="overflow-x-auto border border-neutral-200/60 rounded-2xl bg-white">
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-neutral-50 border-b border-neutral-200/60">
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Day / Date</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Rate Type Preset</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Contracted Price ($)</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Charged Price ($)</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Note / Remarks</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                    {tourDays.map((day) => {
+                                      const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, chargedPrice: 0, note: '' };
+                                      const driverDefaultRate = driver?.per_day_rate || 15;
+                                      
+                                      const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined 
+                                        ? Number(appSettings[Settings.Diver_Markup]) 
+                                        : (Number(appSettings?.[Settings.Driver_Markup]) || 0);
+
+                                      return (
+                                        <tr key={day.dayNum} className="hover:bg-neutral-50/40 transition-colors">
+                                          <td className="p-3.5 font-medium text-neutral-800">
+                                            <span className="font-bold">Day {day.dayNum}</span>
+                                            {day.dateStr && (
+                                              <span className="block text-[10px] text-neutral-400 mt-0.5">
+                                                {formatDate(day.dateStr)}
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="p-3.5">
+                                            <select
+                                              value={dayRate.rateType}
+                                              onChange={(e) => {
+                                                const type = e.target.value;
+                                                let contracted = dayRate.contractedPrice;
+                                                
+                                                if (type === 'Regular Chauffeur Rate') {
+                                                  contracted = Number(appSettings?.regular_chauffeur_day_rate) || 0;
+                                                } else if (type === 'Premium Chauffeur Rate') {
+                                                  contracted = Number(appSettings?.premium_chauffeur_day_rate) || 0;
+                                                } else if (type === 'Luxury Chauffeur Rate') {
+                                                  contracted = Number(appSettings?.luxury_chauffeur_day_rate) || 0;
+                                                } else if (type === 'Ultra VIP Chauffeur Rate') {
+                                                  contracted = Number(appSettings?.ultra_vip_chauffeur_day_rate) || 0;
+                                                } else if (type === 'Chauffeur Default') {
+                                                  contracted = driverDefaultRate;
+                                                }
+                                                
+                                                const charged = contracted * (1 + markupPercent / 100);
+                                                
+                                                setDriverRatesState(prev => ({
+                                                  ...prev,
+                                                  [driverId]: {
+                                                    ...prev[driverId],
+                                                    [day.dayNum]: {
+                                                      ...prev[driverId][day.dayNum],
+                                                      rateType: type,
+                                                      contractedPrice: contracted,
+                                                      chargedPrice: parseFloat(charged.toFixed(2)),
+                                                      note: `Rate Type: ${type}`
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="border border-neutral-200 rounded-lg px-2 py-1 text-xs bg-white text-neutral-700 focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            >
+                                              <option value="Regular Chauffeur Rate">Regular Chauffeur Rate (${appSettings?.regular_chauffeur_day_rate || 0})</option>
+                                              <option value="Premium Chauffeur Rate">Premium Chauffeur Rate (${appSettings?.premium_chauffeur_day_rate || 0})</option>
+                                              <option value="Luxury Chauffeur Rate">Luxury Chauffeur Rate (${appSettings?.luxury_chauffeur_day_rate || 0})</option>
+                                              <option value="Ultra VIP Chauffeur Rate">Ultra VIP Chauffeur Rate (${appSettings?.ultra_vip_chauffeur_day_rate || 0})</option>
+                                              <option value="Chauffeur Default">Chauffeur Default (${driverDefaultRate})</option>
+                                              <option value="Custom">Custom Rate</option>
+                                            </select>
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={dayRate.contractedPrice}
+                                              onChange={(e) => {
+                                                const contracted = parseFloat(e.target.value) || 0;
+                                                const charged = contracted * (1 + markupPercent / 100);
+                                                setDriverRatesState(prev => ({
+                                                  ...prev,
+                                                  [driverId]: {
+                                                    ...prev[driverId],
+                                                    [day.dayNum]: {
+                                                      ...prev[driverId][day.dayNum],
+                                                      rateType: 'Custom',
+                                                      contractedPrice: contracted,
+                                                      chargedPrice: parseFloat(charged.toFixed(2))
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={dayRate.chargedPrice}
+                                              onChange={(e) => {
+                                                const charged = parseFloat(e.target.value) || 0;
+                                                setDriverRatesState(prev => ({
+                                                  ...prev,
+                                                  [driverId]: {
+                                                    ...prev[driverId],
+                                                    [day.dayNum]: {
+                                                      ...prev[driverId][day.dayNum],
+                                                      chargedPrice: charged
+                                                    }
+                                                  }
+                                                }));
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                          </td>
+                                          <td className="p-3.5">
+                                            <input
+                                              type="text"
+                                              placeholder="Remarks..."
+                                              value={dayRate.note}
+                                              onChange={(e) => {
+                                                const note = e.target.value;
+                                                setDriverRatesState(prev => ({
+                                                  ...prev,
+                                                  [driverId]: {
+                                                    ...prev[driverId],
+                                                    [day.dayNum]: {
+                                                      ...prev[driverId][day.dayNum],
                                                       note: note
                                                     }
                                                   }

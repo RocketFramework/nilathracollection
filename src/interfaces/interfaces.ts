@@ -4,7 +4,7 @@ export interface POBlock {
     id: string;
     tour_id: string;
     name: string;
-    block_type: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide';
+    block_type: 'accommodation' | 'sleep' | 'travel' | 'meal' | 'restaurant' | 'activity' | 'guide' | 'driver';
     block_number: number;
     has_finalized?: boolean;
     created_at?: string;
