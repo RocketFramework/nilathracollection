@@ -1115,6 +1115,9 @@ Before we compare destinations, let the data speak. Because when the world's lea
 
 These are not niche accolades from obscure publications. These are the verdicts of the world's most authoritative travel voices — and they are unanimous.
 
+**The Unrivalled Value Proposition**
+Beyond the awards and the accolades lies a compelling economic reality: Sri Lanka offers the most extraordinary luxury value proposition on earth. In the Maldives or Portugal, a private villa with a dedicated butler, personal chef, and bespoke excursions routinely commands upwards of $3,000 to $5,000 per night. In Sri Lanka, equivalent (and often superior) levels of privacy, service, and customisation are accessible at a fraction of that cost. For the discerning traveller, this is not about selecting the budget option; it is about the unmatched leverage of travel capital — allowing you to unlock private helicopter charters, exclusive colonial estate takeovers, and elite naturalist guides for the price of a standard luxury room key in Europe or the Caribbean.
+
 <div class="rule"><div class="rule-line"></div><div class="rule-diamond"></div><div class="rule-line"></div></div>
 
 **The Challenger vs The Champions**
