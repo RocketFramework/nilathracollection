@@ -1040,5 +1040,323 @@ You arrive in the Maldives having just had one of the most stimulating, extraord
 > 
 > *They chose Sri Lanka because they knew something you now know too.*
 `
+    },
+    {
+        title: "Vietnam, Thailand, Maldives, Morocco, Portugal & Uganda: All Will Be Challenged — When the Pearl of the Indian Ocean Gets Your Attention",
+        slug: "vietnam-thailand-maldives-morocco-portugal-uganda-sri-lanka",
+        date: "June 28, 2026",
+        author: "Nilathra Editorial",
+        category: "Destinations",
+        readingTime: "12 min read",
+        image: "/images/srilanka_pearl_ocean.webp",
+        excerpt: "Vietnam, Thailand, Maldives, Morocco, Portugal and Uganda all have a new challenger. The Pearl of the Indian Ocean is getting your attention — and the world's greatest travel institutions have noticed.",
+        content: `
+# Vietnam, Thailand, Maldives, Morocco, Portugal & Uganda: All Will Be Challenged — When the Pearl of the Indian Ocean Gets Your Attention
+
+Welcome to the new travel reality.
+
+> There is a teardrop suspended in the Indian Ocean that holds more wonders per square kilometre than almost any destination on earth. The world has simply not been paying attention. That is about to change.
+
+Every year, millions of discerning travellers board flights to Bangkok, Hanoi, Marrakech, Lisbon, Entebbe, and Malé — drawn by reputation, by habit, and by decades of carefully constructed travel mythology. These are extraordinary destinations. No one is denying that. But there is a growing truth that the world's most informed travellers are quietly beginning to acknowledge: when you measure diversity of experience, concentration of wonder, authenticity of culture, density of wildlife, and architectural grandeur against the size of a destination — Sri Lanka does not merely compete with these icons of global travel. It surpasses them.
+
+This is not a claim made lightly. It is a claim backed by Wanderlust Reader Travel Awards, CEOWORLD Magazine's global reader surveys, Condé Nast Traveller rankings, TIME Magazine's editorial judgment, and the hard data of an island that hosts eight UNESCO World Heritage Sites within a landmass smaller than the state of West Virginia. It is backed by three million votes. It is backed by the science of biodiversity hotspots and a 68% surge in international bookings.
+
+The Pearl of the Indian Ocean has been waiting. Quietly. Patiently. Brilliantly. And now — it is getting your attention.
+
+<div class="rule"><div class="rule-line"></div><div class="rule-diamond"></div><div class="rule-line"></div></div>
+
+**The Verdict in Numbers**
+<h2 class="section-title">What the World's Most Authoritative Voices Have Said</h2>
+
+Before we compare destinations, let the data speak. Because when the world's leading travel institutions cast their votes, Sri Lanka did not whisper. It declared.
+
+<div class="awards-grid">
+  <div class="award-item">
+    <div class="award-trophy">🏆</div>
+    <div class="award-number">#1</div>
+    <div class="award-desc">Most Desirable Island in the World<br>Wanderlust Reader Awards 2024 — 3 million votes, 168,000 readers</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">🏆</div>
+    <div class="award-number">#1</div>
+    <div class="award-desc">Best Travel Destination in the World<br>Lonely Planet — the title no Southeast Asian rival has claimed</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">🏆</div>
+    <div class="award-number">#5</div>
+    <div class="award-desc">Best Country to Visit in a Lifetime<br>CEOWORLD Magazine 2024 — 295,000+ readers, highest participation in history</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">🏆</div>
+    <div class="award-number">92.73</div>
+    <div class="award-desc">Friendliest Country in the World<br>Condé Nast Traveller Readers' Choice Awards 2024</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">🏆</div>
+    <div class="award-number">#1</div>
+    <div class="award-desc">Top Destination for Solo Female Travelers<br>Time Out 2024</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">🏆</div>
+    <div class="award-number">#7</div>
+    <div class="award-desc">World's Most Popular Cultural Destination<br>Global Rankings 2024</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">🌿</div>
+    <div class="award-number">2025</div>
+    <div class="award-desc">Pekoe Trail — World's Greatest Places<br>TIME Magazine · National Geographic Best of the World 2024</div>
+  </div>
+  <div class="award-item">
+    <div class="award-trophy">📈</div>
+    <div class="award-number">+68%</div>
+    <div class="award-desc">Surge in international flight bookings<br>Among the highest of any destination globally</div>
+  </div>
+</div>
+
+These are not niche accolades from obscure publications. These are the verdicts of the world's most authoritative travel voices — and they are unanimous.
+
+<div class="rule"><div class="rule-line"></div><div class="rule-diamond"></div><div class="rule-line"></div></div>
+
+**The Challenger vs The Champions**
+
+<div class="vs-header">
+  <span class="vs-flag">🇱🇰 vs 🇻🇳</span>
+  <h2 class="vs-title">Sri Lanka vs Vietnam</h2>
+  <div class="vs-divider"></div>
+</div>
+<h3 class="sub-title">The Cultural Depth Argument</h3>
+
+Vietnam is magnificent. Its coast, the theatre of Ha Long Bay, the lantern-lit streets of Hoi An — these are genuine wonders. Vietnam's tourism rebounded to 17.6 million foreign visitors in 2024, with global flight interest climbing 61% in 2025. It is, by any measure, one of Asia's great travel stories.
+
+But here is what Vietnam cannot offer in a single itinerary: a leopard at dawn, followed by an ancient royal capital from the 3rd century BC, followed by a misty highland tea estate, followed by a whale surfacing off a pristine southern coast — all within four hours of each other. In Vietnam, equivalent diversity requires a week of domestic flights threading north to south across a country stretching 1,650 kilometres. Sri Lanka delivers all of this within 65,610 square kilometres — a distance you can cross end-to-end in under six hours.
+
+<table class="vs-table">
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>🇱🇰 Sri Lanka</th>
+      <th>🇻🇳 Vietnam</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>UNESCO Sites</td><td>8 World Heritage Sites</td><td>8 sites — spread across 1,650km</td></tr>
+    <tr><td>Wildlife</td><td>Highest leopard density globally + blue whales</td><td>No major big cat; limited wildlife safaris</td></tr>
+    <tr><td>Cultural Continuity</td><td>2,500 years of documented Buddhist civilisation</td><td>Rich but fragmented across regions</td></tr>
+    <tr><td>Travel Radius</td><td>All key experiences within 6-hr drive</td><td>Requires multiple domestic flights</td></tr>
+    <tr><td>Global Award</td><td>#1 Most Desirable Island 2024 (Wanderlust)</td><td>Not ranked in equivalent category</td></tr>
+  </tbody>
+</table>
+
+<div class="vs-header">
+  <span class="vs-flag">🇱🇰 vs 🇹🇭</span>
+  <h2 class="vs-title">Sri Lanka vs Thailand</h2>
+  <div class="vs-divider"></div>
+</div>
+<h3 class="sub-title">The Wildlife & Authenticity Argument</h3>
+
+Thailand welcomed over 35 million international visitors in 2024 — one of the most visited nations on earth. Its Buddhist heritage runs deep, its cuisine is world-class, its beaches legendary. For decades, Thailand has been the default answer when someone asked: *Where should I go in Asia?*
+
+That default is being questioned. What Thailand has in volume, it has lost in intimacy. Its most iconic beaches now operate at industrial scale. Sri Lanka, by contrast, offers what Thailand once promised: an encounter with the extraordinary that feels personal. Yala National Park holds the highest density of leopards anywhere on earth — an estimated 700 to 950 individuals — with sightings that are, by global wildlife standards, almost guaranteed.
+
+Furthermore: Sri Lanka is the only country on earth where you can witness the world's largest land mammal (the Asian elephant) and the world's largest marine mammal (the blue whale) in a single day. Thailand cannot make that claim. Neither can any other country on this list.
+
+![Pristine Crescent Beach in Sri Lanka](/images/srilanka_crescent_beach.webp)
+
+<table class="vs-table">
+  <thead>
+    <tr><th>Category</th><th>🇱🇰 Sri Lanka</th><th>🇹🇭 Thailand</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Leopard Density</td><td>Highest globally (Yala NP) — 700-950 individuals</td><td>No wild leopards</td></tr>
+    <tr><td>Elephant Experience</td><td>Wild herds; roadside sightings routine</td><td>Sanctuary-based; less wild encounter</td></tr>
+    <tr><td>Blue Whale Watching</td><td>World's most reliable sightings off Mirissa</td><td>Not available</td></tr>
+    <tr><td>Tourism Crowding</td><td>Intimate; rising but not saturated</td><td>35M+ visitors; major sites very crowded</td></tr>
+    <tr><td>UNESCO Sites</td><td>8 sites in compact island</td><td>6 sites across larger territory</td></tr>
+  </tbody>
+</table>
+
+<div class="vs-header">
+  <span class="vs-flag">🇱🇰 vs 🇲🇻</span>
+  <h2 class="vs-title">Sri Lanka vs Maldives</h2>
+  <div class="vs-divider"></div>
+</div>
+<h3 class="sub-title">The Completeness Argument</h3>
+
+The Maldives is the world's most perfected single-experience destination. Overwater villas. Turquoise atolls. Marine life of extraordinary richness. For the traveller who wants to surrender entirely to beauty, the Maldives delivers with flawless precision. It deserves every superlative it has received.
+
+But the Maldives offers exactly one thing: the ocean. There is no ancient capital to wander through. There is no highland to ascend. There is no leopard, no elephant, no tea plantation, no Buddhist ruin from the 3rd century BC. The Maldives is the world's most beautiful single note. Sri Lanka is an entire symphony.
+
+Sri Lanka hosts eight UNESCO World Heritage Sites — six of them cultural — including Sigiriya, ranked among Bloomberg's New Seven Wonders of the World. The Maldives has none. Sri Lanka's highlands rise to over 2,500 metres. The Maldives' highest point is 2.4 metres above sea level. Perhaps most telling for the discerning traveller: the two destinations are so frequently paired that *Sri Lanka + Maldives* has become a standard luxury itinerary. Experienced travellers do not see them as competitors. They see Sri Lanka as the journey — and the Maldives as the exhale at the end of it.
+
+<table class="vs-table">
+  <thead>
+    <tr><th>Category</th><th>🇱🇰 Sri Lanka</th><th>🇲🇻 Maldives</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>UNESCO Sites</td><td>8 sites (6 cultural, 2 natural)</td><td>0 World Heritage Sites</td></tr>
+    <tr><td>Landscape Diversity</td><td>Beaches, highlands, rainforest, ruins, plains</td><td>Coral atolls only; flat terrain</td></tr>
+    <tr><td>Wildlife</td><td>Leopards, elephants, blue whales, 482 bird species</td><td>Marine life only (exceptional)</td></tr>
+    <tr><td>Cultural Depth</td><td>2,500 years of Buddhist civilisation</td><td>Islamic heritage; limited historical sites</td></tr>
+    <tr><td>Elevation Range</td><td>Sea level to 2,524m (Adam's Peak)</td><td>Maximum 2.4m above sea level</td></tr>
+  </tbody>
+</table>
+
+<div class="vs-header">
+  <span class="vs-flag">🇱🇰 vs 🇲🇦</span>
+  <h2 class="vs-title">Sri Lanka vs Morocco</h2>
+  <div class="vs-divider"></div>
+</div>
+<h3 class="sub-title">The Sensory Civilisation Argument</h3>
+
+Morocco is one of the world's great travel seductions. The medinas of Marrakech and Fès are living museums. The Sahara at sunrise is one of travel's most transcendent experiences. Morocco is a legitimate rival in terms of raw cultural spectacle — and its luxury landscape has expanded dramatically in recent years.
+
+But Morocco offers one civilisation, one primary religion, one dominant cultural narrative. Sri Lanka offers Buddhist, Hindu, Muslim, and Christian cultures — temples, mosques, churches, and kovils — layered across an island inhabited for 125,000 years. On biodiversity, the comparison is stark: Sri Lanka hosts 4,000 species of flowering plants, 482 bird species (34 endemic), 125 mammal species, and 211 reptile species — a globally designated biodiversity hotspot. The island separated from the Indian mainland over 20 million years ago, allowing species to evolve into forms found nowhere else on earth. Morocco cannot offer that. No desert can.
+
+<table class="vs-table">
+  <thead>
+    <tr><th>Category</th><th>🇱🇰 Sri Lanka</th><th>🇲🇦 Morocco</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Biodiversity Hotspot</td><td>Yes — globally designated</td><td>No</td></tr>
+    <tr><td>Endemic Species</td><td>34 endemic birds; 100+ endemic reptiles</td><td>Limited endemism</td></tr>
+    <tr><td>Religious Diversity</td><td>Buddhist, Hindu, Muslim, Christian — all living</td><td>Predominantly Islamic</td></tr>
+    <tr><td>Civilisation Age</td><td>125,000 years of habitation</td><td>Phoenician settlements ~1,000 BC</td></tr>
+    <tr><td>UNESCO Sites</td><td>8 sites (cultural + natural)</td><td>9 sites (predominantly cultural)</td></tr>
+  </tbody>
+</table>
+
+<div class="vs-header">
+  <span class="vs-flag">🇱🇰 vs 🇵🇹</span>
+  <h2 class="vs-title">Sri Lanka vs Portugal</h2>
+  <div class="vs-divider"></div>
+</div>
+<h3 class="sub-title">The Wonder Argument</h3>
+
+Portugal has become one of Europe's most desirable luxury destinations. Its Moorish, Roman, and maritime empire heritage, the wine regions of the Douro, the Atlantic coastline — all genuine. Portugal is, in many ways, the European version of what Sri Lanka offers the world: extraordinary diversity within a compact geography. Both punch far above their landmass.
+
+But Portugal is temperate, and temperate ecosystems operate at a different order of magnitude from tropical ones. A leopard emerging from the dry scrub at Yala at first light has no European equivalent. A blue whale surfacing off Mirissa in the warm waters of the Indian Ocean has no Portuguese equivalent. The Pekoe Trail — recently honoured by both National Geographic and TIME Magazine — winds through a landscape of such surpassing beauty that no European walking route received equivalent global recognition in the same award cycle.
+
+Portugal is magnificent. Sri Lanka is primal.
+
+<table class="vs-table">
+  <thead>
+    <tr><th>Category</th><th>🇱🇰 Sri Lanka</th><th>🇵🇹 Portugal</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Climate</td><td>Tropical; year-round warmth</td><td>Temperate; seasonal</td></tr>
+    <tr><td>Wildlife Safari</td><td>Leopards, elephants, blue whales</td><td>No safari equivalent</td></tr>
+    <tr><td>Walking Trails</td><td>Pekoe Trail — NatGeo + TIME World's Greatest 2024/25</td><td>Long-distance routes; no equivalent global awards</td></tr>
+    <tr><td>Ancient Civilisation</td><td>3rd century BC royal capitals intact</td><td>Roman ruins; medieval cities</td></tr>
+    <tr><td>Luxury Growth</td><td>Fastest-growing luxury tier in Asia</td><td>Steady expansion in Alentejo & Azores</td></tr>
+  </tbody>
+</table>
+
+<div class="vs-header">
+  <span class="vs-flag">🇱🇰 vs 🇺🇬</span>
+  <h2 class="vs-title">Sri Lanka vs Uganda</h2>
+  <div class="vs-divider"></div>
+</div>
+<h3 class="sub-title">The Pearl vs Pearl Argument</h3>
+
+Here is the most poetic rivalry on this list. Winston Churchill called Uganda the Pearl of Africa. Sri Lanka has been known for centuries as the Pearl of the Indian Ocean. Two pearls. Two extraordinary islands of biodiversity and ancient wonder. One comparison that reveals everything.
+
+Uganda's credentials are extraordinary and not to be dismissed. In 2024, Uganda was voted the "Most Desirable Country in the Rest of the World" by the Wanderlust Travel Awards — the same institution that crowned Sri Lanka Most Desirable Island in the World. Bradt Guides ranked Uganda fourth on earth to visit in 2024, placing it behind only Switzerland, Antarctica, and the Falkland Islands — a staggering endorsement. Uganda's tourism sector hit a record US$1.28 billion in 2024, with a 25.9% surge in tourism earnings and 1.37 million international visitors. The Pearl of Africa is rising.
+
+And its crown jewel is utterly irreplaceable. Uganda is home to more than half of the world's mountain gorilla population — around 1,004 individuals remaining on earth — making it one of only three countries where mountain gorilla trekking is possible. Bwindi Impenetrable National Park — an ancient Afromontane forest unchanged for 25,000 years — holds 460 mountain gorillas across more than 20 habituated families, with 36 trekking permits issued daily. The experience of spending one hour in silence with a gorilla family in ancient mist-shrouded forest is, by near-universal consent, among the most profound wildlife encounters on earth. Nothing in Sri Lanka replicates it.
+
+But here is where the comparison decisively shifts. Uganda offers one signature wildlife experience of staggering power — and then a broader safari circuit across Queen Elizabeth and Murchison Falls National Parks that is excellent but does not stand above East Africa's established competition. Sri Lanka offers that same intensity of encounter — a leopard at Yala, a blue whale off Mirissa, the Gathering at Minneriya — and layers over it eight UNESCO World Heritage Sites, 2,500 years of continuous Buddhist civilisation, a world-class highland trail, pristine beaches, Ayurvedic wellness traditions, and a colonial architectural heritage stretching from the Portuguese to the Dutch to the British. Uganda is a spectacular single-act performance. Sri Lanka is a full theatre season.
+
+Furthermore — and this matters enormously for the luxury traveller — Sri Lanka's infrastructure, accommodation quality, and travel logistics operate at a tier that Uganda is still building toward. The island is compact and entirely navigable; a private charter can reach Yala from Colombo in under an hour. Uganda's gorilla experience, magnificent as it is, requires long overland transfers or light aircraft to remote airstrips. The luxury ecosystem around Bwindi, while improving, does not yet match the depth of world-class hospitality that Sri Lanka offers across its entire footprint.
+
+Both pearls shine. But one illuminates an entire island. The other illuminates a forest.
+
+<table class="vs-table">
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>🇱🇰 Sri Lanka</th>
+      <th>🇺🇬 Uganda</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Signature Wildlife</td><td>Leopards (highest density globally) + blue whales + elephant gatherings</td><td>Mountain gorillas (half the world's population) — unrivalled</td></tr>
+    <tr><td>UNESCO Sites</td><td>8 World Heritage Sites (cultural + natural)</td><td>3 World Heritage Sites</td></tr>
+    <tr><td>Cultural Depth</td><td>2,500 years Buddhist civilisation; 4 living religions</td><td>Rich tribal cultures; limited ancient monuments</td></tr>
+    <tr><td>Luxury Infrastructure</td><td>Deep; world-class hotels island-wide</td><td>Growing; excellent lodges near Bwindi</td></tr>
+    <tr><td>Travel Logistics</td><td>Compact island; all key sites within 6-hr drive</td><td>Long transfers; remote trekking zones</td></tr>
+    <tr><td>Global Award 2024</td><td>#1 Most Desirable Island (Wanderlust)</td><td>Most Desirable Country — Rest of World (Wanderlust)</td></tr>
+  </tbody>
+</table>
+
+<div class="rule"><div class="rule-line"></div><div class="rule-diamond"></div><div class="rule-line"></div></div>
+
+**The Case That Cannot Be Argued**
+<h2 class="section-title">Ten Things Sri Lanka Offers That No Single Rival Can Match</h2>
+
+In one ten-day journey, a traveller in Sri Lanka can:
+
+<ol class="wonder-list">
+  <li><div class="wonder-text"><strong>Ascend Sigiriya</strong> A 5th-century rock citadel rising 200 metres from the jungle floor, ranked among Bloomberg's New Seven Wonders of the World. Nothing in Vietnam, Thailand, Morocco, Portugal, Uganda, or the Maldives compares.</div></li>
+  <li><div class="wonder-text"><strong>Track a leopard at Yala</strong> The highest wild leopard density on earth — 700 to 950 individuals. Sightings that rival the finest safari destinations in Africa.</div></li>
+  <li><div class="wonder-text"><strong>Witness the Gathering at Minneriya</strong> Hundreds of wild elephants converging on a single lake in August and September — one of the most dramatic wildlife spectacles on the planet.</div></li>
+  <li><div class="wonder-text"><strong>Ride the most scenic train in Asia</strong> Kandy to Ella — through tea estates, cloud forests, and nine-arch stone viaducts, at a pace that belongs to another century.</div></li>
+  <li><div class="wonder-text"><strong>Explore ancient reservoirs & stone monuments</strong> Cycle along the banks of massive 4th-century BC man-made reservoirs and hand-carved stone ruins in the Cultural Triangle, or kayak across tranquil lakes surrounded by wild elephants and birds.</div></li>
+  <li><div class="wonder-text"><strong>Watch blue whales surface off Mirissa</strong> The world's largest animals, in waters accessible within an hour of a five-star resort. The most reliable blue whale watching on earth.</div></li>
+  <li><div class="wonder-text"><strong>Meditate at the Temple of the Tooth, Kandy</strong> One of Buddhism's most sacred sites, continuously active for over 1,600 years. The spiritual gravity is palpable in a way no reconstructed heritage site can replicate.</div></li>
+  <li><div class="wonder-text"><strong>Relax in the purest, high-oxygen highlands</strong> Unwind in the pristine hill country of Nuwara Eliya, renowned for offering some of the most purified, highest-density oxygen air in the world, naturally filtered by miles of untouched montane cloud forests.</div></li>
+  <li><div class="wonder-text"><strong>Surf Arugam Bay</strong> A wave on global surf rankings, followed by the freshest seafood on earth that evening at a table twenty metres from the water.</div></li>
+  <li><div class="wonder-text"><strong>Experience Hela Wedakama healing</strong> The island's indigenous traditional medicine system, older than 5,000 years, which has done wonders restoring the vitality of VIP travellers and elite sportsmen alike. Complete this healing journey with a walk around Mihintale, the oldest documented surgical hospital in the world.</div></li>
+</ol>
+
+<div class="pull-quote">
+  <p>Sri Lanka does not ask you to choose between the beach and the safari, the ancient city and the mountain, the spiritual and the sensory. It insists you have all of it. In one journey. On one island.</p>
+</div>
+
+<div class="rule"><div class="rule-line"></div><div class="rule-diamond"></div><div class="rule-line"></div></div>
+
+**The Verdict**
+<h2 class="section-title">The World Has Finally Noticed</h2>
+
+For decades, Sri Lanka's story was complicated by the weight of history — a civil conflict that ended in 2009, economic challenges in 2022, and a pandemic that silenced its airports alongside every other destination on earth. What has emerged on the other side is something remarkable: a destination that has not been overrun.
+
+While Bali became a cliché, while Phuket became a car park, while Marrakech became a filter on a phone screen — Sri Lanka remained itself. Authentic. Layered. Unhurried. The kind of island where a private villa can still feel genuinely private, and a national park at dawn can still feel genuinely wild.
+
+In 2024, Wanderlust's 168,000 readers casting over three million votes did not give Sri Lanka a runner-up position. They gave it first place: Most Desirable Island in the World, rising from eighth the year before. CEOWORLD's 295,000 readers ranked it fifth among the best countries to visit in a lifetime. TIME Magazine placed its Pekoe Trail on the World's Greatest Places list for 2025. These are not coincidences. They are a verdict.
+
+The Pearl of the Indian Ocean has been crying for your attention for a very long time. It has now received it. The question is no longer whether Sri Lanka challenges Vietnam, Thailand, Morocco, the Maldives, Portugal, and Uganda.
+
+The question is: **when are you coming?**
+
+<div class="cta-block">
+  <div class="cta-eyebrow">Nilathra Collection</div>
+  <div class="cta-heading">Experience Sri Lanka<br>As It Was Meant to Be</div>
+  <div class="cta-sub">Ultra-luxury, bespoke, sovereign — architected for those who accept nothing less.</div>
+  <a href="https://www.nilathra.com" class="cta-link">Begin Your Journey</a>
+  <div class="cta-tagline">"Luxury Unfiltered. Above and Beyond the Norm."</div>
+</div>
+
+  <!-- SOURCES -->
+  <div class="sources">
+    <div class="sources-label">Sources &amp; References</div>
+    <ul class="sources-list">
+      <li><a href="https://www.wanderlustmagazine.com/inspiration/wanderlust-travel-awards-2024-the-results/" target="_blank" rel="noopener">Wanderlust Reader Travel Awards 2024 — Official Results</a> · Sri Lanka crowned Most Desirable Island in the World</li>
+      <li><a href="https://ceoworld.biz/2025/05/10/worlds-best-countries-to-visit-in-your-lifetime-2025/" target="_blank" rel="noopener">CEOWORLD Magazine — World's Best Countries to Visit in Your Lifetime</a> · 295,000+ reader survey</li>
+      <li><a href="https://www.condenasttraveller.com/article/friendliest-countries-in-the-world" target="_blank" rel="noopener">Condé Nast Traveller Readers' Choice Awards 2024</a> · Friendliest Countries in the World — Sri Lanka score 92.73</li>
+      <li><a href="https://time.com/collection/worlds-greatest-places-2025/" target="_blank" rel="noopener">TIME Magazine — World's Greatest Places 2025</a> · Pekoe Trail, Sri Lanka</li>
+      <li><a href="https://www.nationalgeographic.com/travel/article/best-of-the-world-2024-readers-choice" target="_blank" rel="noopener">National Geographic — Best Of The World 2024 Reader's Choice</a> · Pekoe Trail Winner</li>
+      <li><a href="https://www.srilanka.travel/international-endorsements" target="_blank" rel="noopener">Sri Lanka Tourism Authority — International Endorsements</a> · Full list of global accolades</li>
+      <li><a href="https://www.ft.lk/world_tourism_day_2025/Why-Sri-Lanka-remains-a-No-1-choice-among-travelers/10614-782235" target="_blank" rel="noopener">Daily FT — Why Sri Lanka Remains a #1 Choice Among Travellers</a> · Lonely Planet, CNN, Condé Nast citations</li>
+      <li><a href="https://visitsrilanka.asia/blog/sri-lanka-vs-thailand" target="_blank" rel="noopener">Visit Sri Lanka Asia — Sri Lanka vs Thailand 2026</a> · Wildlife and UNESCO site comparison</li>
+      <li><a href="https://geographyworlds.com/blog/wildlife-in-sri-lanka/" target="_blank" rel="noopener">Geography Worlds — Wildlife in Sri Lanka</a> · Leopard density, bird species, biodiversity statistics</li>
+      <li><a href="https://www.workingabroad.com/travel/sri-lanka-wildlife-and-biodiversity/" target="_blank" rel="noopener">Working Abroad — Sri Lanka Wildlife &amp; Biodiversity</a> · Only country where you can see elephant + blue whale in one day</li>
+      <li><a href="https://en.wikipedia.org/wiki/List_of_World_Heritage_Sites_in_Sri_Lanka" target="_blank" rel="noopener">UNESCO — World Heritage Sites in Sri Lanka</a> · 8 inscribed sites</li>
+      <li><a href="https://maldives-magazine.com/sri-lanka-maldives-comparison.htm" target="_blank" rel="noopener">Maldives Magazine — Sri Lanka vs Maldives Ultimate Comparison</a></li>
+      <li><a href="https://www.tourism.go.ug/single-post/uganda-s-tourism-sector-hits-record-high-of-us-1-28-billion-in-2024" target="_blank" rel="noopener">Uganda Ministry of Tourism — Tourism Performance Statistics 2024</a> · Record US$1.28 billion earnings; Wanderlust Most Desirable Country</li>
+      <li><a href="https://ugandawildlife.org/" target="_blank" rel="noopener">Uganda Wildlife Authority</a> · Mountain gorilla population data; Uganda holds more than half of world's gorillas</li>
+      <li><a href="https://www.bwindiforestnationalpark.com/" target="_blank" rel="noopener">Bwindi Impenetrable National Park</a> · 460 gorillas, 20+ habituated families, 36 daily permits</li>
+      <li><a href="https://www.ugandainvest.go.ug/uganda-ranked-4th-place-on-earth-to-visit-in-2024/" target="_blank" rel="noopener">Uganda Investment Authority — Bradt Guides Ranking 2024</a> · Uganda ranked 4th place on earth to visit</li>
+    </ul>
+  </div>
+`
     }
 ];

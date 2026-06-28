@@ -8,6 +8,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, User, Clock, Share2, Facebook, Twitter, Linkedin, Instagram, Youtube } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import React, { useState, useEffect } from "react";
 import { BlogPost } from "@/data/blog-posts";
 
@@ -117,14 +119,14 @@ export default function BlogContent({ post }: { post: BlogPost }) {
                                 const parts = post.content.split("[COMPARISON_TABLE]");
                                 return (
                                     <>
-                                        <ReactMarkdown>{parts[0]}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{parts[0]}</ReactMarkdown>
                                         <ComparisonTable />
-                                        <ReactMarkdown>{parts[1]}</ReactMarkdown>
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{parts[1]}</ReactMarkdown>
                                     </>
                                 );
                             })()
                         ) : (
-                            <ReactMarkdown>{post.content}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{post.content}</ReactMarkdown>
                         )}
 
                         {/* Bottom Metadata Section */}

@@ -14966,6 +14966,49 @@ function AIItineraryBuilder({
         }
       });
 
+      // 5.5 Insert "Driver and Vehicle Stays" travel blocks on days without any travel blocks
+      for (let d = 1; d <= totalDays; d++) {
+        const dayBlocks = postProcessedBlocks.filter(b => b.dayNumber === d);
+        const hasTravel = dayBlocks.some(b => b.type === ItineraryBlockTypes.TRAVEL);
+        if (!hasTravel) {
+          // Resolve location of the hotel for this day
+          const sleepBlock = dayBlocks.find(b => b.type === ItineraryBlockTypes.SLEEP);
+          let hotelLocation = '';
+          if (sleepBlock) {
+            hotelLocation = sleepBlock.locationName || sleepBlock.hotelName || sleepBlock.name;
+          } else {
+            // Fallback: search for any block with locationName on this day
+            const blockWithLoc = dayBlocks.find(b => b.locationName);
+            hotelLocation = blockWithLoc?.locationName || 'Hotel';
+          }
+
+          const stayBlock: InternalItineraryBlock = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+            dayNumber: d,
+            type: ItineraryBlockTypes.TRAVEL,
+            name: "Driver and Vehicle Stays",
+            startTime: "12:00 PM",
+            endTime: "12:00 PM",
+            bufferMins: 0,
+            durationHours: 0,
+            hotelName: '',
+            roomName: '',
+            mealPlan: '',
+            imageUrl: '',
+            confirmationStatus: 'Pending',
+            paymentStatus: 'Pending',
+            internalNotes: "We will keep the vehicle for any travel for this date",
+            comments: [],
+            locationName: hotelLocation,
+            distance: "0 km"
+          };
+          postProcessedBlocks.push(stayBlock);
+        }
+      }
+
+      // Sort post-processed blocks chronologically to ensure they are properly ordered by time
+      const sortedPostProcessedBlocks = sortItineraryChronologically(postProcessedBlocks);
+
       // 6. Handle dropped activities
       if (routeResult.droppedActivities && routeResult.droppedActivities.length > 0) {
         routeResult.droppedActivities.forEach(act => {
@@ -14990,7 +15033,7 @@ function AIItineraryBuilder({
         });
       }
 
-      setItinerary([...postProcessedBlocks, ...dropped]);
+      setItinerary([...sortedPostProcessedBlocks, ...dropped]);
       alert("AI itinerary generated successfully! Review the itinerary days and verify the plan.");
     } catch (error: any) {
       console.error("AI Generation failed:", error);
