@@ -230,18 +230,28 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           type: ItineraryBlockTypes.MEAL,
         };
       }
-      if (block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.vendorActivityId || block.activityId)) {
-        const v = masterData.vendors?.find((x: any) => x.id === block.vendorId);
-        const resolvedActId = block.activityId;
-        const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                   v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
-        
-        const activityLabel = va?.activity_name || block.name || 'Activity';
-        let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
-        return {
-          label,
-          type: ItineraryBlockTypes.ACTIVITY,
-        };
+      if (block.type === ItineraryBlockTypes.ACTIVITY) {
+        if (block.hotelId) {
+          const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
+          let label = `Hotel Provider: ${h?.name || block.hotelName || 'Linked Hotel'}`;
+          return {
+            label,
+            type: ItineraryBlockTypes.ACTIVITY,
+          };
+        }
+        if (block.vendorId || block.vendorActivityId || block.activityId) {
+          const v = masterData.vendors?.find((x: any) => x.id === block.vendorId);
+          const resolvedActId = block.activityId;
+          const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                     v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+          
+          const activityLabel = va?.activity_name || block.name || 'Activity';
+          let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
+          return {
+            label,
+            type: ItineraryBlockTypes.ACTIVITY,
+          };
+        }
       }
       if (block.type === ItineraryBlockTypes.TRAVEL && (block.driverId || block.transportId || block.vehicleId)) {
         const d = masterData.drivers?.find((x: any) => x.id === block.driverId);

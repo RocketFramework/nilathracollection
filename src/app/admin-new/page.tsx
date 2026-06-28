@@ -987,6 +987,18 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  const getSleepHotelForDay = (dayNum: number) => {
+    const sleepBlock = itinerary.find(b => b.dayNumber === dayNum && b.type === ItineraryBlockTypes.SLEEP);
+    if (sleepBlock && sleepBlock.hotelId) {
+      const h = masterData.hotels?.find((x: any) => x.id === sleepBlock.hotelId);
+      return {
+        hotelId: sleepBlock.hotelId,
+        hotelName: sleepBlock.hotelName || h?.name || 'Hotel on Day ' + dayNum
+      };
+    }
+    return null;
+  };
+
   const getBindingDisplay = (block: InternalItineraryBlock) => {
     if (block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
       const h = masterData.hotels.find((x: any) => x.id === block.hotelId);
@@ -1006,8 +1018,20 @@ function PlannerWizardWorkspace() {
         } : undefined
       };
     }
-    if (block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.vendorActivityId || block.activityId)) {
-      const v = masterData.vendors.find((x: any) => x.id === block.vendorId);
+    if (block.type === ItineraryBlockTypes.ACTIVITY) {
+      if (block.hotelId) {
+        const h = masterData.hotels.find((x: any) => x.id === block.hotelId);
+        let label = `Hotel Provider: ${h?.name || block.hotelName || 'Linked Hotel'}`;
+        return {
+          name: label,
+          icon: <BedDouble className="w-3.5 h-3.5 text-indigo-500" />,
+          contact: h ? {
+            name: h.sales_agent_name || h.reservation_agent_name || h.gm_name || 'Reservations / Sales',
+            phone: h.sales_agent_contact || h.reservation_agent_contact || h.gm_contact || ''
+          } : undefined
+        };
+      }
+      const v = block.vendorId ? masterData.vendors.find((x: any) => x.id === block.vendorId) : null;
       const resolvedActId = block.activityId || (() => {
         if (!block.name) return undefined;
         const cleanWords = (str: string) => {
@@ -1681,8 +1705,21 @@ function PlannerWizardWorkspace() {
         throw new Error(res.error || 'Failed to save tourist data');
       }
 
+      // Automatically sync hotelId of activity blocks that are bound to the sleep hotel of the same day
+      const syncedItinerary = itinerary.map(b => {
+        if (b.type === ItineraryBlockTypes.ACTIVITY && b.hotelId) {
+          const sleepBlock = itinerary.find(s => s.dayNumber === b.dayNumber && s.type === ItineraryBlockTypes.SLEEP);
+          if (sleepBlock && sleepBlock.hotelId) {
+            return { ...b, hotelId: sleepBlock.hotelId };
+          } else {
+            return { ...b, hotelId: undefined };
+          }
+        }
+        return b;
+      });
+
       // Clean itinerary to ensure it's a completely plain, JSON-serializable structure with no React or circular references
-      const cleanItinerary = JSON.parse(JSON.stringify(itinerary));
+      const cleanItinerary = JSON.parse(JSON.stringify(syncedItinerary));
 
       if (tripData) {
         const updatedTripData = { 
@@ -4779,6 +4816,7 @@ function PlannerWizardWorkspace() {
       {/* Global background-work progress bar */}
       {(() => {
         const busy =
+          isSaving ||
           isHotelChanging ||
           isRestaurantChanging ||
           isVendorChanging ||
@@ -4791,7 +4829,8 @@ function PlannerWizardWorkspace() {
           isUploadingPayslip ||
           isGeneratingCustomerInvoice;
 
-        const label = isHotelChanging ? 'Saving hotel change…'
+        const label = isSaving ? 'Saving itinerary changes…'
+          : isHotelChanging ? 'Saving hotel change…'
           : isRestaurantChanging ? 'Saving restaurant change…'
           : isVendorChanging ? 'Saving vendor change…'
           : isTransportChanging ? 'Saving transport provider…'
@@ -6345,6 +6384,32 @@ function PlannerWizardWorkspace() {
                                         <>
                                           <button
                                             type="button"
+                                            onClick={() => {
+                                              setEditingCustomHotelItem(null);
+                                              setCustomHotelItemBaseHotel(hotel);
+                                              setCustomHotelItemStays(standardStays);
+                                              setCustomHotelItemDayNum(standardStays[0]?.dayNumber || standardStays[0]?.day_number || 1);
+                                              setCustomHotelItemTitle('');
+                                              setCustomHotelItemDescription('');
+                                              setCustomHotelItemLocation(hotel.closest_city || '');
+                                              setCustomHotelItemDistance('');
+                                              setCustomHotelItemQuantity(1);
+                                              setCustomHotelItemContractedPrice(0);
+                                              setCustomHotelItemChargedUnitPrice(0);
+                                              setCustomHotelItemType('activity');
+                                              setCustomHotelItemTimeStart('09:00');
+                                              setCustomHotelItemTimeEnd('11:00');
+                                              setShowCustomHotelItemModal(true);
+                                            }}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-350 hover:border-emerald-805 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-805 transition-all shadow-sm disabled:opacity-40"
+                                            title="Add Custom PO / Quote Item"
+                                          >
+                                            <Plus className="w-3.5 h-3.5 text-neutral-500" />
+                                            <span>Add Custom Item</span>
+                                          </button>
+                                          <button
+                                            type="button"
                                             onClick={() => handleOpenRfqModal(hotel, standardStays, block.id)}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-805/40 hover:border-emerald-805 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-805 transition-all shadow-sm disabled:opacity-40"
@@ -6545,19 +6610,56 @@ function PlannerWizardWorkspace() {
                                   <div className="space-y-3">
                                     {customPOs.map((customPo: any) => {
                                       return (
-                                        <div key={customPo.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex items-center justify-between">
-                                          <span className="text-xs font-bold text-neutral-800">{customPo.title || customPo.name || 'Custom Item'}</span>
-                                          <div className="flex items-center gap-2">
+                                        <div key={customPo.id} className="border border-neutral-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+                                          <div>
+                                            <span className="text-xs font-bold text-neutral-800 block">
+                                              {customPo.title || customPo.name || 'Custom Item'}
+                                            </span>
+                                            {(customPo.description || customPo.internalNotes) && (
+                                              <span className="text-[10px] text-neutral-400 block mt-0.5 max-w-xs truncate" title={customPo.description || customPo.internalNotes}>
+                                                {customPo.description || customPo.internalNotes}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center justify-between sm:justify-end gap-6 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
+                                            <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
+                                              <span className="text-neutral-400">Qty:</span>
+                                              <span className="text-neutral-700 font-bold">{customPo.quantity || 1}</span>
+                                            </div>
+                                            {(customPo.contracted_price ?? customPo.contractedPrice) !== undefined && (customPo.contracted_price ?? customPo.contractedPrice) !== null && (
+                                              <div className="text-right">
+                                                <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate (Cost)</span>
+                                                <span className="font-mono text-neutral-600 font-bold">${Number(customPo.contracted_price ?? customPo.contractedPrice).toFixed(2)}</span>
+                                              </div>
+                                            )}
+                                            {(customPo.contracted_total_price ?? customPo.contractedTotalPrice ?? ((customPo.contracted_price ?? customPo.contractedPrice ?? 0) * (customPo.quantity || 1))) !== undefined && (
+                                              <div className="text-right">
+                                                <span className="text-[9px] text-emerald-605 uppercase block font-mono">Total Rate (Cost)</span>
+                                                <span className="font-mono text-emerald-850 font-bold">
+                                                  ${Number(customPo.contracted_total_price ?? customPo.contractedTotalPrice ?? ((customPo.contracted_price ?? customPo.contractedPrice ?? 0) * (customPo.quantity || 1))).toFixed(2)}
+                                                </span>
+                                              </div>
+                                            )}
                                             <button
                                               type="button"
                                               onClick={() => {
+                                                setEditingCustomHotelItem(customPo);
+                                                setCustomHotelItemBaseHotel(hotel);
+                                                setCustomHotelItemStays(standardStays);
                                                 setCustomHotelItemDayNum(customPo.day_number || customPo.dayNumber || 1);
                                                 setCustomHotelItemTitle(customPo.title || customPo.name || '');
                                                 setCustomHotelItemDescription(customPo.description || customPo.internalNotes || '');
                                                 setCustomHotelItemLocation(customPo.location_name || customPo.locationName || '');
                                                 setCustomHotelItemDistance(customPo.distance || '');
+                                                setCustomHotelItemQuantity(customPo.quantity || 1);
+                                                setCustomHotelItemContractedPrice(customPo.contracted_price || customPo.contractedPrice || 0);
+                                                setCustomHotelItemChargedUnitPrice(customPo.charged_unit_price || customPo.agreedPrice || 0);
+                                                setCustomHotelItemType(customPo.activity_type || customPo.type || 'activity');
+                                                setCustomHotelItemTimeStart(customPo.time_start || customPo.startTime || '');
+                                                setCustomHotelItemTimeEnd(customPo.time_end || customPo.endTime || '');
+                                                setShowCustomHotelItemModal(true);
                                               }}
-                                              className="p-1 text-neutral-400 hover:text-emerald-808 hover:bg-neutral-55 rounded-lg transition-colors"
+                                              className="p-1.5 rounded-lg border border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-405 hover:text-emerald-805 transition-all shadow-sm shrink-0"
                                               title="Edit Details"
                                             >
                                               <Pencil className="w-3.5 h-3.5" />
@@ -13588,7 +13690,7 @@ function PlannerWizardWorkspace() {
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
                   <h3 className="text-lg font-serif font-bold text-neutral-800">
-                    {editingCustomHotelItem ? 'Edit Custom Hotel Item' : 'Add Custom Hotel Item'}
+                    {editingCustomHotelItem ? `Edit: ${customHotelItemTitle}` : 'Add Custom Hotel Item'}
                   </h3>
                   <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
                     Associated Hotel: {customHotelItemBaseHotel.name}
@@ -13605,172 +13707,22 @@ function PlannerWizardWorkspace() {
               {/* Modal Form */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Hotel Name (Shown, Non-Editable) */}
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Hotel (Locked)
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={customHotelItemBaseHotel.name}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-neutral-100 text-neutral-500 font-medium cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Activity Type Dropdown */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Activity Type
-                    </label>
-                    <select
-                      value={customHotelItemType}
-                      onChange={(e) => setCustomHotelItemType(e.target.value as any)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    >
-                      <option value="activity">Activity</option>
-                      <option value="meal">Meal</option>
-                      <option value="travel">Travel</option>
-                    </select>
-                  </div>
-
-                  {/* Service Date Dropdown */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Service Date / Day
-                    </label>
-                    <select
-                      value={customHotelItemDayNum}
-                      onChange={(e) => setCustomHotelItemDayNum(parseInt(e.target.value) || 1)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    >
-                      {(() => {
-                        // Deduplicate dates/days
-                        const hotelDaysMap = new globalThis.Map();
-                        customHotelItemStays.forEach((act: any) => {
-                          const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber;
-                          if (dayNum) {
-                            const dateStr = act.tour_itineraries?.date || act.date;
-                            hotelDaysMap.set(dayNum, { dayNum, dateStr });
-                          }
-                        });
-                        const sortedDays = Array.from(hotelDaysMap.values()).sort((a: any, b: any) => a.dayNum - b.dayNum);
-                        
-                        // If no stays, fallback to tour preferences duration
-                        if (sortedDays.length === 0) {
-                          const numDays = touristData?.preferences?.duration_days || 5;
-                          const fallbackDays = Array.from({ length: numDays }, (_, idx) => {
-                            const dayNum = idx + 1;
-                            let dateStr = '';
-                            if (touristData?.preferences?.arrival_date) {
-                              try {
-                                const d = new Date(touristData.preferences.arrival_date);
-                                d.setDate(d.getDate() + idx);
-                                dateStr = d.toISOString().split('T')[0];
-                              } catch (e) {}
-                            }
-                            return { dayNum, dateStr };
-                          });
-                          return fallbackDays.map(({ dayNum, dateStr }) => (
-                            <option key={dayNum} value={dayNum}>
-                              Day {dayNum} {dateStr ? `(${formatDate(dateStr)})` : ''}
-                            </option>
-                          ));
-                        }
-
-                        return sortedDays.map(({ dayNum, dateStr }: any) => (
-                          <option key={dayNum} value={dayNum}>
-                            Day {dayNum} {dateStr ? `(${formatDate(dateStr)})` : ''}
-                          </option>
-                        ));
-                      })()}
-                    </select>
-                  </div>
-
-                  {/* Title Input */}
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Jeep Tour in National Park / Private Seafood Dinner"
-                      value={customHotelItemTitle}
-                      onChange={(e) => setCustomHotelItemTitle(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-bold"
-                    />
-                  </div>
-
-                  {/* Description / Internal Notes TextArea */}
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Description / Comments
-                    </label>
-                    <textarea
-                      placeholder="Enter details, special requests or confirmation remarks..."
-                      value={customHotelItemDescription}
-                      onChange={(e) => setCustomHotelItemDescription(e.target.value)}
-                      rows={3}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm resize-none"
-                    />
-                  </div>
-
-                  {/* Location Name */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Location Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Hotel Beach / Yala Park"
-                      value={customHotelItemLocation}
-                      onChange={(e) => setCustomHotelItemLocation(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    />
-                  </div>
-
-                  {/* Distance */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Distance (if applicable)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 15 km"
-                      value={customHotelItemDistance}
-                      onChange={(e) => setCustomHotelItemDistance(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    />
-                  </div>
-
-                  {/* Start Time */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Start Time
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 09:00"
-                      value={customHotelItemTimeStart}
-                      onChange={(e) => setCustomHotelItemTimeStart(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    />
-                  </div>
-
-                  {/* End Time */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      End Time
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 13:00"
-                      value={customHotelItemTimeEnd}
-                      onChange={(e) => setCustomHotelItemTimeEnd(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
-                    />
-                  </div>
+                  {/* Title Input (Shown only when adding) */}
+                  {!editingCustomHotelItem && (
+                    <div className="col-span-1 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                        Title
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Jeep Tour in National Park / Private Seafood Dinner"
+                        value={customHotelItemTitle}
+                        onChange={(e) => setCustomHotelItemTitle(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-bold"
+                      />
+                    </div>
+                  )}
 
                   {/* Quantity */}
                   <div>
@@ -13782,7 +13734,7 @@ function PlannerWizardWorkspace() {
                       min="1"
                       value={customHotelItemQuantity}
                       onChange={(e) => setCustomHotelItemQuantity(parseInt(e.target.value) || 1)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-bold"
                     />
                   </div>
 
@@ -13797,37 +13749,30 @@ function PlannerWizardWorkspace() {
                       step="0.01"
                       value={customHotelItemContractedPrice}
                       onChange={(e) => setCustomHotelItemContractedPrice(parseFloat(e.target.value) || 0)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm font-bold"
                     />
                   </div>
 
-                  {/* Charged Unit Price (Selling Rate) */}
-                  <div>
+                  {/* Description / Comments (Note) */}
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                      Charged Unit Price (Selling, $)
+                      Note / Description
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={customHotelItemChargedUnitPrice}
-                      onChange={(e) => setCustomHotelItemChargedUnitPrice(parseFloat(e.target.value) || 0)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                    <textarea
+                      placeholder="Enter details, special requests or confirmation remarks..."
+                      value={customHotelItemDescription}
+                      onChange={(e) => setCustomHotelItemDescription(e.target.value)}
+                      rows={3}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm resize-none"
                     />
                   </div>
 
                   {/* Totals Summary */}
                   <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl p-4 flex justify-between items-center col-span-1 sm:col-span-2 mt-2">
                     <div>
-                      <span className="text-[9px] text-neutral-450 uppercase block font-mono font-bold">Total Cost (Contracted)</span>
-                      <span className="font-mono text-neutral-700 font-extrabold text-base">
-                        ${(customHotelItemQuantity * customHotelItemContractedPrice).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[9px] text-emerald-600 uppercase block font-mono font-bold">Total Charged (Selling)</span>
+                      <span className="text-[9px] text-emerald-600 uppercase block font-mono font-bold">Total Cost (Contracted)</span>
                       <span className="font-mono text-emerald-800 font-extrabold text-base">
-                        ${(customHotelItemQuantity * customHotelItemChargedUnitPrice).toFixed(2)}
+                        ${(customHotelItemQuantity * customHotelItemContractedPrice).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -14075,6 +14020,18 @@ function AIItineraryBuilder({
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
+
+  const getSleepHotelForDay = (dayNum: number) => {
+    const sleepBlock = itinerary.find(b => b.dayNumber === dayNum && b.type === ItineraryBlockTypes.SLEEP);
+    if (sleepBlock && sleepBlock.hotelId) {
+      const h = masterData.hotels?.find((x: any) => x.id === sleepBlock.hotelId);
+      return {
+        hotelId: sleepBlock.hotelId,
+        hotelName: sleepBlock.hotelName || h?.name || 'Hotel on Day ' + dayNum
+      };
+    }
+    return null;
+  };
 
   useEffect(() => {
     // Lock background scroll when assignment drawer is active
@@ -14858,7 +14815,9 @@ function AIItineraryBuilder({
             lat: matchedLat !== undefined ? matchedLat : event.location?.lat,
             lng: matchedLng !== undefined ? matchedLng : event.location?.lng,
             activityId: matchedActId,
-            weather: day.weather || ''
+            weather: day.weather || '',
+            quantity: event.type === ItineraryBlockTypes.ACTIVITY ? ((touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0)) : undefined,
+            headCount: event.type === ItineraryBlockTypes.ACTIVITY ? ((touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0)) : undefined,
           };
           generatedBlocks.push(block);
         });
@@ -15076,6 +15035,7 @@ function AIItineraryBuilder({
   };
 
   const handleAddBlock = () => {
+    const defaultPax = (touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0);
     const newBlock: InternalItineraryBlock = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
       dayNumber: activeDay,
@@ -15094,7 +15054,9 @@ function AIItineraryBuilder({
       internalNotes: '',
       distance: '',
       locationName: '',
-      comments: []
+      comments: [],
+      quantity: defaultPax || 2,
+      headCount: defaultPax || 2
     };
     setItinerary(prev => [...prev, newBlock]);
   };
@@ -15107,6 +15069,11 @@ function AIItineraryBuilder({
     setItinerary(prev => prev.map(b => {
       if (b.id === id) {
         const updated = { ...b, [field]: value };
+        if (field === 'type' && value === ItineraryBlockTypes.ACTIVITY) {
+          const defaultPax = (touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0);
+          if (updated.quantity === undefined) updated.quantity = defaultPax || 2;
+          if (updated.headCount === undefined) updated.headCount = defaultPax || 2;
+        }
         if (b.type === ItineraryBlockTypes.SLEEP && field === 'agreedPrice' && value !== undefined) {
           const factor = (singleRoomsCount * 0.85) + 
                          (doubleRoomsCount * 1.0) + 
@@ -16097,31 +16064,90 @@ function AIItineraryBuilder({
                     </div>
                   </div>
 
-                  {/* Location & Distance Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
-                    <div className="md:col-span-8">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Location / Destination</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Sigiriya, Colombo, Galle"
-                        value={block.locationName || ''}
-                        onChange={(e) => handleUpdateBlockField(block.id, 'locationName', e.target.value)}
-                        disabled={isLockedByOther}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
-                      />
+                  {/* Location & Distance Row / Location, Quantity, Charged Unit Price & Contracted Unit Price Row for Activity */}
+                  {block.type === ItineraryBlockTypes.ACTIVITY ? (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
+                      <div className="md:col-span-6">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Location / Destination</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Sigiriya, Colombo, Galle"
+                          value={block.locationName || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'locationName', e.target.value)}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Quantity</label>
+                        <input
+                          type="number"
+                          placeholder="Qty count"
+                          value={block.quantity !== undefined ? block.quantity : (block.headCount !== undefined ? block.headCount : ((touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0)))}
+                          onChange={(e) => {
+                            const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                            handleUpdateBlockField(block.id, 'quantity', val);
+                            handleUpdateBlockField(block.id, 'headCount', val);
+                          }}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Charged Unit Price ($)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-neutral-400 text-xs font-semibold">$</span>
+                          <input
+                            type="text"
+                            placeholder="0.00"
+                            value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
+                            onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
+                            disabled={isLockedByOther}
+                            className="w-full text-xs border border-neutral-200 rounded-xl pl-6 pr-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Contracted Unit Price ($)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-neutral-400 text-xs font-semibold">$</span>
+                          <input
+                            type="text"
+                            placeholder="0.00"
+                            value={block.contractedPrice !== undefined ? block.contractedPrice : ''}
+                            onChange={(e) => handleUpdateBlockField(block.id, 'contractedPrice', e.target.value ? Number(e.target.value) : undefined)}
+                            disabled={isLockedByOther}
+                            className="w-full text-xs border border-neutral-200 rounded-xl pl-6 pr-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="md:col-span-4">
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Distance (km)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 50 km"
-                        value={block.distance || ''}
-                        onChange={(e) => handleUpdateBlockField(block.id, 'distance', e.target.value)}
-                        disabled={isLockedByOther}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
-                      />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
+                      <div className="md:col-span-8">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Location / Destination</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Sigiriya, Colombo, Galle"
+                          value={block.locationName || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'locationName', e.target.value)}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="md:col-span-4">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Distance (km)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 50 km"
+                          value={block.distance || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'distance', e.target.value)}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Sleep type specific fields */}
                   {block.type === ItineraryBlockTypes.SLEEP && (
@@ -16280,10 +16306,58 @@ function AIItineraryBuilder({
                         );
                       })()}
 
+                      {/* Provider mode selection for activity */}
+                      {block.type === ItineraryBlockTypes.ACTIVITY && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-[#8C6D3F] uppercase tracking-wider">Provider:</span>
+                          <select
+                            value={
+                              block.hotelId && block.hotelId === getSleepHotelForDay(block.dayNumber)?.hotelId
+                                ? 'hotel'
+                                : (block.vendorId || block.activityId)
+                                  ? 'separate'
+                                  : 'none'
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'none') {
+                                handleUpdateBlockField(block.id, 'hotelId', undefined);
+                                handleUpdateBlockField(block.id, 'vendorId', undefined);
+                                handleUpdateBlockField(block.id, 'activityId', undefined);
+                                handleUpdateBlockField(block.id, 'vendorActivityId', undefined);
+                              } else if (val === 'hotel') {
+                                const sleepHotel = getSleepHotelForDay(block.dayNumber);
+                                if (sleepHotel) {
+                                  handleUpdateBlockField(block.id, 'hotelId', sleepHotel.hotelId);
+                                } else {
+                                  alert('No hotel sleep accommodation planned for Day ' + block.dayNumber + ' or the hotel is not bound yet. Provider will be kept NULL until a hotel is assigned.');
+                                  handleUpdateBlockField(block.id, 'hotelId', undefined);
+                                }
+                                handleUpdateBlockField(block.id, 'vendorId', undefined);
+                                handleUpdateBlockField(block.id, 'activityId', undefined);
+                                handleUpdateBlockField(block.id, 'vendorActivityId', undefined);
+                              } else {
+                                // separate
+                                handleUpdateBlockField(block.id, 'hotelId', undefined);
+                                setActiveAssignment({ blockId: block.id, type: block.type });
+                                setSearchTerm("");
+                              }
+                            }}
+                            disabled={isLockedByOther}
+                            className="text-[10px] border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-805 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                          >
+                            <option value="none">No Provider / Keep NULL</option>
+                            <option value="hotel">Hotel tourist sleep on the day</option>
+                            <option value="separate">Separate Provider...</option>
+                          </select>
+                        </div>
+                      )}
+
                       {/* Binder Control */}
-                      {(BINDABLE_BLOCK_TYPES as readonly ItineraryBlockType[]).includes(block.type) && (() => {
+                      {((block.type === ItineraryBlockTypes.ACTIVITY && (block.vendorId || block.activityId || block.hotelId)) || (block.type !== ItineraryBlockTypes.ACTIVITY && (BINDABLE_BLOCK_TYPES as readonly ItineraryBlockType[]).includes(block.type))) && (() => {
                         const binding = getBindingDisplay(block);
                         if (!binding) {
+                          if (block.type === ItineraryBlockTypes.ACTIVITY) return null;
                           return (
                             <button
                               type="button"
@@ -16304,12 +16378,15 @@ function AIItineraryBuilder({
                             <button
                               type="button"
                               onClick={() => {
+                                if (block.type === ItineraryBlockTypes.ACTIVITY && block.hotelId) return;
                                 setActiveAssignment({ blockId: block.id, type: block.type });
                                 setSearchTerm("");
                               }}
-                              disabled={isLockedByOther}
-                              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 hover:bg-neutral-100 border border-neutral-200/80 text-[10px] font-extrabold text-neutral-700 transition-all shadow-sm max-w-[200px] truncate disabled:opacity-50"
-                              title="Edit binding"
+                              disabled={isLockedByOther || (block.type === ItineraryBlockTypes.ACTIVITY && !!block.hotelId)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200/80 text-[10px] font-extrabold text-neutral-700 transition-all shadow-sm max-w-[200px] truncate disabled:opacity-75 ${
+                                block.type === ItineraryBlockTypes.ACTIVITY && block.hotelId ? 'cursor-default' : 'hover:bg-neutral-100'
+                              }`}
+                              title={block.type === ItineraryBlockTypes.ACTIVITY && block.hotelId ? "Bound to sleep hotel" : "Edit binding"}
                             >
                               {binding.icon}
                               <span className="truncate">{binding.name}</span>

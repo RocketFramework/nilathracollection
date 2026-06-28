@@ -979,7 +979,7 @@ export class TourService {
                         activitiesToInsert.push(basePayload);
                     }
                 } else {
-                    let quantity = b.transportQuantity || tripData.profile?.adults || 1;
+                    let quantity = b.quantity || b.headCount || b.transportQuantity || ((tripData.profile?.adults || 0) + (tripData.profile?.children || 0)) || 1;
                     if (b.type === 'meal' && b.restaurantQuantity) {
                         quantity = b.restaurantQuantity;
                     }
@@ -1054,6 +1054,8 @@ export class TourService {
                         b.transportQuantity = quantity;
                     } else if (b.type === 'meal') {
                         b.restaurantQuantity = quantity;
+                    } else if (b.type === 'activity') {
+                        b.quantity = quantity;
                     }
 
                     activitiesToInsert.push({
