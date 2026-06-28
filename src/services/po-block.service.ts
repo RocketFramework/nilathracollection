@@ -291,7 +291,7 @@ export class POBlockService {
             this.getPOBlocksForTour(tourId),
             adminSupabase
                 .from('daily_activities')
-                .select('id, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vehicle_id, vendor_activity_id, tour_itineraries(day_number, date)')
+                .select('id, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vehicle_id, vendor_activity_id, service_date, tour_itineraries(day_number, date)')
                 .eq('tour_id', tourId)
         ]);
 
@@ -367,7 +367,7 @@ export class POBlockService {
             hotelIds.length > 0
                 ? adminSupabase.from('hotels').select('id, name').in('id', hotelIds)
                 : Promise.resolve({ data: [] as any[], error: null }),
-            // ── 2. TRAVEL: group by transport_id ────────────────────────────────────
+            // ── 2. TRAVEL: group by transport_id (one block per provider, whole trip) ──
             (async () => {
                 const travelGroups = new Map<string, any[]>();
                 activitiesToGroup.filter(a => a.activity_type === 'travel' && a.transport_id).forEach(act => {

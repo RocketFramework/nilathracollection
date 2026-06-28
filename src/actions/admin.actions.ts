@@ -1757,6 +1757,34 @@ export async function changeRestaurantAction(
     }
 }
 
+export async function changeVendorAction(
+    tourId: string,
+    activityIds: string[],
+    newVendorId: string
+) {
+    try {
+        await TourService.updateChangedVendor(tourId, activityIds, newVendorId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in changeVendorAction:", error);
+        return { success: false, error: error.message || "Failed to update vendor assignment." };
+    }
+}
+
+export async function changeTransportProviderAction(
+    tourId: string,
+    travelActivityIds: string[],
+    newProviderId: string
+) {
+    try {
+        await TourService.updateChangedTransportProvider(tourId, travelActivityIds, newProviderId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in changeTransportProviderAction:", error);
+        return { success: false, error: error.message || "Failed to update transport provider assignment." };
+    }
+}
+
 
 export async function logRfqEmailAction(
     tourId: string,

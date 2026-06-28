@@ -166,7 +166,10 @@ export class TourService {
                     title: 'New Activity',
                     activity_type: 'activity',
                     time_start: '09:00:00',
-                    time_end: '10:00:00'
+                    time_end: '10:00:00',
+                    adults: requestMsg.adults || 0,
+                    children: requestMsg.children || 0,
+                    infants: requestMsg.infants || 0,
                 }]);
 
             } else if (itinErr) {
@@ -795,7 +798,11 @@ export class TourService {
                     driver_acc_included: b.driverAccIncluded || false,
                     guide_room_discount: b.guideRoomDiscount || null,
                     parking_included: b.parkingIncluded || false,
-                    price_finalized: b.priceFinalized || false
+                    price_finalized: b.priceFinalized || false,
+                    // Pax counts — sourced from tripData.profile which is seeded from requests table
+                    adults: tripData.profile?.adults ?? 0,
+                    children: tripData.profile?.children ?? 0,
+                    infants: tripData.profile?.infants ?? 0,
                 };
 
 
@@ -1413,5 +1420,180 @@ export class TourService {
         }
 
         await Promise.all(finalWrites);
+    }
+
+    /**
+     * Updates all activity daily_activities in a block to point at a new vendor,
+     * recalculates contracted rates from vendor_activities pricing,
+     * and syncs tours.planner_data + draft versions.
+     */
+    static async updateChangedVendor(
+        tourId: string,
+        activityIds: string[],
+        newVendorId: string
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // Parallel initial fetches
+        const [vendorResult, activitiesResult] = await Promise.all([
+            supabaseAdmin.from('vendors').select('id, name, city, email, phone, vendor_activities(id, activity_id, vendor_price)').eq('id', newVendorId).single(),
+            supabaseAdmin.from('daily_activities').select('id, itinerary_id, activity_id, quantity').in('id', activityIds)
+        ]);
+
+        if (vendorResult.error || !vendorResult.data) throw new Error('Vendor not found: ' + vendorResult.error?.message);
+        const vendor = vendorResult.data as any;
+        const activities: any[] = activitiesResult.data || [];
+        if (activities.length === 0) throw new Error('No activities found matching provided IDs');
+
+        const vendorActivities: any[] = vendor.vendor_activities || [];
+
+        const itinIds = activities.map((a: any) => a.itinerary_id).filter(Boolean);
+
+        // Update all activities + fetch itineraries in parallel
+        const [, itinerariesResult] = await Promise.all([
+            Promise.all(activities.map(async (act: any) => {
+                const va = vendorActivities.find((v: any) => Number(v.activity_id) === Number(act.activity_id));
+                const unitRate = va?.vendor_price || 0;
+                const qty = act.quantity || 1;
+                return supabaseAdmin.from('daily_activities').update({
+                    vendor_id: newVendorId,
+                    location_name: vendor.city || '',
+                    contracted_price: unitRate,
+                    contracted_total_price: unitRate * qty,
+                    charged_unit_price: unitRate,
+                    charged_total_price: unitRate * qty,
+                }).eq('id', act.id);
+            })),
+            itinIds.length > 0
+                ? supabaseAdmin.from('tour_itineraries').select('id, day_number').in('id', itinIds)
+                : Promise.resolve({ data: [] as any[], error: null })
+        ]);
+
+        const itineraries: any[] = (itinerariesResult as any).data || [];
+        const dayNumbers = itineraries.map((i: any) => Number(i.day_number)).filter(Boolean);
+
+        // Fetch po_block junction + tours planner_data + latest draft in parallel
+        const [junctionResult, tourRecord, latestDraftResult] = await Promise.all([
+            supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', activityIds),
+            supabaseAdmin.from('tours').select('planner_data').eq('id', tourId).single(),
+            supabaseAdmin.from('draft_itinerary_versions').select('id, itinerary_data').eq('tour_id', tourId).order('version_number', { ascending: false }).limit(1).single()
+        ]);
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        // Update po_blocks name
+        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+        if (poBlockIds.length > 0) {
+            finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${vendor.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds));
+        }
+
+        // Update tours.planner_data
+        if (tourRecord.data?.planner_data) {
+            const pData = tourRecord.data.planner_data as any;
+            if (Array.isArray(pData.itinerary)) {
+                pData.itinerary = pData.itinerary.map((b: any) => {
+                    if (b.type === 'activity' && dayNumbers.includes(Number(b.dayNumber))) {
+                        return { ...b, vendorId: newVendorId, vendorName: vendor.name, locationName: vendor.city || '' };
+                    }
+                    return b;
+                });
+            }
+            finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId));
+        }
+
+        // Update latest draft
+        if (latestDraftResult.data && Array.isArray((latestDraftResult.data as any).itinerary_data)) {
+            const updatedDraft = (latestDraftResult.data as any).itinerary_data.map((b: any) => {
+                if (b.type === 'activity' && dayNumbers.includes(Number(b.dayNumber))) {
+                    return { ...b, vendorId: newVendorId, vendorName: vendor.name };
+                }
+                return b;
+            });
+            finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraftResult.data as any).id));
+        }
+
+        if (finalWrites.length > 0) await Promise.all(finalWrites);
+    }
+
+    /**
+     * Updates all travel daily_activities in a block to point at a new transport provider,
+     * and syncs tours.planner_data + draft versions.
+     * Note: vehicle_id is intentionally left untouched — the user selects the vehicle separately per trip leg.
+     */
+    static async updateChangedTransportProvider(
+        tourId: string,
+        travelActivityIds: string[],
+        newProviderId: string
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // Parallel initial fetches
+        const [providerResult, activitiesResult] = await Promise.all([
+            supabaseAdmin.from('transport_providers').select('id, name, address, transport_vehicles(id, vehicle_type, km_rate, day_rate, with_driver)').eq('id', newProviderId).single(),
+            supabaseAdmin.from('daily_activities').select('id, itinerary_id').in('id', travelActivityIds)
+        ]);
+
+        if (providerResult.error || !providerResult.data) throw new Error('Transport provider not found: ' + providerResult.error?.message);
+        const provider = providerResult.data as any;
+        const activities: any[] = activitiesResult.data || [];
+        if (activities.length === 0) throw new Error('No travel activities found matching provided IDs');
+
+        const itinIds = activities.map((a: any) => a.itinerary_id).filter(Boolean);
+
+        // Update all travel activities + fetch itineraries in parallel
+        const [, itinerariesResult] = await Promise.all([
+            supabaseAdmin.from('daily_activities').update({
+                transport_id: newProviderId,
+                location_name: provider.address || '',
+            }).in('id', travelActivityIds),
+            itinIds.length > 0
+                ? supabaseAdmin.from('tour_itineraries').select('id, day_number').in('id', itinIds)
+                : Promise.resolve({ data: [] as any[], error: null })
+        ]);
+
+        const itineraries: any[] = (itinerariesResult as any).data || [];
+        const dayNumbers = itineraries.map((i: any) => Number(i.day_number)).filter(Boolean);
+
+        // Fetch po_block junction + tours planner_data + latest draft in parallel
+        const [junctionResult, tourRecord, latestDraftResult] = await Promise.all([
+            supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', travelActivityIds),
+            supabaseAdmin.from('tours').select('planner_data').eq('id', tourId).single(),
+            supabaseAdmin.from('draft_itinerary_versions').select('id, itinerary_data').eq('tour_id', tourId).order('version_number', { ascending: false }).limit(1).single()
+        ]);
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        // Update po_blocks name
+        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+        if (poBlockIds.length > 0) {
+            finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${provider.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds));
+        }
+
+        // Update tours.planner_data
+        if (tourRecord.data?.planner_data) {
+            const pData = tourRecord.data.planner_data as any;
+            if (Array.isArray(pData.itinerary)) {
+                pData.itinerary = pData.itinerary.map((b: any) => {
+                    if (b.type === 'travel' && dayNumbers.includes(Number(b.dayNumber))) {
+                        return { ...b, transportId: newProviderId, transportName: provider.name };
+                    }
+                    return b;
+                });
+            }
+            finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId));
+        }
+
+        // Update latest draft
+        if (latestDraftResult.data && Array.isArray((latestDraftResult.data as any).itinerary_data)) {
+            const updatedDraft = (latestDraftResult.data as any).itinerary_data.map((b: any) => {
+                if (b.type === 'travel' && dayNumbers.includes(Number(b.dayNumber))) {
+                    return { ...b, transportId: newProviderId, transportName: provider.name };
+                }
+                return b;
+            });
+            finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraftResult.data as any).id));
+        }
+
+        if (finalWrites.length > 0) await Promise.all(finalWrites);
     }
 }

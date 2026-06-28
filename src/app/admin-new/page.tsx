@@ -89,6 +89,8 @@ import {
   saveTourAction, 
   changeHotelDatabaseAction,
   changeRestaurantAction,
+  changeVendorAction,
+  changeTransportProviderAction,
   getAIRulesAction, 
   saveAIRuleAction,
   getDraftVersionsAction,
@@ -140,7 +142,8 @@ import {
   deleteCustomerInvoiceAction,
   registerCustomerPaymentAction,
   uploadPayslipAction,
-  getPayslipSignedUrlAction
+  getPayslipSignedUrlAction,
+  finalizeActivityPricesAction
 } from '@/actions/admin.actions';
 import {
   initializeDefaultBlocksAction,
@@ -394,7 +397,13 @@ function PlannerWizardWorkspace() {
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
   const [isHotelChanging, setIsHotelChanging] = useState<boolean>(false);
   const [isRestaurantChanging, setIsRestaurantChanging] = useState<boolean>(false);
+  const [isVendorChanging, setIsVendorChanging] = useState<boolean>(false);
+  const [isTransportChanging, setIsTransportChanging] = useState<boolean>(false);
   const [isApplyingRateOverride, setIsApplyingRateOverride] = useState<boolean>(false);
+  const [vendorPickerOpenBlockId, setVendorPickerOpenBlockId] = useState<string | null>(null);
+  const [vendorPickerSearch, setVendorPickerSearch] = useState<string>('');
+  const [transportPickerOpenBlockId, setTransportPickerOpenBlockId] = useState<string | null>(null);
+  const [transportPickerSearch, setTransportPickerSearch] = useState<string>('');
   const [restaurantPickerOpenBlockId, setRestaurantPickerOpenBlockId] = useState<string | null>(null);
   const [restaurantPickerSearch, setRestaurantPickerSearch] = useState<string>('');
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -495,6 +504,8 @@ function PlannerWizardWorkspace() {
   const [customRateUnit, setCustomRateUnit] = useState<string>('');
   const [customRateTotal, setCustomRateTotal] = useState<string>('');
   const [customRateNote, setCustomRateNote] = useState<string>('');
+  // Inline line-item edit panel (non-hotel steps)
+  const [editingLineItemId, setEditingLineItemId] = useState<string | null>(null);
 
   // Change Hotel Drawer States (Local Only)
   const [isChangeHotelDrawerOpen, setIsChangeHotelDrawerOpen] = useState(false);
@@ -1364,6 +1375,49 @@ function PlannerWizardWorkspace() {
     setTimeout(() => setIsApplyingRateOverride(false), 400);
   };
 
+  /**
+   * For non-hotel steps (restaurant, activity, transport):
+   * persists the rate override directly to daily_activities via DB action
+   * and patches poBlocks state optimistically.
+   */
+  const handleApplyDirectRateOverride = () => {
+    if (!editingCustomRateAct) return;
+    const actId = editingCustomRateAct.id;
+    const parsedUnit = parseFloat(customRateUnit);
+    const parsedTotal = parseFloat(customRateTotal);
+    const unitPrice = isNaN(parsedUnit) ? undefined : parsedUnit;
+    const totalPrice = isNaN(parsedTotal) ? undefined : parsedTotal;
+
+    if (unitPrice === undefined && totalPrice === undefined) return;
+
+    setIsApplyingRateOverride(true);
+
+    // Optimistic patch
+    setPoBlocks(prev => prev.map(block => ({
+      ...block,
+      daily_activities: (block.daily_activities || []).map((act: any) => {
+        if (act.id !== actId) return act;
+        return {
+          ...act,
+          contracted_price: unitPrice ?? act.contracted_price,
+          contracted_total_price: totalPrice ?? act.contracted_total_price,
+          description: customRateNote.trim() || act.description,
+        };
+      }),
+    })));
+
+    setEditingCustomRateAct(null);
+
+    // Persist to DB
+    finalizeActivityPricesAction([{
+      id: actId,
+      contracted_price: unitPrice,
+      contracted_total_price: totalPrice,
+    }])
+      .catch(err => console.error('Rate override persist failed:', err))
+      .finally(() => setIsApplyingRateOverride(false));
+  };
+
   const handleResetCustomRateOverride = () => {
     if (!editingCustomRateAct || !tripData) return;
     const dayNum = editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || editingCustomRateAct.dayNumber || 0;
@@ -2013,7 +2067,7 @@ function PlannerWizardWorkspace() {
   // Initialize and load PO Blocks
   useEffect(() => {
     if (!tourId || tourId === 'draft-tour') return;
-    const isPoStep = currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection' || currentStep?.id === 'restaurant-selection';
+    const isPoStep = currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection' || currentStep?.id === 'restaurant-selection' || currentStep?.id === 'activity-provider' || currentStep?.id === 'transport-provider';
     if (!isPoStep) return;
 
     setLoadingBlocks(true);
@@ -4727,6 +4781,8 @@ function PlannerWizardWorkspace() {
         const busy =
           isHotelChanging ||
           isRestaurantChanging ||
+          isVendorChanging ||
+          isTransportChanging ||
           isApplyingRateOverride ||
           loadingBlocks ||
           isLoadingDbActivities ||
@@ -4737,6 +4793,8 @@ function PlannerWizardWorkspace() {
 
         const label = isHotelChanging ? 'Saving hotel change…'
           : isRestaurantChanging ? 'Saving restaurant change…'
+          : isVendorChanging ? 'Saving vendor change…'
+          : isTransportChanging ? 'Saving transport provider…'
           : isApplyingRateOverride ? 'Applying rate override…'
           : loadingBlocks ? 'Loading blocks…'
           : isLoadingDbActivities ? 'Syncing itinerary data…'
@@ -6314,6 +6372,26 @@ function PlannerWizardWorkspace() {
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                                  {/* Pax Breakdown */}
+                                  {(() => {
+                                    const paxSource = standardStays[0] || blockActivities[0];
+                                    const adults = paxSource?.adults ?? tripData?.profile?.adults ?? 0;
+                                    const children = paxSource?.children ?? tripData?.profile?.children ?? 0;
+                                    const infants = paxSource?.infants ?? tripData?.profile?.infants ?? 0;
+                                    const total = adults + children + infants;
+                                    if (total === 0) return null;
+                                    return (
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        <span className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-extrabold text-emerald-800 shadow-sm">
+                                          <Users className="w-3 h-3" />
+                                          {total}
+                                        </span>
+                                        {adults > 0 && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 rounded-lg text-[8px] font-bold text-neutral-600">{adults}A</span>}
+                                        {children > 0 && <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-lg text-[8px] font-bold text-amber-700">{children}C</span>}
+                                        {infants > 0 && <span className="px-1.5 py-0.5 bg-rose-50 border border-rose-100 rounded-lg text-[8px] font-bold text-rose-600">{infants}I</span>}
+                                      </div>
+                                    );
+                                  })()}
                                   <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
                                     <span>Total Nights:</span>
                                     <span className="text-emerald-805 font-extrabold text-xs">{standardStays.length}</span>
@@ -6839,6 +6917,26 @@ function PlannerWizardWorkspace() {
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                                  {/* Pax Breakdown */}
+                                  {(() => {
+                                    const paxSource = mealActivities[0] || blockActivities[0];
+                                    const adults = paxSource?.adults ?? tripData?.profile?.adults ?? 0;
+                                    const children = paxSource?.children ?? tripData?.profile?.children ?? 0;
+                                    const infants = paxSource?.infants ?? tripData?.profile?.infants ?? 0;
+                                    const total = adults + children + infants;
+                                    if (total === 0) return null;
+                                    return (
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        <span className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-extrabold text-emerald-800 shadow-sm">
+                                          <Users className="w-3 h-3" />
+                                          {total}
+                                        </span>
+                                        {adults > 0 && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 rounded-lg text-[8px] font-bold text-neutral-600">{adults}A</span>}
+                                        {children > 0 && <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-lg text-[8px] font-bold text-amber-700">{children}C</span>}
+                                        {infants > 0 && <span className="px-1.5 py-0.5 bg-rose-50 border border-rose-100 rounded-lg text-[8px] font-bold text-rose-600">{infants}I</span>}
+                                      </div>
+                                    );
+                                  })()}
                                   <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
                                     <span>Total Meals:</span>
                                     <span className="text-emerald-800 font-extrabold text-xs">{mealActivities.length}</span>
@@ -7008,6 +7106,20 @@ function PlannerWizardWorkspace() {
                                               <span className="font-mono text-emerald-800 font-bold">${Number(totalRate).toFixed(2)}</span>
                                             </div>
                                           )}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingCustomRateAct(meal);
+                                              setCustomRateUnit(String(meal.contracted_price ?? meal.charged_unit_price ?? ''));
+                                              setCustomRateTotal(String(meal.contracted_total_price ?? meal.charged_total_price ?? ''));
+                                              setCustomRateNote(meal.description || '');
+                                            }}
+                                            disabled={isLockedByOther}
+                                            className="p-1.5 rounded-lg border border-neutral-200 hover:border-rose-400/40 hover:bg-rose-50/20 text-neutral-400 hover:text-rose-600 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                            title="Override Contracted Rate"
+                                          >
+                                            <CircleDollarSign className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
                                       </div>
                                     );
@@ -7015,7 +7127,415 @@ function PlannerWizardWorkspace() {
                                 </div>
                               )}
 
-                              {/* RFQ & RFP Email Logs — identical to hotel-selection */}
+                              {/* RFQ & RFP Email Logs — restaurant block */}
+                              {combinedBlockEmails.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                  <h6 className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                    RFQ & RFP Email Dispatch History ({combinedBlockEmails.length})
+                                  </h6>
+                                  <div className="space-y-2 pr-1">
+                                    {combinedBlockEmails.map((emailLog: any) => {
+                                      const emailId = emailLog.id;
+                                      const isEmailBodyExpanded = expandedEmailId === emailId;
+                                      return (
+                                        <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                emailLog.logType === 'RFQ'
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                              }`}>
+                                                {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                              </span>
+                                              <span className="text-[9px] font-mono text-neutral-400">
+                                                Sent: {new Date(emailLog.sent_at).toLocaleString()}
+                                              </span>
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                  : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                              }`}>
+                                                {emailLog.status || 'Sent'}
+                                              </span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isEmailBodyExpanded) {
+                                                  setExpandedEmailId(null);
+                                                  setEditingRfq(null);
+                                                } else {
+                                                  setExpandedEmailId(emailId);
+                                                  setEditingRfq(emailLog);
+                                                  setEditRfqStatus((emailLog.status || 'Sent') as any);
+                                                  setEditRfqQuotedPrice(emailLog.quoted_price || 0);
+                                                  setEditRfqNotes(emailLog.notes || '');
+                                                  setEditRfqSelected(!!emailLog.selected_vendor);
+                                                }
+                                              }}
+                                              className="text-[9px] text-emerald-800 font-bold hover:underline"
+                                            >
+                                              {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                            </button>
+                                          </div>
+                                          <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                            <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                            <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'activity-provider' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <Award className="w-5 h-5 text-emerald-800" />
+                        Activity Provider Selection (PO Blocks)
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Review and manage activity vendors scheduled for this tour, grouped by activity blocks.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(() => {
+                        const activityBlocks = poBlocks.filter((b: any) => b.block_type === 'activity');
+                        const sortedBlocks = [...activityBlocks].sort((a: any, b: any) => {
+                          const firstA = a.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          const firstB = b.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          return firstA - firstB;
+                        });
+
+                        const formatDate = (dateStr: string) => {
+                          if (!dateStr) return '';
+                          try {
+                            const d = new Date(dateStr);
+                            if (isNaN(d.getTime())) return dateStr;
+                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                          } catch { return dateStr; }
+                        };
+
+                        if (sortedBlocks.length === 0) {
+                          return (
+                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                              <Award className="w-8 h-8 text-neutral-300 mb-2" />
+                              <span className="text-xs font-bold text-neutral-500">No activity blocks configured</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">
+                                There are no activity blocks set up. Please configure blocks in the PO Blocks Configuration step.
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return sortedBlocks.map((block: any) => {
+                          const blockActivities = block.daily_activities || [];
+                          const actItems = blockActivities.filter((a: any) => a.activity_type === 'activity');
+
+                          const selectedVendorId = blockActivities.find((a: any) => a.vendor_id)?.vendor_id;
+                          const vendor = selectedVendorId ? masterData.vendors?.find((v: any) => v.id === selectedVendorId) : null;
+
+                          const isPickerOpen = vendorPickerOpenBlockId === block.id;
+
+                          const allVendors: any[] = (masterData.vendors || []).filter((v: any) =>
+                            v.vendor_activities && v.vendor_activities.length > 0
+                          );
+                          const filteredVendors = vendorPickerSearch.trim()
+                            ? allVendors.filter((v: any) =>
+                                [v.name, v.city, v.category].some((f: any) => f?.toLowerCase().includes(vendorPickerSearch.toLowerCase()))
+                              )
+                            : allVendors;
+
+                          const blockRfqEmails = rfqEmails.filter((e: any) => e.po_block_id === block.id);
+                          const blockRfpEmails = rfpEmails.filter((e: any) => e.po_block_id === block.id);
+                          const combinedBlockEmails = [
+                            ...blockRfqEmails.map((e: any) => ({ ...e, logType: 'RFQ' as const })),
+                            ...blockRfpEmails.map((e: any) => ({ ...e, logType: 'RFP' as const }))
+                          ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+
+                          return (
+                            <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              {/* Block Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 bg-neutral-200 text-neutral-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      {block.name}
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                      {vendor ? vendor.name : 'No Vendor Assigned Yet'}
+                                    </h4>
+                                    {vendor?.category && (
+                                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                        {vendor.category}
+                                      </span>
+                                    )}
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setVendorPickerOpenBlockId(isPickerOpen ? null : block.id);
+                                          setVendorPickerSearch('');
+                                        }}
+                                        disabled={isLockedByOther}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-emerald-800/50 hover:bg-emerald-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                        title={vendor ? 'Change Vendor' : 'Assign Vendor'}
+                                      >
+                                        <Award className="w-3.5 h-3.5 text-neutral-400" />
+                                        <span>{vendor ? 'Change Vendor' : 'Assign Vendor'}</span>
+                                      </button>
+                                      {vendor && (
+                                        <>\n                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenRfqModal(vendor, actItems, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                            title="Request Quote"
+                                          >
+                                            <Mail className="w-3.5 h-3.5 text-emerald-800" />
+                                            <span>Request Quote</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPoModal(vendor, actItems, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
+                                            title="Create PO"
+                                          >
+                                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                            <span>Create PO</span>
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-neutral-500">
+                                    {vendor
+                                      ? (vendor.city || vendor.address || 'Location not specified')
+                                      : 'Assign a vendor using the button above.'}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                                  {/* Pax Breakdown */}
+                                  {(() => {
+                                    const paxSource = actItems[0] || blockActivities[0];
+                                    const adults = paxSource?.adults ?? tripData?.profile?.adults ?? 0;
+                                    const children = paxSource?.children ?? tripData?.profile?.children ?? 0;
+                                    const infants = paxSource?.infants ?? tripData?.profile?.infants ?? 0;
+                                    const total = adults + children + infants;
+                                    if (total === 0) return null;
+                                    return (
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        <span className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-extrabold text-emerald-800 shadow-sm">
+                                          <Users className="w-3 h-3" />
+                                          {total}
+                                        </span>
+                                        {adults > 0 && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 rounded-lg text-[8px] font-bold text-neutral-600">{adults}A</span>}
+                                        {children > 0 && <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-lg text-[8px] font-bold text-amber-700">{children}C</span>}
+                                        {infants > 0 && <span className="px-1.5 py-0.5 bg-rose-50 border border-rose-100 rounded-lg text-[8px] font-bold text-rose-600">{infants}I</span>}
+                                      </div>
+                                    );
+                                  })()}
+                                  <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
+                                    <span>Total Activities:</span>
+                                    <span className="text-indigo-700 font-extrabold text-xs">{actItems.length}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={isLockedByOther}
+                                    title="Delete Block"
+                                    onClick={async () => {
+                                      if (confirm('Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.')) {
+                                        const res = await deletePOBlockAction(block.id);
+                                        if (res.success) {
+                                          setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                        } else {
+                                          alert(res.error || 'Failed to delete block.');
+                                        }
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Inline Vendor Picker */}
+                              {isPickerOpen && (
+                                <div className="border border-indigo-200 rounded-2xl bg-indigo-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-indigo-800 uppercase tracking-wider">
+                                      {vendor ? 'Change Vendor' : 'Select a Vendor'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setVendorPickerOpenBlockId(null)}
+                                      className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
+                                    >
+                                      Close ×
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Search by name, city, category…"
+                                    value={vendorPickerSearch}
+                                    onChange={e => setVendorPickerSearch(e.target.value)}
+                                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-all"
+                                    autoFocus
+                                  />
+                                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                    {filteredVendors.length === 0 ? (
+                                      <p className="text-[10px] text-neutral-400 text-center py-4">No vendors found. Try a different search.</p>
+                                    ) : filteredVendors.map((v: any) => {
+                                      const isCurrent = v.id === selectedVendorId;
+                                      return (
+                                        <button
+                                          key={v.id}
+                                          type="button"
+                                          onClick={() => {
+                                            if (isCurrent) return;
+                                            const actIds = actItems.map((a: any) => a.id);
+                                            // Optimistic update
+                                            setDbActivities(prev => prev.map(act =>
+                                              actIds.includes(act.id) ? { ...act, vendor_id: v.id } : act
+                                            ));
+                                            setPoBlocks(prev => prev.map(pb => {
+                                              if (pb.id !== block.id) return pb;
+                                              return {
+                                                ...pb,
+                                                name: `${v.name} Block`,
+                                                daily_activities: (pb.daily_activities || []).map((da: any) =>
+                                                  actIds.includes(da.id) ? { ...da, vendor_id: v.id } : da
+                                                )
+                                              };
+                                            }));
+                                            setVendorPickerOpenBlockId(null);
+                                            // DB sync
+                                            setIsVendorChanging(true);
+                                            changeVendorAction(tourId, actIds, v.id)
+                                              .then(async res => {
+                                                if (res.success) {
+                                                  const blocksRes = await getPOBlocksAction(tourId);
+                                                  if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
+                                                } else {
+                                                  console.error('Vendor change failed:', res.error);
+                                                }
+                                              })
+                                              .catch(err => console.error('changeVendorAction error:', err))
+                                              .finally(() => setIsVendorChanging(false));
+                                          }}
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
+                                            isCurrent
+                                              ? 'border-indigo-700 bg-indigo-50/30 ring-1 ring-indigo-700/10'
+                                              : 'border-neutral-200 bg-white hover:border-indigo-700/50 hover:bg-indigo-50/10'
+                                          }`}
+                                        >
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-neutral-800 truncate">{v.name}</p>
+                                            <p className="text-[10px] text-neutral-400 mt-0.5">{v.city || 'Location not specified'}{v.category ? ` · ${v.category}` : ''}</p>
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                              {(v.vendor_activities || []).slice(0, 3).map((va: any) => (
+                                                <span key={va.id} className="px-1.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[8px] font-bold rounded uppercase">
+                                                  ${va.vendor_price || '—'}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          {isCurrent && <Check className="w-4 h-4 text-indigo-700 shrink-0 mt-0.5" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Activity Item Rows */}
+                              {actItems.length > 0 && (
+                                <div className="divide-y divide-neutral-100">
+                                  {actItems.map((act: any) => {
+                                    const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+                                    const dateVal = act.tour_itineraries?.date;
+                                    const unitRate = act.contracted_price ?? act.charged_unit_price;
+                                    const totalRate = act.contracted_total_price ?? act.charged_total_price;
+
+                                    return (
+                                      <div key={act.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
+                                        <div className="flex items-start gap-3">
+                                          <div className="px-2.5 py-1 bg-emerald-800 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                            {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
+                                          </div>
+                                          <div>
+                                            <span className="text-xs font-bold text-neutral-800 block">
+                                              {act.title || 'Activity'}
+                                            </span>
+                                            {act.location_name && (
+                                              <span className="text-[10px] text-neutral-400 block mt-0.5">
+                                                {act.location_name}
+                                              </span>
+                                            )}
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                              <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-[9px] font-bold rounded uppercase tracking-wider">
+                                                Activity
+                                              </span>
+                                              {act.time_start && (
+                                                <span className="text-[9px] text-neutral-400 font-mono">
+                                                  {act.time_start}{act.time_end ? ` – ${act.time_end}` : ''}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between sm:justify-end gap-5 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
+                                          <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
+                                            <span className="text-neutral-400">Qty:</span>
+                                            <span className="text-neutral-700 font-bold">{act.quantity || 1}</span>
+                                          </div>
+                                          {unitRate !== undefined && unitRate !== null && (
+                                            <div className="text-right">
+                                              <span className="text-[9px] text-neutral-400 uppercase block font-mono">Unit Rate</span>
+                                              <span className="font-mono text-neutral-600 font-bold">${Number(unitRate).toFixed(2)}</span>
+                                            </div>
+                                          )}
+                                          {totalRate !== undefined && totalRate !== null && (
+                                            <div className="text-right">
+                                              <span className="text-[9px] text-emerald-600 uppercase block font-mono">Total</span>
+                                              <span className="font-mono text-emerald-800 font-bold">${Number(totalRate).toFixed(2)}</span>
+                                            </div>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingCustomRateAct(act);
+                                              setCustomRateUnit(String(act.contracted_price ?? act.charged_unit_price ?? ''));
+                                              setCustomRateTotal(String(act.contracted_total_price ?? act.charged_total_price ?? ''));
+                                              setCustomRateNote(act.description || '');
+                                            }}
+                                            disabled={isLockedByOther}
+                                            className="p-1.5 rounded-lg border border-neutral-200 hover:border-indigo-400/40 hover:bg-indigo-50/20 text-neutral-400 hover:text-indigo-600 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                            title="Override Contracted Rate"
+                                          >
+                                            <CircleDollarSign className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* RFQ & RFP Email Logs — identical to hotel-selection & restaurant-selection */}
                               {combinedBlockEmails.length > 0 && (
                                 <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
                                   <h6 className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -7104,8 +7624,606 @@ function PlannerWizardWorkspace() {
                                                     </select>
                                                   </div>
                                                   <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
-                                                    <input type="checkbox" id={`rest-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
-                                                    <label htmlFor={`rest-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this meal block</label>
+                                                    <input type="checkbox" id={`act-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
+                                                    <label htmlFor={`act-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this activity block</label>
+                                                  </div>
+                                                  <div className="col-span-1 sm:col-span-2">
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes</label>
+                                                    <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
+                                                  </div>
+                                                </div>
+                                                <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                                  <button type="button" onClick={() => { setExpandedEmailId(null); setEditingRfq(null); }} className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors">Cancel</button>
+                                                  <button type="button" onClick={() => handleSaveInlineRfq(emailLog)} disabled={isSavingEditRfq} className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
+                                                  </button>
+                                                </div>
+                                              </div>
+                                              <div className="space-y-1">
+                                                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
+                                                <div className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: emailLog.body_html }} />
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                ) : track === 'final' && currentStep.id === 'transport-provider' ? (
+                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                    <div className="border-b border-neutral-100 pb-4 mb-6">
+                      <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <Car className="w-5 h-5 text-emerald-800" />
+                        Transport Provider Selection (PO Blocks)
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Review and manage transport fleet providers scheduled for this tour, grouped by travel blocks.
+                      </p>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(() => {
+                        const travelBlocks = poBlocks.filter((b: any) => b.block_type === 'travel');
+                        const sortedBlocks = [...travelBlocks].sort((a: any, b: any) => {
+                          const firstA = a.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          const firstB = b.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
+                          return firstA - firstB;
+                        });
+
+                        const formatDate = (dateStr: string) => {
+                          if (!dateStr) return '';
+                          try {
+                            const d = new Date(dateStr);
+                            if (isNaN(d.getTime())) return dateStr;
+                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                          } catch { return dateStr; }
+                        };
+
+                        if (sortedBlocks.length === 0) {
+                          return (
+                            <div className="border border-dashed border-neutral-200 bg-neutral-50/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[180px]">
+                              <Car className="w-8 h-8 text-neutral-300 mb-2" />
+                              <span className="text-xs font-bold text-neutral-500">No travel blocks configured</span>
+                              <span className="text-[10px] text-neutral-400 mt-1">
+                                There are no transport blocks set up. Please configure blocks in the PO Blocks Configuration step.
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return sortedBlocks.map((block: any) => {
+                          const blockActivities = block.daily_activities || [];
+                          const travelItems = blockActivities.filter((a: any) => a.activity_type === 'travel');
+
+                          const selectedProviderId = blockActivities.find((a: any) => a.transport_id)?.transport_id;
+                          const provider = selectedProviderId ? masterData.transportProviders?.find((p: any) => p.id === selectedProviderId) : null;
+
+                          const isPickerOpen = transportPickerOpenBlockId === block.id;
+
+                          const allProviders: any[] = masterData.transportProviders || [];
+                          const filteredProviders = transportPickerSearch.trim()
+                            ? allProviders.filter((p: any) =>
+                                [p.name, p.address, p.phone].some((f: any) => f?.toLowerCase().includes(transportPickerSearch.toLowerCase()))
+                              )
+                            : allProviders;
+
+                          const blockRfqEmails = rfqEmails.filter((e: any) => e.po_block_id === block.id);
+                          const blockRfpEmails = rfpEmails.filter((e: any) => e.po_block_id === block.id);
+                          const combinedBlockEmails = [
+                            ...blockRfqEmails.map((e: any) => ({ ...e, logType: 'RFQ' as const })),
+                            ...blockRfpEmails.map((e: any) => ({ ...e, logType: 'RFP' as const }))
+                          ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+
+                          return (
+                            <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
+                              {/* Block Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 bg-neutral-200 text-neutral-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      {block.name}
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                      {provider ? provider.name : 'No Provider Assigned Yet'}
+                                    </h4>
+                                    {provider && (
+                                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                        Transport
+                                      </span>
+                                    )}
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setTransportPickerOpenBlockId(isPickerOpen ? null : block.id);
+                                          setTransportPickerSearch('');
+                                        }}
+                                        disabled={isLockedByOther}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-amber-600/50 hover:bg-amber-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-amber-700 transition-all shadow-sm disabled:opacity-40"
+                                        title={provider ? 'Change Provider' : 'Assign Provider'}
+                                      >
+                                        <Car className="w-3.5 h-3.5 text-neutral-400" />
+                                        <span>{provider ? 'Change Provider' : 'Assign Provider'}</span>
+                                      </button>
+                                      {provider && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenRfqModal(provider, travelItems, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                            title="Request Quote"
+                                          >
+                                            <Mail className="w-3.5 h-3.5 text-emerald-800" />
+                                            <span>Request Quote</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenPoModal(provider, travelItems, block.id)}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
+                                            title="Create PO"
+                                          >
+                                            <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                            <span>Create PO</span>
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-neutral-500">
+                                    {provider
+                                      ? (provider.address || 'Address not specified')
+                                      : 'Assign a transport provider for the whole journey using the button above.'}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                                  {/* Pax Breakdown */}
+                                  {(() => {
+                                    const paxSource = travelItems[0] || blockActivities[0];
+                                    const adults = paxSource?.adults ?? tripData?.profile?.adults ?? 0;
+                                    const children = paxSource?.children ?? tripData?.profile?.children ?? 0;
+                                    const infants = paxSource?.infants ?? tripData?.profile?.infants ?? 0;
+                                    const total = adults + children + infants;
+                                    if (total === 0) return null;
+                                    return (
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        <span className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-extrabold text-emerald-800 shadow-sm">
+                                          <Users className="w-3 h-3" />
+                                          {total}
+                                        </span>
+                                        {adults > 0 && <span className="px-1.5 py-0.5 bg-neutral-100 border border-neutral-200 rounded-lg text-[8px] font-bold text-neutral-600">{adults}A</span>}
+                                        {children > 0 && <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-lg text-[8px] font-bold text-amber-700">{children}C</span>}
+                                        {infants > 0 && <span className="px-1.5 py-0.5 bg-rose-50 border border-rose-100 rounded-lg text-[8px] font-bold text-rose-600">{infants}I</span>}
+                                      </div>
+                                    );
+                                  })()}
+                                  {/* Total distance */}
+                                  {(() => {
+                                    const totalDist = travelItems.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                    if (totalDist === 0) return null;
+                                    return (
+                                      <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
+                                        <span>Total Dist:</span>
+                                        <span className="text-amber-700 font-extrabold text-xs">{totalDist} km</span>
+                                      </div>
+                                    );
+                                  })()}
+                                  <div className="text-[10px] font-bold text-neutral-400 font-mono flex items-center gap-1 bg-white px-2.5 py-1 rounded-xl border border-neutral-200 shadow-sm">
+                                    <span>Total Legs:</span>
+                                    <span className="text-amber-700 font-extrabold text-xs">{travelItems.length}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={isLockedByOther}
+                                    title="Delete Block"
+                                    onClick={async () => {
+                                      if (confirm('Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.')) {
+                                        const res = await deletePOBlockAction(block.id);
+                                        if (res.success) {
+                                          setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                        } else {
+                                          alert(res.error || 'Failed to delete block.');
+                                        }
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Inline Transport Provider Picker */}
+                              {isPickerOpen && (
+                                <div className="border border-amber-200 rounded-2xl bg-amber-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">
+                                      {provider ? 'Change Transport Provider' : 'Select a Transport Provider'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setTransportPickerOpenBlockId(null)}
+                                      className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
+                                    >
+                                      Close ×
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Search by name, address, phone…"
+                                    value={transportPickerSearch}
+                                    onChange={e => setTransportPickerSearch(e.target.value)}
+                                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-amber-600 transition-all"
+                                    autoFocus
+                                  />
+                                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                    {filteredProviders.length === 0 ? (
+                                      <p className="text-[10px] text-neutral-400 text-center py-4">No providers found. Try a different search.</p>
+                                    ) : filteredProviders.map((p: any) => {
+                                      const isCurrent = p.id === selectedProviderId;
+                                      const vehicles: any[] = p.transport_vehicles || [];
+                                      return (
+                                        <button
+                                          key={p.id}
+                                          type="button"
+                                          onClick={() => {
+                                            if (isCurrent) return;
+                                            const travelIds = travelItems.map((a: any) => a.id);
+                                            setDbActivities(prev => prev.map(act =>
+                                              travelIds.includes(act.id) ? { ...act, transport_id: p.id } : act
+                                            ));
+                                            setPoBlocks(prev => prev.map(pb => {
+                                              if (pb.id !== block.id) return pb;
+                                              return {
+                                                ...pb,
+                                                daily_activities: (pb.daily_activities || []).map((da: any) =>
+                                                  travelIds.includes(da.id) ? { ...da, transport_id: p.id } : da
+                                                )
+                                              };
+                                            }));
+                                            setTransportPickerOpenBlockId(null);
+                                            setIsTransportChanging(true);
+                                            changeTransportProviderAction(tourId, travelIds, p.id)
+                                              .then(async res => {
+                                                if (res.success) {
+                                                  const blocksRes = await getPOBlocksAction(tourId);
+                                                  if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
+                                                } else {
+                                                  console.error('Transport provider change failed:', res.error);
+                                                }
+                                              })
+                                              .catch(err => console.error('changeTransportProviderAction error:', err))
+                                              .finally(() => setIsTransportChanging(false));
+                                          }}
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
+                                            isCurrent
+                                              ? 'border-amber-600 bg-amber-50/30 ring-1 ring-amber-600/10'
+                                              : 'border-neutral-200 bg-white hover:border-amber-600/50 hover:bg-amber-50/10'
+                                          }`}
+                                        >
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-neutral-800 truncate">{p.name}</p>
+                                            <p className="text-[10px] text-neutral-400 mt-0.5">{p.address || 'Address not specified'}{p.phone ? ` · ${p.phone}` : ''}</p>
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                              {vehicles.slice(0, 3).map((v: any) => (
+                                                <span key={v.id} className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[8px] font-bold rounded uppercase">
+                                                  {v.vehicle_type}{v.day_rate ? ` · $${v.day_rate}/day` : ''}
+                                                </span>
+                                              ))}
+                                              {vehicles.length > 3 && (
+                                                <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-500 text-[8px] font-bold rounded">
+                                                  +{vehicles.length - 3} more
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          {isCurrent && <Check className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Provider Fleet Summary */}
+                              {provider && provider.transport_vehicles && provider.transport_vehicles.length > 0 && (
+                                <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-4 space-y-2">
+                                  <h5 className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Available Fleet</h5>
+                                  <div className="flex flex-wrap gap-2">
+                                    {provider.transport_vehicles.map((v: any) => (
+                                      <div key={v.id} className="bg-white border border-amber-150 rounded-xl px-3 py-2 flex flex-col gap-0.5 shadow-sm">
+                                        <span className="text-[10px] font-bold text-neutral-800">{v.vehicle_type}</span>
+                                        {v.make_and_model && <span className="text-[9px] text-neutral-400">{v.make_and_model}</span>}
+                                        <div className="flex gap-2 mt-0.5">
+                                          {v.day_rate && <span className="text-[9px] font-bold text-amber-700">${v.day_rate}/day</span>}
+                                          {v.km_rate && <span className="text-[9px] font-bold text-neutral-500">${v.km_rate}/km</span>}
+                                          {v.with_driver && <span className="text-[9px] font-bold text-emerald-700">Incl. Driver</span>}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Travel Leg Rows — grouped and aggregated by day number */}
+                              {(() => {
+                                if (travelItems.length === 0) return null;
+
+                                // Group by day number or date string
+                                const groupedDaysMap = new globalThis.Map<string, any[]>();
+                                travelItems.forEach((trip: any) => {
+                                  const dayNum = trip.tour_itineraries?.day_number || trip.day_number || 0;
+                                  const dateVal = trip.tour_itineraries?.date || trip.service_date;
+                                  const dayKey = dateVal ? String(dateVal) : `Day ${dayNum}`;
+                                  if (!groupedDaysMap.has(dayKey)) {
+                                    groupedDaysMap.set(dayKey, []);
+                                  }
+                                  groupedDaysMap.get(dayKey)!.push(trip);
+                                });
+
+                                // Sort the days
+                                const sortedGroupedDays = Array.from(groupedDaysMap.entries()).sort((a: [string, any[]], b: [string, any[]]) => {
+                                  const dateA = new Date(a[0]).getTime();
+                                  const dateB = new Date(b[0]).getTime();
+                                  if (!isNaN(dateA) && !isNaN(dateB)) return dateA - dateB;
+                                  return a[0].localeCompare(b[0]);
+                                });
+
+                                return (
+                                  <div className="divide-y divide-neutral-100">
+                                    {sortedGroupedDays.map(([dayKey, legs]: [string, any[]]) => {
+                                      const firstLeg = legs[0];
+                                      const dayNum = firstLeg.tour_itineraries?.day_number || firstLeg.day_number || 0;
+                                      const dateVal = firstLeg.tour_itineraries?.date || firstLeg.service_date;
+                                      
+                                      const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                      const totalDayPrice = legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.charged_total_price) || 0), 0);
+                                      
+                                      const distinctVehicles = Array.from(new Set(
+                                        legs.map((t: any) => provider?.transport_vehicles?.find((v: any) => v.id === t.vehicle_id)?.vehicle_type).filter(Boolean)
+                                      ));
+
+                                      const pathString = legs.map((t: any) => t.title || t.location_name || 'Travel Leg').join(' → ');
+                                      const isHighMileage = totalDayDistance > 150; // threshold for daily warning
+
+                                      return (
+                                        <details key={dayKey} className="group py-3">
+                                          <summary className="list-none cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 focus:outline-none select-none">
+                                            <div className="flex items-start gap-3">
+                                              <div className="px-2.5 py-1 bg-amber-700 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                                {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
+                                              </div>
+                                              <div>
+                                                <span className="text-xs font-bold text-neutral-800 block">
+                                                  {pathString}
+                                                </span>
+                                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                  <span className="px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[9px] font-bold rounded uppercase tracking-wider">
+                                                    Travel
+                                                  </span>
+                                                  {distinctVehicles.length > 0 && (
+                                                    <span className="px-2 py-0.5 bg-neutral-50 border border-neutral-200 text-neutral-600 text-[9px] font-bold rounded uppercase">
+                                                      {distinctVehicles.join(', ')}
+                                                    </span>
+                                                  )}
+                                                  {legs.length > 1 && (
+                                                    <span className="text-[9px] text-neutral-500 font-medium group-open:hidden flex items-center gap-1">
+                                                      ▶ View detailed legs ({legs.length})
+                                                    </span>
+                                                  )}
+                                                  {legs.length > 1 && (
+                                                    <span className="text-[9px] text-neutral-500 font-medium hidden group-open:flex items-center gap-1">
+                                                      ▼ Hide detailed legs
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between sm:justify-end gap-4 self-stretch sm:self-auto ml-auto sm:ml-0">
+                                              <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${
+                                                isHighMileage 
+                                                  ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10' 
+                                                  : 'bg-white border-neutral-200 text-neutral-700'
+                                              }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Daily travel distance'}>
+                                                <span>Distance:</span>
+                                                <span className="font-extrabold text-xs">{totalDayDistance} km</span>
+                                              </div>
+                                              
+                                              {totalDayPrice > 0 && (
+                                                <div className="text-right min-w-[70px]">
+                                                  <span className="text-[9px] text-amber-600 uppercase block font-mono">Total Price</span>
+                                                  <span className="font-mono text-amber-800 font-bold text-xs">${totalDayPrice.toFixed(2)}</span>
+                                                </div>
+                                              )}
+
+                                              {legs.length === 1 ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    e.preventDefault();
+                                                    setEditingCustomRateAct(firstLeg);
+                                                    setCustomRateUnit(String(firstLeg.contracted_price ?? firstLeg.charged_unit_price ?? ''));
+                                                    setCustomRateTotal(String(firstLeg.contracted_total_price ?? firstLeg.charged_total_price ?? ''));
+                                                    setCustomRateNote(firstLeg.description || '');
+                                                  }}
+                                                  disabled={isLockedByOther}
+                                                  className="p-1.5 rounded-lg border border-neutral-200 hover:border-amber-400/40 hover:bg-amber-50/20 text-neutral-400 hover:text-amber-700 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                                  title="Override Contracted Rate"
+                                                >
+                                                  <CircleDollarSign className="w-3.5 h-3.5" />
+                                                </button>
+                                              ) : (
+                                                <div className="w-8 h-8 flex items-center justify-center text-neutral-300 font-bold group-open:rotate-180 transition-transform">
+                                                  ▼
+                                                </div>
+                                              )}
+                                            </div>
+                                          </summary>
+
+                                          {legs.length > 1 && (
+                                            <div className="pl-12 pb-2 pt-3 border-t border-neutral-100/60 space-y-2 mt-3 animate-in fade-in duration-250">
+                                              <p className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Detailed Day Legs</p>
+                                              {legs.map((trip: any, idx: number) => {
+                                                const legVehicle = provider?.transport_vehicles?.find((v: any) => v.id === trip.vehicle_id);
+                                                const unitRate = trip.contracted_price ?? trip.charged_unit_price;
+                                                const totalRate = trip.contracted_total_price ?? trip.charged_total_price;
+
+                                                return (
+                                                  <div key={trip.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 bg-white rounded-xl border border-neutral-150/60 shadow-sm gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-[9px] bg-neutral-100 text-neutral-500 font-mono px-1.5 py-0.5 rounded font-bold">Leg {idx + 1}</span>
+                                                      <span className="text-xs font-bold text-neutral-700">{trip.title || trip.location_name || 'Travel Leg'}</span>
+                                                      {trip.distance && (
+                                                        <span className="text-[10px] text-neutral-400">
+                                                          ({String(trip.distance).toLowerCase().includes('km') ? trip.distance : `${trip.distance} km`})
+                                                        </span>
+                                                      )}
+                                                      {legVehicle && <span className="text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase">{legVehicle.vehicle_type}</span>}
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-xs font-semibold self-end sm:self-auto">
+                                                      {unitRate !== undefined && unitRate !== null && (
+                                                        <div className="text-right">
+                                                          <span className="text-[8px] text-neutral-400 block font-mono">Unit</span>
+                                                          <span className="font-mono text-neutral-600">${Number(unitRate).toFixed(2)}</span>
+                                                        </div>
+                                                      )}
+                                                      {totalRate !== undefined && totalRate !== null && (
+                                                        <div className="text-right">
+                                                          <span className="text-[8px] text-amber-600 block font-mono">Total</span>
+                                                          <span className="font-mono text-amber-800">${Number(totalRate).toFixed(2)}</span>
+                                                        </div>
+                                                      )}
+                                                      <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          e.preventDefault();
+                                                          setEditingCustomRateAct(trip);
+                                                          setCustomRateUnit(String(trip.contracted_price ?? trip.charged_unit_price ?? ''));
+                                                          setCustomRateTotal(String(trip.contracted_total_price ?? trip.charged_total_price ?? ''));
+                                                          setCustomRateNote(trip.description || '');
+                                                        }}
+                                                        disabled={isLockedByOther}
+                                                        className="p-1 rounded-md border border-neutral-200 hover:border-amber-400 hover:bg-amber-50/20 text-neutral-400 hover:text-amber-700 transition-all disabled:opacity-40"
+                                                        title="Override Rate for this Leg"
+                                                      >
+                                                        <CircleDollarSign className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </details>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+
+                              {/* RFQ & RFP Email Logs */}
+                              {combinedBlockEmails.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                  <h6 className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                    RFQ &amp; RFP Email Dispatch History ({combinedBlockEmails.length})
+                                  </h6>
+                                  <div className="space-y-2 pr-1">
+                                    {combinedBlockEmails.map((emailLog: any) => {
+                                      const emailId = emailLog.id;
+                                      const isEmailBodyExpanded = expandedEmailId === emailId;
+                                      return (
+                                        <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                emailLog.logType === 'RFQ'
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                              }`}>
+                                                {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                              </span>
+                                              <span className="text-[9px] font-mono text-neutral-400">
+                                                Sent: {new Date(emailLog.sent_at).toLocaleString()}
+                                              </span>
+                                              {emailLog.updated_at && (
+                                                <span className="text-[9px] font-mono text-amber-600 font-semibold">
+                                                  · Updated: {new Date(emailLog.updated_at).toLocaleString()}
+                                                </span>
+                                              )}
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                  : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                              }`}>
+                                                {emailLog.status || 'Sent'}
+                                              </span>
+                                              {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
+                                                <span className="px-2 py-0.5 text-[8px] font-bold rounded-full bg-amber-50 text-amber-700 border border-amber-100 font-mono">
+                                                  ${Number(emailLog.quoted_price).toFixed(2)}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isEmailBodyExpanded) {
+                                                  setExpandedEmailId(null);
+                                                  setEditingRfq(null);
+                                                } else {
+                                                  setExpandedEmailId(emailId);
+                                                  setEditingRfq(emailLog);
+                                                  setEditRfqStatus((emailLog.status || 'Sent') as any);
+                                                  setEditRfqQuotedPrice(emailLog.quoted_price || 0);
+                                                  setEditRfqNotes(emailLog.notes || '');
+                                                  setEditRfqSelected(!!emailLog.selected_vendor);
+                                                }
+                                              }}
+                                              className="text-[9px] text-emerald-800 font-bold hover:underline"
+                                            >
+                                              {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                            </button>
+                                          </div>
+
+                                          <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                            <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                            <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
+                                          </div>
+
+                                          {isEmailBodyExpanded && (
+                                            <div className="mt-3 pt-3 border-t border-neutral-150 space-y-4">
+                                              <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm space-y-3">
+                                                <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">Edit Proposal / Bid Details</h6>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                  <div>
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Quoted Price ($)</label>
+                                                    <input type="number" value={editRfqQuotedPrice} onChange={e => setEditRfqQuotedPrice(Number(e.target.value))} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium" placeholder="e.g. 150" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Status</label>
+                                                    <select value={editRfqStatus} onChange={e => { const s = e.target.value; setEditRfqStatus(s as any); if (s === 'Selected') setEditRfqSelected(true); }} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium">
+                                                      <option value="Sent">Sent</option>
+                                                      <option value="Replied">Replied</option>
+                                                      <option value="Declined">Declined</option>
+                                                      <option value="Expired">Expired</option>
+                                                      <option value="Selected">Selected</option>
+                                                    </select>
+                                                  </div>
+                                                  <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
+                                                    <input type="checkbox" id={`tp-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
+                                                    <label htmlFor={`tp-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this travel block</label>
                                                   </div>
                                                   <div className="col-span-1 sm:col-span-2">
                                                     <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes</label>
@@ -11614,13 +12732,15 @@ function PlannerWizardWorkspace() {
 
               {/* Modal Footer */}
               <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between shrink-0">
-                <button
-                  type="button"
-                  onClick={handleResetCustomRateOverride}
-                  className="px-4 py-2.5 rounded-xl border border-rose-200 hover:bg-rose-50 text-xs font-bold text-rose-600 transition-colors"
-                >
-                  Reset to Standard
-                </button>
+                {editingCustomRateAct?.activity_type === 'sleep' ? (
+                  <button
+                    type="button"
+                    onClick={handleResetCustomRateOverride}
+                    className="px-4 py-2.5 rounded-xl border border-rose-200 hover:bg-rose-50 text-xs font-bold text-rose-600 transition-colors"
+                  >
+                    Reset to Standard
+                  </button>
+                ) : <div />}
 
                 <div className="flex items-center gap-3">
                   <button
@@ -11632,10 +12752,10 @@ function PlannerWizardWorkspace() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleApplyCustomRateOverride}
-                    disabled={!customRateNote.trim()}
+                    onClick={editingCustomRateAct?.activity_type === 'sleep' ? handleApplyCustomRateOverride : handleApplyDirectRateOverride}
+                    disabled={editingCustomRateAct?.activity_type === 'sleep' && !customRateNote.trim()}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100"
-                    title={!customRateNote.trim() ? "A justification note is required to save rate changes" : ""}
+                    title={editingCustomRateAct?.activity_type === 'sleep' && !customRateNote.trim() ? "A justification note is required to save rate changes" : ""}
                   >
                     <span>Apply Override</span>
                   </button>
