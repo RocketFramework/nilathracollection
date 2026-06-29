@@ -139,10 +139,11 @@ export const generateHotelPoPdf = async (
         return dayA - dayB;
     });
 
-    const checkInDate = sortedStays[0]?.tour_itineraries?.date || '';
-    const nightsCount = sortedStays.length;
+    const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
+    const nightsCount = standardStaysOnly.length;
     let checkOutDate = '';
-    if (checkInDate) {
+    if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
         d.setDate(d.getDate() + nightsCount);
         checkOutDate = d.toISOString().split('T')[0];
@@ -259,102 +260,215 @@ export const generateHotelPoPdf = async (
 
     topY += 21;
 
-    // Requested stays table
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(20, topY, 170, 7, 'F');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(255, 255, 255);
-    doc.text("Stay Date / Day", 24, topY + 5);
-    doc.text("Room Category", 75, topY + 5);
-    doc.text("Meal Plan", 125, topY + 5);
-    doc.text("Qty", 148, topY + 5, { align: 'center' });
-    doc.text("Unit Rate", 168, topY + 5, { align: 'right' });
-    doc.text("Total", 188, topY + 5, { align: 'right' });
-    
-    topY += 7;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
 
     let calculatedSubtotal = 0;
 
-    for (const act of sortedStays) {
-        const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-        const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-        const dateVal = act.tour_itineraries?.date;
-        const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+    // 1. Render sleepStays table
+    if (sleepStays.length > 0) {
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(20, topY, 170, 7, 'F');
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Stay Date / Day", 24, topY + 5);
+        doc.text("Room Category", 75, topY + 5);
+        doc.text("Meal Plan", 125, topY + 5);
+        doc.text("Qty", 148, topY + 5, { align: 'center' });
+        doc.text("Unit Rate", 168, topY + 5, { align: 'right' });
+        doc.text("Total", 188, topY + 5, { align: 'right' });
+        
+        topY += 7;
 
-        const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-        const activeRooms = sizes.map(size => {
-            const count = (act as any)[`${size}_count`] || 0;
-            const label = size.split('_')[0];
-            const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-            return { type: displayType, count };
-        }).filter(r => r.count > 0);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
 
-        let roomDesc = '';
-        let totalQty = 0;
-        let mealPlanText = act.meal_plan || 'BB';
+        for (const act of sleepStays) {
+            const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-        if (act.isCustomPO) {
-            const descSuffix = act.description ? ` - ${act.description}` : '';
-            roomDesc = `Custom: ${act.title || act.name || 'Additional Service'}${descSuffix}`;
-            totalQty = act.quantity || 1;
-            const customType = act.activity_type || act.type || 'service';
-            mealPlanText = customType.charAt(0).toUpperCase() + customType.slice(1);
-        } else if (activeRooms.length === 0) {
-            roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
-            totalQty = act.quantity || 1;
-        } else {
-            roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
-            totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+            const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+            const activeRooms = sizes.map(size => {
+                const count = (act as any)[`${size}_count`] || 0;
+                const label = size.split('_')[0];
+                const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                return { type: displayType, count };
+            }).filter(r => r.count > 0);
+
+            let roomDesc = '';
+            let totalQty = 0;
+            let mealPlanText = act.meal_plan || 'BB';
+
+            if (activeRooms.length === 0) {
+                roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
+                totalQty = act.quantity || 1;
+            } else {
+                roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+                totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+            }
+
+            if (act.description) {
+                roomDesc += ` - ${act.description}`;
+            }
+
+            const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+            const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
+            calculatedSubtotal += totalCost;
+
+            const splitDesc = doc.splitTextToSize(roomDesc, 48);
+            const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
+
+            if (topY + cellHeight > 270) {
+                doc.addPage();
+                topY = 20;
+                doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.rect(20, topY, 170, 7, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(255, 255, 255);
+                doc.text("Stay Date / Day", 24, topY + 5);
+                doc.text("Room Category", 75, topY + 5);
+                doc.text("Meal Plan", 125, topY + 5);
+                doc.text("Qty", 148, topY + 5, { align: 'center' });
+                doc.text("Unit Rate", 168, topY + 5, { align: 'right' });
+                doc.text("Total", 188, topY + 5, { align: 'right' });
+                topY += 7;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+            }
+
+            doc.setDrawColor(230, 230, 230);
+            doc.setLineWidth(0.2);
+            doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+
+            doc.text(displayDate, 24, topY + 5);
+            doc.text(splitDesc, 75, topY + 5);
+            doc.text(mealPlanText, 125, topY + 5);
+            doc.text(String(totalQty), 148, topY + 5, { align: 'center' });
+            doc.text(`$${unitCost.toFixed(2)}`, 168, topY + 5, { align: 'right' });
+            doc.text(`$${totalCost.toFixed(2)}`, 188, topY + 5, { align: 'right' });
+
+            topY += cellHeight;
         }
+    }
 
-        const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
-        const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
-        calculatedSubtotal += totalCost;
-
-        const splitDesc = doc.splitTextToSize(roomDesc, 48);
-        const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
-
-        if (topY + cellHeight > 270) {
+    // 2. Render customStays table
+    if (customStays.length > 0) {
+        topY += (sleepStays.length > 0 ? 10 : 0);
+        if (topY > 250) {
             doc.addPage();
             topY = 20;
-            doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.rect(20, topY, 170, 7, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8.5);
-            doc.setTextColor(255, 255, 255);
-            doc.text("Stay Date / Day", 24, topY + 5);
-            doc.text("Room Category", 75, topY + 5);
-            doc.text("Meal Plan", 125, topY + 5);
-            doc.text("Qty", 148, topY + 5, { align: 'center' });
-            doc.text("Unit Rate", 168, topY + 5, { align: 'right' });
-            doc.text("Total", 188, topY + 5, { align: 'right' });
-            topY += 7;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
         }
 
-        doc.setDrawColor(230, 230, 230);
-        doc.setLineWidth(0.2);
-        doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(20, topY, 170, 7, 'F');
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Service Date / Day", 24, topY + 5);
+        doc.text("Requested Service / Activity", 75, topY + 5);
+        doc.text("Qty", 148, topY + 5, { align: 'center' });
+        doc.text("Unit Rate", 168, topY + 5, { align: 'right' });
+        doc.text("Total", 188, topY + 5, { align: 'right' });
+        
+        topY += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
 
-        doc.text(displayDate, 24, topY + 5);
-        doc.text(splitDesc, 75, topY + 5);
-        doc.text(mealPlanText, 125, topY + 5);
-        doc.text(String(totalQty), 148, topY + 5, { align: 'center' });
-        doc.text(`$${unitCost.toFixed(2)}`, 168, topY + 5, { align: 'right' });
-        doc.text(`$${totalCost.toFixed(2)}`, 188, topY + 5, { align: 'right' });
+        for (const act of customStays) {
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-        topY += cellHeight;
+            const descSuffix = act.description ? ` - ${act.description}` : '';
+            const roomDesc = `${act.title || act.name || 'Additional Service'}${descSuffix}`;
+            const totalQty = act.quantity || 1;
+
+            const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+            const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
+            calculatedSubtotal += totalCost;
+
+            const splitDesc = doc.splitTextToSize(roomDesc, 68);
+            const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
+
+            if (topY + cellHeight > 270) {
+                doc.addPage();
+                topY = 20;
+                doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.rect(20, topY, 170, 7, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(255, 255, 255);
+                doc.text("Service Date / Day", 24, topY + 5);
+                doc.text("Requested Service / Activity", 75, topY + 5);
+                doc.text("Qty", 148, topY + 5, { align: 'center' });
+                doc.text("Unit Rate", 168, topY + 5, { align: 'right' });
+                doc.text("Total", 188, topY + 5, { align: 'right' });
+                topY += 7;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+            }
+
+            doc.setDrawColor(230, 230, 230);
+            doc.setLineWidth(0.2);
+            doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+
+            doc.text(displayDate, 24, topY + 5);
+            doc.text(splitDesc, 75, topY + 5);
+            doc.text(String(totalQty), 148, topY + 5, { align: 'center' });
+            doc.text(`$${unitCost.toFixed(2)}`, 168, topY + 5, { align: 'right' });
+            doc.text(`$${totalCost.toFixed(2)}`, 188, topY + 5, { align: 'right' });
+
+            topY += cellHeight;
+        }
     }
 
     topY += 8;
+
+    const hasDriverMeal = stays.some(s => s && s.driver_meal_included);
+    const hasDriverAcc = stays.some(s => s && s.driver_acc_included);
+    const hasParking = stays.some(s => s && s.parking_included);
+    const guideRoomDisc = stays.find(s => s && s.guide_room_discount)?.guide_room_discount;
+
+    const agreedInclusions: string[] = [];
+    if (hasDriverMeal) agreedInclusions.push("Driver Meals: Included");
+    if (hasDriverAcc) agreedInclusions.push("Driver Accommodation: Provided FOC");
+    if (hasParking) agreedInclusions.push("On-Site Parking: Included");
+    if (guideRoomDisc && guideRoomDisc !== 'None') {
+        agreedInclusions.push(`Guide Room Discount: ${guideRoomDisc}`);
+    }
+
+    if (agreedInclusions.length > 0) {
+        if (topY + (agreedInclusions.length * 4.5) + 12 > 270) {
+            doc.addPage();
+            topY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text("AGREED SPECIAL INCLUSIONS / SERVICES:", 20, topY);
+        topY += 6;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+
+        agreedInclusions.forEach((inc, idx) => {
+            doc.text(`- ${inc}`, 24, topY + (idx * 4.5));
+        });
+        topY += (agreedInclusions.length * 4.5) + 6;
+    }
+
     if (topY > 230) {
         doc.addPage();
         topY = 20;

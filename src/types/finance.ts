@@ -27,6 +27,28 @@ export interface DBPurchaseOrderItem {
     number_of_guests?: number;
     language?: string;
 
+    // Unified service details column (JSONB)
+    service_details?: {
+        check_in_date?: string;
+        check_out_date?: string;
+        room_type?: string;
+        meal_plan?: string;
+        number_of_nights?: number;
+        vehicle_type?: string;
+        pick_up_location?: string;
+        drop_off_location?: string;
+        driver_included?: boolean;
+        fuel_included?: boolean;
+        number_of_guests?: number;
+        language?: string;
+        meal_type?: string;
+        dining_time_start?: string;
+        dining_time_end?: string;
+        buffet_available?: boolean;
+        cuisine_type?: string;
+        exclusive_buyout?: boolean;
+    };
+
     special_notes?: string;
     created_at?: string;
 }

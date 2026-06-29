@@ -1,0 +1,48 @@
+-- Add Request for Quote - Restaurant email template
+INSERT INTO public.email_templates (name, type, subject, body_html, variables)
+VALUES (
+    'Request for Quote - Restaurant',
+    'RFQ_RESTAURANT',
+    'Request for Quotation - Restaurant Booking – {{Restaurant Name}} – {{Date}}',
+    '<p>Dear Reservations / F&B Team,</p>
+
+<p>Greetings from <strong>Nilathra Collection</strong>.</p>
+
+<p>We are a Colombo–based destination management company specializing in tailor-made luxury, ultra-VIP, and experiential travel for HNW and UHNW international clientele. We are currently preparing a proposal for our guests and would appreciate your best rates and availability for a restaurant booking as detailed below:</p>
+
+<ul>
+  <li><strong>Date:</strong> {{Date}}</li>
+  <li><strong>Number of Pax (Guests):</strong> {{Pax}}</li>
+  <li><strong>Requested Dining Time / Meal:</strong> {{Meal Type}}</li>
+</ul>
+
+<p>Kindly provide your rates and confirm the following details:</p>
+
+<ul>
+  <li><strong>Servicing Hours:</strong> What are your standard operating hours for this meal?</li>
+  <li><strong>Dining Options:</strong> Do you offer buffet, à la carte, or set menu options? Please share the menus and prices.</li>
+  <li><strong>Cuisine Availability:</strong> Do you have European, Sri Lankan, Chinese, or Indian food options available?</li>
+  <li><strong>Room Booking:</strong> Is there an option to book a private dining room/space for this group?</li>
+  <li><strong>Exclusive Booking:</strong> What are the terms/costs if we wish to book the entire facility exclusively?</li>
+  <li>Any special requirements or dietary considerations we should be aware of.</li>
+</ul>
+
+<p>We look forward to your favorable response and hope this marks the beginning of a mutually beneficial partnership.</p>
+
+<p>Warm regards,</p>
+
+<p>
+  <strong>{{Agent Name}}</strong><br>
+  <strong>Senior Agent</strong><br>
+  <strong>Nilathra Collection</strong>
+</p>
+
+<p>
+  <strong>Nilathra Hotel Management (Pvt) Ltd</strong><br>
+  <strong>Mobile:</strong> +94 (0) 777 27 8282<br>
+  <strong>Email:</strong> concierge@nilathra.com<br>
+  <strong>Website:</strong> https://www.nilathra.com
+</p>',
+    '["Restaurant Name", "Date", "Pax", "Meal Type", "Agent Name"]'::jsonb
+)
+ON CONFLICT DO NOTHING;

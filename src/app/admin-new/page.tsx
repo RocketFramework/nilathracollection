@@ -128,6 +128,7 @@ import {
   cancelVendorBookingAction,
   getVendorBookingsAction,
   getHotelRfqTemplateAction,
+  getRestaurantRfqTemplateAction,
   sendHotelRfqEmailAction,
   sendPurchaseOrderEmailAction,
   logRfqEmailAction,
@@ -479,6 +480,18 @@ function PlannerWizardWorkspace() {
   const [rfqAdjacentRooms, setRfqAdjacentRooms] = useState(false);
   const [rfqBuggyCars, setRfqBuggyCars] = useState(false);
   const [rfqHeliPad, setRfqHeliPad] = useState(false);
+  const [rfqDriverMeal, setRfqDriverMeal] = useState(false);
+  const [rfqDriverAcc, setRfqDriverAcc] = useState(false);
+  const [rfqParking, setRfqParking] = useState(false);
+  const [rfqGuideRoomDiscount, setRfqGuideRoomDiscount] = useState<string | null>(null);
+  const [rfqIsRestaurant, setRfqIsRestaurant] = useState(false);
+
+  // Checkboxes/dropdown for custom rate override special requests
+  const [customRateDriverMeal, setCustomRateDriverMeal] = useState(false);
+  const [customRateDriverAcc, setCustomRateDriverAcc] = useState(false);
+  const [customRateParking, setCustomRateParking] = useState(false);
+  const [customRateGuideRoomDiscount, setCustomRateGuideRoomDiscount] = useState<string>('None');
+  const [customRateApplyToAllInBlock, setCustomRateApplyToAllInBlock] = useState(false);
 
   // Custom Hotel PO Item Modal State
   const [showCustomHotelItemModal, setShowCustomHotelItemModal] = useState(false);
@@ -1486,14 +1499,31 @@ function PlannerWizardWorkspace() {
 
     setIsApplyingRateOverride(true);
 
+    const actId = editingCustomRateAct.id;
+    const parentBlock = poBlocks.find(block => 
+      (block.daily_activities || []).some((act: any) => act.id === actId)
+    );
+    const applyToAll = customRateApplyToAllInBlock && !!parentBlock;
+
+    const targetActIds = applyToAll 
+      ? (parentBlock?.daily_activities || []).map((act: any) => act.id) 
+      : [actId];
+
+    const targetDayNums = applyToAll
+      ? (parentBlock?.daily_activities || []).map((act: any) => 
+          Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0)
+        ).filter(Boolean)
+      : [Number(dayNum)];
+
     setTripData({
       ...tripData,
       accommodations: tripData.accommodations.map(a => {
-        if (Number(a.nightIndex) === Number(dayNum)) {
+        const isMatch = targetDayNums.some(d => Number(d) === Number(a.nightIndex)) && a.hotelId === editingCustomRateAct.hotel_id;
+        if (isMatch) {
           return {
             ...a,
-            customContractedUnitPrice: unitPrice,
-            customContractedTotalPrice: totalPrice,
+            customContractedUnitPrice: Number(a.nightIndex) === Number(dayNum) ? unitPrice : a.customContractedUnitPrice,
+            customContractedTotalPrice: Number(a.nightIndex) === Number(dayNum) ? totalPrice : a.customContractedTotalPrice,
             customRateNote: note,
           };
         }
@@ -1501,20 +1531,57 @@ function PlannerWizardWorkspace() {
       })
     });
 
+    // Update itinerary block state to persist via debounced saveTourAction
+    setItinerary(prev =>
+      prev.map(b => {
+        const isMatch = targetActIds.includes(b.id);
+        if (!isMatch) return b;
+        return {
+          ...b,
+          driverMealIncluded: customRateDriverMeal,
+          driverAccIncluded: customRateDriverAcc,
+          parkingIncluded: customRateParking,
+          guideRoomDiscount: customRateGuideRoomDiscount === 'None' ? undefined : (customRateGuideRoomDiscount as any)
+        };
+      })
+    );
+
+    // Update dbActivities state immediately
+    setDbActivities(prev =>
+      prev.map(act => {
+        if (!targetActIds.includes(act.id)) return act;
+        const isCurrent = act.id === actId;
+        return {
+          ...act,
+          driver_meal_included: customRateDriverMeal,
+          driver_acc_included: customRateDriverAcc,
+          parking_included: customRateParking,
+          guide_room_discount: customRateGuideRoomDiscount === 'None' ? null : customRateGuideRoomDiscount,
+          contracted_price: isCurrent ? (unitPrice ?? act.contracted_price) : act.contracted_price,
+          contracted_total_price: isCurrent ? (totalPrice ?? act.contracted_total_price) : act.contracted_total_price,
+          description: note ?? act.description
+        };
+      })
+    );
+
     // Also patch poBlocks state immediately so hotel-selection reflects the new
-    // contracted rates without requiring a full page reload.
-    const actId = editingCustomRateAct.id;
-    if (actId && (unitPrice !== undefined || totalPrice !== undefined)) {
+    // contracted rates and driver/parking options without requiring a full page reload.
+    if (actId) {
       setPoBlocks(prev =>
         prev.map(block => ({
           ...block,
           daily_activities: (block.daily_activities || []).map((act: any) => {
-            if (act.id !== actId) return act;
+            if (!targetActIds.includes(act.id)) return act;
+            const isCurrent = act.id === actId;
             return {
               ...act,
-              contracted_price: unitPrice ?? act.contracted_price,
-              contracted_total_price: totalPrice ?? act.contracted_total_price,
+              contracted_price: isCurrent ? (unitPrice ?? act.contracted_price) : act.contracted_price,
+              contracted_total_price: isCurrent ? (totalPrice ?? act.contracted_total_price) : act.contracted_total_price,
               description: note ?? act.description,
+              driver_meal_included: customRateDriverMeal,
+              driver_acc_included: customRateDriverAcc,
+              parking_included: customRateParking,
+              guide_room_discount: customRateGuideRoomDiscount === 'None' ? null : customRateGuideRoomDiscount
             };
           }),
         }))
@@ -1522,8 +1589,28 @@ function PlannerWizardWorkspace() {
     }
 
     setEditingCustomRateAct(null);
-    // Clear the progress indicator after React has flushed the state updates
-    setTimeout(() => setIsApplyingRateOverride(false), 400);
+
+    // Persist to DB directly and immediately
+    if (actId) {
+      const updates = targetActIds.map(id => {
+        const isCurrent = id === actId;
+        return {
+          id: id,
+          contracted_price: isCurrent ? (unitPrice !== undefined ? unitPrice : null) : undefined,
+          contracted_total_price: isCurrent ? (totalPrice !== undefined ? totalPrice : null) : undefined,
+          driver_meal_included: customRateDriverMeal,
+          driver_acc_included: customRateDriverAcc,
+          parking_included: customRateParking,
+          guide_room_discount: customRateGuideRoomDiscount === 'None' ? null : customRateGuideRoomDiscount
+        };
+      });
+
+      finalizeActivityPricesAction(updates)
+        .catch(err => console.error('Rate override persist failed:', err))
+        .finally(() => setIsApplyingRateOverride(false));
+    } else {
+      setIsApplyingRateOverride(false);
+    }
   };
 
   /**
@@ -1591,6 +1678,12 @@ function PlannerWizardWorkspace() {
     const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
     
     setEditingCustomRateAct(act);
+    setCustomRateDriverMeal(act.driver_meal_included || false);
+    setCustomRateDriverAcc(act.driver_acc_included || false);
+    setCustomRateParking(act.parking_included || false);
+    setCustomRateGuideRoomDiscount(act.guide_room_discount || 'None');
+    setCustomRateApplyToAllInBlock(false);
+
     if (acc) {
       setCustomRateUnit(acc.customContractedUnitPrice !== undefined ? String(acc.customContractedUnitPrice) : String(act.contracted_price ?? ''));
       setCustomRateTotal(acc.customContractedTotalPrice !== undefined ? String(acc.customContractedTotalPrice) : String(act.contracted_total_price ?? ''));
@@ -3334,11 +3427,11 @@ function PlannerWizardWorkspace() {
         unit_price: item.unit_price.toString(),
         po_quantity: item.quantity,
         po_unit_price: item.unit_price,
-        room_type: item.room_type,
-        meal_plan: item.meal_plan,
-        number_of_nights: item.number_of_nights,
-        check_in_date: item.check_in_date,
-        check_out_date: item.check_out_date
+        room_type: item.service_details?.room_type || item.room_type,
+        meal_plan: item.service_details?.meal_plan || item.meal_plan,
+        number_of_nights: item.service_details?.number_of_nights || item.number_of_nights,
+        check_in_date: item.service_details?.check_in_date || item.check_in_date,
+        check_out_date: item.service_details?.check_out_date || item.check_out_date
       })));
     } else {
       setInvoiceItems([]);
@@ -3362,12 +3455,26 @@ function PlannerWizardWorkspace() {
   }, []);
 
   const handleOpenRfqModal = async (hotel: any, stays: any[], blockId?: string) => {
+    const hasDriverMeal = stays.some(s => s.driver_meal_included || s.driverMealIncluded);
+    const hasDriverAcc = stays.some(s => s.driver_acc_included || s.driverAccIncluded);
+    const hasParking = stays.some(s => s.parking_included || s.parkingIncluded);
+    const guideRoomDisc = stays.find(s => s.guide_room_discount || s.guideRoomDiscount);
+    const guideRoomDiscVal = guideRoomDisc ? (guideRoomDisc.guide_room_discount || guideRoomDisc.guideRoomDiscount || null) : null;
+
+    const block = itinerary.find(b => b.id === blockId);
+    const isRestaurant = block?.type === 'meal' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id);
+    setRfqIsRestaurant(isRestaurant);
+
     setRfqBlockId(blockId || null);
     setSelectedRfqHotel(hotel);
     setSelectedRfqStays(stays);
     setRfqAdjacentRooms(false);
     setRfqBuggyCars(false);
     setRfqHeliPad(false);
+    setRfqDriverMeal(hasDriverMeal);
+    setRfqDriverAcc(hasDriverAcc);
+    setRfqParking(hasParking);
+    setRfqGuideRoomDiscount(guideRoomDiscVal && guideRoomDiscVal !== 'None' ? guideRoomDiscVal : null);
     setRfqEmailTo(hotel?.reservation_email || '');
     setRfqEmailSubject('');
     setRfqEmailBody('');
@@ -3377,7 +3484,7 @@ function PlannerWizardWorkspace() {
     setShowRfqModal(true);
     
     try {
-      const res = await getHotelRfqTemplateAction();
+      const res = isRestaurant ? await getRestaurantRfqTemplateAction() : await getHotelRfqTemplateAction();
       if (res.success && res.template) {
         const template = res.template;
         
@@ -3386,7 +3493,7 @@ function PlannerWizardWorkspace() {
             const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
             return dayA - dayB;
         });
-
+ 
         const standardStaysOnly = sortedStays.filter(s => !s.isCustomPO);
         const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays[0]?.tour_itineraries?.date || '';
         const nightsCount = standardStaysOnly.length;
@@ -3396,7 +3503,7 @@ function PlannerWizardWorkspace() {
             d.setDate(d.getDate() + nightsCount);
             checkOutDate = d.toISOString().split('T')[0];
         }
-
+ 
         const formatDate = (dateStr: string) => {
             if (!dateStr) return '-';
             try {
@@ -3411,95 +3518,197 @@ function PlannerWizardWorkspace() {
                 return dateStr;
             }
         };
-
+ 
         const checkInDateFormatted = formatDate(checkInDate);
         const checkOutDateFormatted = formatDate(checkOutDate);
+        
+        const uniqueMealPlans = Array.from(new Set(sortedStays.map(act => act.meal_plan || act.mealPlan).filter(Boolean))).join(' / ');
+        const mealDetailsList = sortedStays.map(act => {
+          const mealPart = act.meal_plan || act.mealPlan || 'Meal';
+          const titlePart = act.title || act.name || '';
+          
+          let timePart = '';
+          const startTime = act.time_start || act.startTime || '';
+          const endTime = act.time_end || act.endTime || '';
+          
+          const cleanStart = startTime.split(':').slice(0, 2).join(':');
+          const cleanEnd = endTime.split(':').slice(0, 2).join(':');
+          
+          if (cleanStart) {
+            timePart = cleanEnd ? `${cleanStart} – ${cleanEnd}` : `${cleanStart}`;
+          }
 
-        const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-        const roomsByDate = sortedStays.map(act => {
-            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-            const dateVal = act.tour_itineraries?.date;
-            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
-
-            let reqStr = '';
-            if (act.isCustomPO) {
-                const descStr = act.description ? ` (${act.description})` : '';
-                reqStr = `Custom: ${act.title || act.name || 'Additional Service'} (Qty: ${act.quantity || 1})${descStr}`;
-            } else {
-                const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-                const activeRooms = sizes.map(size => {
-                    const count = (act as any)[`${size}_count`] || 0;
-                    const label = size.split('_')[0];
-                    const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-                    return { type: displayType, count };
-                }).filter(r => r.count > 0);
-
-                if (activeRooms.length === 0) {
-                    const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
-                    reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
-                } else {
-                    reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
-                }
+          let detail = '';
+          if (mealPart && mealPart !== 'Meal') {
+            detail = mealPart;
+            if (titlePart && titlePart !== mealPart) {
+              detail += ` - ${titlePart}`;
             }
+          } else {
+            detail = titlePart || 'Meal';
+          }
 
-            return { displayDate, reqStr };
+          if (timePart) {
+            detail += ` (${timePart})`;
+          }
+          return detail;
         });
-
-        let roomsRequiredText = '';
-        if (roomsByDate.length === 1) {
-            roomsRequiredText = `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
-        } else {
-            roomsRequiredText = roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
-        }
-
+        const mealTypesText = mealDetailsList.filter(Boolean).join(' / ');
+ 
         const adults = touristData?.preferences?.adults || 2;
         const children = touristData?.preferences?.children || 0;
         const infants = touristData?.preferences?.infants || 0;
         let occupancyStr = `${adults} Adults`;
         if (children > 0) occupancyStr += ` / ${children} Children`;
         if (infants > 0) occupancyStr += ` / ${infants} Infants`;
-
-        const uniqueMealPlans = Array.from(new Set(sortedStays.map(act => act.meal_plan).filter(Boolean))).join(' / ');
-
+ 
         let agentName = 'Your Concierge Team';
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
         }
-
+ 
         let subject = template.subject || '';
-        subject = subject.replace(/{{Hotel Name}}/g, hotel?.name || '');
-        subject = subject.replace(/{{from-Dates}}/g, checkInDateFormatted);
-        subject = subject.replace(/{{to-Date}}/g, checkOutDateFormatted);
-        setRfqEmailSubject(subject);
-
         let bodyHtml = template.body_html || '';
-        bodyHtml = bodyHtml.replace(/{{Hotel Name}}/g, hotel?.name || '');
-        bodyHtml = bodyHtml.replace(/{{from-Dates}}/g, checkInDateFormatted);
-        bodyHtml = bodyHtml.replace(/{{to-Date}}/g, checkOutDateFormatted);
-        
-        let occurrence = 0;
-        bodyHtml = bodyHtml.replace(/{{DD MMM YYYY}}/g, () => {
-            occurrence++;
-            return occurrence === 1 ? checkInDateFormatted : checkOutDateFormatted;
-        });
 
-        bodyHtml = bodyHtml.replace(/{{X}}/g, String(nightsCount));
-        bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, roomsRequiredText);
-        bodyHtml = bodyHtml.replace(/{{e.g., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
-        bodyHtml = bodyHtml.replace(/{{e\.g\.,.*}}/gi, occupancyStr);
-        bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/g, uniqueMealPlans || 'BB');
-        bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+        if (isRestaurant) {
+          subject = subject.replace(/{{Restaurant Name}}/g, hotel?.name || '');
+          subject = subject.replace(/{{Date}}/g, checkInDateFormatted);
+          setRfqEmailSubject(subject);
 
+          bodyHtml = bodyHtml.replace(/{{Restaurant Name}}/g, hotel?.name || '');
+          bodyHtml = bodyHtml.replace(/{{Date}}/g, checkInDateFormatted);
+          bodyHtml = bodyHtml.replace(/{{Pax}}/g, occupancyStr);
+          bodyHtml = bodyHtml.replace(/{{Meal Type}}/g, mealTypesText || 'Lunch/Dinner');
+          bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+        } else {
+          subject = subject.replace(/{{Hotel Name}}/g, hotel?.name || '');
+          subject = subject.replace(/{{from-Dates}}/g, checkInDateFormatted);
+          subject = subject.replace(/{{to-Date}}/g, checkOutDateFormatted);
+          setRfqEmailSubject(subject);
+
+          const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+          const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+          const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
+
+          const roomsByDate = sleepStays.map(act => {
+              const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+              const dateVal = act.tour_itineraries?.date;
+              const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+   
+              let reqStr = '';
+              const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+              const activeRooms = sizes.map(size => {
+                  const count = (act as any)[`${size}_count`] || 0;
+                  const label = size.split('_')[0];
+                  const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                  return { type: displayType, count };
+              }).filter(r => r.count > 0);
+
+              if (activeRooms.length === 0) {
+                  const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
+                  reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
+              } else {
+                  reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+              }
+              if (act.description) {
+                  reqStr += ` (${act.description})`;
+              }
+   
+              return { displayDate, reqStr };
+          });
+   
+          let roomsRequiredText = '';
+          if (roomsByDate.length === 0) {
+              roomsRequiredText = 'No overnight accommodations requested.';
+          } else if (roomsByDate.length === 1) {
+              roomsRequiredText = `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
+          } else {
+              roomsRequiredText = roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
+          }
+
+          let customServicesText = '';
+          if (customStays.length > 0) {
+              const rows = customStays.map(act => {
+                  const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+                  const dateVal = act.tour_itineraries?.date;
+                  const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+                  const title = act.title || act.name || 'Additional Service';
+                  const desc = act.description ? ` (${act.description})` : '';
+                  const qty = act.quantity || 1;
+                  
+                  return `<tr>
+                      <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${displayDate}</td>
+                      <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${title}${desc}</td>
+                      <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: center;">${qty}</td>
+                  </tr>`;
+              }).join('');
+
+              customServicesText = `
+<div style="margin-top: 15px; background-color: #FBFBFA; border: 1px solid #E6E4E0; padding: 12px; border-radius: 12px;">
+  <strong style="color: #1B3A2D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Additional Services & Activities Requested</strong>
+  <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: #333;">
+    <thead>
+      <tr style="background-color: #F5F3EF;">
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">Date / Day</th>
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">Service / Activity</th>
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: center; width: 40px;">Qty</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+</div>`;
+          }
+
+          // Dynamically inject the new special request items if they aren't in the template
+          if (!bodyHtml.includes("Driver Meals")) {
+            const heliPadLi = "Availability of a Heli-Pad</li>";
+            if (bodyHtml.includes(heliPadLi)) {
+              bodyHtml = bodyHtml.replace(
+                heliPadLi,
+                `${heliPadLi}\n<li data-section-id="driver_meals">Kindly confirm if Driver Meals are included.</li>\n<li data-section-id="driver_acc">Kindly confirm if Driver Accommodation (FOC) is provided.</li>\n<li data-section-id="parking">Kindly confirm if on-site Parking is included.</li>\n<li data-section-id="guide_room">Kindly confirm Guide Room option: {{Guide Room Discount}}.</li>`
+              );
+            } else {
+              bodyHtml = bodyHtml.replace(
+                "</ul>",
+                `<li data-section-id="driver_meals">Kindly confirm if Driver Meals are included.</li>\n<li data-section-id="driver_acc">Kindly confirm if Driver Accommodation (FOC) is provided.</li>\n<li data-section-id="parking">Kindly confirm if on-site Parking is included.</li>\n<li data-section-id="guide_room">Kindly confirm Guide Room option: {{Guide Room Discount}}.</li>\n</ul>`
+              );
+            }
+          }
+  
+          bodyHtml = bodyHtml.replace(/{{Hotel Name}}/g, hotel?.name || '');
+          bodyHtml = bodyHtml.replace(/{{from-Dates}}/g, checkInDateFormatted);
+          bodyHtml = bodyHtml.replace(/{{to-Date}}/g, checkOutDateFormatted);
+          
+          let occurrence = 0;
+          bodyHtml = bodyHtml.replace(/{{DD MMM YYYY}}/g, () => {
+              occurrence++;
+              return occurrence === 1 ? checkInDateFormatted : checkOutDateFormatted;
+          });
+   
+          bodyHtml = bodyHtml.replace(/{{X}}/g, String(nightsCount));
+          bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, roomsRequiredText + (customServicesText ? '<br />' + customServicesText : ''));
+          bodyHtml = bodyHtml.replace(/{{e.g., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
+          bodyHtml = bodyHtml.replace(/{{e\.g\.,.*}}/gi, occupancyStr);
+          bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/g, uniqueMealPlans || 'BB');
+          bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+        }
+ 
         setRfqEmailBodyOriginal(bodyHtml);
         const initialProcessed = getProcessedEmailBody(bodyHtml, {
           adjacentRooms: false,
           buggyCars: false,
-          heliPad: false
+          heliPad: false,
+          driverMeal: hasDriverMeal,
+          driverAcc: hasDriverAcc,
+          parking: hasParking,
+          guideRoomDiscount: guideRoomDiscVal && guideRoomDiscVal !== 'None' ? guideRoomDiscVal : null
         });
         setRfqEmailBody(initialProcessed);
-
+ 
         // Sync editor HTML after DOM mounts
         setTimeout(() => {
           if (rfqEditorRef.current) {
@@ -3514,7 +3723,15 @@ function PlannerWizardWorkspace() {
 
   const updateRfqEmailBody = (
     baseHtml: string,
-    options: { adjacentRooms: boolean; buggyCars: boolean; heliPad: boolean }
+    options: {
+      adjacentRooms: boolean;
+      buggyCars: boolean;
+      heliPad: boolean;
+      driverMeal: boolean;
+      driverAcc: boolean;
+      parking: boolean;
+      guideRoomDiscount: string | null;
+    }
   ) => {
     const processed = getProcessedEmailBody(baseHtml, options);
     setRfqEmailBody(processed);
@@ -3523,7 +3740,19 @@ function PlannerWizardWorkspace() {
     }
   };
 
-  const getProcessedEmailBody = (html: string, options: { adjacentRooms: boolean; buggyCars: boolean; heliPad: boolean }) => {
+  const getProcessedEmailBody = (
+    html: string,
+    options: {
+      adjacentRooms: boolean;
+      buggyCars: boolean;
+      heliPad: boolean;
+      driverMeal: boolean;
+      driverAcc: boolean;
+      parking: boolean;
+      guideRoomDiscount: string | null;
+    }
+  ) => {
+    if (rfqIsRestaurant) return html;
     let result = html;
     if (!options.adjacentRooms) {
       result = result.replace(/<li[^>]*>Availability of Adjacent Rooms<\/li>/gi, '');
@@ -3533,6 +3762,20 @@ function PlannerWizardWorkspace() {
     }
     if (!options.heliPad) {
       result = result.replace(/<li[^>]*>Availability of a Heli-Pad<\/li>/gi, '');
+    }
+    if (!options.driverMeal) {
+      result = result.replace(/<li[^>]*>Kindly confirm if Driver Meals are included\.<\/li>/gi, '');
+    }
+    if (!options.driverAcc) {
+      result = result.replace(/<li[^>]*>Kindly confirm if Driver Accommodation \(FOC\) is provided\.<\/li>/gi, '');
+    }
+    if (!options.parking) {
+      result = result.replace(/<li[^>]*>Kindly confirm if on-site Parking is included\.<\/li>/gi, '');
+    }
+    if (!options.guideRoomDiscount) {
+      result = result.replace(/<li[^>]*>Kindly confirm Guide Room option:.*?<\/li>/gi, '');
+    } else {
+      result = result.replace(/{{Guide Room Discount}}/g, options.guideRoomDiscount);
     }
     return result;
   };
@@ -3555,16 +3798,20 @@ function PlannerWizardWorkspace() {
         {
           adjacentRooms: rfqAdjacentRooms,
           buggyCars: rfqBuggyCars,
-          heliPad: rfqHeliPad
+          heliPad: rfqHeliPad,
+          driverMeal: rfqDriverMeal,
+          driverAcc: rfqDriverAcc,
+          parking: rfqParking,
+          guideRoomDiscount: rfqGuideRoomDiscount
         }
       );
       
       if (doc) {
         doc.save(`RFQ_${hotel.name.replace(/\s+/g, '_')}.pdf`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to download RFQ PDF:", e);
-      alert("Error generating RFQ PDF. Please check settings.");
+      alert("Error generating RFQ PDF: " + (e?.stack || e?.message || e));
     }
   };
 
@@ -3615,7 +3862,11 @@ function PlannerWizardWorkspace() {
           {
             adjacentRooms: rfqAdjacentRooms,
             buggyCars: rfqBuggyCars,
-            heliPad: rfqHeliPad
+            heliPad: rfqHeliPad,
+            driverMeal: rfqDriverMeal,
+            driverAcc: rfqDriverAcc,
+            parking: rfqParking,
+            guideRoomDiscount: rfqGuideRoomDiscount
           }
         );
         pdfBase64 = doc.output('datauristring').split(',')[1];
@@ -3625,7 +3876,11 @@ function PlannerWizardWorkspace() {
       const processedBody = getProcessedEmailBody(rfqEmailBody, {
         adjacentRooms: rfqAdjacentRooms,
         buggyCars: rfqBuggyCars,
-        heliPad: rfqHeliPad
+        heliPad: rfqHeliPad,
+        driverMeal: rfqDriverMeal,
+        driverAcc: rfqDriverAcc,
+        parking: rfqParking,
+        guideRoomDiscount: rfqGuideRoomDiscount
       });
 
       const resEmail = await sendHotelRfqEmailAction({
@@ -3736,8 +3991,24 @@ function PlannerWizardWorkspace() {
         return dayA - dayB;
     });
 
-    const checkInDate = sortedStays[0]?.tour_itineraries?.date || '';
-    const nightsCount = sortedStays.length;
+    const formatDate = (dateStr: string) => {
+        if (!dateStr) return '-';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        } catch (e) {
+            return dateStr;
+        }
+    };
+
+    const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
+    const nightsCount = standardStaysOnly.length;
     let checkOutDate = '';
     if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
@@ -3754,7 +4025,11 @@ function PlannerWizardWorkspace() {
     // Calculate total price
     let calculatedSubtotal = 0;
     const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-    const roomsText = sortedStays.map(act => {
+    
+    const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
+
+    const roomsText = sleepStays.length === 0 ? 'No overnight accommodations requested.' : sleepStays.map(act => {
         const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
         const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
         const activeRooms = sizes.map(size => {
@@ -3766,15 +4041,16 @@ function PlannerWizardWorkspace() {
 
         let reqStr = '';
         let totalQty = 0;
-        if (act.isCustomPO || act.title === 'Tour Guide Services' || act.activity_type === 'travel') {
-            reqStr = act.title || act.name || act.description || 'Service';
-            totalQty = act.quantity || 1;
-        } else if (activeRooms.length === 0) {
+        if (activeRooms.length === 0) {
             reqStr = room?.room_name || act.title || act.name || 'Room';
             totalQty = act.quantity || 1;
         } else {
             reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
             totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+        }
+
+        if (act.description) {
+            reqStr += ` (${act.description})`;
         }
 
         const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
@@ -3783,6 +4059,72 @@ function PlannerWizardWorkspace() {
 
         return `• Day ${dayNum}: ${reqStr} (${act.meal_plan || 'BB'}) - Qty: ${totalQty} @ $${unitCost.toFixed(2)} (Total: $${totalCost.toFixed(2)})`;
     }).join('<br />');
+
+    let customServicesText = '';
+    if (customStays.length > 0) {
+        const rows = customStays.map(act => {
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+            const title = act.title || act.name || 'Additional Service';
+            const desc = act.description ? ` (${act.description})` : '';
+            const qty = act.quantity || 1;
+            const unitPrice = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+            const totalCost = Number(act.contracted_total_price ?? (qty * unitPrice));
+            calculatedSubtotal += totalCost;
+            
+            return `<tr>
+                <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${displayDate}</td>
+                <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${title}${desc}</td>
+                <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: center;">${qty}</td>
+                <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: right;">$${unitPrice.toFixed(2)}</td>
+                <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: right;">$${totalCost.toFixed(2)}</td>
+            </tr>`;
+        }).join('');
+
+        customServicesText = `
+<div style="margin-top: 15px; background-color: #FBFBFA; border: 1px solid #E6E4E0; padding: 12px; border-radius: 12px;">
+  <strong style="color: #1B3A2D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Additional Services & Activities Requested</strong>
+  <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: #333;">
+    <thead>
+      <tr style="background-color: #F5F3EF;">
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">Date / Day</th>
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">Service / Activity</th>
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: center; width: 40px;">Qty</th>
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: right; width: 80px;">Unit Rate</th>
+        <th style="border: 1px solid #E6E4E0; padding: 6px; text-align: right; width: 80px;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+</div>`;
+    }
+
+    let agreedInclusionsHtml = '';
+    const hasDriverMeal = stays.some(s => s && s.driver_meal_included);
+    const hasDriverAcc = stays.some(s => s && s.driver_acc_included);
+    const hasParking = stays.some(s => s && s.parking_included);
+    const guideRoomDisc = stays.find(s => s && s.guide_room_discount)?.guide_room_discount;
+
+    const inclusionList: string[] = [];
+    if (hasDriverMeal) inclusionList.push('<li><strong>Driver Meals:</strong> Included</li>');
+    if (hasDriverAcc) inclusionList.push('<li><strong>Driver Accommodation:</strong> Provided FOC</li>');
+    if (hasParking) inclusionList.push('<li><strong>On-Site Parking:</strong> Included</li>');
+    if (guideRoomDisc && guideRoomDisc !== 'None') {
+        inclusionList.push(`<li><strong>Guide Room Discount:</strong> ${guideRoomDisc}</li>`);
+    }
+
+    if (inclusionList.length > 0) {
+        agreedInclusionsHtml = `
+<div style="margin-top: 15px; background-color: #FBFBFA; border: 1px solid #E6E4E0; padding: 12px; border-radius: 12px;">
+  <strong style="color: #1B3A2D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Agreed Special Inclusions / Services</strong>
+  <ul style="margin: 0; padding-left: 18px; font-size: 11px; color: #333; line-height: 1.5;">
+    ${inclusionList.join('')}
+  </ul>
+</div>`;
+    }
 
     let agentName = 'Your Concierge Team';
     const supabase = createClient();
@@ -3799,7 +4141,10 @@ function PlannerWizardWorkspace() {
   Check-out: ${checkOutDateFormatted}<br />
   Nights: ${nightsCount}<br /><br />
   <strong>Stay Breakdown:</strong><br />
-  ${roomsText}<br /><br />
+  ${roomsText}<br />
+  ${customServicesText}
+  ${agreedInclusionsHtml}
+  <br />
   <strong>Total PO Amount:</strong> $${calculatedSubtotal.toFixed(2)}
 </div>
 <p>Kindly acknowledge receipt and confirm this booking under the agreed contracted rates.</p>
@@ -3847,9 +4192,9 @@ function PlannerWizardWorkspace() {
       if (doc) {
         doc.save(`${poNum}_${hotel.name.replace(/\s+/g, '_')}.pdf`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to download PO PDF:", e);
-      alert("Error generating PO PDF. Please check settings.");
+      alert("Error generating PO PDF: " + (e?.stack || e?.message || e));
     }
   };
 
@@ -6750,7 +7095,7 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenRfqModal(hotel, standardStays, block.id)}
+                                            onClick={() => handleOpenRfqModal(hotel, blockActivities, block.id)}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-805/40 hover:border-emerald-805 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-805 transition-all shadow-sm disabled:opacity-40"
                                             title="Request Quote"
@@ -6760,7 +7105,7 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPoModal(hotel, standardStays, block.id)}
+                                            onClick={() => handleOpenPoModal(hotel, blockActivities, block.id)}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
                                             title="Create PO"
@@ -10042,11 +10387,11 @@ function PlannerWizardWorkspace() {
                                               unit_price: item.unit_price.toString(),
                                               po_quantity: item.quantity,
                                               po_unit_price: item.unit_price,
-                                              room_type: item.room_type,
-                                              meal_plan: item.meal_plan,
-                                              number_of_nights: item.number_of_nights,
-                                              check_in_date: item.check_in_date,
-                                              check_out_date: item.check_out_date
+                                              room_type: item.service_details?.room_type || item.room_type,
+                                              meal_plan: item.service_details?.meal_plan || item.meal_plan,
+                                              number_of_nights: item.service_details?.number_of_nights || item.number_of_nights,
+                                              check_in_date: item.service_details?.check_in_date || item.check_in_date,
+                                              check_out_date: item.service_details?.check_out_date || item.check_out_date
                                             })) || []);
                                             const calcTotal = (po.items || []).reduce((s: number, i: any) => s + (i.quantity * i.unit_price), 0);
                                             setInvoiceAmount(calcTotal.toString());
@@ -10355,32 +10700,36 @@ function PlannerWizardWorkspace() {
                                                                {new Date(poItem.service_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                                              </span>
                                                            )}
+                                                           {poItem && (
+                                                            (poItem.service_details?.room_type || poItem.room_type) || 
+                                                            (poItem.service_details?.meal_plan || poItem.meal_plan) || 
+                                                            (poItem.service_details?.check_in_date || poItem.check_in_date)
+                                                          ) && (
+                                                            <div className="flex flex-wrap gap-1 mt-0.5 mb-0.5">
+                                                              {(poItem.service_details?.room_type || poItem.room_type) && (
+                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold uppercase">
+                                                                  {poItem.service_details?.room_type || poItem.room_type}
+                                                                </span>
+                                                              )}
+                                                              {(poItem.service_details?.meal_plan || poItem.meal_plan) && (
+                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold">
+                                                                  {poItem.service_details?.meal_plan || poItem.meal_plan}
+                                                                </span>
+                                                              )}
+                                                              {(poItem.service_details?.number_of_nights || poItem.number_of_nights) && (
+                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
+                                                                  {poItem.service_details?.number_of_nights || poItem.number_of_nights} Nights
+                                                                </span>
+                                                              )}
+                                                              {(poItem.service_details?.check_in_date || poItem.check_in_date) && (
+                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
+                                                                  {new Date(poItem.service_details?.check_in_date || poItem.check_in_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                                  {(poItem.service_details?.check_out_date || poItem.check_out_date) && ` - ${new Date(poItem.service_details?.check_out_date || poItem.check_out_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+                                                                </span>
+                                                              )}
+                                                            </div>
+                                                          )}
                                                          </span>
-                                                         {poItem && (poItem.room_type || poItem.meal_plan || poItem.check_in_date) && (
-                                                           <div className="flex flex-wrap gap-1 mt-0.5 mb-0.5">
-                                                             {poItem.room_type && (
-                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold uppercase">
-                                                                 {poItem.room_type}
-                                                               </span>
-                                                             )}
-                                                             {poItem.meal_plan && (
-                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold">
-                                                                 {poItem.meal_plan}
-                                                               </span>
-                                                             )}
-                                                             {poItem.number_of_nights && (
-                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
-                                                                 {poItem.number_of_nights} Nights
-                                                               </span>
-                                                             )}
-                                                             {poItem.check_in_date && (
-                                                               <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
-                                                                 {new Date(poItem.check_in_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                                                 {poItem.check_out_date && ` - ${new Date(poItem.check_out_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
-                                                               </span>
-                                                             )}
-                                                           </div>
-                                                         )}
                                                         <p className="text-[9px] text-neutral-450 mt-0.5">
                                                           {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)} 
                                                           {poItem && (item.quantity !== poItem.quantity || item.unit_price !== poItem.unit_price) && (
@@ -13757,6 +14106,66 @@ function PlannerWizardWorkspace() {
                     This note will be saved as reference in the activity description.
                   </span>
                 </div>
+
+                {editingCustomRateAct?.activity_type === 'sleep' && (
+                  <div className="space-y-3 pt-3 border-t border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                      Procurement Inclusions
+                    </span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex items-center gap-2 text-xs text-neutral-750 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={customRateDriverMeal}
+                          onChange={(e) => setCustomRateDriverMeal(e.target.checked)}
+                          className="rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 w-4 h-4 cursor-pointer"
+                        />
+                        <span>Driver Meals Included</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-neutral-750 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={customRateDriverAcc}
+                          onChange={(e) => setCustomRateDriverAcc(e.target.checked)}
+                          className="rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 w-4 h-4 cursor-pointer"
+                        />
+                        <span>Driver Accommodation</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-neutral-750 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={customRateParking}
+                          onChange={(e) => setCustomRateParking(e.target.checked)}
+                          className="rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 w-4 h-4 cursor-pointer"
+                        />
+                        <span>Parking Included</span>
+                      </label>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">
+                          Guide Room Option
+                        </label>
+                        <select
+                          value={customRateGuideRoomDiscount || 'None'}
+                          onChange={(e) => setCustomRateGuideRoomDiscount(e.target.value)}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
+                        >
+                          <option value="None">None</option>
+                          <option value="Free">Free</option>
+                          <option value="Half Price">Half Price</option>
+                        </select>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-amber-800 font-bold cursor-pointer pt-3 border-t border-neutral-100 mt-3 select-none">
+                      <input
+                        type="checkbox"
+                        checked={customRateApplyToAllInBlock}
+                        onChange={(e) => setCustomRateApplyToAllInBlock(e.target.checked)}
+                        className="rounded text-amber-600 border-neutral-300 focus:ring-amber-600/20 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Apply inclusions & reason note to all rooms/nights in this booking</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer */}
@@ -13837,7 +14246,7 @@ function PlannerWizardWorkspace() {
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                       <span className="text-[9px] text-neutral-400 mt-1 block">
-                        {selectedRfqHotel.reservation_email ? "Prefilled from hotel reservation email." : "Hotel email not configured. Please enter recipient address manually."}
+                        {selectedRfqHotel.reservation_email ? `Prefilled from ${rfqIsRestaurant ? 'restaurant' : 'hotel'} reservation email.` : `${rfqIsRestaurant ? 'Restaurant' : 'Hotel'} email not configured. Please enter recipient address manually.`}
                       </span>
                     </div>
 
@@ -13856,77 +14265,198 @@ function PlannerWizardWorkspace() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 pt-2 border-t border-neutral-100">
-                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
-                      Special Requests & Services
-                    </span>
-                    
-                    {/* Checkbox 1 */}
-                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
-                      <input
-                        type="checkbox"
-                        checked={rfqAdjacentRooms}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setRfqAdjacentRooms(checked);
-                          updateRfqEmailBody(rfqEmailBodyOriginal, {
-                            adjacentRooms: checked,
-                            buggyCars: rfqBuggyCars,
-                            heliPad: rfqHeliPad
-                          });
-                        }}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-neutral-800">Adjacent / Connecting Rooms</span>
-                        <span className="text-[10px] text-neutral-400 mt-0.5">Request adjacent accommodation placement</span>
-                      </div>
-                    </label>
-
-                    {/* Checkbox 2 */}
-                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
-                      <input
-                        type="checkbox"
-                        checked={rfqBuggyCars}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setRfqBuggyCars(checked);
-                          updateRfqEmailBody(rfqEmailBodyOriginal, {
-                            adjacentRooms: rfqAdjacentRooms,
-                            buggyCars: checked,
-                            heliPad: rfqHeliPad
-                          });
-                        }}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-neutral-800">Buggy Cars on Property</span>
-                        <span className="text-[10px] text-neutral-400 mt-0.5">Request electric buggy transport availability</span>
-                      </div>
-                    </label>
-
-                    {/* Checkbox 3 */}
-                    <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
-                      <input
-                        type="checkbox"
-                        checked={rfqHeliPad}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setRfqHeliPad(checked);
-                          updateRfqEmailBody(rfqEmailBodyOriginal, {
-                            adjacentRooms: rfqAdjacentRooms,
-                            buggyCars: rfqBuggyCars,
-                            heliPad: checked
-                          });
-                        }}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-neutral-800">Heli-Pad Access</span>
-                        <span className="text-[10px] text-neutral-400 mt-0.5">Inquire landing coordinates & permissions</span>
-                      </div>
-                    </label>
-                  </div>
+                  {!rfqIsRestaurant && (
+                    <div className="space-y-2 pt-2 border-t border-neutral-100">
+                      <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                        Special Requests & Services
+                      </span>
+                      
+                      {/* Checkbox 1 */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqAdjacentRooms}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setRfqAdjacentRooms(checked);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: checked,
+                              buggyCars: rfqBuggyCars,
+                              heliPad: rfqHeliPad,
+                              driverMeal: rfqDriverMeal,
+                              driverAcc: rfqDriverAcc,
+                              parking: rfqParking,
+                              guideRoomDiscount: rfqGuideRoomDiscount
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Adjacent / Connecting Rooms</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Request adjacent accommodation placement</span>
+                        </div>
+                      </label>
+   
+                      {/* Checkbox 2 */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqBuggyCars}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setRfqBuggyCars(checked);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: rfqAdjacentRooms,
+                              buggyCars: checked,
+                              heliPad: rfqHeliPad,
+                              driverMeal: rfqDriverMeal,
+                              driverAcc: rfqDriverAcc,
+                              parking: rfqParking,
+                              guideRoomDiscount: rfqGuideRoomDiscount
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Buggy Cars on Property</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Request electric buggy transport availability</span>
+                        </div>
+                      </label>
+   
+                      {/* Checkbox 3 */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqHeliPad}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setRfqHeliPad(checked);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: rfqAdjacentRooms,
+                              buggyCars: rfqBuggyCars,
+                              heliPad: checked,
+                              driverMeal: rfqDriverMeal,
+                              driverAcc: rfqDriverAcc,
+                              parking: rfqParking,
+                              guideRoomDiscount: rfqGuideRoomDiscount
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Heli-Pad Access</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Inquire landing coordinates & permissions</span>
+                        </div>
+                      </label>
+  
+                      {/* Checkbox 4: Driver Meals */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqDriverMeal}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setRfqDriverMeal(checked);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: rfqAdjacentRooms,
+                              buggyCars: rfqBuggyCars,
+                              heliPad: rfqHeliPad,
+                              driverMeal: checked,
+                              driverAcc: rfqDriverAcc,
+                              parking: rfqParking,
+                              guideRoomDiscount: rfqGuideRoomDiscount
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Driver Meals Included</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Request driver meal inclusion in package</span>
+                        </div>
+                      </label>
+  
+                      {/* Checkbox 5: Driver Accommodation */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqDriverAcc}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setRfqDriverAcc(checked);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: rfqAdjacentRooms,
+                              buggyCars: rfqBuggyCars,
+                              heliPad: rfqHeliPad,
+                              driverMeal: rfqDriverMeal,
+                              driverAcc: checked,
+                              parking: rfqParking,
+                              guideRoomDiscount: rfqGuideRoomDiscount
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Driver Accommodation Included</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Request driver lodging on-site</span>
+                        </div>
+                      </label>
+  
+                      {/* Checkbox 6: Parking Included */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqParking}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setRfqParking(checked);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: rfqAdjacentRooms,
+                              buggyCars: rfqBuggyCars,
+                              heliPad: rfqHeliPad,
+                              driverMeal: rfqDriverMeal,
+                              driverAcc: rfqDriverAcc,
+                              parking: checked,
+                              guideRoomDiscount: rfqGuideRoomDiscount
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Parking Included</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Request complimentary parking on property</span>
+                        </div>
+                      </label>
+  
+                      {/* Checkbox 7: Guide Room Discount */}
+                      <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={rfqGuideRoomDiscount !== null}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            const guideRoomDisc = selectedRfqStays.find(s => s.guide_room_discount || s.guideRoomDiscount);
+                            const originalVal = guideRoomDisc ? (guideRoomDisc.guide_room_discount || guideRoomDisc.guideRoomDiscount || null) : null;
+                            const nextVal = checked ? (originalVal && originalVal !== 'None' ? originalVal : 'Free') : null;
+                            setRfqGuideRoomDiscount(nextVal);
+                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                              adjacentRooms: rfqAdjacentRooms,
+                              buggyCars: rfqBuggyCars,
+                              heliPad: rfqHeliPad,
+                              driverMeal: rfqDriverMeal,
+                              driverAcc: rfqDriverAcc,
+                              parking: rfqParking,
+                              guideRoomDiscount: nextVal
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-800">Guide Room Option {rfqGuideRoomDiscount ? `(${rfqGuideRoomDiscount})` : ''}</span>
+                          <span className="text-[10px] text-neutral-400 mt-0.5">Request guide room accommodation terms</span>
+                        </div>
+                      </label>
+                    </div>
+                  )}
 
                   {/* Email Attachment Options */}
                   <div className="space-y-2 pt-2 border-t border-neutral-100">
@@ -13950,7 +14480,7 @@ function PlannerWizardWorkspace() {
                 </div>
 
                 {/* Right Column: Email Body Preview & Editor */}
-                <div className="lg:col-span-7 flex flex-col space-y-2 h-[480px]">
+                <div className="lg:col-span-7 flex flex-col space-y-2 lg:h-[730px] h-[480px]">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-emerald-800" /> Email Message Preview
@@ -14001,7 +14531,7 @@ function PlannerWizardWorkspace() {
                             setRfqEmailBody(rfqEditorRef.current.innerHTML);
                           }
                         }}
-                        className="w-full h-full p-4 bg-transparent outline-none text-xs text-neutral-800 overflow-y-auto prose prose-sm max-w-none min-h-[380px]"
+                        className="w-full h-full p-4 bg-transparent outline-none text-xs text-neutral-800 overflow-y-auto prose prose-sm max-w-none min-h-[630px]"
                       />
                     )}
                   </div>

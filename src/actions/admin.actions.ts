@@ -744,6 +744,10 @@ export async function finalizeActivityPricesAction(
         price_finalized?: boolean; 
         contracted_price?: number | null; 
         contracted_total_price?: number | null;
+        driver_meal_included?: boolean;
+        driver_acc_included?: boolean;
+        parking_included?: boolean;
+        guide_room_discount?: string | null;
     }[]
 ) {
     try {
@@ -758,6 +762,18 @@ export async function finalizeActivityPricesAction(
             }
             if (update.contracted_total_price !== undefined) {
                 dbFields.contracted_total_price = update.contracted_total_price;
+            }
+            if (update.driver_meal_included !== undefined) {
+                dbFields.driver_meal_included = update.driver_meal_included;
+            }
+            if (update.driver_acc_included !== undefined) {
+                dbFields.driver_acc_included = update.driver_acc_included;
+            }
+            if (update.parking_included !== undefined) {
+                dbFields.parking_included = update.parking_included;
+            }
+            if (update.guide_room_discount !== undefined) {
+                dbFields.guide_room_discount = update.guide_room_discount;
             }
 
             const { error } = await adminSupabase
@@ -1650,6 +1666,22 @@ export async function getHotelRfqTemplateAction() {
         return { success: true, template: data };
     } catch (error: any) {
         console.error("Error fetching RFQ template:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getRestaurantRfqTemplateAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('email_templates')
+            .select('*')
+            .eq('name', 'Request for Quote - Restaurant')
+            .maybeSingle();
+        if (error) throw error;
+        return { success: true, template: data };
+    } catch (error: any) {
+        console.error("Error fetching Restaurant RFQ template:", error);
         return { success: false, error: error.message };
     }
 }

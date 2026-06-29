@@ -116,7 +116,23 @@ export class FinanceService {
         // Insert items
         if (items && items.length > 0) {
             const itemsToInsert = items.map(item => {
-                const { total_price: _, daily_activity_id, ...itemData } = item as any;
+                const { 
+                    total_price: _, 
+                    daily_activity_id,
+                    check_in_date: _1,
+                    check_out_date: _2,
+                    room_type: _3,
+                    meal_plan: _4,
+                    number_of_nights: _5,
+                    vehicle_type: _6,
+                    pick_up_location: _7,
+                    drop_off_location: _8,
+                    driver_included: _9,
+                    fuel_included: _10,
+                    number_of_guests: _11,
+                    language: _12,
+                    ...itemData 
+                } = item as any;
                 
                 if (daily_activity_id) {
                     itemData.daily_activity_id = daily_activity_id;

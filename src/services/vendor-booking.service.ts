@@ -101,21 +101,31 @@ export class VendorBookingService {
 
                     calculatedSubtotal += totalPrice;
 
+                    const service_details: Record<string, any> = {};
+                    if (bookingData.vendor_type === 'hotel') {
+                        service_details.check_in_date = checkInDate || undefined;
+                        service_details.check_out_date = checkOutDate || undefined;
+                        service_details.room_type = act.room_type || 'Accommodation';
+                        service_details.meal_plan = act.meal_plan || undefined;
+                        service_details.number_of_nights = 1;
+                    } else if (bookingData.vendor_type === 'restaurant') {
+                        service_details.meal_type = act.meal_plan || undefined;
+                        service_details.number_of_guests = act.total_heads || act.adults || undefined;
+                        service_details.dining_time_start = act.time_start || undefined;
+                        service_details.dining_time_end = act.time_end || undefined;
+                    }
+
                     poItems.push({
                         id: crypto.randomUUID(),
                         daily_activity_id: act.id,
                         description: `${bookingData.vendor_name} - ${act.title || 'Accommodation'}`,
                         service_date: checkInDate,
-                        check_in_date: bookingData.vendor_type === 'hotel' ? checkInDate : undefined,
-                        check_out_date: bookingData.vendor_type === 'hotel' ? checkOutDate : undefined,
                         quantity: qty,
                         unit_price: unitPrice,
                         total_price: totalPrice,
-                        room_type: bookingData.vendor_type === 'hotel' ? (act.room_type || 'Accommodation') : undefined,
-                        meal_plan: act.meal_plan || undefined,
-                        number_of_nights: bookingData.vendor_type === 'hotel' ? 1 : undefined,
                         day_number: dayNum,
-                        special_notes: act.isCustomPO ? 'Custom PO Service item' : undefined
+                        special_notes: act.isCustomPO ? 'Custom PO Service item' : undefined,
+                        service_details
                     });
                 });
             }

@@ -52,7 +52,15 @@ export const generateHotelRfqPdf = async (
     appSettings: any,
     agentName: string,
     touristData: any,
-    specialRequests: { adjacentRooms: boolean; buggyCars: boolean; heliPad: boolean }
+    specialRequests: { 
+        adjacentRooms: boolean; 
+        buggyCars: boolean; 
+        heliPad: boolean;
+        driverMeal?: boolean;
+        driverAcc?: boolean;
+        parking?: boolean;
+        guideRoomDiscount?: string | null;
+    }
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
     if (!jspdfModule) return null;
@@ -126,10 +134,11 @@ export const generateHotelRfqPdf = async (
         return dayA - dayB;
     });
 
-    const checkInDate = sortedStays[0]?.tour_itineraries?.date || '';
-    const nightsCount = sortedStays.length;
+    const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
+    const nightsCount = standardStaysOnly.length;
     let checkOutDate = '';
-    if (checkInDate) {
+    if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
         d.setDate(d.getDate() + nightsCount);
         checkOutDate = d.toISOString().split('T')[0];
@@ -221,110 +230,154 @@ export const generateHotelRfqPdf = async (
     const infoMaxY = Math.max(supplierY, issuerY + 9);
     topY = infoMaxY + 8;
 
-    // Guest Occupancy details
-    const adults = touristData?.preferences?.adults || 2;
-    const children = touristData?.preferences?.children || 0;
-    const infants = touristData?.preferences?.infants || 0;
-    let occupancyStr = `${adults} Adults`;
-    if (children > 0) occupancyStr += `, ${children} Children`;
-    if (infants > 0) occupancyStr += `, ${infants} Infants`;
+    const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
 
-    doc.setFillColor(245, 243, 239);
-    doc.rect(20, topY, 170, 15, 'F');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text(`GUEST DETAILS & OCCUPANCY:`, 24, topY + 6);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(occupancyStr, 24, topY + 11);
+    // 1. Render sleepStays table
+    if (sleepStays.length > 0) {
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(20, topY, 170, 7, 'F');
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Stay Date / Day", 24, topY + 5);
+        doc.text("Room Category", 80, topY + 5);
+        doc.text("Meal Plan", 140, topY + 5);
+        doc.text("Qty", 175, topY + 5, { align: 'center' });
+        
+        topY += 7;
 
-    topY += 21;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
 
-    // Requested stays table
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(20, topY, 170, 7, 'F');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(255, 255, 255);
-    doc.text("Stay Date / Day", 24, topY + 5);
-    doc.text("Room Category", 80, topY + 5);
-    doc.text("Meal Plan", 140, topY + 5);
-    doc.text("Qty", 175, topY + 5, { align: 'center' });
-    
-    topY += 7;
+        for (const act of sleepStays) {
+            const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+            const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+            const activeRooms = sizes.map(size => {
+                const count = (act as any)[`${size}_count`] || 0;
+                const label = size.split('_')[0];
+                const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                return { type: displayType, count };
+            }).filter(r => r.count > 0);
 
-    for (const act of sortedStays) {
-        const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-        const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-        const dateVal = act.tour_itineraries?.date;
-        const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+            let roomDesc = '';
+            let totalQty = 0;
+            let mealPlanText = act.meal_plan || 'BB';
 
-        const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-        const activeRooms = sizes.map(size => {
-            const count = (act as any)[`${size}_count`] || 0;
-            const label = size.split('_')[0];
-            const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-            return { type: displayType, count };
-        }).filter(r => r.count > 0);
+            if (activeRooms.length === 0) {
+                roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
+                totalQty = act.quantity || 1;
+            } else {
+                roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+                totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+            }
 
-        let roomDesc = '';
-        let totalQty = 0;
-        let mealPlanText = act.meal_plan || 'BB';
+            if (act.description) {
+                roomDesc += ` - ${act.description}`;
+            }
 
-        if (act.isCustomPO) {
-            const descSuffix = act.description ? ` - ${act.description}` : '';
-            roomDesc = `Custom: ${act.title || act.name || 'Additional Service'}${descSuffix}`;
-            totalQty = act.quantity || 1;
-            const customType = act.activity_type || act.type || 'service';
-            mealPlanText = customType.charAt(0).toUpperCase() + customType.slice(1);
-        } else if (activeRooms.length === 0) {
-            roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
-            totalQty = act.quantity || 1;
-        } else {
-            roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
-            totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+            const splitDesc = doc.splitTextToSize(roomDesc, 55);
+            const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
+
+            if (topY + cellHeight > 270) {
+                doc.addPage();
+                topY = 20;
+                doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.rect(20, topY, 170, 7, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(255, 255, 255);
+                doc.text("Stay Date / Day", 24, topY + 5);
+                doc.text("Room Category", 80, topY + 5);
+                doc.text("Meal Plan", 140, topY + 5);
+                doc.text("Qty", 175, topY + 5, { align: 'center' });
+                topY += 7;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+            }
+
+            doc.setDrawColor(230, 230, 230);
+            doc.setLineWidth(0.2);
+            doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+
+            doc.text(displayDate, 24, topY + 5);
+            doc.text(splitDesc, 80, topY + 5);
+            doc.text(mealPlanText, 140, topY + 5);
+            doc.text(String(totalQty), 175, topY + 5, { align: 'center' });
+
+            topY += cellHeight;
         }
+    }
 
-        const splitDesc = doc.splitTextToSize(roomDesc, 55);
-        const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
-
-        if (topY + cellHeight > 270) {
+    // 2. Render customStays table
+    if (customStays.length > 0) {
+        topY += (sleepStays.length > 0 ? 10 : 0);
+        if (topY > 250) {
             doc.addPage();
             topY = 20;
-            doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.rect(20, topY, 170, 7, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8.5);
-            doc.setTextColor(255, 255, 255);
-            doc.text("Stay Date / Day", 24, topY + 5);
-            doc.text("Room Category", 80, topY + 5);
-            doc.text("Meal Plan", 140, topY + 5);
-            doc.text("Qty", 175, topY + 5, { align: 'center' });
-            topY += 7;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
         }
 
-        doc.setDrawColor(230, 230, 230);
-        doc.setLineWidth(0.2);
-        doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+        doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.rect(20, topY, 170, 7, 'F');
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Service Date / Day", 24, topY + 5);
+        doc.text("Requested Service / Activity", 80, topY + 5);
+        doc.text("Qty", 175, topY + 5, { align: 'center' });
+        
+        topY += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
 
-        doc.text(displayDate, 24, topY + 5);
-        doc.text(splitDesc, 80, topY + 5);
-        doc.text(mealPlanText, 140, topY + 5);
-        doc.text(String(totalQty), 175, topY + 5, { align: 'center' });
+        for (const act of customStays) {
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-        topY += cellHeight;
+            const descSuffix = act.description ? ` - ${act.description}` : '';
+            const roomDesc = `${act.title || act.name || 'Additional Service'}${descSuffix}`;
+            const totalQty = act.quantity || 1;
+
+            const splitDesc = doc.splitTextToSize(roomDesc, 85);
+            const cellHeight = Math.max(8, splitDesc.length * 4.5 + 2);
+
+            if (topY + cellHeight > 270) {
+                doc.addPage();
+                topY = 20;
+                doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.rect(20, topY, 170, 7, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8.5);
+                doc.setTextColor(255, 255, 255);
+                doc.text("Service Date / Day", 24, topY + 5);
+                doc.text("Requested Service / Activity", 80, topY + 5);
+                doc.text("Qty", 175, topY + 5, { align: 'center' });
+                topY += 7;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+            }
+
+            doc.setDrawColor(230, 230, 230);
+            doc.setLineWidth(0.2);
+            doc.line(20, topY + cellHeight, 190, topY + cellHeight);
+
+            doc.text(displayDate, 24, topY + 5);
+            doc.text(splitDesc, 80, topY + 5);
+            doc.text(String(totalQty), 175, topY + 5, { align: 'center' });
+
+            topY += cellHeight;
+        }
     }
 
     topY += 10;
@@ -357,6 +410,18 @@ export const generateHotelRfqPdf = async (
     }
     if (specialRequests.heliPad) {
         requests.push("Kindly confirm availability and landing coordinates of a Heli-pad near the property.");
+    }
+    if (specialRequests.driverMeal) {
+        requests.push("Kindly confirm if Driver Meals are included.");
+    }
+    if (specialRequests.driverAcc) {
+        requests.push("Kindly confirm if Driver Accommodation (FOC) is provided.");
+    }
+    if (specialRequests.parking) {
+        requests.push("Kindly confirm if on-site Parking is included.");
+    }
+    if (specialRequests.guideRoomDiscount) {
+        requests.push(`Kindly confirm Guide Room option: ${specialRequests.guideRoomDiscount}.`);
     }
 
     requests.forEach((req, idx) => {
