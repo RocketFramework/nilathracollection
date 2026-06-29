@@ -590,6 +590,7 @@ function PlannerWizardWorkspace() {
   // Guide-Selection states
   const [guideActivities, setGuideActivities] = useState<any[]>([]);
   const [guideRatesState, setGuideRatesState] = useState<Record<string, Record<number, { rateType: string; contractedPrice: number; chargedPrice: number; note: string }>>>({});
+  const [isLoadingGuideRates, setIsLoadingGuideRates] = useState(false);
 
 
   const [isSavingGuideRates, setIsSavingGuideRates] = useState<string | null>(null);
@@ -652,6 +653,7 @@ function PlannerWizardWorkspace() {
   // Driver-Selection states
   const [driverActivities, setDriverActivities] = useState<any[]>([]);
   const [driverRatesState, setDriverRatesState] = useState<Record<string, Record<number, { rateType: string; contractedPrice: number; chargedPrice: number; note: string }>>>({});
+  const [isLoadingDriverRates, setIsLoadingDriverRates] = useState(false);
   const [isSavingDriverRates, setIsSavingDriverRates] = useState<string | null>(null);
 
   const saveDriverRates = async (driverId: string) => {
@@ -2111,8 +2113,7 @@ function PlannerWizardWorkspace() {
         icon: Shield 
       });
     }
-    const hasGuideBlock = poBlocks.some((b: any) => b.block_type === 'guide');
-    if (elements.guide && hasGuideBlock) {
+    if (elements.guide) {
       list.push({ 
         id: 'guide-selection', 
         label: 'Guide Selection', 
@@ -2120,8 +2121,7 @@ function PlannerWizardWorkspace() {
         icon: UserCheck 
       });
     }
-    const hasDriverBlock = poBlocks.some((b: any) => b.block_type === 'driver');
-    if (elements.driver && hasDriverBlock) {
+    if (elements.driver) {
       list.push({ 
         id: 'driver-selection', 
         label: 'Driver Selection', 
@@ -2240,7 +2240,10 @@ function PlannerWizardWorkspace() {
     // 1. No blocks in state yet (first visit), OR
     // 2. Blocks exist but ALL have empty daily_activities — mappings are missing in DB
     const blocksMissingMappings = poBlocks.length > 0 && poBlocks.every(b => (b.daily_activities || []).length === 0);
-    const needsInitialize = poBlocks.length === 0 || blocksMissingMappings;
+    const hasInvalidGuideOrDriverBlock = poBlocks.some(b => 
+      (b.block_type === 'guide' || b.block_type === 'driver') && !b.name.includes('| ID:')
+    );
+    const needsInitialize = poBlocks.length === 0 || blocksMissingMappings || hasInvalidGuideOrDriverBlock;
 
     const loader = needsInitialize
       ? initializeDefaultBlocksAction(tourId)
@@ -2298,10 +2301,12 @@ function PlannerWizardWorkspace() {
   useEffect(() => {
     if (currentStep?.id === 'guide-selection' && tourId) {
       (async () => {
+        setIsLoadingGuideRates(true);
         const res = await getGuideDailyActivitiesAction(tourId);
         if (res.success && res.activities) {
           setGuideActivities(res.activities);
         }
+        setIsLoadingGuideRates(false);
       })();
     }
   }, [currentStep?.id, tourId]);
@@ -2392,10 +2397,12 @@ function PlannerWizardWorkspace() {
   useEffect(() => {
     if (currentStep?.id === 'driver-selection' && tourId) {
       (async () => {
+        setIsLoadingDriverRates(true);
         const res = await getDriverDailyActivitiesAction(tourId);
         if (res.success && res.activities) {
           setDriverActivities(res.activities);
         }
+        setIsLoadingDriverRates(false);
       })();
     }
   }, [currentStep?.id, tourId]);
@@ -2764,8 +2771,8 @@ function PlannerWizardWorkspace() {
             activeElements.restaurant && 'restaurant-selection',
             activeElements.transport && 'transport-provider',
             activeElements.security && 'security-service',
-            (activeElements.guide && poBlocks.some((b: any) => b.block_type === 'guide')) && 'guide-selection',
-            (activeElements.driver && poBlocks.some((b: any) => b.block_type === 'driver')) && 'driver-selection',
+            activeElements.guide && 'guide-selection',
+            activeElements.driver && 'driver-selection',
             'payment-receive',
             'finance-controlling',
             'profit-loss'
@@ -5215,7 +5222,13 @@ function PlannerWizardWorkspace() {
             {/* Progress Bar */}
             <div className="mt-4 bg-neutral-200 h-1.5 rounded-full overflow-hidden">
               <div 
-                className={`h-full transition-all duration-300 ${track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'}`}
+                className={`h-full transition-all duration-300 ${
+                  track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'
+                } ${
+                  (currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection' || isLoadingGuideRates || isLoadingDriverRates) 
+                    ? 'animate-pulse bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600' 
+                    : ''
+                }`}
                 style={{ width: `${((activeIndex + 1) / activeSteps.length) * 100}%` }}
               />
             </div>

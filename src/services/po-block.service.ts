@@ -330,8 +330,12 @@ export class POBlockService {
             // Guard: if all non-finalized blocks have zero activities mapped,
             // the mappings are missing — force a rebuild regardless of signatures.
             const allBlocksHaveNoMappings = nonFinalizedBlocks.every(b => (b.daily_activities || []).length === 0);
+            
+            const hasInvalidNames = nonFinalizedBlocks.some(b => 
+                (b.block_type === 'guide' || b.block_type === 'driver') && !b.name.includes('| ID:')
+            );
 
-            if (!allBlocksHaveNoMappings && incomingSig === existingSig) {
+            if (!hasInvalidNames && !allBlocksHaveNoMappings && incomingSig === existingSig) {
                 return existingBlocks; // Nothing changed — skip all writes
             }
         }
@@ -418,7 +422,7 @@ export class POBlockService {
             (async () => {
                 const guideIds = Array.from(new Set(activitiesToGroup.map(a => a.guide_id).filter(Boolean))) as string[];
                 const { data: guides } = guideIds.length > 0
-                    ? await adminSupabase.from('tour_guides').select('id, name, daily_rate').in('id', guideIds)
+                    ? await adminSupabase.from('tour_guides').select('id, first_name, last_name, daily_rate').in('id', guideIds)
                     : { data: [] as any[] };
                 return { guideIds, lookup: guides || [] };
             })(),
@@ -470,8 +474,9 @@ export class POBlockService {
 
         const guideDescriptors = guideIds.map(guideId => {
             const guide = tourGuides.find((g: any) => g.id === guideId);
+            const guideName = guide ? `${guide.first_name || ''} ${guide.last_name || ''}`.trim() : 'Unassigned Guide';
             return {
-                name: `Guide: ${guide?.name || 'Unassigned Guide'} | ID: ${guideId}`,
+                name: `Guide: ${guideName} | ID: ${guideId}`,
                 blockType: 'guide',
                 blockNumber: currentBlockNumber++,
                 dailyActivityIds: [] // Keep empty!
