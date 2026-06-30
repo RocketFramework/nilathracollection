@@ -799,6 +799,7 @@ export class TourService {
                     guide_room_discount: b.guideRoomDiscount || null,
                     parking_included: b.parkingIncluded || false,
                     price_finalized: b.priceFinalized || false,
+                    transport_requirement_id: b.transport_requirement_id || null,
                     // Pax counts — sourced from tripData.profile which is seeded from requests table
                     adults: tripData.profile?.adults ?? 0,
                     children: tripData.profile?.children ?? 0,

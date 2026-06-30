@@ -1686,6 +1686,34 @@ export async function getRestaurantRfqTemplateAction() {
     }
 }
 
+export async function getTransportRfqTemplateAction(tourId: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        const [templateResult, tourResult] = await Promise.all([
+            adminSupabase
+                .from('email_templates')
+                .select('*')
+                .eq('name', 'Request for Quote - Transport')
+                .maybeSingle(),
+            adminSupabase
+                .from('tours')
+                .select('total_km')
+                .eq('id', tourId)
+                .maybeSingle()
+        ]);
+        if (templateResult.error) throw templateResult.error;
+        if (tourResult.error) throw tourResult.error;
+        return { 
+            success: true, 
+            template: templateResult.data, 
+            total_km: tourResult.data?.total_km || 0 
+        };
+    } catch (error: any) {
+        console.error("Error fetching Transport RFQ template and tour info:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function sendHotelRfqEmailAction(options: {
     to: string;
     from?: string;

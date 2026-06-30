@@ -38,7 +38,7 @@ export class POBlockService {
         if (dailyActivityIds.length > 0) {
             const { data: actData, error: actErr } = await adminSupabase
                 .from('daily_activities')
-                .select('*, tour_itineraries(day_number, date), service_date')
+                .select('*, tour_itineraries(day_number, date), service_date, transport_requirement:transport_requirements(*)')
                 .in('id', dailyActivityIds);
             if (actErr) throw actErr;
             
@@ -73,7 +73,8 @@ export class POBlockService {
             return {
                 ...block,
                 daily_activities: blockActivities,
-                daily_activity_vendors: blockVendors
+                daily_activity_vendors: blockVendors,
+                transport_requirement: blockActivities.find(act => act.activity_type === 'travel' && act.transport_requirement)?.transport_requirement || null
             };
         });
     }
@@ -617,5 +618,22 @@ export class POBlockService {
                 })));
             if (insertErr) throw insertErr;
         }
+    }
+
+    static async upsertTransportRequirement(tourId: string, requirementId: string, data: any): Promise<any> {
+        const adminSupabase = createAdminClient();
+        const { data: upserted, error } = await adminSupabase
+            .from('transport_requirements')
+            .upsert({
+                id: requirementId,
+                tour_id: tourId,
+                ...data,
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return upserted;
     }
 }

@@ -74,7 +74,8 @@ import {
   Link2Off,
   Train,
   Pencil,
-  Flag
+  Flag,
+  Sliders
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
@@ -144,7 +145,8 @@ import {
   registerCustomerPaymentAction,
   uploadPayslipAction,
   getPayslipSignedUrlAction,
-  finalizeActivityPricesAction
+  finalizeActivityPricesAction,
+  getTransportRfqTemplateAction
 } from '@/actions/admin.actions';
 import {
   initializeDefaultBlocksAction,
@@ -156,7 +158,8 @@ import {
   getGuideDailyActivitiesAction,
   saveGuideDailyActivitiesAction,
   getDriverDailyActivitiesAction,
-  saveDriverDailyActivitiesAction
+  saveDriverDailyActivitiesAction,
+  upsertTransportRequirementAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -485,6 +488,7 @@ function PlannerWizardWorkspace() {
   const [rfqParking, setRfqParking] = useState(false);
   const [rfqGuideRoomDiscount, setRfqGuideRoomDiscount] = useState<string | null>(null);
   const [rfqIsRestaurant, setRfqIsRestaurant] = useState(false);
+  const [rfqIsTransport, setRfqIsTransport] = useState(false);
 
   // Checkboxes/dropdown for custom rate override special requests
   const [customRateDriverMeal, setCustomRateDriverMeal] = useState(false);
@@ -595,6 +599,81 @@ function PlannerWizardWorkspace() {
   // Next-Gen Itinerary States
   const [tripData, setTripData] = useState<TripData | null>(null);
   const [itinerary, setItinerary] = useState<InternalItineraryBlock[]>([]);
+  const [selectedTransportBlock, setSelectedTransportBlock] = useState<any>(null);
+  const [showTransportReqModal, setShowTransportReqModal] = useState(false);
+  const [isGlobalTransportReqEdit, setIsGlobalTransportReqEdit] = useState(false);
+  const [globalTransportReq, setGlobalTransportReq] = useState<any>(null);
+  const [modalTriggerRect, setModalTriggerRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  const handleUpdateTransportReqField = (blockId: string | null, field: string, value: any) => {
+    if (blockId === null) {
+      setGlobalTransportReq((prev: any) => {
+        const oldReq = prev || {};
+        return {
+          ...oldReq,
+          [field]: value
+        };
+      });
+    } else {
+      setSelectedTransportBlock((prev: any) => {
+        if (!prev) return null;
+        const oldReq = prev.transport_requirement || {};
+        return {
+          ...prev,
+          transport_requirement: {
+            ...oldReq,
+            [field]: value
+          }
+        };
+      });
+
+      // Update itinerary
+      setItinerary(prev => prev.map(b => {
+        const isMatch = b.id === blockId || (selectedTransportBlock?.daily_activities?.some((da: any) => da.id === b.id));
+        if (isMatch) {
+          const oldReq = b.transport_requirement || {};
+          return {
+            ...b,
+            transport_requirement: {
+              ...oldReq,
+              [field]: value
+            }
+          };
+        }
+        return b;
+      }));
+
+      // Update poBlocks
+      setPoBlocks(prev => prev.map(pb => {
+        const matchesPOBlock = pb.id === blockId;
+        const matchesActivity = pb.daily_activities?.some((da: any) => da.id === blockId);
+        if (matchesPOBlock || matchesActivity) {
+          const oldReq = pb.transport_requirement || {};
+          return {
+            ...pb,
+            transport_requirement: {
+              ...oldReq,
+              [field]: value
+            },
+            daily_activities: (pb.daily_activities || []).map((da: any) => {
+              if (matchesPOBlock || da.id === blockId) {
+                const oldDaReq = da.transport_requirement || {};
+                return {
+                  ...da,
+                  transport_requirement: {
+                    ...oldDaReq,
+                    [field]: value
+                  }
+                };
+              }
+              return da;
+            })
+          };
+        }
+        return pb;
+      }));
+    }
+  };
   const [manualSingle, setManualSingle] = useState<number>(0);
   const [manualDouble, setManualDouble] = useState<number>(1);
   const [manualTriple, setManualTriple] = useState<number>(0);
@@ -3462,8 +3541,11 @@ function PlannerWizardWorkspace() {
     const guideRoomDiscVal = guideRoomDisc ? (guideRoomDisc.guide_room_discount || guideRoomDisc.guideRoomDiscount || null) : null;
 
     const block = itinerary.find(b => b.id === blockId);
-    const isRestaurant = block?.type === 'meal' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id);
+    const poBlock = poBlocks.find(b => b.id === blockId);
+    const isRestaurant = block?.type === 'meal' || poBlock?.block_type === 'meal' || poBlock?.block_type === 'restaurant' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id);
+    const isTransport = block?.type === 'travel' || poBlock?.block_type === 'travel' || stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id);
     setRfqIsRestaurant(isRestaurant);
+    setRfqIsTransport(isTransport);
 
     setRfqBlockId(blockId || null);
     setSelectedRfqHotel(hotel);
@@ -3475,16 +3557,23 @@ function PlannerWizardWorkspace() {
     setRfqDriverAcc(hasDriverAcc);
     setRfqParking(hasParking);
     setRfqGuideRoomDiscount(guideRoomDiscVal && guideRoomDiscVal !== 'None' ? guideRoomDiscVal : null);
-    setRfqEmailTo(hotel?.reservation_email || '');
+    setRfqEmailTo(hotel?.email || hotel?.reservation_email || hotel?.contact_email || '');
     setRfqEmailSubject('');
     setRfqEmailBody('');
     setRfqEmailBodyOriginal('');
     setShowRfqHtml(false);
-    setRfqAttachPdf(true);
+    setRfqAttachPdf(!isTransport);
     setShowRfqModal(true);
     
     try {
-      const res = isRestaurant ? await getRestaurantRfqTemplateAction() : await getHotelRfqTemplateAction();
+      let res;
+      if (isTransport) {
+        res = await getTransportRfqTemplateAction(tourId);
+      } else if (isRestaurant) {
+        res = await getRestaurantRfqTemplateAction();
+      } else {
+        res = await getHotelRfqTemplateAction();
+      }
       if (res.success && res.template) {
         const template = res.template;
         
@@ -3572,7 +3661,36 @@ function PlannerWizardWorkspace() {
         let subject = template.subject || '';
         let bodyHtml = template.body_html || '';
 
-        if (isRestaurant) {
+        if (isTransport) {
+          subject = subject.replace(/{{Transport Provider Name}}/g, hotel?.name || '');
+          setRfqEmailSubject(subject);
+
+          const req = block?.transport_requirement || poBlock?.transport_requirement || {};
+          const formatModelYear = (dateStr: string) => {
+            if (!dateStr) return 'Any Year';
+            try {
+              const d = new Date(dateStr);
+              if (isNaN(d.getTime())) return dateStr;
+              return String(d.getFullYear());
+            } catch { return dateStr; }
+          };
+
+          bodyHtml = bodyHtml.replace(/{{Transport Provider Name}}/g, hotel?.name || '');
+          bodyHtml = bodyHtml.replace(/{{Vehicle Make}}/g, req.vehicle_make || 'Any Make');
+          bodyHtml = bodyHtml.replace(/{{Model Year}}/g, formatModelYear(req.vehicle_model_year));
+          bodyHtml = bodyHtml.replace(/{{Number of Vehicles}}/g, String(req.number_of_vehicles || 1));
+          bodyHtml = bodyHtml.replace(/{{Vehicle Duration}}/g, req.vehicle_duration ? `${req.vehicle_duration} Days` : 'As per itinerary');
+          bodyHtml = bodyHtml.replace(/{{Total Km}}/g, String((res as any).total_km || 0));
+          bodyHtml = bodyHtml.replace(/{{Leather Seats}}/g, req.leather_seats ? 'Yes' : 'No');
+          bodyHtml = bodyHtml.replace(/{{Vehicle Color}}/g, req.vehicle_color || 'Any');
+          bodyHtml = bodyHtml.replace(/{{Mint Condition}}/g, req.vehicle_is_mint_condition ? 'Yes' : 'No');
+          bodyHtml = bodyHtml.replace(/{{Chauffeur Required}}/g, req.chauffeur_required !== false ? 'Yes' : 'No');
+          bodyHtml = bodyHtml.replace(/{{English Speaking}}/g, req.chauffeur_speak_english !== false ? 'Yes' : 'No');
+          bodyHtml = bodyHtml.replace(/{{Other Languages}}/g, req.chauffeur_other_languages || 'None');
+          bodyHtml = bodyHtml.replace(/{{Driver Accommodation}}/g, req.chauffeur_accommodation_needed ? 'Required (accommodation needed)' : 'Not Required (included/FOC)');
+          bodyHtml = bodyHtml.replace(/{{Meal Price}}/g, req.chauffeur_meal_needed ? 'Required (meals needed)' : 'Not Required (included/FOC)');
+          bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+        } else if (isRestaurant) {
           subject = subject.replace(/{{Restaurant Name}}/g, hotel?.name || '');
           subject = subject.replace(/{{Date}}/g, checkInDateFormatted);
           setRfqEmailSubject(subject);
@@ -3752,7 +3870,7 @@ function PlannerWizardWorkspace() {
       guideRoomDiscount: string | null;
     }
   ) => {
-    if (rfqIsRestaurant) return html;
+    if (rfqIsRestaurant || rfqIsTransport) return html;
     let result = html;
     if (!options.adjacentRooms) {
       result = result.replace(/<li[^>]*>Availability of Adjacent Rooms<\/li>/gi, '');
@@ -3833,7 +3951,7 @@ function PlannerWizardWorkspace() {
         from_email: 'concierge@nilathra.com',
         subject: rfqEmailSubject,
         email_content: rfqEmailBody,
-        activity_type: 'hotel',
+        activity_type: rfqIsTransport ? 'transport' : (rfqIsRestaurant ? 'meal' : 'hotel'),
         daily_activity_ids: selectedRfqStays.map(s => s.id),
         po_block_id: rfqBlockId || undefined
       });
@@ -3852,7 +3970,7 @@ function PlannerWizardWorkspace() {
       let pdfBase64: string | undefined = undefined;
       let pdfFilename: string | undefined = undefined;
 
-      if (rfqAttachPdf) {
+      if (rfqAttachPdf && !rfqIsTransport) {
         const doc = await generateHotelRfqPdf(
           selectedRfqHotel,
           selectedRfqStays,
@@ -3915,7 +4033,7 @@ function PlannerWizardWorkspace() {
             resDb.quote.id,
             rfqBlockId || undefined,
             selectedRfqHotel.name || null,
-            'hotel'
+            rfqIsTransport ? 'transport' : (rfqIsRestaurant ? 'meal' : 'hotel')
           );
         } catch (logErr) {
           console.error("Failed to log RFQ email history:", logErr);
@@ -8540,6 +8658,25 @@ function PlannerWizardWorkspace() {
                                         <Car className="w-3.5 h-3.5 text-neutral-400" />
                                         <span>{provider ? 'Change Provider' : 'Assign Provider'}</span>
                                       </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                                          setSelectedTransportBlock(block);
+                                          setShowTransportReqModal(true);
+                                        }}
+                                        disabled={isLockedByOther}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed text-[9px] font-extrabold transition-all shadow-sm disabled:opacity-40 ${
+                                          block.transport_requirement
+                                            ? 'border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-emerald-800'
+                                            : 'border-neutral-300 hover:bg-neutral-50/20 text-neutral-600'
+                                        }`}
+                                        title="Transport Specs"
+                                      >
+                                        <Sliders className="w-3.5 h-3.5 text-neutral-400" />
+                                        <span>{block.transport_requirement ? 'Edit Specs' : 'Add Specs'}</span>
+                                      </button>
                                       {provider && (
                                         <>
                                           <button
@@ -8717,6 +8854,102 @@ function PlannerWizardWorkspace() {
                                         </button>
                                       );
                                     })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Transport Specifications Dashboard (Read-Only) */}
+                              {block.transport_requirement && (
+                                <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-3.5 shadow-sm">
+                                  <div className="flex items-center justify-between border-b border-neutral-150 pb-2">
+                                    <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Sliders className="w-3.5 h-3.5 text-neutral-400" />
+                                      Transport Requirements & Specifications
+                                    </h5>
+                                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 uppercase tracking-wider">
+                                      AI Builder Defined
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-xs">
+                                    {block.transport_requirement.vehicle_make && (
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Vehicle Make</span>
+                                        <span className="font-bold text-neutral-800">{block.transport_requirement.vehicle_make}</span>
+                                      </div>
+                                    )}
+                                    {block.transport_requirement.vehicle_model_year && (
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Model Year</span>
+                                        <span className="font-bold text-neutral-800 font-mono">
+                                          {formatDate(block.transport_requirement.vehicle_model_year)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {block.transport_requirement.vehicle_duration && (
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Duration</span>
+                                        <span className="font-bold text-neutral-800">{block.transport_requirement.vehicle_duration} Days</span>
+                                      </div>
+                                    )}
+                                    {block.transport_requirement.number_of_vehicles && (
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Qty Needed</span>
+                                        <span className="font-bold text-neutral-800">{block.transport_requirement.number_of_vehicles}</span>
+                                      </div>
+                                    )}
+                                    {block.transport_requirement.vehicle_color && (
+                                      <div className="space-y-0.5">
+                                        <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Vehicle Color</span>
+                                        <span className="font-bold text-neutral-800">{block.transport_requirement.vehicle_color}</span>
+                                      </div>
+                                    )}
+                                    <div className="space-y-0.5">
+                                      <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Leather Seats</span>
+                                      <span className={`font-bold ${block.transport_requirement.leather_seats ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                                        {block.transport_requirement.leather_seats ? 'Yes' : 'No'}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Mint Condition</span>
+                                      <span className={`font-bold ${block.transport_requirement.vehicle_is_mint_condition ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                                        {block.transport_requirement.vehicle_is_mint_condition ? 'Yes' : 'No'}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Chauffeur</span>
+                                      <span className={`font-bold ${block.transport_requirement.chauffeur_required !== false ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                        {block.transport_requirement.chauffeur_required !== false ? 'Required' : 'Not Required'}
+                                      </span>
+                                    </div>
+                                    {block.transport_requirement.chauffeur_required !== false && (
+                                      <>
+                                        <div className="space-y-0.5">
+                                          <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">English Speaking</span>
+                                          <span className={`font-bold ${block.transport_requirement.chauffeur_speak_english !== false ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                                            {block.transport_requirement.chauffeur_speak_english !== false ? 'Yes' : 'No'}
+                                          </span>
+                                        </div>
+                                        {block.transport_requirement.chauffeur_other_languages && (
+                                          <div className="space-y-0.5">
+                                            <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Other Languages</span>
+                                            <span className="font-bold text-neutral-800">{block.transport_requirement.chauffeur_other_languages}</span>
+                                          </div>
+                                        )}
+                                        <div className="space-y-0.5">
+                                          <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Accommodation</span>
+                                          <span className={`font-bold ${block.transport_requirement.chauffeur_accommodation_needed ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                                            {block.transport_requirement.chauffeur_accommodation_needed ? 'Needed' : 'Not Needed'}
+                                          </span>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                          <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Meals</span>
+                                          <span className={`font-bold ${block.transport_requirement.chauffeur_meal_needed ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                                            {block.transport_requirement.chauffeur_meal_needed ? 'Needed' : 'Not Needed'}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -11814,6 +12047,17 @@ function PlannerWizardWorkspace() {
                     setSearchTerm={setSearchTerm}
                     getBindingDisplay={getBindingDisplay}
                     handleCopyRatePrompt={handleCopyRatePrompt}
+                    selectedTransportBlock={selectedTransportBlock}
+                    setSelectedTransportBlock={setSelectedTransportBlock}
+                    showTransportReqModal={showTransportReqModal}
+                    setShowTransportReqModal={setShowTransportReqModal}
+                    isGlobalTransportReqEdit={isGlobalTransportReqEdit}
+                    setIsGlobalTransportReqEdit={setIsGlobalTransportReqEdit}
+                    globalTransportReq={globalTransportReq}
+                    setGlobalTransportReq={setGlobalTransportReq}
+                    modalTriggerRect={modalTriggerRect}
+                    setModalTriggerRect={setModalTriggerRect}
+                    handleUpdateTransportReqField={handleUpdateTransportReqField}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
                   <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -15369,6 +15613,363 @@ function PlannerWizardWorkspace() {
         </div>
       )}
 
+      {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && (() => {
+        const isGlobal = isGlobalTransportReqEdit;
+        const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
+        const targetId = isGlobal ? null : selectedTransportBlock!.id;
+
+        let popoverStyle: React.CSSProperties = {};
+        if (modalTriggerRect) {
+          const popoverWidth = 440; // width of md max width
+          const popoverHeight = 580; // approximate height
+          
+          let left = modalTriggerRect.left;
+          if (left + popoverWidth > window.innerWidth) {
+            left = Math.max(16, window.innerWidth - popoverWidth - 16);
+          }
+          
+          let top = modalTriggerRect.top + modalTriggerRect.height + 8;
+          if (top + popoverHeight > window.innerHeight) {
+            top = Math.max(16, modalTriggerRect.top - popoverHeight - 8);
+          }
+          
+          popoverStyle = {
+            position: 'fixed',
+            left: `${left}px`,
+            top: `${top}px`,
+            width: `${popoverWidth}px`
+          };
+        }
+
+        return (
+          <div className="fixed inset-0 z-[110] overflow-y-auto">
+            {/* Click-away backdrop overlay */}
+            <div 
+              className="fixed inset-0 bg-transparent" 
+              onClick={() => {
+                setShowTransportReqModal(false);
+                setIsGlobalTransportReqEdit(false);
+                setSelectedTransportBlock(null);
+                setGlobalTransportReq(null);
+                setModalTriggerRect(null);
+              }}
+            />
+
+            <div 
+              style={popoverStyle}
+              className="bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-top-2 duration-200 z-[120]"
+            >
+              {/* Modal Header */}
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div className="space-y-1">
+                  <h3 className="text-base font-serif font-bold text-neutral-850">
+                    {isGlobal ? 'Global Itinerary Transport Specifications' : 'Transport Specifications & Requirements'}
+                  </h3>
+                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                    {isGlobal ? 'Applied to all travel blocks for this tour' : `Block: ${selectedTransportBlock?.name || 'Travel'}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransportReqModal(false);
+                    setIsGlobalTransportReqEdit(false);
+                    setSelectedTransportBlock(null);
+                    setGlobalTransportReq(null);
+                    setModalTriggerRect(null);
+                  }}
+                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-450 hover:text-neutral-705"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-5 overflow-y-auto text-xs text-neutral-700">
+                {/* Form Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Vehicle Make Dropdown */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Make</label>
+                    <select
+                      value={reqObj.vehicle_make || ''}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_make', e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                    >
+                      <option value="">Select Make...</option>
+                      <option value="Toyota">Toyota</option>
+                      <option value="Nissan">Nissan</option>
+                      <option value="Mercedes-Benz">Mercedes-Benz</option>
+                      <option value="BMW">BMW</option>
+                      <option value="Audi">Audi</option>
+                      <option value="Hyundai">Hyundai</option>
+                      <option value="Kia">Kia</option>
+                      <option value="Mitsubishi">Mitsubishi</option>
+                      <option value="Honda">Honda</option>
+                      <option value="Other">Other / Custom</option>
+                    </select>
+                    {(reqObj.vehicle_make === 'Other') && (
+                      <input
+                        type="text"
+                        placeholder="Type custom make..."
+                        value={reqObj.custom_vehicle_make || ''}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'custom_vehicle_make', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 mt-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      />
+                    )}
+                  </div>
+
+                  {/* Model Year Date Picker */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Model Year / Manufacture Date</label>
+                    <input
+                      type="date"
+                      value={reqObj.vehicle_model_year || ''}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_model_year', e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                    />
+                  </div>
+
+                  {/* Vehicle Duration (int) */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Duration (Days)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="e.g. 5"
+                      value={reqObj.vehicle_duration || ''}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_duration', e.target.value ? parseInt(e.target.value) : '')}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                    />
+                  </div>
+
+                  {/* Number of Vehicles (int) */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Number of Vehicles</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={reqObj.number_of_vehicles || 1}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'number_of_vehicles', e.target.value ? parseInt(e.target.value) : 1)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                    />
+                  </div>
+
+                  {/* Vehicle Color */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Color</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Black, White"
+                      value={reqObj.vehicle_color || ''}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_color', e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                    />
+                  </div>
+
+                  {/* Chauffeur other languages */}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Chauffeur Other Languages</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. French, German"
+                      value={reqObj.chauffeur_other_languages || ''}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_other_languages', e.target.value)}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                    />
+                  </div>
+
+                </div>
+
+                {/* Optional specifications */}
+                <div className="border-t border-neutral-100 pt-4 mt-2">
+                  <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-3">Optional Requirements & Drivers details</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    
+                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={reqObj.leather_seats || false}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'leather_seats', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                      />
+                      <span className="font-bold text-neutral-700">Requires Leather Seats</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={reqObj.vehicle_is_mint_condition || false}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_is_mint_condition', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                      />
+                      <span className="font-bold text-neutral-700">Vehicle in Mint Condition</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={reqObj.chauffeur_required !== false}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_required', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                      />
+                      <span className="font-bold text-neutral-700">Chauffeur Required</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={reqObj.chauffeur_speak_english !== false}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_speak_english', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                      />
+                      <span className="font-bold text-neutral-700">Chauffeur Speaks English</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={reqObj.chauffeur_accommodation_needed || false}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_accommodation_needed', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                      />
+                      <span className="font-bold text-neutral-700">Chauffeur Accommodation Needed</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={reqObj.chauffeur_meal_needed || false}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_meal_needed', e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                      />
+                      <span className="font-bold text-neutral-700">Chauffeur Meals Needed</span>
+                    </label>
+
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransportReqModal(false);
+                    setIsGlobalTransportReqEdit(false);
+                    setSelectedTransportBlock(null);
+                    setGlobalTransportReq(null);
+                    setModalTriggerRect(null);
+                  }}
+                  className="px-4 py-2 rounded-xl hover:bg-neutral-100 text-[11px] font-bold text-neutral-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const reqData = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
+                    const finalMake = reqData.vehicle_make === 'Other' ? reqData.custom_vehicle_make : reqData.vehicle_make;
+                    
+                    let requirementId = '';
+                    if (isGlobal) {
+                      const existingBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id);
+                      requirementId = existingBlock?.transport_requirement_id || crypto.randomUUID();
+                    } else {
+                      requirementId = selectedTransportBlock?.transport_requirement_id || 
+                                      selectedTransportBlock?.daily_activities?.find((da: any) => da.transport_requirement_id)?.transport_requirement_id || 
+                                      crypto.randomUUID();
+                    }
+                    
+                    const { success, requirement, error } = await upsertTransportRequirementAction(tourId, requirementId, {
+                      vehicle_duration: reqData.vehicle_duration || null,
+                      number_of_vehicles: reqData.number_of_vehicles || 1,
+                      vehicle_make: finalMake || null,
+                      vehicle_model_year: reqData.vehicle_model_year || null,
+                      leather_seats: !!reqData.leather_seats,
+                      vehicle_color: reqData.vehicle_color || null,
+                      vehicle_is_mint_condition: !!reqData.vehicle_is_mint_condition,
+                      chauffeur_required: reqData.chauffeur_required !== false,
+                      chauffeur_speak_english: reqData.chauffeur_speak_english !== false,
+                      chauffeur_other_languages: reqData.chauffeur_other_languages || null,
+                      chauffeur_accommodation_needed: !!reqData.chauffeur_accommodation_needed,
+                      chauffeur_meal_needed: !!reqData.chauffeur_meal_needed
+                    });
+
+                    if (success && requirement) {
+                      if (isGlobal) {
+                        setItinerary(prev => prev.map(b => {
+                          if (b.type === ItineraryBlockTypes.TRAVEL) {
+                            return {
+                              ...b,
+                              transport_requirement_id: requirementId,
+                              transport_requirement: requirement
+                            };
+                          }
+                          return b;
+                        }));
+                      } else {
+                        const activityIds = selectedTransportBlock.daily_activities 
+                          ? selectedTransportBlock.daily_activities.map((a: any) => a.id)
+                          : [selectedTransportBlock.id];
+
+                        setItinerary(prev => prev.map(b => {
+                          if (activityIds.includes(b.id)) {
+                            return {
+                              ...b,
+                              transport_requirement_id: requirementId,
+                              transport_requirement: requirement
+                            };
+                          }
+                          return b;
+                        }));
+
+                        setPoBlocks(prev => prev.map(pb => {
+                          const matchesPOBlock = pb.id === selectedTransportBlock.id;
+                          const matchesActivity = pb.daily_activities?.some((da: any) => da.id === selectedTransportBlock.id);
+                          
+                          if (matchesPOBlock || matchesActivity) {
+                            return {
+                              ...pb,
+                              transport_requirement: requirement,
+                              daily_activities: (pb.daily_activities || []).map((da: any) => {
+                                if (matchesPOBlock || da.id === selectedTransportBlock.id) {
+                                  return {
+                                    ...da,
+                                    transport_requirement_id: requirementId,
+                                    transport_requirement: requirement
+                                  };
+                                }
+                                return da;
+                              })
+                            };
+                          }
+                          return pb;
+                        }));
+                      }
+                    } else {
+                      alert('Failed to save specifications: ' + (error || 'Unknown error'));
+                    }
+
+                    setShowTransportReqModal(false);
+                    setIsGlobalTransportReqEdit(false);
+                    setSelectedTransportBlock(null);
+                    setGlobalTransportReq(null);
+                    setModalTriggerRect(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold transition-all shadow-sm"
+                >
+                  Save Specs
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
       </div>
     </div>
   );
@@ -15423,6 +16024,17 @@ interface AIItineraryBuilderProps {
   setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
   getBindingDisplay: (block: InternalItineraryBlock) => { name: string; icon: React.ReactNode; contact?: { name: string; phone: string } } | null | undefined;
   handleCopyRatePrompt: (block: InternalItineraryBlock) => void;
+  selectedTransportBlock: any;
+  setSelectedTransportBlock: React.Dispatch<React.SetStateAction<any>>;
+  showTransportReqModal: boolean;
+  setShowTransportReqModal: React.Dispatch<React.SetStateAction<boolean>>;
+  isGlobalTransportReqEdit: boolean;
+  setIsGlobalTransportReqEdit: React.Dispatch<React.SetStateAction<boolean>>;
+  globalTransportReq: any;
+  setGlobalTransportReq: React.Dispatch<React.SetStateAction<any>>;
+  modalTriggerRect: { top: number; left: number; width: number; height: number } | null;
+  setModalTriggerRect: React.Dispatch<React.SetStateAction<{ top: number; left: number; width: number; height: number } | null>>;
+  handleUpdateTransportReqField: (blockId: string | null, field: string, value: any) => void;
 }
 
 function AIItineraryBuilder({
@@ -15469,7 +16081,18 @@ function AIItineraryBuilder({
   searchTerm,
   setSearchTerm,
   getBindingDisplay,
-  handleCopyRatePrompt
+  handleCopyRatePrompt,
+  selectedTransportBlock,
+  setSelectedTransportBlock,
+  showTransportReqModal,
+  setShowTransportReqModal,
+  isGlobalTransportReqEdit,
+  setIsGlobalTransportReqEdit,
+  globalTransportReq,
+  setGlobalTransportReq,
+  modalTriggerRect,
+  setModalTriggerRect,
+  handleUpdateTransportReqField
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
@@ -15477,6 +16100,7 @@ function AIItineraryBuilder({
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
+
 
   const getSleepHotelForDay = (dayNum: number) => {
     const sleepBlock = itinerary.find(b => b.dayNumber === dayNum && b.type === ItineraryBlockTypes.SLEEP);
@@ -16804,6 +17428,25 @@ function AIItineraryBuilder({
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                const existingTravelBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement);
+                setGlobalTransportReq(existingTravelBlock?.transport_requirement || {});
+                setIsGlobalTransportReqEdit(true);
+              }}
+              disabled={isLockedByOther}
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${
+                itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement)
+                  ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
+                  : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-855'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Transport Specs</span>
+            </button>
           </div>
 
           {/* Guide Dropdown */}
@@ -17862,6 +18505,26 @@ function AIItineraryBuilder({
                           </div>
                         );
                       })()}
+                      {block.type === ItineraryBlockTypes.TRAVEL && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                            setSelectedTransportBlock(block);
+                            setShowTransportReqModal(true);
+                          }}
+                          disabled={isLockedByOther}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${
+                            block.transport_requirement
+                              ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
+                              : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
+                          }`}
+                        >
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>{block.transport_requirement ? 'Edit Transport Specs' : 'Add Transport Specs'}</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Right side: Comments button */}
@@ -17983,11 +18646,9 @@ function AIItineraryBuilder({
           chauffeurNeeded={chauffeurNeeded}
           appSettings={appSettings}
           masterData={masterData}
-          tripStatus={tripData?.status}
           dayCostOverrides={tripData?.dayCostOverrides}
         />
       </div>
-
     </div>
   );
 }

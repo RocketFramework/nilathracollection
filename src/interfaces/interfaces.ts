@@ -12,6 +12,7 @@ export interface POBlock {
     // Client-side joins
     daily_activities?: any[];
     daily_activity_vendors?: any[];
+    transport_requirement?: any;
 }
 
 export interface POBlockDailyActivity {

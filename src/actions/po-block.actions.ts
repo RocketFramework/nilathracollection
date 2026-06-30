@@ -125,3 +125,14 @@ export async function saveDriverDailyActivitiesAction(tourId: string, driverId: 
         return { success: false, error: error.message || "Failed to save driver activities." };
     }
 }
+
+export async function upsertTransportRequirementAction(tourId: string, requirementId: string, data: any) {
+    try {
+        const result = await POBlockService.upsertTransportRequirement(tourId, requirementId, data);
+        revalidatePath(`/admin-new`);
+        return { success: true, requirement: result };
+    } catch (error: any) {
+        console.error("Error upserting transport requirement:", error);
+        return { success: false, error: error.message || "Failed to save transport specifications." };
+    }
+}

@@ -322,6 +322,26 @@ export interface InternalItineraryBlock {
     transportQuantity?: number;
     weather?: string;
     baseRoomRate?: number;
+    transport_requirement_id?: string | null;
+    transport_requirement?: {
+        id?: string;
+        tour_id?: string;
+        vehicle_duration?: number | null;
+        number_of_vehicles?: number;
+        vehicle_make?: string | null;
+        custom_vehicle_make?: string | null;
+        vehicle_model_year?: string | null; // ISO Date String YYYY-MM-DD
+        leather_seats?: boolean;
+        vehicle_color?: string | null;
+        vehicle_is_mint_condition?: boolean;
+        chauffeur_required?: boolean;
+        chauffeur_speak_english?: boolean;
+        chauffeur_other_languages?: string | null;
+        chauffeur_accommodation_needed?: boolean;
+        chauffeur_meal_needed?: boolean;
+        created_at?: string;
+        updated_at?: string;
+    } | null;
 }
 
 export interface Traveler {
