@@ -92,6 +92,8 @@ import {
   changeRestaurantAction,
   changeVendorAction,
   changeTransportProviderAction,
+  changeGuideAction,
+  changeDriverAction,
   getAIRulesAction, 
   saveAIRuleAction,
   getDraftVersionsAction,
@@ -130,6 +132,9 @@ import {
   getVendorBookingsAction,
   getHotelRfqTemplateAction,
   getRestaurantRfqTemplateAction,
+  getGuideRfqTemplateAction,
+  getGuideRfqDetailsAction,
+  getDriverRfqTemplateAction,
   sendHotelRfqEmailAction,
   sendPurchaseOrderEmailAction,
   logRfqEmailAction,
@@ -141,6 +146,7 @@ import {
   previewCustomerInvoiceAction,
   generateCustomerInvoiceAction,
   getCustomerInvoicesAction,
+  getCustomerAdvancePaymentsAction,
   deleteCustomerInvoiceAction,
   registerCustomerPaymentAction,
   uploadPayslipAction,
@@ -412,6 +418,13 @@ function PlannerWizardWorkspace() {
   const [vendorPickerSearch, setVendorPickerSearch] = useState<string>('');
   const [transportPickerOpenBlockId, setTransportPickerOpenBlockId] = useState<string | null>(null);
   const [transportPickerSearch, setTransportPickerSearch] = useState<string>('');
+  const [guidePickerOpenBlockId, setGuidePickerOpenBlockId] = useState<string | null>(null);
+  const [guidePickerSearch, setGuidePickerSearch] = useState<string>('');
+  const [isGuideChanging, setIsGuideChanging] = useState<boolean>(false);
+  const [guideRfqDetails, setGuideRfqDetails] = useState<any>(null);
+  const [driverPickerOpenBlockId, setDriverPickerOpenBlockId] = useState<string | null>(null);
+  const [driverPickerSearch, setDriverPickerSearch] = useState<string>('');
+  const [isDriverChanging, setIsDriverChanging] = useState<boolean>(false);
   const [restaurantPickerOpenBlockId, setRestaurantPickerOpenBlockId] = useState<string | null>(null);
   const [restaurantPickerSearch, setRestaurantPickerSearch] = useState<string>('');
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -449,7 +462,10 @@ function PlannerWizardWorkspace() {
   const [poAttachPdf, setPoAttachPdf] = useState(true);
   const [poDiscount, setPoDiscount] = useState<number>(0);
   const [poTax, setPoTax] = useState<number>(0);
+  const [poMealProvided, setPoMealProvided] = useState<boolean>(false);
+  const [poAccommodationProvided, setPoAccommodationProvided] = useState<boolean>(false);
   const [poVendorNotes, setPoVendorNotes] = useState<string>('');
+  const [poVendorType, setPoVendorType] = useState<'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant'>('hotel');
 
   // Edit PO Details Modal state
   const [showEditPoModal, setShowEditPoModal] = useState(false);
@@ -489,6 +505,8 @@ function PlannerWizardWorkspace() {
   const [rfqGuideRoomDiscount, setRfqGuideRoomDiscount] = useState<string | null>(null);
   const [rfqIsRestaurant, setRfqIsRestaurant] = useState(false);
   const [rfqIsTransport, setRfqIsTransport] = useState(false);
+  const [rfqIsGuide, setRfqIsGuide] = useState(false);
+  const [rfqIsDriver, setRfqIsDriver] = useState(false);
 
   // Checkboxes/dropdown for custom rate override special requests
   const [customRateDriverMeal, setCustomRateDriverMeal] = useState(false);
@@ -713,6 +731,7 @@ function PlannerWizardWorkspace() {
         }
         
         activitiesToSave.push({
+          day_number: dayNum,
           service_date: dateStr || null,
           quantity: 1,
           contracted_price: rateData.contractedPrice,
@@ -774,6 +793,7 @@ function PlannerWizardWorkspace() {
         }
         
         activitiesToSave.push({
+          day_number: dayNum,
           service_date: dateStr || null,
           quantity: 1,
           contracted_price: rateData.contractedPrice,
@@ -2400,10 +2420,10 @@ function PlannerWizardWorkspace() {
     }
   }, [currentStep?.id, touristData, tourId, shareTemplateLoaded]);
 
-  // Initialize and load PO Blocks
+  // Load PO blocks when tourId or step changes
   useEffect(() => {
-    if (!tourId || tourId === 'draft-tour') return;
-    const isPoStep = currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection' || currentStep?.id === 'restaurant-selection' || currentStep?.id === 'activity-provider' || currentStep?.id === 'transport-provider';
+    if (!isStateRestored || !tourId || tourId === 'draft-tour') return;
+    const isPoStep = currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection' || currentStep?.id === 'restaurant-selection' || currentStep?.id === 'activity-provider' || currentStep?.id === 'transport-provider' || currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection';
     if (!isPoStep) return;
 
     setLoadingBlocks(true);
@@ -2429,7 +2449,7 @@ function PlannerWizardWorkspace() {
       }
       setLoadingBlocks(false);
     });
-  }, [tourId, currentStep?.id]);
+  }, [tourId, currentStep?.id, isStateRestored]);
 
 
   // Load email sharing history logs
@@ -2449,39 +2469,54 @@ function PlannerWizardWorkspace() {
     }
   }, [currentStep?.id, tourId]);
 
-  // Load customer invoices when step is 'payment-receive' or 'profit-loss'
+  // Load customer invoices and advance payments when step is 'payment-receive' or 'profit-loss'
   useEffect(() => {
     if ((currentStep?.id === 'payment-receive' || currentStep?.id === 'profit-loss') && tourId) {
-      async function loadCustomerInvoices() {
+      async function loadCustomerBillingData() {
         setIsLoadingCustomerInvoices(true);
         try {
-          const res = await getCustomerInvoicesAction(tourId);
-          if (res.success && res.invoices) {
-            setCustomerInvoices(res.invoices);
+          const [invRes, advRes] = await Promise.all([
+            getCustomerInvoicesAction(tourId),
+            getCustomerAdvancePaymentsAction(tourId)
+          ]);
+          if (invRes.success && invRes.invoices) {
+            setCustomerInvoices(invRes.invoices);
+          }
+          if (advRes.success && advRes.payments) {
+            setCustomerAdvancePayments(advRes.payments);
           }
         } catch (err) {
-          console.error("Error loading customer invoices:", err);
+          console.error("Error loading customer billing data:", err);
         } finally {
           setIsLoadingCustomerInvoices(false);
         }
       }
-      loadCustomerInvoices();
+      loadCustomerBillingData();
     }
   }, [currentStep?.id, tourId]);
 
   // Load guide daily activities & initialize rates editing state
   useEffect(() => {
-    if (currentStep?.id === 'guide-selection' && tourId) {
+    if (!isStateRestored || !tourId) return;
+    if (currentStep?.id === 'guide-selection') {
       (async () => {
         setIsLoadingGuideRates(true);
         const res = await getGuideDailyActivitiesAction(tourId);
         if (res.success && res.activities) {
           setGuideActivities(res.activities);
         }
+        try {
+          const rfqRes = await getGuideRfqDetailsAction(tourId);
+          if (rfqRes.success && rfqRes.tour) {
+            setGuideRfqDetails(rfqRes);
+          }
+        } catch (err) {
+          console.error("Error loading guide RFQ details:", err);
+        }
         setIsLoadingGuideRates(false);
       })();
     }
-  }, [currentStep?.id, tourId]);
+  }, [currentStep?.id, tourId, isStateRestored]);
 
   useEffect(() => {
     if (currentStep?.id === 'guide-selection' && tourId && poBlocks.length > 0) {
@@ -2567,17 +2602,26 @@ function PlannerWizardWorkspace() {
 
   // Load driver daily activities & initialize rates editing state
   useEffect(() => {
-    if (currentStep?.id === 'driver-selection' && tourId) {
+    if (!isStateRestored || !tourId) return;
+    if (currentStep?.id === 'driver-selection') {
       (async () => {
         setIsLoadingDriverRates(true);
         const res = await getDriverDailyActivitiesAction(tourId);
         if (res.success && res.activities) {
           setDriverActivities(res.activities);
         }
+        try {
+          const rfqRes = await getGuideRfqDetailsAction(tourId);
+          if (rfqRes.success && rfqRes.tour) {
+            setGuideRfqDetails(rfqRes);
+          }
+        } catch (err) {
+          console.error("Error loading driver RFQ details:", err);
+        }
         setIsLoadingDriverRates(false);
       })();
     }
-  }, [currentStep?.id, tourId]);
+  }, [currentStep?.id, tourId, isStateRestored]);
 
   useEffect(() => {
     if (currentStep?.id === 'driver-selection' && tourId && poBlocks.length > 0) {
@@ -2911,7 +2955,7 @@ function PlannerWizardWorkspace() {
         let finalTrack = urlTrack || restoredTrack || 'basic';
         let finalBasicIdx = restoredBasicIdx;
         let finalFinalIdx = restoredFinalIdx;
-        const activeElements = restoredElements || {
+        const defaultElements = {
           hotel: true,
           activity: true,
           restaurant: false,
@@ -2920,10 +2964,12 @@ function PlannerWizardWorkspace() {
           guide: true,
           driver: true,
         };
+        const activeElements = {
+          ...defaultElements,
+          ...(restoredElements || {})
+        };
 
-        if (restoredElements) {
-          setElements(restoredElements);
-        }
+        setElements(activeElements);
 
         // 4. If URL specifies a step, decode its index with precedence
         if (urlTrack && (urlTrack === 'basic' || urlTrack === 'final') && urlStep) {
@@ -3146,6 +3192,7 @@ function PlannerWizardWorkspace() {
 
   // Customer Invoices states
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
+  const [customerAdvancePayments, setCustomerAdvancePayments] = useState<any[]>([]);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
   const [isLoadingCustomerInvoices, setIsLoadingCustomerInvoices] = useState<boolean>(false);
   const [isGeneratingCustomerInvoice, setIsGeneratingCustomerInvoice] = useState<boolean>(false);
@@ -3169,6 +3216,12 @@ function PlannerWizardWorkspace() {
   const [customerPaymentAmount, setCustomerPaymentAmount] = useState<string>('');
   const [customerPaymentMethod, setCustomerPaymentMethod] = useState<string>('Bank Transfer');
   const [customerPaymentTxId, setCustomerPaymentTxId] = useState<string>('');
+  const [customerPaymentCurrency, setCustomerPaymentCurrency] = useState<string>('USD');
+  const [customerPaymentExchangeRate, setCustomerPaymentExchangeRate] = useState<string>('1.0');
+  const [customerPaymentDate, setCustomerPaymentDate] = useState<string>('');
+  const [customerPaymentSlipUrl, setCustomerPaymentSlipUrl] = useState<string>('');
+  const [isUploadingCustomerPaymentSlip, setIsUploadingCustomerPaymentSlip] = useState<boolean>(false);
+  const [showRecordAdvancePayment, setShowRecordAdvancePayment] = useState<boolean>(false);
 
   // Profit & Loss Analysis states & calculations
   const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(true);
@@ -3543,9 +3596,13 @@ function PlannerWizardWorkspace() {
     const block = itinerary.find(b => b.id === blockId);
     const poBlock = poBlocks.find(b => b.id === blockId);
     const isRestaurant = block?.type === 'meal' || poBlock?.block_type === 'meal' || poBlock?.block_type === 'restaurant' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id);
-    const isTransport = block?.type === 'travel' || poBlock?.block_type === 'travel' || stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id);
+    const isGuide = block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id);
+    const isDriver = (block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id);
+    const isTransport = !isGuide && !isDriver && (block?.type === 'travel' || poBlock?.block_type === 'travel' || stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id));
     setRfqIsRestaurant(isRestaurant);
     setRfqIsTransport(isTransport);
+    setRfqIsGuide(isGuide);
+    setRfqIsDriver(isDriver);
 
     setRfqBlockId(blockId || null);
     setSelectedRfqHotel(hotel);
@@ -3562,7 +3619,7 @@ function PlannerWizardWorkspace() {
     setRfqEmailBody('');
     setRfqEmailBodyOriginal('');
     setShowRfqHtml(false);
-    setRfqAttachPdf(!isTransport);
+    setRfqAttachPdf(!isTransport && !isGuide && !isDriver);
     setShowRfqModal(true);
     
     try {
@@ -3571,6 +3628,10 @@ function PlannerWizardWorkspace() {
         res = await getTransportRfqTemplateAction(tourId);
       } else if (isRestaurant) {
         res = await getRestaurantRfqTemplateAction();
+      } else if (isGuide) {
+        res = await getGuideRfqTemplateAction();
+      } else if (isDriver) {
+        res = await getDriverRfqTemplateAction();
       } else {
         res = await getHotelRfqTemplateAction();
       }
@@ -3699,6 +3760,132 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{Date}}/g, checkInDateFormatted);
           bodyHtml = bodyHtml.replace(/{{Pax}}/g, occupancyStr);
           bodyHtml = bodyHtml.replace(/{{Meal Type}}/g, mealTypesText || 'Lunch/Dinner');
+          bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+        } else if (isGuide) {
+          const guideName = `${hotel.first_name || ''} ${hotel.last_name || ''}`.trim();
+          const tourTitle = touristData?.profile 
+            ? `Custom Tour Package for ${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim()
+            : (tripData?.clientName ? `Custom Tour for ${tripData.clientName}` : 'Custom Tour Package');
+
+          const checkInDate = guideRfqDetails?.tour?.start_date || sortedStays[0]?.service_date || sortedStays[0]?.tour_itineraries?.date || '';
+          const checkOutDate = guideRfqDetails?.tour?.end_date || sortedStays[sortedStays.length - 1]?.service_date || sortedStays[sortedStays.length - 1]?.tour_itineraries?.date || '';
+
+          const checkInDateFormatted = formatDate(checkInDate);
+          const checkOutDateFormatted = formatDate(checkOutDate);
+          const durationDays = guideRfqDetails?.request?.duration_nights 
+            ? (guideRfqDetails.request.duration_nights + 1)
+            : (guideRfqDetails?.request?.duration_days || sortedStays.length);
+
+          const adults = guideRfqDetails?.request?.adults ?? 2;
+          const children = guideRfqDetails?.request?.children ?? 0;
+          const infants = guideRfqDetails?.request?.infants ?? 0;
+          const paxDetails = `${adults} Adults${children > 0 ? `, ${children} Children` : ''}${infants > 0 ? `, ${infants} Infants` : ''}`;
+
+          let itineraryDetailsText = '';
+          const activeSleepStays = (guideRfqDetails?.sleepStays && guideRfqDetails.sleepStays.length > 0)
+            ? guideRfqDetails.sleepStays
+            : sortedStays.map((act: any) => ({
+                day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
+                date: act.service_date || act.tour_itineraries?.date || '',
+                location_name: act.location_name || act.locationName || 'TBD'
+              }));
+
+          const rows = activeSleepStays.map((stay: any) => {
+            const displayDate = stay.date ? formatDate(stay.date) : `Day ${stay.day_number}`;
+            const location = stay.location_name || 'TBD';
+            return `<tr>
+                <td style="border: 1px solid #E6E4E0; padding: 8px; text-align: left; font-weight: bold; width: 120px;">${displayDate}</td>
+                <td style="border: 1px solid #E6E4E0; padding: 8px; text-align: left;">
+                  <strong>Location:</strong> ${location}
+                </td>
+            </tr>`;
+          }).join('');
+
+          itineraryDetailsText = `
+<table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; color: #333; margin-top: 10px;">
+  <tbody>
+    ${rows}
+  </tbody>
+</table>`;
+
+          subject = subject.replace(/{{Tour Name}}/g, tourTitle);
+          subject = subject.replace(/{{Start Date}}/g, checkInDateFormatted);
+          subject = subject.replace(/{{End Date}}/g, checkOutDateFormatted);
+          setRfqEmailSubject(subject);
+
+          bodyHtml = bodyHtml.replace(/{{Guide Name}}/g, guideName);
+          bodyHtml = bodyHtml.replace(/{{Tour Name}}/g, tourTitle);
+          bodyHtml = bodyHtml.replace(/{{Start Date}}/g, checkInDateFormatted);
+          bodyHtml = bodyHtml.replace(/{{End Date}}/g, checkOutDateFormatted);
+          bodyHtml = bodyHtml.replace(/{{Duration}}/g, String(durationDays));
+          bodyHtml = bodyHtml.replace(/{{Adults}}/g, String(adults));
+          bodyHtml = bodyHtml.replace(/{{Children}}/g, String(children));
+          bodyHtml = bodyHtml.replace(/{{Infants}}/g, String(infants));
+          bodyHtml = bodyHtml.replace(/{{Pax}}/g, paxDetails);
+          bodyHtml = bodyHtml.replace(/{{Itinerary Details}}/g, itineraryDetailsText);
+          bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+        } else if (isDriver) {
+          const driverName = `${hotel.first_name || ''} ${hotel.last_name || ''}`.trim();
+          const tourTitle = touristData?.profile 
+            ? `Custom Tour Package for ${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim()
+            : (tripData?.clientName ? `Custom Tour for ${tripData.clientName}` : 'Custom Tour Package');
+
+          const checkInDate = guideRfqDetails?.tour?.start_date || sortedStays[0]?.service_date || sortedStays[0]?.tour_itineraries?.date || '';
+          const checkOutDate = guideRfqDetails?.tour?.end_date || sortedStays[sortedStays.length - 1]?.service_date || sortedStays[sortedStays.length - 1]?.tour_itineraries?.date || '';
+
+          const checkInDateFormatted = formatDate(checkInDate);
+          const checkOutDateFormatted = formatDate(checkOutDate);
+          const durationDays = guideRfqDetails?.request?.duration_nights 
+            ? (guideRfqDetails.request.duration_nights + 1)
+            : (guideRfqDetails?.request?.duration_days || sortedStays.length);
+
+          const adults = guideRfqDetails?.request?.adults ?? 2;
+          const children = guideRfqDetails?.request?.children ?? 0;
+          const infants = guideRfqDetails?.request?.infants ?? 0;
+          const paxDetails = `${adults} Adults${children > 0 ? `, ${children} Children` : ''}${infants > 0 ? `, ${infants} Infants` : ''}`;
+
+          let itineraryDetailsText = '';
+          const activeSleepStays = (guideRfqDetails?.sleepStays && guideRfqDetails.sleepStays.length > 0)
+            ? guideRfqDetails.sleepStays
+            : sortedStays.map((act: any) => ({
+                day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
+                date: act.service_date || act.tour_itineraries?.date || '',
+                location_name: act.location_name || act.locationName || 'TBD'
+              }));
+
+          const rows = activeSleepStays.map((stay: any) => {
+            const displayDate = stay.date ? formatDate(stay.date) : `Day ${stay.day_number}`;
+            const location = stay.location_name || 'TBD';
+            return `<tr>
+                <td style="border: 1px solid #E6E4E0; padding: 8px; text-align: left; font-weight: bold; width: 120px;">${displayDate}</td>
+                <td style="border: 1px solid #E6E4E0; padding: 8px; text-align: left;">
+                  <strong>Location:</strong> ${location}
+                </td>
+            </tr>`;
+          }).join('');
+
+          itineraryDetailsText = `
+<table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; color: #333; margin-top: 10px;">
+  <tbody>
+    ${rows}
+  </tbody>
+</table>`;
+
+          subject = subject.replace(/{{Tour Name}}/g, tourTitle);
+          subject = subject.replace(/{{Start Date}}/g, checkInDateFormatted);
+          subject = subject.replace(/{{End Date}}/g, checkOutDateFormatted);
+          setRfqEmailSubject(subject);
+
+          bodyHtml = bodyHtml.replace(/{{Driver Name}}/g, driverName);
+          bodyHtml = bodyHtml.replace(/{{Tour Name}}/g, tourTitle);
+          bodyHtml = bodyHtml.replace(/{{Start Date}}/g, checkInDateFormatted);
+          bodyHtml = bodyHtml.replace(/{{End Date}}/g, checkOutDateFormatted);
+          bodyHtml = bodyHtml.replace(/{{Duration}}/g, String(durationDays));
+          bodyHtml = bodyHtml.replace(/{{Adults}}/g, String(adults));
+          bodyHtml = bodyHtml.replace(/{{Children}}/g, String(children));
+          bodyHtml = bodyHtml.replace(/{{Infants}}/g, String(infants));
+          bodyHtml = bodyHtml.replace(/{{Pax}}/g, paxDetails);
+          bodyHtml = bodyHtml.replace(/{{Itinerary Details}}/g, itineraryDetailsText);
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         } else {
           subject = subject.replace(/{{Hotel Name}}/g, hotel?.name || '');
@@ -3940,18 +4127,22 @@ function PlannerWizardWorkspace() {
     }
     setIsSendingRfq(true);
     try {
-      const firstStay = selectedRfqStays[0];
+      const firstStay = selectedRfqStays[0] || {};
+      const targetItineraryId = firstStay.itinerary_id || firstStay.itineraryId || itinerary[0]?.id;
+      if (!targetItineraryId) {
+        throw new Error("No itinerary days found for this tour.");
+      }
       const resDb = await createQuotationRequestAction({
         tour_id: tourId,
-        itinerary_id: firstStay.itinerary_id || firstStay.itineraryId,
-        daily_activity_id: firstStay.id,
+        itinerary_id: targetItineraryId,
+        daily_activity_id: firstStay.id || undefined,
         vendor_id: selectedRfqHotel.id,
-        vendor_name: selectedRfqHotel.name,
+        vendor_name: selectedRfqHotel.name || `${selectedRfqHotel.first_name || ''} ${selectedRfqHotel.last_name || ''}`.trim(),
         to_email: rfqEmailTo,
         from_email: 'concierge@nilathra.com',
         subject: rfqEmailSubject,
         email_content: rfqEmailBody,
-        activity_type: rfqIsTransport ? 'transport' : (rfqIsRestaurant ? 'meal' : 'hotel'),
+        activity_type: rfqIsTransport ? 'transport' : (rfqIsRestaurant ? 'meal' : (rfqIsGuide ? 'guide' : (rfqIsDriver ? 'driver' : 'hotel'))),
         daily_activity_ids: selectedRfqStays.map(s => s.id),
         po_block_id: rfqBlockId || undefined
       });
@@ -4032,8 +4223,8 @@ function PlannerWizardWorkspace() {
             pdfFilename ? [{ filename: pdfFilename }] : [],
             resDb.quote.id,
             rfqBlockId || undefined,
-            selectedRfqHotel.name || null,
-            rfqIsTransport ? 'transport' : (rfqIsRestaurant ? 'meal' : 'hotel')
+            selectedRfqHotel.name || `${selectedRfqHotel.first_name || ''} ${selectedRfqHotel.last_name || ''}`.trim(),
+            rfqIsTransport ? 'transport' : (rfqIsRestaurant ? 'meal' : (rfqIsGuide ? 'guide' : 'hotel'))
           );
         } catch (logErr) {
           console.error("Failed to log RFQ email history:", logErr);
@@ -4091,16 +4282,25 @@ function PlannerWizardWorkspace() {
     }
   };
 
-  const handleOpenPoModal = async (hotel: any, stays: any[], blockId?: string) => {
+  const handleOpenPoModal = async (
+    hotel: any, 
+    stays: any[], 
+    blockId?: string, 
+    vendorType?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant'
+  ) => {
+    const vType = vendorType || 'hotel';
     setPoBlockId(blockId || null);
     setSelectedPoHotel(hotel);
     setSelectedPoStays(stays);
-    setPoEmailTo(hotel?.reservation_email || '');
+    setPoVendorType(vType);
+    setPoEmailTo(hotel?.reservation_email || hotel?.email || '');
     setPoRequireSignature(false);
     setPoSignatureImage('/images/bogus_signature.png');
     setUploadedSignatureName('');
     setShowPoHtml(false);
-    setPoAttachPdf(true);
+    setPoAttachPdf(vType === 'hotel' ? true : false);
+    setPoMealProvided(false);
+    setPoAccommodationProvided(false);
     setShowPoModal(true);
 
     const sortedStays = [...stays].sort((a, b) => {
@@ -4125,8 +4325,18 @@ function PlannerWizardWorkspace() {
     };
 
     const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
-    const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
-    const nightsCount = standardStaysOnly.length;
+    let checkInDate = '';
+    let nightsCount = 0;
+    if (standardStaysOnly.length > 0) {
+        checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || '';
+        nightsCount = standardStaysOnly.length;
+    } else {
+        const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
+        if (serviceDates.length > 0) {
+            checkInDate = serviceDates[0];
+            nightsCount = serviceDates.length;
+        }
+    }
     let checkOutDate = '';
     if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
@@ -4137,7 +4347,8 @@ function PlannerWizardWorkspace() {
     const checkInDateFormatted = checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const checkOutDateFormatted = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
-    const poNumber = `PO-HOT-${Date.now().toString().slice(-6)}`;
+    const prefix = vType === 'hotel' ? 'HOT' : (vType === 'restaurant' ? 'RES' : (vType === 'tour_guide' ? 'GUI' : (vType === 'driver' ? 'DRI' : (vType === 'transport_provider' ? 'TRA' : 'ACT'))));
+    const poNumber = `PO-${prefix}-${Date.now().toString().slice(-6)}`;
     setPoEmailSubject(`Purchase Order ${poNumber} - ${hotel.name}`);
 
     // Calculate total price
@@ -4182,8 +4393,8 @@ function PlannerWizardWorkspace() {
     if (customStays.length > 0) {
         const rows = customStays.map(act => {
             const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-            const dateVal = act.tour_itineraries?.date;
-            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+            const dateVal = act.service_date || act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : (dayNum > 0 ? `Day ${dayNum}` : 'TBD');
             const title = act.title || act.name || 'Additional Service';
             const desc = act.description ? ` (${act.description})` : '';
             const qty = act.quantity || 1;
@@ -4289,8 +4500,9 @@ function PlannerWizardWorkspace() {
         agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
       }
 
-      const poNumMatch = poEmailSubject.match(/PO-HOT-\d+/);
-      const poNum = poNumMatch ? poNumMatch[0] : `PO-HOT-${Date.now().toString().slice(-6)}`;
+      const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+/);
+      const prefix = poVendorType === 'hotel' ? 'HOT' : (poVendorType === 'restaurant' ? 'RES' : (poVendorType === 'tour_guide' ? 'GUI' : (poVendorType === 'driver' ? 'DRI' : (poVendorType === 'transport_provider' ? 'TRA' : 'ACT'))));
+      const poNum = poNumMatch ? poNumMatch[0] : `PO-${prefix}-${Date.now().toString().slice(-6)}`;
 
       const doc = await generateHotelPoPdf(
         hotel,
@@ -4303,7 +4515,9 @@ function PlannerWizardWorkspace() {
           signatureImage: poSignatureImage,
           poNumber: poNum,
           discount: poDiscount,
-          tax: poTax
+          tax: poTax,
+          mealProvided: poMealProvided,
+          accommodationProvided: poAccommodationProvided
         }
       );
       
@@ -4350,13 +4564,22 @@ function PlannerWizardWorkspace() {
           calculatedSubtotal += (totalQty * unitCost);
       });
 
-      const poNumMatch = poEmailSubject.match(/PO-HOT-\d+/);
-      const poNum = poNumMatch ? poNumMatch[0] : `PO-HOT-${Date.now().toString().slice(-6)}`;
+      const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+/);
+      const prefix = poVendorType === 'hotel' ? 'HOT' : (poVendorType === 'restaurant' ? 'RES' : (poVendorType === 'tour_guide' ? 'GUI' : (poVendorType === 'driver' ? 'DRI' : (poVendorType === 'transport_provider' ? 'TRA' : 'ACT'))));
+      const poNum = poNumMatch ? poNumMatch[0] : `PO-${prefix}-${Date.now().toString().slice(-6)}`;
 
       // 1. Insert the parallel booking and PO record
+      let finalNotes = poVendorNotes;
+      if (poMealProvided) {
+        finalNotes = finalNotes ? `${finalNotes}\nMeal Provided: Yes` : 'Meal Provided: Yes';
+      }
+      if (poAccommodationProvided) {
+        finalNotes = finalNotes ? `${finalNotes}\nAccommodation Provided: Yes` : 'Accommodation Provided: Yes';
+      }
+
       const resDb = await createVendorBookingAction({
         tour_id: tourId,
-        vendor_type: 'hotel',
+        vendor_type: poVendorType,
         vendor_id: selectedPoHotel.id,
         vendor_name: selectedPoHotel.name,
         agreed_price: calculatedSubtotal,
@@ -4365,7 +4588,7 @@ function PlannerWizardWorkspace() {
         po_number: poNum,
         discount: poDiscount,
         tax: poTax,
-        notes: poVendorNotes,
+        notes: finalNotes,
         po_block_id: poBlockId || undefined
       });
 
@@ -4400,7 +4623,9 @@ function PlannerWizardWorkspace() {
             signatureImage: poSignatureImage,
             poNumber: poNum,
             discount: poDiscount,
-            tax: poTax
+            tax: poTax,
+            mealProvided: poMealProvided,
+            accommodationProvided: poAccommodationProvided
           }
         );
         pdfBase64 = doc.output('datauristring').split(',')[1];
@@ -4942,12 +5167,18 @@ function PlannerWizardWorkspace() {
     if (!tourId) return;
     setIsLoadingCustomerInvoices(true);
     try {
-      const res = await getCustomerInvoicesAction(tourId);
-      if (res.success && res.invoices) {
-        setCustomerInvoices(res.invoices);
+      const [invRes, advRes] = await Promise.all([
+        getCustomerInvoicesAction(tourId),
+        getCustomerAdvancePaymentsAction(tourId)
+      ]);
+      if (invRes.success && invRes.invoices) {
+        setCustomerInvoices(invRes.invoices);
+      }
+      if (advRes.success && advRes.payments) {
+        setCustomerAdvancePayments(advRes.payments);
       }
     } catch (e) {
-      console.error("Failed to load customer invoices:", e);
+      console.error("Failed to load customer billing data:", e);
     } finally {
       setIsLoadingCustomerInvoices(false);
     }
@@ -5055,21 +5286,38 @@ function PlannerWizardWorkspace() {
 
   const handleRecordCustomerPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerPaymentInvoiceId) return;
+    if (!tourId) return;
     
+    // Either invoice payment or advance payment
+    const isAdvance = !customerPaymentInvoiceId;
+    if (isAdvance && !showRecordAdvancePayment) return;
+
     try {
-      const res = await registerCustomerPaymentAction({
-        invoice_id: customerPaymentInvoiceId,
+      const payload: any = {
+        invoice_id: customerPaymentInvoiceId || null,
+        tour_id: tourId,
         amount: parseFloat(customerPaymentAmount) || 0,
         payment_method: customerPaymentMethod,
-        transaction_id: customerPaymentTxId || undefined
-      });
+        transaction_id: customerPaymentTxId || undefined,
+        currency: customerPaymentCurrency,
+        exchange_rate: parseFloat(customerPaymentExchangeRate) || 1.0,
+        payment_date: customerPaymentDate || new Date().toISOString().split('T')[0],
+        attachment_url: customerPaymentSlipUrl || undefined,
+        is_advance: isAdvance
+      };
+
+      const res = await registerCustomerPaymentAction(payload);
 
       if (res.success) {
-        alert("Payment recorded successfully!");
+        alert(isAdvance ? "Advance payment recorded successfully!" : "Payment recorded successfully!");
         setCustomerPaymentInvoiceId(null);
+        setShowRecordAdvancePayment(false);
         setCustomerPaymentAmount('');
         setCustomerPaymentTxId('');
+        setCustomerPaymentCurrency('USD');
+        setCustomerPaymentExchangeRate('1.0');
+        setCustomerPaymentDate('');
+        setCustomerPaymentSlipUrl('');
         reloadCustomerInvoices();
       } else {
         alert("Failed to record payment: " + res.error);
@@ -5614,6 +5862,11 @@ function PlannerWizardWorkspace() {
           isRestaurantChanging ||
           isVendorChanging ||
           isTransportChanging ||
+          isGuideChanging ||
+          isSavingGuideRates !== null ||
+          isLoadingGuideRates ||
+          isSavingDriverRates !== null ||
+          isLoadingDriverRates ||
           isApplyingRateOverride ||
           loadingBlocks ||
           isLoadingDbActivities ||
@@ -5627,6 +5880,11 @@ function PlannerWizardWorkspace() {
           : isRestaurantChanging ? 'Saving restaurant change…'
           : isVendorChanging ? 'Saving vendor change…'
           : isTransportChanging ? 'Saving transport provider…'
+          : isGuideChanging ? 'Changing guide…'
+          : isSavingGuideRates !== null ? 'Saving guide rates…'
+          : isLoadingGuideRates ? 'Loading guide rates…'
+          : isSavingDriverRates !== null ? 'Saving driver rates…'
+          : isLoadingDriverRates ? 'Loading driver rates…'
           : isApplyingRateOverride ? 'Applying rate override…'
           : loadingBlocks ? 'Loading blocks…'
           : isLoadingDbActivities ? 'Syncing itinerary data…'
@@ -7223,7 +7481,7 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPoModal(hotel, blockActivities, block.id)}
+                                            onClick={() => handleOpenPoModal(hotel, blockActivities, block.id, 'hotel')}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
                                             title="Create PO"
@@ -7803,7 +8061,7 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPoModal(restaurant, mealActivities, block.id)}
+                                            onClick={() => handleOpenPoModal(restaurant, mealActivities, block.id, 'restaurant')}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
                                             title="Create PO"
@@ -8212,7 +8470,7 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPoModal(vendor, actItems, block.id)}
+                                            onClick={() => handleOpenPoModal(vendor, actItems, block.id, 'vendor')}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
                                             title="Create PO"
@@ -8691,7 +8949,7 @@ function PlannerWizardWorkspace() {
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={() => handleOpenPoModal(provider, travelItems, block.id)}
+                                            onClick={() => handleOpenPoModal(provider, travelItems, block.id, 'transport_provider')}
                                             disabled={isLockedByOther}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
                                             title="Create PO"
@@ -9287,6 +9545,72 @@ function PlannerWizardWorkspace() {
                       </p>
                     </div>
 
+                    {/* Tour & Itinerary Overview section */}
+                    {guideRfqDetails && (
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-neutral-50/50 p-6 rounded-2xl border border-neutral-200">
+                        {/* Left: Overview Cards */}
+                        <div className="md:col-span-5 space-y-4">
+                          <h4 className="text-xs font-black text-neutral-400 uppercase tracking-wider">Tour Overview</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">Start Date</span>
+                              <span className="text-xs font-extrabold text-neutral-800">
+                                {guideRfqDetails.tour?.start_date ? formatDate(guideRfqDetails.tour.start_date) : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">End Date</span>
+                              <span className="text-xs font-extrabold text-neutral-800">
+                                {guideRfqDetails.tour?.end_date ? formatDate(guideRfqDetails.tour.end_date) : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">Duration</span>
+                              <span className="text-xs font-extrabold text-neutral-800">
+                                {guideRfqDetails.request?.duration_nights ? (
+                                  <>{guideRfqDetails.request.duration_nights + 1} Days <span className="text-[10px] text-neutral-400 font-normal">({guideRfqDetails.request.duration_nights} Nights)</span></>
+                                ) : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">Travelers</span>
+                              <span className="text-xs font-extrabold text-neutral-800">
+                                {guideRfqDetails.request?.adults || 0} A
+                                {guideRfqDetails.request?.children > 0 && ` | ${guideRfqDetails.request.children} C`}
+                                {guideRfqDetails.request?.infants > 0 && ` | ${guideRfqDetails.request.infants} I`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Daily Sleep Locations Timeline */}
+                        <div className="md:col-span-7 space-y-3">
+                          <h4 className="text-xs font-black text-neutral-400 uppercase tracking-wider">Overnight Stay Itinerary</h4>
+                          {guideRfqDetails.sleepStays && guideRfqDetails.sleepStays.length > 0 ? (
+                            <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm max-h-[145px] overflow-y-auto space-y-2.5">
+                              {guideRfqDetails.sleepStays.map((stay: any, sIdx: number) => (
+                                <div key={sIdx} className="flex items-center gap-3 text-xs border-b border-neutral-50 last:border-0 pb-1.5 last:pb-0">
+                                  <span className="px-2 py-0.5 bg-neutral-100 text-neutral-600 font-mono text-[10px] font-bold rounded-md shrink-0">
+                                    Day {stay.day_number}
+                                  </span>
+                                  <span className="text-neutral-400 font-medium">
+                                    {stay.date ? formatDate(stay.date) : ''}
+                                  </span>
+                                  <span className="font-bold text-neutral-800 ml-auto">
+                                    {stay.location_name || 'TBD'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-white p-4 rounded-xl border border-dashed border-neutral-200 text-center text-xs text-neutral-400">
+                              No sleep/accommodation activities found in itinerary.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-6">
                       {(() => {
                         const guideBlocks = poBlocks.filter((b: any) => b.block_type === 'guide');
@@ -9331,6 +9655,15 @@ function PlannerWizardWorkspace() {
                             totalCharged += r.chargedPrice || 0;
                           });
 
+                          const isPickerOpen = guidePickerOpenBlockId === block.id;
+                          const filteredGuides = (masterData.guides || []).filter((g: any) => {
+                            const search = guidePickerSearch.toLowerCase();
+                            const fullName = `${g.first_name || ''} ${g.last_name || ''}`.toLowerCase();
+                            const phone = (g.phone || '').toLowerCase();
+                            const languages = (g.languages || []).join(', ').toLowerCase();
+                            return fullName.includes(search) || phone.includes(search) || languages.includes(search);
+                          });
+
                           return (
                             <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
                               {/* Header */}
@@ -9349,7 +9682,37 @@ function PlannerWizardWorkspace() {
                                   </p>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setGuidePickerOpenBlockId(isPickerOpen ? null : block.id);
+                                      setGuidePickerSearch('');
+                                    }}
+                                    disabled={isLockedByOther}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-teal-605/50 hover:bg-teal-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-teal-700 transition-all shadow-sm disabled:opacity-40"
+                                    title={guide ? 'Change Provider' : 'Assign Provider'}
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5 text-neutral-400" />
+                                    <span>{guide ? 'Change Provider' : 'Assign Provider'}</span>
+                                  </button>
+
+                                  {guide && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const guideStays = guideActivities.filter((act: any) => act.guide_id === guideId);
+                                        handleOpenRfqModal(guide, guideStays, block.id);
+                                      }}
+                                      disabled={isLockedByOther}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                      title="Request Quote"
+                                    >
+                                      <Mail className="w-3.5 h-3.5 text-neutral-400" />
+                                      <span>Request Quotes</span>
+                                    </button>
+                                  )}
+
                                   <button
                                     type="button"
                                     onClick={() => saveGuideRates(guideId)}
@@ -9383,7 +9746,7 @@ function PlannerWizardWorkspace() {
                                           name: `${guide.first_name || ''} ${guide.last_name || ''}`,
                                           reservation_email: ''
                                         };
-                                        handleOpenPoModal(vendorObj, guideStays, block.id);
+                                        handleOpenPoModal(vendorObj, guideStays, block.id, 'tour_guide');
                                       }}
                                       disabled={isLockedByOther}
                                       className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
@@ -9392,8 +9755,119 @@ function PlannerWizardWorkspace() {
                                       <span>Create PO</span>
                                     </button>
                                   )}
+
+                                  <button
+                                    type="button"
+                                    disabled={isLockedByOther}
+                                    title="Delete Block"
+                                    onClick={async () => {
+                                      if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.")) {
+                                        const res = await deletePOBlockAction(block.id);
+                                        if (res.success) {
+                                          setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                        } else {
+                                          alert(res.error || "Failed to delete block.");
+                                        }
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
+
+                              {/* Inline Guide Picker */}
+                              {isPickerOpen && (
+                                <div className="border border-teal-200 rounded-2xl bg-teal-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-teal-800 uppercase tracking-wider">
+                                      {guide ? 'Change Guide' : 'Select a Guide'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setGuidePickerOpenBlockId(null)}
+                                      className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
+                                    >
+                                      Close ×
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Search by name, languages, phone…"
+                                    value={guidePickerSearch}
+                                    onChange={e => setGuidePickerSearch(e.target.value)}
+                                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 focus:border-teal-600 transition-all"
+                                    autoFocus
+                                  />
+                                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                    {filteredGuides.length === 0 ? (
+                                      <p className="text-[10px] text-neutral-400 text-center py-4">No guides found. Try a different search.</p>
+                                    ) : filteredGuides.map((g: any) => {
+                                      const isCurrent = g.id === guideId;
+                                      return (
+                                        <button
+                                          key={g.id}
+                                          type="button"
+                                          onClick={() => {
+                                            if (isCurrent) return;
+                                            const oldGuideId = guideId;
+                                            const newGuideId = g.id;
+                                            
+                                            // Optimistic update
+                                            setGuideActivities(prev => prev.map(act =>
+                                              act.guide_id === oldGuideId ? { ...act, guide_id: newGuideId } : act
+                                            ));
+                                            setPoBlocks(prev => prev.map(pb => {
+                                              if (pb.id !== block.id) return pb;
+                                              return {
+                                                ...pb,
+                                                name: `Guide: ${g.first_name || ''} ${g.last_name || ''} | ID: ${g.id}`,
+                                              };
+                                            }));
+                                            
+                                            setGuidePickerOpenBlockId(null);
+                                            setIsGuideChanging(true);
+                                            
+                                            changeGuideAction(tourId, oldGuideId, newGuideId)
+                                              .then(async res => {
+                                                if (res.success) {
+                                                  const blocksRes = await getPOBlocksAction(tourId);
+                                                  if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
+                                                } else {
+                                                  console.error('Guide change failed:', res.error);
+                                                  alert(res.error || 'Failed to change guide.');
+                                                }
+                                              })
+                                              .catch(err => console.error('changeGuideAction error:', err))
+                                              .finally(() => setIsGuideChanging(false));
+                                          }}
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
+                                            isCurrent
+                                              ? 'border-teal-700 bg-teal-50/30 ring-1 ring-teal-700/10'
+                                              : 'border-neutral-200 bg-white hover:border-teal-700/50 hover:bg-teal-50/10'
+                                          }`}
+                                        >
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-neutral-800 truncate">
+                                              {g.first_name || ''} {g.last_name || ''}
+                                            </p>
+                                            <p className="text-[10px] text-neutral-400 mt-0.5">
+                                              Phone: {g.phone || 'N/A'} {g.languages ? ` · Languages: ${g.languages.join(', ')}` : ''}
+                                            </p>
+                                          </div>
+                                          <div className="text-right shrink-0">
+                                            <span className="text-xs font-extrabold text-teal-800 font-mono">
+                                              ${g.daily_rate || '—'}
+                                            </span>
+                                            <span className="text-[8px] text-neutral-400 block font-mono">/ day</span>
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Rates Table */}
                               <div className="overflow-x-auto border border-neutral-200/60 rounded-2xl bg-white">
@@ -9403,7 +9877,6 @@ function PlannerWizardWorkspace() {
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Day / Date</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Rate Type Preset</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Contracted Price ($)</th>
-                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Charged Price ($)</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Note / Remarks</th>
                                     </tr>
                                   </thead>
@@ -9495,29 +9968,6 @@ function PlannerWizardWorkspace() {
                                           </td>
                                           <td className="p-3.5">
                                             <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={dayRate.chargedPrice}
-                                              onChange={(e) => {
-                                                const charged = parseFloat(e.target.value) || 0;
-                                                setGuideRatesState(prev => ({
-                                                  ...prev,
-                                                  [guideId]: {
-                                                    ...prev[guideId],
-                                                    [day.dayNum]: {
-                                                      ...prev[guideId][day.dayNum],
-                                                      chargedPrice: charged
-                                                    }
-                                                  }
-                                                }));
-                                              }}
-                                              disabled={isLockedByOther}
-                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
-                                            />
-                                          </td>
-                                          <td className="p-3.5">
-                                            <input
                                               type="text"
                                               placeholder="Remarks..."
                                               value={dayRate.note}
@@ -9560,6 +10010,218 @@ function PlannerWizardWorkspace() {
                                   </span>
                                 </div>
                               </div>
+
+                              {/* Unified RFQ/RFP Email Dispatch Logs for this Guide Block */}
+                              {(() => {
+                                const blockRfqEmails = rfqEmails.filter(e => e.po_block_id === block.id);
+                                const blockRfpEmails = rfpEmails.filter(e => e.po_block_id === block.id);
+                                const combinedBlockEmails = [
+                                  ...blockRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })),
+                                  ...blockRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))
+                                ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+
+                                if (combinedBlockEmails.length === 0) return null;
+
+                                return (
+                                  <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                    <h6 className="text-[11px] font-bold text-neutral-605 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                      RFQ & RFP Email Dispatch History ({combinedBlockEmails.length})
+                                    </h6>
+                                    <div className="space-y-2 pr-1">
+                                      {combinedBlockEmails.map((emailLog) => {
+                                        const emailId = emailLog.id;
+                                        const isEmailBodyExpanded = expandedEmailId === emailId;
+                                        return (
+                                          <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                  emailLog.logType === 'RFQ' 
+                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
+                                                    : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                }`}>
+                                                  {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                                </span>
+                                                <span className="text-[9px] font-mono text-neutral-400">
+                                                  Sent: {new Date(emailLog.sent_at).toLocaleString()}
+                                                </span>
+                                                {emailLog.updated_at && (
+                                                  <span className="text-[9px] font-mono text-amber-600 font-semibold">
+                                                    · Updated: {new Date(emailLog.updated_at).toLocaleString()}
+                                                  </span>
+                                                )}
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                  emailLog.status === 'Selected'
+                                                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                    : emailLog.status === 'Declined'
+                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                }`}>
+                                                  {emailLog.status || 'Sent'}
+                                                </span>
+                                                {emailLog.selected_vendor && (
+                                                  <span className="px-2 py-0.5 text-[8px] font-extrabold rounded-full bg-emerald-800 text-white shadow-sm flex items-center gap-0.5">
+                                                    ★ Selected
+                                                  </span>
+                                                )}
+                                                {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
+                                                  <span className="px-2 py-0.5 text-[8px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono">
+                                                    ${Number(emailLog.quoted_price).toFixed(2)}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (isEmailBodyExpanded) {
+                                                    setExpandedEmailId(null);
+                                                    setEditingRfq(null);
+                                                  } else {
+                                                    setExpandedEmailId(emailId);
+                                                    setEditingRfq(emailLog);
+                                                    setEditRfqStatus((emailLog.status || 'Sent') as any);
+                                                    setEditRfqQuotedPrice(emailLog.quoted_price || 0);
+                                                    setEditRfqNotes(emailLog.notes || '');
+                                                    setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  }
+                                                }}
+                                                className="text-[9px] text-emerald-800 font-bold hover:underline"
+                                              >
+                                                {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                              </button>
+                                            </div>
+
+                                            <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                              <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                              <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
+                                            </div>
+
+                                            {isEmailBodyExpanded && (
+                                              <div className="mt-3 pt-3 border-t border-neutral-150 space-y-4">
+                                                {/* Edit Form */}
+                                                <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
+                                                    Edit Proposal / Bid Details
+                                                  </h6>
+                                                  
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {/* Quoted Price */}
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Quoted Price ($)
+                                                      </label>
+                                                      <input
+                                                        type="number"
+                                                        value={editRfqQuotedPrice}
+                                                        onChange={(e) => setEditRfqQuotedPrice(Number(e.target.value))}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
+                                                        placeholder="e.g. 150"
+                                                      />
+                                                    </div>
+
+                                                    {/* Status */}
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Status
+                                                      </label>
+                                                      <select
+                                                        value={editRfqStatus}
+                                                        onChange={(e) => {
+                                                          const newStatus = e.target.value;
+                                                          setEditRfqStatus(newStatus as any);
+                                                          if (newStatus === 'Selected') {
+                                                            setEditRfqSelected(true);
+                                                          }
+                                                        }}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
+                                                      >
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Replied">Replied</option>
+                                                        <option value="Declined">Declined</option>
+                                                        <option value="Expired">Expired</option>
+                                                        <option value="Selected">Selected</option>
+                                                      </select>
+                                                    </div>
+
+                                                    {/* Selected Vendor Checkbox */}
+                                                    <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
+                                                      <input
+                                                        type="checkbox"
+                                                        id={`select-vendor-${emailId}`}
+                                                        checked={editRfqSelected}
+                                                        onChange={(e) => {
+                                                          const checked = e.target.checked;
+                                                          setEditRfqSelected(checked);
+                                                          if (checked) {
+                                                            setEditRfqStatus('Selected');
+                                                          } else if (editRfqStatus === 'Selected') {
+                                                            setEditRfqStatus('Replied');
+                                                          }
+                                                        }}
+                                                        className="w-3.5 h-3.5 text-emerald-800 border-neutral-355 rounded focus:ring-emerald-600"
+                                                      />
+                                                      <label 
+                                                        htmlFor={`select-vendor-${emailId}`}
+                                                        className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none"
+                                                      >
+                                                        Mark as Selected / Winning Proposal for this block
+                                                      </label>
+                                                    </div>
+
+                                                    {/* Notes */}
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Notes
+                                                      </label>
+                                                      <textarea
+                                                        placeholder="Add discounts, availability info, or comments here..."
+                                                        value={editRfqNotes}
+                                                        onChange={(e) => setEditRfqNotes(e.target.value)}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none"
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setExpandedEmailId(null);
+                                                        setEditingRfq(null);
+                                                      }}
+                                                      className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleSaveInlineRfq(emailLog)}
+                                                      disabled={isSavingEditRfq}
+                                                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
+                                                    >
+                                                      {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+
+                                                {/* Sent Email Body */}
+                                                <div className="space-y-1">
+                                                  <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
+                                                  <div 
+                                                    className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none"
+                                                    dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         });
@@ -9577,6 +10239,72 @@ function PlannerWizardWorkspace() {
                         Review chauffeurs / drivers assigned to the tour, select app setting rates or driver defaults, and save daily rates.
                       </p>
                     </div>
+
+                    {/* Tour Overview Section */}
+                    {guideRfqDetails && guideRfqDetails.tour && (
+                      <div className="bg-neutral-50/70 border border-neutral-200/60 rounded-3xl p-6 grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                        {/* Left: General Info */}
+                        <div className="md:col-span-5 space-y-4">
+                          <h4 className="text-xs font-black text-neutral-400 uppercase tracking-wider">Tour Overview</h4>
+                          <div className="grid grid-cols-2 gap-3.5">
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">Start Date</span>
+                              <span className="text-xs font-extrabold text-neutral-850 font-mono">
+                                {guideRfqDetails.tour.start_date ? formatDate(guideRfqDetails.tour.start_date) : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">End Date</span>
+                              <span className="text-xs font-extrabold text-neutral-850 font-mono">
+                                {guideRfqDetails.tour.end_date ? formatDate(guideRfqDetails.tour.end_date) : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">Duration</span>
+                              <span className="text-xs font-extrabold text-neutral-800">
+                                {guideRfqDetails.request?.duration_nights ? (
+                                  <>{guideRfqDetails.request.duration_nights + 1} Days <span className="text-[10px] text-neutral-400 font-normal">({guideRfqDetails.request.duration_nights} Nights)</span></>
+                                ) : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-3.5 rounded-xl border border-neutral-200 shadow-sm">
+                              <span className="text-[10px] text-neutral-400 font-bold block mb-1">Travelers</span>
+                              <span className="text-xs font-extrabold text-neutral-800">
+                                {guideRfqDetails.request?.adults || 0} A
+                                {guideRfqDetails.request?.children > 0 && ` | ${guideRfqDetails.request.children} C`}
+                                {guideRfqDetails.request?.infants > 0 && ` | ${guideRfqDetails.request.infants} I`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Daily Sleep Locations Timeline */}
+                        <div className="md:col-span-7 space-y-3">
+                          <h4 className="text-xs font-black text-neutral-400 uppercase tracking-wider">Overnight Stay Itinerary</h4>
+                          {guideRfqDetails.sleepStays && guideRfqDetails.sleepStays.length > 0 ? (
+                            <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm max-h-[145px] overflow-y-auto space-y-2.5">
+                              {guideRfqDetails.sleepStays.map((stay: any, sIdx: number) => (
+                                <div key={sIdx} className="flex items-center gap-3 text-xs border-b border-neutral-50 last:border-0 pb-1.5 last:pb-0">
+                                  <span className="px-2 py-0.5 bg-neutral-100 text-neutral-600 font-mono text-[10px] font-bold rounded-md shrink-0">
+                                    Day {stay.day_number}
+                                  </span>
+                                  <span className="text-neutral-400 font-medium">
+                                    {stay.date ? formatDate(stay.date) : ''}
+                                  </span>
+                                  <span className="font-bold text-neutral-800 ml-auto">
+                                    {stay.location_name || 'TBD'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-white p-4 rounded-xl border border-dashed border-neutral-200 text-center text-xs text-neutral-400">
+                              No sleep/accommodation activities found in itinerary.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-6">
                       {(() => {
@@ -9621,70 +10349,219 @@ function PlannerWizardWorkspace() {
                             totalContracted += r.contractedPrice || 0;
                             totalCharged += r.chargedPrice || 0;
                           });
+                          const isPickerOpen = driverPickerOpenBlockId === block.id;
+                          const filteredDrivers = (masterData.drivers || []).filter((d: any) => {
+                            const search = driverPickerSearch.toLowerCase();
+                            const fullName = `${d.first_name || ''} ${d.last_name || ''}`.toLowerCase();
+                            const phone = (d.phone || '').toLowerCase();
+                            const license = (d.license_number || '').toLowerCase();
+                            return fullName.includes(search) || phone.includes(search) || license.includes(search);
+                          });
 
                           return (
                             <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
                               {/* Header */}
-                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
-                                      Driver Block
-                                    </span>
-                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
-                                      {driver ? `${driver.first_name || ''} ${driver.last_name || ''}` : 'Unassigned Driver'}
-                                    </h4>
-                                  </div>
-                                  <p className="text-xs text-neutral-500">
-                                    {driver ? `Phone: ${driver.phone || 'N/A'} | License: ${driver.license_number || 'N/A'}` : 'Assign a driver in the itinerary.'}
-                                  </p>
-                                </div>
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                            Driver Block
+                                          </span>
+                                          <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                            {driver ? `${driver.first_name || ''} ${driver.last_name || ''}` : 'Unassigned Driver'}
+                                          </h4>
+                                        </div>
+                                        <p className="text-xs text-neutral-500">
+                                          {driver ? `Phone: ${driver.phone || 'N/A'} | License: ${driver.license_number || 'N/A'}` : 'Assign a driver in the itinerary.'}
+                                        </p>
+                                      </div>
 
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => saveDriverRates(driverId)}
-                                    disabled={isSavingDriverRates === driverId || isLockedByOther}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
-                                  >
-                                    {isSavingDriverRates === driverId ? (
-                                      <>
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        <span>Saving...</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Save className="w-3.5 h-3.5" />
-                                        <span>Save Driver PO & Rates</span>
-                                      </>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setDriverPickerOpenBlockId(isPickerOpen ? null : block.id);
+                                            setDriverPickerSearch('');
+                                          }}
+                                          disabled={isLockedByOther}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-violet-650/50 hover:bg-violet-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-violet-750 transition-all shadow-sm disabled:opacity-40"
+                                          title={driver ? 'Change Provider' : 'Assign Provider'}
+                                        >
+                                          <UserCheck className="w-3.5 h-3.5 text-neutral-400" />
+                                          <span>{driver ? 'Change Provider' : 'Assign Provider'}</span>
+                                        </button>
+
+                                        {driver && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                              handleOpenRfqModal(driver, driverStays, block.id);
+                                            }}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                            title="Request Quote"
+                                          >
+                                            <Mail className="w-3.5 h-3.5 text-neutral-400" />
+                                            <span>Request Quotes</span>
+                                          </button>
+                                        )}
+
+                                        <button
+                                          type="button"
+                                          onClick={() => saveDriverRates(driverId)}
+                                          disabled={isSavingDriverRates === driverId || isLockedByOther}
+                                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                        >
+                                          {isSavingDriverRates === driverId ? (
+                                            <>
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                              <span>Saving...</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Save className="w-3.5 h-3.5" />
+                                              <span>Save Driver PO & Rates</span>
+                                            </>
+                                          )}
+                                        </button>
+
+                                        {driver && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                              if (driverStays.length === 0) {
+                                                alert("Please save driver rates first before generating a Purchase Order.");
+                                                return;
+                                              }
+                                              const vendorObj = {
+                                                ...driver,
+                                                name: `${driver.first_name || ''} ${driver.last_name || ''}`,
+                                                reservation_email: ''
+                                              };
+                                              handleOpenPoModal(vendorObj, driverStays, block.id, 'driver');
+                                            }}
+                                            disabled={isLockedByOther}
+                                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                          >
+                                            <FileText className="w-3.5 h-3.5" />
+                                            <span>Create PO</span>
+                                          </button>
+                                        )}
+
+                                        <button
+                                          type="button"
+                                          disabled={isLockedByOther}
+                                          title="Delete Block"
+                                          onClick={async () => {
+                                            if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.")) {
+                                              const res = await deletePOBlockAction(block.id);
+                                              if (res.success) {
+                                                setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                              } else {
+                                                alert(res.error || "Failed to delete block.");
+                                              }
+                                            }
+                                          }}
+                                          className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Inline Driver Picker */}
+                                    {isPickerOpen && (
+                                      <div className="border border-violet-200 rounded-2xl bg-violet-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-black text-violet-800 uppercase tracking-wider">
+                                            {driver ? 'Change Driver' : 'Select a Driver'}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setDriverPickerOpenBlockId(null)}
+                                            className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
+                                          >
+                                            Close ×
+                                          </button>
+                                        </div>
+                                        <input
+                                          type="text"
+                                          placeholder="Search by name, license, phone…"
+                                          value={driverPickerSearch}
+                                          onChange={e => setDriverPickerSearch(e.target.value)}
+                                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600 transition-all"
+                                          autoFocus
+                                        />
+                                        <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                          {filteredDrivers.length === 0 ? (
+                                            <p className="text-[10px] text-neutral-400 text-center py-4">No drivers found. Try a different search.</p>
+                                          ) : filteredDrivers.map((d: any) => {
+                                            const isCurrent = d.id === driverId;
+                                            return (
+                                              <button
+                                                key={d.id}
+                                                type="button"
+                                                onClick={() => {
+                                                  if (isCurrent) return;
+                                                  const oldDriverId = driverId;
+                                                  const newDriverId = d.id;
+                                                  
+                                                  // Optimistic update
+                                                  setDriverActivities(prev => prev.map(act =>
+                                                    act.driver_id === oldDriverId ? { ...act, driver_id: newDriverId } : act
+                                                  ));
+                                                  setPoBlocks(prev => prev.map(pb => {
+                                                    if (pb.id !== block.id) return pb;
+                                                    return {
+                                                      ...pb,
+                                                      name: `Driver: ${d.first_name || ''} ${d.last_name || ''} | ID: ${d.id}`,
+                                                    };
+                                                  }));
+                                                  
+                                                  setDriverPickerOpenBlockId(null);
+                                                  setIsDriverChanging(true);
+                                                  
+                                                  changeDriverAction(tourId, oldDriverId, newDriverId)
+                                                    .then(async res => {
+                                                      if (res.success) {
+                                                        const blocksRes = await getPOBlocksAction(tourId);
+                                                        if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
+                                                      } else {
+                                                        console.error('Driver change failed:', res.error);
+                                                        alert(res.error || 'Failed to change driver.');
+                                                      }
+                                                    })
+                                                    .catch(err => console.error('changeDriverAction error:', err))
+                                                    .finally(() => setIsDriverChanging(false));
+                                                }}
+                                                className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
+                                                  isCurrent
+                                                    ? 'border-violet-700 bg-violet-50/30 ring-1 ring-violet-700/10'
+                                                    : 'border-neutral-200 bg-white hover:border-violet-700/50 hover:bg-violet-50/10'
+                                                }`}
+                                              >
+                                                <div className="min-w-0">
+                                                  <p className="text-xs font-bold text-neutral-800 truncate">
+                                                    {d.first_name || ''} {d.last_name || ''}
+                                                  </p>
+                                                  <p className="text-[10px] text-neutral-400 mt-0.5">
+                                                    Phone: {d.phone || 'N/A'} · License: {d.license_number || 'N/A'}
+                                                  </p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                  <span className="text-xs font-extrabold text-violet-850 font-mono">
+                                                    ${d.per_day_rate || '—'}
+                                                  </span>
+                                                  <span className="text-[8px] text-neutral-400 block font-mono">/ day</span>
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
                                     )}
-                                  </button>
-
-                                  {driver && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
-                                        if (driverStays.length === 0) {
-                                          alert("Please save driver rates first before generating a Purchase Order.");
-                                          return;
-                                        }
-                                        const vendorObj = {
-                                          ...driver,
-                                          name: `${driver.first_name || ''} ${driver.last_name || ''}`,
-                                          reservation_email: ''
-                                        };
-                                        handleOpenPoModal(vendorObj, driverStays, block.id);
-                                      }}
-                                      disabled={isLockedByOther}
-                                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
-                                    >
-                                      <FileText className="w-3.5 h-3.5" />
-                                      <span>Create PO</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
 
                               {/* Rates Table */}
                               <div className="overflow-x-auto border border-neutral-200/60 rounded-2xl bg-white">
@@ -9856,6 +10733,218 @@ function PlannerWizardWorkspace() {
                                   </span>
                                 </div>
                               </div>
+
+                              {/* Unified RFQ/RFP Email Dispatch Logs for this Driver Block */}
+                              {(() => {
+                                const blockRfqEmails = rfqEmails.filter(e => e.po_block_id === block.id);
+                                const blockRfpEmails = rfpEmails.filter(e => e.po_block_id === block.id);
+                                const combinedBlockEmails = [
+                                  ...blockRfqEmails.map(e => ({ ...e, logType: 'RFQ' as const })),
+                                  ...blockRfpEmails.map(e => ({ ...e, logType: 'RFP' as const }))
+                                ].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+
+                                if (combinedBlockEmails.length === 0) return null;
+
+                                return (
+                                  <div className="mt-4 pt-4 border-t border-neutral-200/60 space-y-3">
+                                    <h6 className="text-[11px] font-bold text-neutral-605 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                                      RFQ & RFP Email Dispatch History ({combinedBlockEmails.length})
+                                    </h6>
+                                    <div className="space-y-2 pr-1">
+                                      {combinedBlockEmails.map((emailLog) => {
+                                        const emailId = emailLog.id;
+                                        const isEmailBodyExpanded = expandedEmailId === emailId;
+                                        return (
+                                          <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                  emailLog.logType === 'RFQ' 
+                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
+                                                    : 'bg-amber-50 text-amber-800 border border-amber-105'
+                                                }`}>
+                                                  {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
+                                                </span>
+                                                <span className="text-[9px] font-mono text-neutral-400">
+                                                  Sent: {new Date(emailLog.sent_at).toLocaleString()}
+                                                </span>
+                                                {emailLog.updated_at && (
+                                                  <span className="text-[9px] font-mono text-amber-600 font-semibold">
+                                                    · Updated: {new Date(emailLog.updated_at).toLocaleString()}
+                                                  </span>
+                                                )}
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
+                                                  emailLog.status === 'Selected'
+                                                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                    : emailLog.status === 'Declined'
+                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-205'
+                                                }`}>
+                                                  {emailLog.status || 'Sent'}
+                                                </span>
+                                                {emailLog.selected_vendor && (
+                                                  <span className="px-2 py-0.5 text-[8px] font-extrabold rounded-full bg-emerald-800 text-white shadow-sm flex items-center gap-0.5">
+                                                    ★ Selected
+                                                  </span>
+                                                )}
+                                                {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
+                                                  <span className="px-2 py-0.5 text-[8px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono">
+                                                    ${Number(emailLog.quoted_price).toFixed(2)}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (isEmailBodyExpanded) {
+                                                    setExpandedEmailId(null);
+                                                    setEditingRfq(null);
+                                                  } else {
+                                                    setExpandedEmailId(emailId);
+                                                    setEditingRfq(emailLog);
+                                                    setEditRfqStatus((emailLog.status || 'Sent') as any);
+                                                    setEditRfqQuotedPrice(emailLog.quoted_price || 0);
+                                                    setEditRfqNotes(emailLog.notes || '');
+                                                    setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  }
+                                                }}
+                                                className="text-[9px] text-emerald-800 font-bold hover:underline"
+                                              >
+                                                {isEmailBodyExpanded ? 'Hide Details' : 'Show Details'}
+                                              </button>
+                                            </div>
+
+                                            <div className="text-[10px] space-y-0.5 text-neutral-600">
+                                              <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
+                                              <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
+                                            </div>
+
+                                            {isEmailBodyExpanded && (
+                                              <div className="mt-3 pt-3 border-t border-neutral-150 space-y-4">
+                                                {/* Edit Form */}
+                                                <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
+                                                    Edit Proposal / Bid Details
+                                                  </h6>
+                                                  
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {/* Quoted Price */}
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Quoted Price ($)
+                                                      </label>
+                                                      <input
+                                                        type="number"
+                                                        value={editRfqQuotedPrice}
+                                                        onChange={(e) => setEditRfqQuotedPrice(Number(e.target.value))}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
+                                                        placeholder="e.g. 150"
+                                                      />
+                                                    </div>
+
+                                                    {/* Status */}
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Status
+                                                      </label>
+                                                      <select
+                                                        value={editRfqStatus}
+                                                        onChange={(e) => {
+                                                          const newStatus = e.target.value;
+                                                          setEditRfqStatus(newStatus as any);
+                                                          if (newStatus === 'Selected') {
+                                                            setEditRfqSelected(true);
+                                                          }
+                                                        }}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
+                                                      >
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Replied">Replied</option>
+                                                        <option value="Declined">Declined</option>
+                                                        <option value="Expired">Expired</option>
+                                                        <option value="Selected">Selected</option>
+                                                      </select>
+                                                    </div>
+
+                                                    {/* Selected Vendor Checkbox */}
+                                                    <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
+                                                      <input
+                                                        type="checkbox"
+                                                        id={`select-vendor-${emailId}`}
+                                                        checked={editRfqSelected}
+                                                        onChange={(e) => {
+                                                          const checked = e.target.checked;
+                                                          setEditRfqSelected(checked);
+                                                          if (checked) {
+                                                            setEditRfqStatus('Selected');
+                                                          } else if (editRfqStatus === 'Selected') {
+                                                            setEditRfqStatus('Replied');
+                                                          }
+                                                        }}
+                                                        className="w-3.5 h-3.5 text-emerald-800 border-neutral-355 rounded focus:ring-emerald-600"
+                                                      />
+                                                      <label 
+                                                        htmlFor={`select-vendor-${emailId}`}
+                                                        className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none"
+                                                      >
+                                                        Mark as Selected / Winning Proposal for this block
+                                                      </label>
+                                                    </div>
+
+                                                    {/* Notes */}
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
+                                                        Notes
+                                                      </label>
+                                                      <textarea
+                                                        placeholder="Add discounts, availability info, or comments here..."
+                                                        value={editRfqNotes}
+                                                        onChange={(e) => setEditRfqNotes(e.target.value)}
+                                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none"
+                                                      />
+                                                    </div>
+                                                  </div>
+
+                                                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setExpandedEmailId(null);
+                                                        setEditingRfq(null);
+                                                      }}
+                                                      className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors"
+                                                    >
+                                                      Cancel
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleSaveInlineRfq(emailLog)}
+                                                      disabled={isSavingEditRfq}
+                                                      className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50"
+                                                    >
+                                                      {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+
+                                                {/* Sent Email Body */}
+                                                <div className="space-y-1">
+                                                  <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
+                                                  <div 
+                                                    className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none"
+                                                    dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         });
@@ -11262,24 +12351,247 @@ function PlannerWizardWorkspace() {
                   </div>
                 ) : track === 'final' && currentStep.id === 'payment-receive' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
-                    <div className="flex items-center justify-between border-b border-neutral-100 pb-4 mb-6">
+                    <div className="flex flex-wrap items-center justify-between border-b border-neutral-100 pb-4 mb-6 gap-4">
                       <div>
                         <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                           <CircleDollarSign className="w-5 h-5 text-emerald-800" />
                           Collect Tourist Payment
                         </h3>
                         <p className="text-xs text-neutral-400 mt-1">
-                          Generate experience-based customer invoices and log client payments.
+                          Generate experience-based customer invoices and log client payments (including advances).
                         </p>
                       </div>
-                      <button
-                        onClick={handleOpenCreateInvoice}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition-all shadow-md cursor-pointer"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Generate Customer Invoice
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={handleOpenCreateInvoice}
+                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition-all shadow-md cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Generate Customer Invoice
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Record Advance Payment Form */}
+                    {showRecordAdvancePayment && (
+                      <form onSubmit={handleRecordCustomerPayment} className="p-6 border border-emerald-100 rounded-2xl bg-emerald-50/20 space-y-4 animate-in slide-in-from-top-2 duration-205">
+                        <h4 className="text-xs font-bold text-emerald-850 uppercase tracking-wider flex items-center gap-1.5">
+                          <Coins className="w-4 h-4" /> Record Tourist Advance Payment
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Amount</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              required
+                              value={customerPaymentAmount}
+                              onChange={(e) => setCustomerPaymentAmount(e.target.value)}
+                              className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Currency</label>
+                            <select
+                              value={customerPaymentCurrency}
+                              onChange={(e) => {
+                                setCustomerPaymentCurrency(e.target.value);
+                                if (e.target.value === 'USD') {
+                                  setCustomerPaymentExchangeRate('1.0');
+                                }
+                              }}
+                              className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                            >
+                              <option value="USD">USD</option>
+                              <option value="LKR">LKR</option>
+                              <option value="EUR">EUR</option>
+                              <option value="GBP">GBP</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Exchange Rate</label>
+                            <input
+                              type="number"
+                              step="0.0001"
+                              required
+                              value={customerPaymentExchangeRate}
+                              onChange={(e) => setCustomerPaymentExchangeRate(e.target.value)}
+                              className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                              disabled={customerPaymentCurrency === 'USD'}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Payment Method</label>
+                            <select
+                              value={customerPaymentMethod}
+                              onChange={(e) => setCustomerPaymentMethod(e.target.value)}
+                              className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                            >
+                              <option value="Bank Transfer">Bank Transfer</option>
+                              <option value="Credit Card">Credit Card</option>
+                              <option value="Cash">Cash</option>
+                              <option value="Cheque">Cheque</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Transaction / Ref ID</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. TXN-1029302"
+                              value={customerPaymentTxId}
+                              onChange={(e) => setCustomerPaymentTxId(e.target.value)}
+                              className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Payment Date</label>
+                            <input
+                              type="date"
+                              required
+                              value={customerPaymentDate}
+                              onChange={(e) => setCustomerPaymentDate(e.target.value)}
+                              className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                            />
+                          </div>
+
+                          <div className="space-y-2 sm:col-span-3">
+                            <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold block">
+                              Upload Payment Slip / Receipt (JPEG, PNG, GIF, WebP)
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <div className="relative flex-1 max-w-md">
+                                <input
+                                  type="file"
+                                  accept=".jpg,.jpeg,.png,.gif,.webp"
+                                  disabled={isUploadingCustomerPaymentSlip}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+
+                                    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                    if (!validTypes.includes(file.type)) {
+                                      alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                      e.target.value = '';
+                                      return;
+                                    }
+
+                                    setIsUploadingCustomerPaymentSlip(true);
+                                    try {
+                                      const formData = new FormData();
+                                      formData.append("file", file);
+                                      const uploadRes = await uploadPayslipAction(formData);
+                                      if (uploadRes.error) {
+                                        alert("Failed to upload slip: " + uploadRes.error);
+                                      } else if (uploadRes.url) {
+                                        setCustomerPaymentSlipUrl(uploadRes.url);
+                                      }
+                                    } catch (err: any) {
+                                      alert("Error uploading file: " + err.message);
+                                    } finally {
+                                      setIsUploadingCustomerPaymentSlip(false);
+                                    }
+                                  }}
+                                  className="hidden"
+                                  id="customer-payment-slip-upload-advance"
+                                />
+                                <label
+                                  htmlFor="customer-payment-slip-upload-advance"
+                                  className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-neutral-350 hover:border-emerald-800 rounded-xl bg-neutral-50 hover:bg-neutral-50/80 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none"
+                                >
+                                  <Upload className="w-4 h-4" />
+                                  {isUploadingCustomerPaymentSlip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                </label>
+                              </div>
+                              
+                              {customerPaymentSlipUrl && (
+                                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Slip Uploaded</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCustomerPaymentSlipUrl('')}
+                                    className="text-red-500 hover:text-red-700 ml-2 font-bold focus:outline-none"
+                                    title="Remove Slip"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowRecordAdvancePayment(false);
+                              setCustomerPaymentSlipUrl('');
+                            }}
+                            className="px-3.5 py-2 border border-neutral-250 hover:bg-neutral-50 text-neutral-600 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm cursor-pointer"
+                          >
+                            Save Advance Payment
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Advance Payments Logged */}
+                    {customerAdvancePayments && customerAdvancePayments.length > 0 && (
+                      <div className="space-y-3 bg-neutral-50/30 p-5 rounded-2xl border border-neutral-200">
+                        <h4 className="text-xs font-bold text-neutral-450 uppercase tracking-wider flex items-center gap-1.5">
+                          <Coins className="w-4 h-4 text-emerald-800" /> Tour Advance Payments Log
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {customerAdvancePayments.map((p: any) => {
+                            return (
+                              <div key={p.id} className="p-4 bg-white border border-neutral-200 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-neutral-800 text-xs">{p.payment_method}</span>
+                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase">Advance</span>
+                                  </div>
+                                  <span className="text-[10px] text-neutral-450 block font-mono">Ref: {p.transaction_id || 'No Ref / Tx ID'}</span>
+                                  {p.attachment_url && (
+                                    <button
+                                      onClick={async () => {
+                                        const res = await getPayslipSignedUrlAction(p.attachment_url);
+                                        if (res.success && res.url) {
+                                          window.open(res.url, '_blank');
+                                        } else {
+                                          alert("Failed to view slip: " + res.error);
+                                        }
+                                      }}
+                                      className="flex items-center gap-1 text-[10px] font-bold text-emerald-850 hover:underline cursor-pointer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> View Receipt Slip
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="text-right space-y-1">
+                                  <span className="font-mono font-extrabold text-emerald-800 block text-xs">
+                                    {p.currency || 'USD'} {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                  {p.currency && p.currency !== 'USD' && p.exchange_rate && (
+                                    <span className="text-[9px] text-neutral-450 block font-mono">
+                                      (USD {(Number(p.amount) / Number(p.exchange_rate)).toLocaleString(undefined, { minimumFractionDigits: 2 })} @ {p.exchange_rate})
+                                    </span>
+                                  )}
+                                  <span className="text-[9px] text-neutral-400 font-mono block">
+                                    Recd: {p.payment_date ? new Date(p.payment_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : new Date(p.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Invoices List */}
                     {isLoadingCustomerInvoices ? (
@@ -11287,13 +12599,18 @@ function PlannerWizardWorkspace() {
                         <Loader2 className="w-8 h-8 animate-spin text-emerald-800" />
                         <p className="text-xs text-neutral-450 italic">Loading customer invoices...</p>
                       </div>
-                    ) : customerInvoices.length === 0 ? (
+                    ) : customerInvoices.length === 0 && (!customerAdvancePayments || customerAdvancePayments.length === 0) ? (
                       <div className="text-center py-12 bg-neutral-50/50 border border-dashed border-neutral-250 rounded-2xl space-y-3">
                         <Receipt className="w-10 h-10 text-neutral-300 mx-auto" />
-                        <h4 className="text-sm font-bold text-neutral-700">No Invoices Yet</h4>
+                        <h4 className="text-sm font-bold text-neutral-700">No Payments or Invoices Yet</h4>
                         <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                          Click "Generate Customer Invoice" to build a consolidated category-based billing document for this guest.
+                          Click "Record Advance Payment" or "Generate Customer Invoice" to start logging client transactions for this guest.
                         </p>
+                      </div>
+                    ) : customerInvoices.length === 0 ? (
+                      <div className="text-center py-8 bg-neutral-50/30 border border-dashed border-neutral-200 rounded-2xl space-y-2">
+                        <Receipt className="w-6 h-6 text-neutral-300 mx-auto" />
+                        <p className="text-xs text-neutral-450 italic">No consolidated customer invoices generated yet.</p>
                       </div>
                     ) : (
                       <div className="space-y-6">
@@ -11395,17 +12712,40 @@ function PlannerWizardWorkspace() {
                                   </div>
 
                                   {inv.status !== 'Paid' && customerPaymentInvoiceId !== inv.id && (
-                                    <button
-                                      onClick={() => {
-                                        setCustomerPaymentInvoiceId(inv.id);
-                                        setCustomerPaymentAmount(remainingBalance.toFixed(2));
-                                        setCustomerPaymentMethod('Bank Transfer');
-                                        setCustomerPaymentTxId('');
-                                      }}
-                                      className="w-full text-center px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm mt-3 cursor-pointer"
-                                    >
-                                      Record Client Payment
-                                    </button>
+                                    <div className="flex flex-col gap-2 mt-3">
+                                      <button
+                                        onClick={() => {
+                                          setCustomerPaymentInvoiceId(inv.id);
+                                          setCustomerPaymentAmount(remainingBalance.toFixed(2));
+                                          setCustomerPaymentMethod('Bank Transfer');
+                                          setCustomerPaymentTxId('');
+                                          setCustomerPaymentCurrency('USD');
+                                          setCustomerPaymentExchangeRate('1.0');
+                                          setCustomerPaymentDate(new Date().toISOString().split('T')[0]);
+                                          setCustomerPaymentSlipUrl('');
+                                        }}
+                                        className="w-full text-center px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[11px] font-bold transition-all shadow-sm cursor-pointer"
+                                      >
+                                        Record Client Payment
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setShowRecordAdvancePayment(!showRecordAdvancePayment);
+                                          setCustomerPaymentInvoiceId(null);
+                                          setCustomerPaymentAmount('');
+                                          setCustomerPaymentMethod('Bank Transfer');
+                                          setCustomerPaymentTxId('');
+                                          setCustomerPaymentCurrency('USD');
+                                          setCustomerPaymentExchangeRate('1.0');
+                                          setCustomerPaymentDate(new Date().toISOString().split('T')[0]);
+                                          setCustomerPaymentSlipUrl('');
+                                        }}
+                                        className="w-full text-center px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg text-[11px] font-bold transition-all shadow-sm cursor-pointer border border-neutral-200"
+                                      >
+                                        Record Advance Payment
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -11418,7 +12758,7 @@ function PlannerWizardWorkspace() {
                                   </h5>
                                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="space-y-1">
-                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Amount ({inv.currency || 'USD'})</label>
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Amount</label>
                                       <input
                                         type="number"
                                         step="0.01"
@@ -11426,6 +12766,36 @@ function PlannerWizardWorkspace() {
                                         value={customerPaymentAmount}
                                         onChange={(e) => setCustomerPaymentAmount(e.target.value)}
                                         className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Currency</label>
+                                      <select
+                                        value={customerPaymentCurrency}
+                                        onChange={(e) => {
+                                          setCustomerPaymentCurrency(e.target.value);
+                                          if (e.target.value === 'USD') {
+                                            setCustomerPaymentExchangeRate('1.0');
+                                          }
+                                        }}
+                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      >
+                                        <option value="USD">USD</option>
+                                        <option value="LKR">LKR</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Exchange Rate</label>
+                                      <input
+                                        type="number"
+                                        step="0.0001"
+                                        required
+                                        value={customerPaymentExchangeRate}
+                                        onChange={(e) => setCustomerPaymentExchangeRate(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                        disabled={customerPaymentCurrency === 'USD'}
                                       />
                                     </div>
                                     <div className="space-y-1">
@@ -11451,11 +12821,91 @@ function PlannerWizardWorkspace() {
                                         className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                       />
                                     </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Payment Date</label>
+                                      <input
+                                        type="date"
+                                        required
+                                        value={customerPaymentDate}
+                                        onChange={(e) => setCustomerPaymentDate(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+
+                                    {/* Slip upload inside the grid */}
+                                    <div className="space-y-2 sm:col-span-3">
+                                      <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold block">
+                                        Upload Payment Slip / Receipt (JPEG, PNG, GIF, WebP)
+                                      </label>
+                                      <div className="flex items-center gap-3">
+                                        <div className="relative flex-1 max-w-md">
+                                          <input
+                                            type="file"
+                                            accept=".jpg,.jpeg,.png,.gif,.webp"
+                                            disabled={isUploadingCustomerPaymentSlip}
+                                            onChange={async (e) => {
+                                              const file = e.target.files?.[0];
+                                              if (!file) return;
+
+                                              const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                                              if (!validTypes.includes(file.type)) {
+                                                alert("Please upload a valid image file (JPG, PNG, GIF, WebP).");
+                                                e.target.value = '';
+                                                return;
+                                              }
+
+                                              setIsUploadingCustomerPaymentSlip(true);
+                                              try {
+                                                const formData = new FormData();
+                                                formData.append("file", file);
+                                                const uploadRes = await uploadPayslipAction(formData);
+                                                if (uploadRes.error) {
+                                                  alert("Failed to upload slip: " + uploadRes.error);
+                                                } else if (uploadRes.url) {
+                                                  setCustomerPaymentSlipUrl(uploadRes.url);
+                                                }
+                                              } catch (err: any) {
+                                                alert("Error uploading file: " + err.message);
+                                              } finally {
+                                                setIsUploadingCustomerPaymentSlip(false);
+                                              }
+                                            }}
+                                            className="hidden"
+                                            id={`customer-payment-slip-upload-${inv.id}`}
+                                          />
+                                          <label
+                                            htmlFor={`customer-payment-slip-upload-${inv.id}`}
+                                            className="flex items-center gap-2 justify-center px-4 py-2 border border-dashed border-neutral-300 hover:border-emerald-800 rounded-xl bg-neutral-50 hover:bg-neutral-50/80 text-xs font-bold text-neutral-600 hover:text-emerald-800 transition-all cursor-pointer select-none"
+                                          >
+                                            <Upload className="w-4 h-4" />
+                                            {isUploadingCustomerPaymentSlip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
+                                          </label>
+                                        </div>
+                                        
+                                        {customerPaymentSlipUrl && (
+                                          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
+                                            <Check className="w-3.5 h-3.5" />
+                                            <span>Slip Uploaded</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => setCustomerPaymentSlipUrl('')}
+                                              className="text-red-500 hover:text-red-700 ml-2 font-bold focus:outline-none"
+                                              title="Remove Slip"
+                                            >
+                                              ✕
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
                                   <div className="flex items-center justify-end gap-2 pt-2">
                                     <button
                                       type="button"
-                                      onClick={() => setCustomerPaymentInvoiceId(null)}
+                                      onClick={() => {
+                                        setCustomerPaymentInvoiceId(null);
+                                        setCustomerPaymentSlipUrl('');
+                                      }}
                                       className="px-3.5 py-2 border border-neutral-250 hover:bg-neutral-50 text-neutral-600 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
                                     >
                                       Cancel
@@ -14460,7 +15910,17 @@ function PlannerWizardWorkspace() {
                     Request for Quotation (RFQ)
                   </h3>
                   <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                    Hotel Stay: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Nights
+                    {rfqIsGuide ? (
+                      <>Tour Guide: {selectedRfqHotel.first_name || ''} {selectedRfqHotel.last_name || ''} &bull; {selectedRfqStays.length} Days</>
+                    ) : rfqIsDriver ? (
+                      <>Chauffeur / Driver: {selectedRfqHotel.first_name || ''} {selectedRfqHotel.last_name || ''} &bull; {selectedRfqStays.length} Days</>
+                    ) : rfqIsTransport ? (
+                      <>Transport Partner: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Days</>
+                    ) : rfqIsRestaurant ? (
+                      <>Restaurant: {selectedRfqHotel.name} &bull; Meal Reservation</>
+                    ) : (
+                      <>Hotel Stay: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Nights</>
+                    )}
                   </p>
                 </div>
                 <button
@@ -14490,7 +15950,7 @@ function PlannerWizardWorkspace() {
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                       <span className="text-[9px] text-neutral-400 mt-1 block">
-                        {selectedRfqHotel.reservation_email ? `Prefilled from ${rfqIsRestaurant ? 'restaurant' : 'hotel'} reservation email.` : `${rfqIsRestaurant ? 'Restaurant' : 'Hotel'} email not configured. Please enter recipient address manually.`}
+                        {(selectedRfqHotel.reservation_email || selectedRfqHotel.email || selectedRfqHotel.contact_email) ? `Prefilled from ${rfqIsRestaurant ? 'restaurant' : rfqIsGuide ? 'guide' : rfqIsDriver ? 'driver' : rfqIsTransport ? 'transport' : 'hotel'} email.` : `${rfqIsRestaurant ? 'Restaurant' : rfqIsGuide ? 'Guide' : rfqIsDriver ? 'Driver' : rfqIsTransport ? 'Transport' : 'Hotel'} email not configured. Please enter recipient address manually.`}
                       </span>
                     </div>
 
@@ -14509,7 +15969,7 @@ function PlannerWizardWorkspace() {
                     </div>
                   </div>
 
-                  {!rfqIsRestaurant && (
+                  {!rfqIsRestaurant && !rfqIsTransport && !rfqIsGuide && !rfqIsDriver && (
                     <div className="space-y-2 pt-2 border-t border-neutral-100">
                       <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
                         Special Requests & Services
@@ -14785,14 +16245,16 @@ function PlannerWizardWorkspace() {
 
               {/* Modal Footer */}
               <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex flex-wrap gap-3 items-center justify-between shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleDownloadHotelRfq(selectedRfqHotel, selectedRfqStays)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-300 hover:border-neutral-400 text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-all shadow-sm"
-                >
-                  <Download className="w-4 h-4 text-neutral-500" />
-                  <span>Download PDF Quote Request</span>
-                </button>
+                {!rfqIsTransport && !rfqIsRestaurant && !rfqIsGuide && !rfqIsDriver ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadHotelRfq(selectedRfqHotel, selectedRfqStays)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-300 hover:border-neutral-400 text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-all shadow-sm"
+                  >
+                    <Download className="w-4 h-4 text-neutral-500" />
+                    <span>Download PDF Quote Request</span>
+                  </button>
+                ) : <div />}
 
                 <div className="flex items-center gap-3">
                   <button
@@ -14925,6 +16387,38 @@ function PlannerWizardWorkspace() {
                         placeholder="Notes or instructions to be sent/saved with the purchase order..."
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-neutral-100">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                      Agreed Inclusions
+                    </span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={poMealProvided}
+                          onChange={(e) => setPoMealProvided(e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-805">Meal Provided</span>
+                          <span className="text-[9px] text-neutral-400 mt-0.5">Include meal details in PO PDF</span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={poAccommodationProvided}
+                          onChange={(e) => setPoAccommodationProvided(e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-neutral-805">Accommodation Provided</span>
+                          <span className="text-[9px] text-neutral-400 mt-0.5">Include accommodation details in PO PDF</span>
+                        </div>
+                      </label>
                     </div>
                   </div>
 

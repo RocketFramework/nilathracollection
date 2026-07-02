@@ -44,50 +44,7 @@ SELECT
     'Request for Quote - Transport',
     'RFQ_TRANSPORT',
     'Request for Quotation - Transport Services – {{Transport Provider Name}}',
-    '<p>Dear Reservations / Transport Team,</p>
-
-<p>Greetings from <strong>Nilathra Collection</strong>.</p>
-
-<p>We are a Colombo–based destination management company specializing in tailor-made luxury, ultra-VIP, and experiential travel for HNW and UHNW international clientele. We are currently preparing a proposal for our guests and would appreciate your best rates and availability for transport services as detailed below:</p>
-
-<ul>
-  <li><strong>Vehicle Make / Model requested:</strong> {{Vehicle Make}}</li>
-  <li><strong>Model Year / Manufacture:</strong> {{Model Year}}</li>
-  <li><strong>Number of Vehicles Needed:</strong> {{Number of Vehicles}}</li>
-  <li><strong>Vehicle Duration (Days):</strong> {{Vehicle Duration}}</li>
-  <li><strong>Total Estimated Kilometers:</strong> {{Total Km}} km</li>
-</ul>
-
-<p><strong>Additional & Special Requirements:</strong></p>
-<ul>
-  <li><strong>Leather Seats:</strong> {{Leather Seats}}</li>
-  <li><strong>Vehicle Color:</strong> {{Vehicle Color}}</li>
-  <li><strong>Minimum/Mint Condition required:</strong> {{Mint Condition}}</li>
-  <li><strong>Chauffeur Required:</strong> {{Chauffeur Required}}</li>
-  <li><strong>English Speaking Chauffeur:</strong> {{English Speaking}}</li>
-  <li><strong>Other Languages Spoken:</strong> {{Other Languages}}</li>
-  <li><strong>Driver Accommodation:</strong> {{Driver Accommodation}}</li>
-  <li><strong>Driver Meal Price:</strong> {{Meal Price}}</li>
-</ul>
-
-<p>Kindly provide your best rates and confirm availability at your earliest convenience.</p>
-
-<p>We look forward to your favorable response and hope this marks the beginning of a mutually beneficial partnership.</p>
-
-<p>Warm regards,</p>
-
-<p>
-  <strong>{{Agent Name}}</strong><br>
-  <strong>Senior Agent</strong><br>
-  <strong>Nilathra Collection</strong>
-</p>
-
-<p>
-  <strong>Nilathra Hotel Management (Pvt) Ltd</strong><br>
-  <strong>Mobile:</strong> +94 (0) 777 27 8282<br>
-  <strong>Email:</strong> concierge@nilathra.com<br>
-  <strong>Website:</strong> https://www.nilathra.com
-</p>',
+    '<p>Dear Reservations / Transport Team,</p><p>Greetings from <strong>Nilathra Collection</strong>.</p><p>We are a Colombo–based destination management company specializing in tailor-made luxury, ultra-VIP, and experiential travel for HNW and UHNW international clientele. We are currently preparing a proposal for our guests and would appreciate your best rates and availability for transport services as detailed below:</p><ul><li><strong>Vehicle Make / Model requested:</strong> {{Vehicle Make}}</li><li><strong>Model Year / Manufacture:</strong> {{Model Year}}</li><li><strong>Number of Vehicles Needed:</strong> {{Number of Vehicles}}</li><li><strong>Vehicle Duration (Days):</strong> {{Vehicle Duration}}</li><li><strong>Total Estimated Kilometers:</strong> {{Total Km}} km</li></ul><p><strong>Additional & Special Requirements:</strong></p><ul><li><strong>Leather Seats:</strong> {{Leather Seats}}</li><li><strong>Vehicle Color:</strong> {{Vehicle Color}}</li><li><strong>Minimum/Mint Condition required:</strong> {{Mint Condition}}</li><li><strong>Chauffeur Required:</strong> {{Chauffeur Required}}</li><li><strong>English Speaking Chauffeur:</strong> {{English Speaking}}</li><li><strong>Other Languages Spoken:</strong> {{Other Languages}}</li><li><strong>Driver Accommodation:</strong> {{Driver Accommodation}}</li><li><strong>Driver Meal Price:</strong> {{Meal Price}}</li></ul><p>Kindly provide your best rates and confirm availability at your earliest convenience.</p><p>We look forward to your favorable response and hope this marks the beginning of a mutually beneficial partnership.</p><p>Warm regards,</p><p><strong>{{Agent Name}}</strong><br><strong>Senior Agent</strong><br><strong>Nilathra Collection</strong></p><p><strong>Nilathra Hotel Management (Pvt) Ltd</strong><br><strong>Mobile:</strong> +94 (0) 777 27 8282<br><strong>Email:</strong> concierge@nilathra.com<br><strong>Website:</strong> https://www.nilathra.com</p>',
     '["Transport Provider Name", "Vehicle Make", "Model Year", "Number of Vehicles", "Vehicle Duration", "Total Km", "Leather Seats", "Vehicle Color", "Mint Condition", "Chauffeur Required", "English Speaking", "Other Languages", "Driver Accommodation", "Meal Price", "Agent Name"]'::jsonb
 WHERE NOT EXISTS (
     SELECT 1 FROM public.email_templates WHERE name = 'Request for Quote - Transport'

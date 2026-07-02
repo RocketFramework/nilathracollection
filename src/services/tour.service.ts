@@ -1599,4 +1599,202 @@ export class TourService {
 
         if (finalWrites.length > 0) await Promise.all(finalWrites);
     }
+
+    static async updateChangedGuide(
+        tourId: string,
+        oldGuideId: string,
+        newGuideId: string
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Fetch new guide details
+        const { data: newGuide, error: guideErr } = await supabaseAdmin
+            .from('tour_guides')
+            .select('id, first_name, last_name')
+            .eq('id', newGuideId)
+            .single();
+        if (guideErr || !newGuide) throw new Error("New guide not found: " + guideErr?.message);
+        
+        const newGuideName = `${newGuide.first_name || ''} ${newGuide.last_name || ''}`.trim();
+
+        // 2. Fetch old guide name (if any)
+        const { data: oldGuide } = await supabaseAdmin
+            .from('tour_guides')
+            .select('first_name, last_name')
+            .eq('id', oldGuideId)
+            .single();
+        const oldGuideName = oldGuide ? `${oldGuide.first_name || ''} ${oldGuide.last_name || ''}`.trim() : 'Unassigned Guide';
+
+        // 3. Update guide_id in daily_activities for this tour
+        await supabaseAdmin
+            .from('daily_activities')
+            .update({ guide_id: newGuideId })
+            .eq('tour_id', tourId)
+            .eq('guide_id', oldGuideId);
+
+        // 4. Update the po_blocks table name
+        const oldBlockNamePattern = `% | ID: ${oldGuideId}`;
+        const newBlockName = `Guide: ${newGuideName} | ID: ${newGuideId}`;
+        await supabaseAdmin
+            .from('po_blocks')
+            .update({ name: newBlockName, updated_at: new Date().toISOString() })
+            .eq('tour_id', tourId)
+            .eq('block_type', 'guide')
+            .like('name', oldBlockNamePattern);
+
+        // 5. Update tours planner_data
+        const { data: tourRecord } = await supabaseAdmin
+            .from('tours')
+            .select('planner_data')
+            .eq('id', tourId)
+            .single();
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        if (tourRecord?.planner_data) {
+            const pData = tourRecord.planner_data as any;
+            let changed = false;
+            if (pData.defaultGuideId === oldGuideId) {
+                pData.defaultGuideId = newGuideId;
+                pData.defaultGuideName = newGuideName;
+                changed = true;
+            }
+            if (Array.isArray(pData.itinerary)) {
+                pData.itinerary = pData.itinerary.map((b: any) => {
+                    if (b.guideId === oldGuideId) {
+                        changed = true;
+                        return { ...b, guideId: newGuideId, guideName: newGuideName };
+                    }
+                    return b;
+                });
+            }
+            if (changed) {
+                finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId));
+            }
+        }
+
+        // 6. Update latest draft
+        const { data: latestDraft } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('id, itinerary_data')
+            .eq('tour_id', tourId)
+            .order('version_number', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (latestDraft && Array.isArray((latestDraft as any).itinerary_data)) {
+            let changed = false;
+            const updatedDraft = (latestDraft as any).itinerary_data.map((b: any) => {
+                if (b.guideId === oldGuideId) {
+                    changed = true;
+                    return { ...b, guideId: newGuideId, guideName: newGuideName };
+                }
+                return b;
+            });
+            if (changed) {
+                finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraft as any).id));
+            }
+        }
+
+        if (finalWrites.length > 0) await Promise.all(finalWrites);
+    }
+
+    static async updateChangedDriver(
+        tourId: string,
+        oldDriverId: string,
+        newDriverId: string
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Fetch new driver details
+        const { data: newDriver, error: driverErr } = await supabaseAdmin
+            .from('drivers')
+            .select('id, first_name, last_name')
+            .eq('id', newDriverId)
+            .single();
+        if (driverErr || !newDriver) throw new Error("New driver not found: " + driverErr?.message);
+        
+        const newDriverName = `${newDriver.first_name || ''} ${newDriver.last_name || ''}`.trim();
+
+        // 2. Fetch old driver name (if any)
+        const { data: oldDriver } = await supabaseAdmin
+            .from('drivers')
+            .select('first_name, last_name')
+            .eq('id', oldDriverId)
+            .single();
+        const oldDriverName = oldDriver ? `${oldDriver.first_name || ''} ${oldDriver.last_name || ''}`.trim() : 'Unassigned Driver';
+
+        // 3. Update driver_id in daily_activities for this tour
+        await supabaseAdmin
+            .from('daily_activities')
+            .update({ driver_id: newDriverId })
+            .eq('tour_id', tourId)
+            .eq('driver_id', oldDriverId);
+
+        // 4. Update the po_blocks table name
+        const oldBlockNamePattern = `% | ID: ${oldDriverId}`;
+        const newBlockName = `Driver: ${newDriverName} | ID: ${newDriverId}`;
+        await supabaseAdmin
+            .from('po_blocks')
+            .update({ name: newBlockName, updated_at: new Date().toISOString() })
+            .eq('tour_id', tourId)
+            .eq('block_type', 'driver')
+            .like('name', oldBlockNamePattern);
+
+        // 5. Update tours planner_data
+        const { data: tourRecord } = await supabaseAdmin
+            .from('tours')
+            .select('planner_data')
+            .eq('id', tourId)
+            .single();
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        if (tourRecord?.planner_data) {
+            const pData = tourRecord.planner_data as any;
+            let changed = false;
+            if (pData.defaultDriverId === oldDriverId) {
+                pData.defaultDriverId = newDriverId;
+                pData.defaultDriverName = newDriverName;
+                changed = true;
+            }
+            if (Array.isArray(pData.itinerary)) {
+                pData.itinerary = pData.itinerary.map((b: any) => {
+                    if (b.driverId === oldDriverId) {
+                        changed = true;
+                        return { ...b, driverId: newDriverId, driverName: newDriverName };
+                    }
+                    return b;
+                });
+            }
+            if (changed) {
+                finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId));
+            }
+        }
+
+        // 6. Update latest draft
+        const { data: latestDraft } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('id, itinerary_data')
+            .eq('tour_id', tourId)
+            .order('version_number', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (latestDraft && Array.isArray((latestDraft as any).itinerary_data)) {
+            let changed = false;
+            const updatedDraft = (latestDraft as any).itinerary_data.map((b: any) => {
+                if (b.driverId === oldDriverId) {
+                    changed = true;
+                    return { ...b, driverId: newDriverId, driverName: newDriverName };
+                }
+                return b;
+            });
+            if (changed) {
+                finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraft as any).id));
+            }
+        }
+
+        if (finalWrites.length > 0) await Promise.all(finalWrites);
+    }
 }

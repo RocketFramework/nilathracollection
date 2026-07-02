@@ -283,16 +283,34 @@ export class CustomerInvoiceService {
 
         if (payError) throw payError;
 
-        // Fetch invoice and all related payments to tally totals
-        const { data: invoice } = await supabaseAdmin.from('customer_invoices').select('amount').eq('id', dto.invoice_id).single();
-        const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount').eq('invoice_id', dto.invoice_id);
-        const totalPaid = (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        // Fetch invoice and all related payments to tally totals if it's tied to an invoice
+        if (dto.invoice_id) {
+            const { data: invoice } = await supabaseAdmin.from('customer_invoices').select('amount').eq('id', dto.invoice_id).single();
+            const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount').eq('invoice_id', dto.invoice_id);
+            const totalPaid = (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-        if (invoice && totalPaid >= invoice.amount) {
-            await supabaseAdmin.from('customer_invoices').update({ status: 'Paid' }).eq('id', dto.invoice_id);
+            if (invoice && totalPaid >= invoice.amount) {
+                await supabaseAdmin.from('customer_invoices').update({ status: 'Paid' }).eq('id', dto.invoice_id);
+            }
         }
 
         return payment;
+    }
+
+    /**
+     * Retrieve all advance customer payments (not tied to any invoice) for a specific tour
+     */
+    static async getCustomerAdvancePayments(tourId: string) {
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin
+            .from('customer_payments')
+            .select('*')
+            .eq('tour_id', tourId)
+            .is('invoice_id', null)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
     }
 
     /**

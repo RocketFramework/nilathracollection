@@ -1714,6 +1714,121 @@ export async function getTransportRfqTemplateAction(tourId: string) {
     }
 }
 
+export async function getGuideRfqTemplateAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('email_templates')
+            .select('*')
+            .eq('name', 'Request for Quote - Guide')
+            .maybeSingle();
+        if (error) throw error;
+        return { success: true, template: data };
+    } catch (error: any) {
+        console.error("Error fetching Guide RFQ template:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getDriverRfqTemplateAction() {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('email_templates')
+            .select('*')
+            .eq('name', 'Request for Quote - Driver')
+            .maybeSingle();
+        if (error) throw error;
+        return { success: true, template: data };
+    } catch (error: any) {
+        console.error("Error fetching Driver RFQ template:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getGuideRfqDetailsAction(tourId: string) {
+    try {
+        const supabase = createAdminClient();
+        
+        // 1. Fetch tour details
+        const { data: tour, error: tourErr } = await supabase
+            .from('tours')
+            .select('start_date, end_date, request_id')
+            .eq('id', tourId)
+            .single();
+        if (tourErr) throw tourErr;
+        if (!tour) throw new Error("Tour not found");
+
+        let requestDetails = {
+            duration_nights: 0,
+            duration_days: 0,
+            adults: 2,
+            children: 0,
+            infants: 0
+        };
+
+        // 2. Fetch request details if request_id exists
+        if (tour.request_id) {
+            const { data: req, error: reqErr } = await supabase
+                .from('requests')
+                .select('duration_nights, adults, children, infants')
+                .eq('id', tour.request_id)
+                .single();
+            if (reqErr) {
+                console.error("Error fetching request details:", reqErr);
+            } else if (req) {
+                requestDetails = {
+                    duration_nights: req.duration_nights || 0,
+                    duration_days: (req.duration_nights || 0) + (tour.start_date ? 1 : 0),
+                    adults: req.adults ?? 2,
+                    children: req.children ?? 0,
+                    infants: req.infants ?? 0
+                };
+            }
+        }
+
+        // 3. Fetch sleep activities
+        const { data: sleepActs, error: sleepErr } = await supabase
+            .from('daily_activities')
+            .select(`
+                id,
+                location_name,
+                tour_itineraries!inner (
+                    day_number,
+                    date
+                )
+            `)
+            .eq('tour_id', tourId)
+            .eq('activity_type', 'sleep');
+
+        if (sleepErr) {
+            console.error("Error fetching sleep activities:", sleepErr);
+        }
+
+        // Map and sort by day_number
+        const sortedSleepStays = (sleepActs || [])
+            .map((act: any) => ({
+                day_number: act.tour_itineraries?.day_number || 0,
+                date: act.tour_itineraries?.date || '',
+                location_name: act.location_name || ''
+            }))
+            .sort((a: any, b: any) => a.day_number - b.day_number);
+
+        return {
+            success: true,
+            tour: {
+                start_date: tour.start_date,
+                end_date: tour.end_date
+            },
+            request: requestDetails,
+            sleepStays: sortedSleepStays
+        };
+    } catch (error: any) {
+        console.error("Error in getGuideRfqDetailsAction:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function sendHotelRfqEmailAction(options: {
     to: string;
     from?: string;
@@ -1842,6 +1957,34 @@ export async function changeTransportProviderAction(
     } catch (error: any) {
         console.error("Error in changeTransportProviderAction:", error);
         return { success: false, error: error.message || "Failed to update transport provider assignment." };
+    }
+}
+
+export async function changeGuideAction(
+    tourId: string,
+    oldGuideId: string,
+    newGuideId: string
+) {
+    try {
+        await TourService.updateChangedGuide(tourId, oldGuideId, newGuideId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in changeGuideAction:", error);
+        return { success: false, error: error.message || "Failed to update guide assignment." };
+    }
+}
+
+export async function changeDriverAction(
+    tourId: string,
+    oldDriverId: string,
+    newDriverId: string
+) {
+    try {
+        await TourService.updateChangedDriver(tourId, oldDriverId, newDriverId);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in changeDriverAction:", error);
+        return { success: false, error: error.message || "Failed to update driver assignment." };
     }
 }
 
@@ -1985,6 +2128,16 @@ export async function getCustomerInvoicesAction(tourId: string) {
     } catch (error: any) {
         console.error("Error in getCustomerInvoicesAction:", error);
         return { success: false, error: error.message || "Failed to retrieve customer invoices." };
+    }
+}
+
+export async function getCustomerAdvancePaymentsAction(tourId: string) {
+    try {
+        const payments = await CustomerInvoiceService.getCustomerAdvancePayments(tourId);
+        return { success: true, payments };
+    } catch (error: any) {
+        console.error("Error in getCustomerAdvancePaymentsAction:", error);
+        return { success: false, error: error.message || "Failed to retrieve customer advance payments." };
     }
 }
 

@@ -65,6 +65,8 @@ export const generateHotelPoPdf = async (
         poNumber?: string;
         discount?: number;
         tax?: number;
+        mealProvided?: boolean;
+        accommodationProvided?: boolean;
     }
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
@@ -140,8 +142,18 @@ export const generateHotelPoPdf = async (
     });
 
     const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
-    const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays.find(s => s?.tour_itineraries?.date)?.tour_itineraries?.date || '';
-    const nightsCount = standardStaysOnly.length;
+    let checkInDate = '';
+    let nightsCount = 0;
+    if (standardStaysOnly.length > 0) {
+        checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || '';
+        nightsCount = standardStaysOnly.length;
+    } else {
+        const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
+        if (serviceDates.length > 0) {
+            checkInDate = serviceDates[0];
+            nightsCount = serviceDates.length;
+        }
+    }
     let checkOutDate = '';
     if (checkInDate && nightsCount > 0) {
         const d = new Date(checkInDate);
@@ -385,8 +397,8 @@ export const generateHotelPoPdf = async (
 
         for (const act of customStays) {
             const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-            const dateVal = act.tour_itineraries?.date;
-            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+            const dateVal = act.service_date || act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : (dayNum > 0 ? `Day ${dayNum}` : 'TBD');
 
             const descSuffix = act.description ? ` - ${act.description}` : '';
             const roomDesc = `${act.title || act.name || 'Additional Service'}${descSuffix}`;
@@ -446,6 +458,8 @@ export const generateHotelPoPdf = async (
     if (guideRoomDisc && guideRoomDisc !== 'None') {
         agreedInclusions.push(`Guide Room Discount: ${guideRoomDisc}`);
     }
+    if (options.mealProvided) agreedInclusions.push("Meal Provided: Yes");
+    if (options.accommodationProvided) agreedInclusions.push("Accommodation Provided: Yes");
 
     if (agreedInclusions.length > 0) {
         if (topY + (agreedInclusions.length * 4.5) + 12 > 270) {

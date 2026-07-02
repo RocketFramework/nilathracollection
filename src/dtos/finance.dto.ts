@@ -13,10 +13,16 @@ export interface CustomerInvoiceItemDTO {
 }
 
 export interface CustomerPaymentDTO {
-    invoice_id: string; // UUID
+    invoice_id?: string | null; // UUID
+    tour_id?: string | null; // UUID
     amount: number;
     payment_method?: string;
     transaction_id?: string;
+    currency?: string;
+    exchange_rate?: number;
+    payment_date?: string; // DATE
+    attachment_url?: string;
+    is_advance?: boolean;
 }
 
 export interface GenerateCustomerInvoiceDTO {

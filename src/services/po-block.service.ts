@@ -372,6 +372,19 @@ export class POBlockService {
         );
         const remainingActivities = activitiesToGroup.filter(a => !hotelActivityIds.has(a.id));
 
+        const finalizedGuideIds = new Set(
+            finalizedBlocks
+                .filter(b => b.block_type === 'guide')
+                .map(b => b.name.split(' | ID: ')[1])
+                .filter(Boolean)
+        );
+        const finalizedDriverIds = new Set(
+            finalizedBlocks
+                .filter(b => b.block_type === 'driver')
+                .map(b => b.name.split(' | ID: ')[1])
+                .filter(Boolean)
+        );
+
         const hotelIds = Array.from(sleepGroups.keys()).filter(Boolean) as string[];
         const [{ data: hotelsData }, travelResult, restaurantResult, vendorResult, guideResult, driverResult] = await Promise.all([
             hotelIds.length > 0
@@ -421,7 +434,8 @@ export class POBlockService {
             })(),
             // ── 5. GUIDE: group by guide_id ─────────────────────────────────────────
             (async () => {
-                const guideIds = Array.from(new Set(activitiesToGroup.map(a => a.guide_id).filter(Boolean))) as string[];
+                const guideIds = Array.from(new Set(activitiesToGroup.map(a => a.guide_id).filter(Boolean)))
+                    .filter(id => !finalizedGuideIds.has(id)) as string[];
                 const { data: guides } = guideIds.length > 0
                     ? await adminSupabase.from('tour_guides').select('id, first_name, last_name, daily_rate').in('id', guideIds)
                     : { data: [] as any[] };
@@ -429,7 +443,8 @@ export class POBlockService {
             })(),
             // ── 6. DRIVER: group by driver_id ─────────────────────────────────────────
             (async () => {
-                const driverIds = Array.from(new Set(activitiesToGroup.map(a => a.driver_id).filter(Boolean))) as string[];
+                const driverIds = Array.from(new Set(activitiesToGroup.map(a => a.driver_id).filter(Boolean)))
+                    .filter(id => !finalizedDriverIds.has(id)) as string[];
                 const { data: drivers } = driverIds.length > 0
                     ? await adminSupabase.from('drivers').select('id, first_name, last_name, per_day_rate').in('id', driverIds)
                     : { data: [] as any[] };
@@ -524,7 +539,7 @@ export class POBlockService {
         const adminSupabase = createAdminClient();
         const { data, error } = await adminSupabase
             .from('daily_activities')
-            .select('*')
+            .select('*, tour_itineraries(day_number, date)')
             .eq('tour_id', tourId)
             .eq('activity_type', 'travel')
             .is('transport_id', null)
@@ -537,6 +552,13 @@ export class POBlockService {
     static async saveGuideDailyActivities(tourId: string, guideId: string, activities: any[]): Promise<void> {
         const adminSupabase = createAdminClient();
         
+        // Fetch itineraries to map to itinerary_id
+        const { data: itineraries, error: itinErr } = await adminSupabase
+            .from('tour_itineraries')
+            .select('id, day_number, date')
+            .eq('tour_id', tourId);
+        if (itinErr) throw itinErr;
+
         // 1. Delete existing guide activities for this guide
         const { error: deleteErr } = await adminSupabase
             .from('daily_activities')
@@ -551,10 +573,19 @@ export class POBlockService {
         
         // 2. Insert new ones
         if (activities.length > 0) {
-            const { error: insertErr } = await adminSupabase
-                .from('daily_activities')
-                .insert(activities.map(act => ({
+            const insertPayload = activities.map(act => {
+                const itin = (itineraries || []).find(i => 
+                    (act.day_number && i.day_number === act.day_number) || 
+                    (act.service_date && i.date && i.date.split('T')[0] === act.service_date.split('T')[0])
+                ) || (itineraries || [])[act.day_number - 1] || (itineraries || [])[0];
+
+                if (!itin) {
+                    throw new Error(`Could not find itinerary day for Day ${act.day_number || act.service_date}`);
+                }
+
+                return {
                     tour_id: tourId,
+                    itinerary_id: itin.id,
                     activity_type: 'travel',
                     guide_id: guideId,
                     service_date: act.service_date,
@@ -565,7 +596,12 @@ export class POBlockService {
                     charged_total_price: act.charged_total_price || 0,
                     title: 'Tour Guide Services',
                     description: act.description || ''
-                })));
+                };
+            });
+
+            const { error: insertErr } = await adminSupabase
+                .from('daily_activities')
+                .insert(insertPayload);
             if (insertErr) throw insertErr;
         }
     }
@@ -574,7 +610,7 @@ export class POBlockService {
         const adminSupabase = createAdminClient();
         const { data, error } = await adminSupabase
             .from('daily_activities')
-            .select('*')
+            .select('*, tour_itineraries(day_number, date)')
             .eq('tour_id', tourId)
             .eq('activity_type', 'travel')
             .is('transport_id', null)
@@ -587,6 +623,13 @@ export class POBlockService {
     static async saveDriverDailyActivities(tourId: string, driverId: string, activities: any[]): Promise<void> {
         const adminSupabase = createAdminClient();
         
+        // Fetch itineraries to map to itinerary_id
+        const { data: itineraries, error: itinErr } = await adminSupabase
+            .from('tour_itineraries')
+            .select('id, day_number, date')
+            .eq('tour_id', tourId);
+        if (itinErr) throw itinErr;
+
         // 1. Delete existing driver activities for this driver
         const { error: deleteErr } = await adminSupabase
             .from('daily_activities')
@@ -601,10 +644,19 @@ export class POBlockService {
         
         // 2. Insert new ones
         if (activities.length > 0) {
-            const { error: insertErr } = await adminSupabase
-                .from('daily_activities')
-                .insert(activities.map(act => ({
+            const insertPayload = activities.map(act => {
+                const itin = (itineraries || []).find(i => 
+                    (act.day_number && i.day_number === act.day_number) || 
+                    (act.service_date && i.date && i.date.split('T')[0] === act.service_date.split('T')[0])
+                ) || (itineraries || [])[act.day_number - 1] || (itineraries || [])[0];
+
+                if (!itin) {
+                    throw new Error(`Could not find itinerary day for Day ${act.day_number || act.service_date}`);
+                }
+
+                return {
                     tour_id: tourId,
+                    itinerary_id: itin.id,
                     activity_type: 'travel',
                     driver_id: driverId,
                     service_date: act.service_date,
@@ -615,7 +667,12 @@ export class POBlockService {
                     charged_total_price: act.charged_total_price || 0,
                     title: 'Driver Services',
                     description: act.description || ''
-                })));
+                };
+            });
+
+            const { error: insertErr } = await adminSupabase
+                .from('daily_activities')
+                .insert(insertPayload);
             if (insertErr) throw insertErr;
         }
     }
