@@ -12603,14 +12603,57 @@ function PlannerWizardWorkspace() {
                       <div className="text-center py-12 bg-neutral-50/50 border border-dashed border-neutral-250 rounded-2xl space-y-3">
                         <Receipt className="w-10 h-10 text-neutral-300 mx-auto" />
                         <h4 className="text-sm font-bold text-neutral-700">No Payments or Invoices Yet</h4>
-                        <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                          Click "Record Advance Payment" or "Generate Customer Invoice" to start logging client transactions for this guest.
+                        <p className="text-xs text-neutral-500 max-w-sm mx-auto mb-3">
+                          Click below to start logging client transactions for this guest.
                         </p>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => {
+                              setShowRecordAdvancePayment(true);
+                              setCustomerPaymentInvoiceId(null);
+                              setCustomerPaymentAmount('');
+                              setCustomerPaymentMethod('Bank Transfer');
+                              setCustomerPaymentTxId('');
+                              setCustomerPaymentCurrency('USD');
+                              setCustomerPaymentExchangeRate('1.0');
+                              setCustomerPaymentDate(new Date().toISOString().split('T')[0]);
+                              setCustomerPaymentSlipUrl('');
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-xl transition-all shadow-sm cursor-pointer border border-neutral-200"
+                          >
+                            <Coins className="w-4 h-4 text-emerald-800" />
+                            Record Advance Payment
+                          </button>
+                          <button
+                            onClick={handleOpenCreateInvoice}
+                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition-all shadow-md cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Generate Customer Invoice
+                          </button>
+                        </div>
                       </div>
                     ) : customerInvoices.length === 0 ? (
-                      <div className="text-center py-8 bg-neutral-50/30 border border-dashed border-neutral-200 rounded-2xl space-y-2">
+                      <div className="text-center py-8 bg-neutral-50/30 border border-dashed border-neutral-200 rounded-2xl space-y-3">
                         <Receipt className="w-6 h-6 text-neutral-300 mx-auto" />
-                        <p className="text-xs text-neutral-450 italic">No consolidated customer invoices generated yet.</p>
+                        <p className="text-xs text-neutral-455 italic mb-2">No consolidated customer invoices generated yet.</p>
+                        <button
+                          onClick={() => {
+                            setShowRecordAdvancePayment(!showRecordAdvancePayment);
+                            setCustomerPaymentInvoiceId(null);
+                            setCustomerPaymentAmount('');
+                            setCustomerPaymentMethod('Bank Transfer');
+                            setCustomerPaymentTxId('');
+                            setCustomerPaymentCurrency('USD');
+                            setCustomerPaymentExchangeRate('1.0');
+                            setCustomerPaymentDate(new Date().toISOString().split('T')[0]);
+                            setCustomerPaymentSlipUrl('');
+                          }}
+                          className="mx-auto flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded-xl transition-all shadow-sm cursor-pointer border border-neutral-200"
+                        >
+                          <Coins className="w-4 h-4 text-emerald-800" />
+                          Record Advance Payment
+                        </button>
                       </div>
                     ) : (
                       <div className="space-y-6">
