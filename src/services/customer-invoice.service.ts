@@ -107,7 +107,8 @@ export class CustomerInvoiceService {
             durationDays,
             flightsQuotedSeparately: options.flightsQuotedSeparately,
             flightsQuotedPrice: options.flightsQuotedPrice,
-            customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined
+            customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined,
+            dayCostOverrides: tour?.planner_data?.dayCostOverrides || {}
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])
@@ -157,6 +158,31 @@ export class CustomerInvoiceService {
         const seq = (count || 0) + 1;
         const invoiceNumber = `${prefix}${String(seq).padStart(4, '0')}`;
 
+        // 4.5 Fetch settings and resolve service fee percentage
+        const { data: rawSettings } = await supabaseAdmin
+            .from('app_settings')
+            .select('setting_key, setting_value');
+
+        const appSettings: Record<string, number> = {};
+        if (rawSettings) {
+            rawSettings.forEach(s => {
+                appSettings[s.setting_key] = Number(s.setting_value) || 0;
+            });
+        }
+
+        const { data: touristProfile } = tour.tourist_id ? await supabaseAdmin
+            .from('tourist_profiles')
+            .select('*')
+            .eq('id', tour.tourist_id)
+            .maybeSingle() : { data: null };
+
+        const travelStyle = touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
+        const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
+        const serviceFeeKey = `${styleKey}_service_fee`;
+        const serviceFeePercent = appSettings && appSettings[serviceFeeKey] !== undefined 
+          ? Number(appSettings[serviceFeeKey]) 
+          : 10;
+
         // 5. Insert invoice
         const invoicePayload = {
             tour_id: dto.tour_id,
@@ -169,7 +195,8 @@ export class CustomerInvoiceService {
             billing_details: dto.billingDetails,
             agency_note: dto.agencyNote || null,
             discount_amount: discount,
-            tax_amount: tax
+            tax_amount: tax,
+            service_fee_percentage: serviceFeePercent
         };
 
         const { data: invoice, error: invError } = await supabaseAdmin

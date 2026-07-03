@@ -12353,9 +12353,12 @@ function PlannerWizardWorkspace() {
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="flex flex-wrap items-center justify-between border-b border-neutral-100 pb-4 mb-6 gap-4">
                       <div>
-                        <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                        <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2 flex-wrap">
                           <CircleDollarSign className="w-5 h-5 text-emerald-800" />
                           Collect Tourist Payment
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-850 border border-emerald-150 uppercase tracking-wider">
+                            {touristData?.preferences?.travel_style || 'Luxury'} Tier
+                          </span>
                         </h3>
                         <p className="text-xs text-neutral-400 mt-1">
                           Generate experience-based customer invoices and log client payments (including advances).
@@ -12728,6 +12731,34 @@ function PlannerWizardWorkspace() {
                                       {new Date(inv.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                                     </span>
                                   </div>
+                                  <div>
+                                    <span className="font-bold text-neutral-500 block">Travel Style</span>
+                                    <span className="font-medium text-neutral-800">
+                                      {touristData?.preferences?.travel_style || 'Luxury'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-bold text-neutral-500 block">Service Fee Rate</span>
+                                    <span className="font-medium text-neutral-800">
+                                      {inv.service_fee_percentage !== undefined && inv.service_fee_percentage !== null
+                                        ? `${inv.service_fee_percentage}%`
+                                        : (() => {
+                                            const travelStyle = touristData?.preferences?.travel_style || 'Luxury';
+                                            const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
+                                            const serviceFeeKey = `${styleKey}_service_fee`;
+                                            if (appSettings && appSettings[serviceFeeKey] !== undefined) {
+                                              return `${Number(appSettings[serviceFeeKey])}% (Default)`;
+                                            }
+                                            const hardcodedDefaults: Record<string, string> = {
+                                              regular: '5%',
+                                              premium: '8%',
+                                              luxury: '10%',
+                                              ultra_vip: '15%'
+                                            };
+                                            return `${hardcodedDefaults[styleKey] || '10%'} (Default)`;
+                                          })()}
+                                    </span>
+                                  </div>
                                   {inv.agency_note && (
                                     <div className="pt-1 border-t border-neutral-100">
                                       <span className="font-bold text-neutral-500 block">Notes / Bank Details</span>
@@ -12987,14 +13018,58 @@ function PlannerWizardWorkspace() {
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-neutral-100 text-neutral-750 font-medium">
-                                        {inv.items?.map((item: any) => (
-                                          <tr key={item.id} className="hover:bg-neutral-50/50 transition-colors">
-                                            <td className="px-4 py-3 leading-normal">{item.description}</td>
-                                            <td className="px-4 py-3 text-right font-mono font-bold">
-                                              ${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </td>
-                                          </tr>
-                                        ))}
+                                        {(() => {
+                                          const renderedItems: React.ReactNode[] = [];
+                                          (inv.items || []).forEach((item: any) => {
+                                            if (item.description === "Tax, Support & Nilathra Collection service fee") {
+                                              // Perform dynamic split fallback
+                                              const travelStyle = touristData?.preferences?.travel_style || 'Luxury';
+                                              const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
+                                              const conciergeCostKey = `${styleKey}_concierge_cost`;
+                                              const conciergeCostPerHead = appSettings && appSettings[conciergeCostKey] !== undefined 
+                                                ? Number(appSettings[conciergeCostKey]) 
+                                                : 40;
+                                              const adults = touristData?.preferences?.adults ?? 2;
+                                              const children = touristData?.preferences?.children ?? 0;
+                                              const pax = adults + children;
+                                              const durationDays = touristData?.preferences?.duration_days ?? 5;
+                                              
+                                              const conciergeTotal = pax * conciergeCostPerHead * durationDays;
+                                              const agencyFeePart = Math.max(0, item.amount - conciergeTotal);
+
+                                              if (conciergeTotal > 0) {
+                                                renderedItems.push(
+                                                  <tr key={`${item.id}-concierge`} className="hover:bg-neutral-50/50 transition-colors">
+                                                    <td className="px-4 py-3 leading-normal">Bespoke Concierge & Destination Support</td>
+                                                    <td className="px-4 py-3 text-right font-mono font-bold">
+                                                      ${Number(conciergeTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              }
+                                              renderedItems.push(
+                                                <tr key={`${item.id}-fee`} className="hover:bg-neutral-50/50 transition-colors">
+                                                  <td className="px-4 py-3 leading-normal">
+                                                    Nilathra Collection Service Fee ({inv.service_fee_percentage !== undefined && inv.service_fee_percentage !== null ? inv.service_fee_percentage : (appSettings && appSettings[`${styleKey}_service_fee`] !== undefined ? appSettings[`${styleKey}_service_fee`] : 10)}%)
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right font-mono font-bold">
+                                                    ${Number(agencyFeePart).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            } else {
+                                              renderedItems.push(
+                                                <tr key={item.id} className="hover:bg-neutral-50/50 transition-colors">
+                                                  <td className="px-4 py-3 leading-normal">{item.description}</td>
+                                                  <td className="px-4 py-3 text-right font-mono font-bold">
+                                                    ${Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            }
+                                          });
+                                          return renderedItems;
+                                        })()}
                                         
                                         {/* Summary math inside items table */}
                                         <tr className="bg-neutral-50/50 font-bold border-t-2 border-neutral-250">
@@ -15064,7 +15139,7 @@ function PlannerWizardWorkspace() {
 
                   {/* Right Column: Live Preview Panel */}
                   <div className="flex flex-col h-full space-y-4">
-                    <div className="flex-1 border border-neutral-200 rounded-2xl bg-neutral-50/30 p-5 flex flex-col justify-between min-h-[300px]">
+                    <div className="flex-1 border border-neutral-200 rounded-2xl bg-neutral-50/30 p-5 flex flex-col justify-between min-h-[460px]">
                       <div>
                         <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center justify-between">
                           <span>Live Invoicing Preview</span>
@@ -15089,7 +15164,7 @@ function PlannerWizardWorkspace() {
                         </h4>
 
                         {/* Preview Items */}
-                        <div className="mt-4 space-y-2 max-h-[220px] overflow-y-auto">
+                        <div className="mt-4 space-y-2 max-h-[360px] overflow-y-auto">
                           {customerInvoicePreviewItems.length > 0 ? (
                             customerInvoicePreviewItems.map((item, idx) => (
                               <div key={idx} className="p-3 bg-white border border-neutral-150 rounded-xl flex items-center justify-between text-[11px] shadow-sm animate-in fade-in duration-200">

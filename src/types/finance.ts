@@ -120,6 +120,7 @@ export interface DBCustomerInvoice {
     agency_note?: string | null;
     discount_amount?: number;
     tax_amount?: number;
+    service_fee_percentage?: number | null;
     created_at: string;
     updated_at: string;
     items?: DBCustomerInvoiceItem[];
