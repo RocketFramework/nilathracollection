@@ -152,25 +152,41 @@ export async function saveTransportRequirementVehiclesAction(
 }
 
 /**
- * Sets vehicle_id on every daily_activities row that has the given
- * transport_requirement_id and activity_type = 'travel'.
- * Pass null as vehicleId to clear the field.
+ * Loads all previously assigned vehicles for a transport requirement from the junction table.
+ * Returns them mapped to the reqPickedVehicles UI shape so the modal can be pre-populated.
  */
-export async function updateTravelActivitiesVehicleIdAction(
-    requirementId: string,
-    vehicleId: string | null
-) {
+export async function getTransportRequirementVehiclesAction(requirementId: string): Promise<{
+    success: boolean;
+    vehicles?: Array<{ vehicleId: string; vehicleName: string; providerName: string; quantity: number; notes: string }>;
+    error?: string;
+}> {
     try {
         const adminSupabase = createAdminClient();
-        const { error } = await adminSupabase
-            .from("daily_activities")
-            .update({ vehicle_id: vehicleId })
-            .eq("transport_requirement_id", requirementId)
-            .eq("activity_type", "travel");
+        const { data, error } = await adminSupabase
+            .from("transport_requirement_vehicles")
+            .select("vehicle_id, quantity, notes, vehicle:transport_vehicles(id, make, model, make_and_model, vehicle_type, vehicle_number, provider:transport_providers(id, name))")
+            .eq("requirement_id", requirementId);
+
         if (error) throw error;
-        return { success: true };
+
+        const vehicles = (data || []).map((row: any) => {
+            const v = row.vehicle || {};
+            const vehicleName = [
+                [v.make, v.model].filter(Boolean).join(" ") || v.make_and_model || "",
+                v.vehicle_type
+            ].filter(Boolean).join(" – ");
+            return {
+                vehicleId: row.vehicle_id,
+                vehicleName,
+                providerName: v.provider?.name || "Unknown Provider",
+                quantity: row.quantity || 1,
+                notes: row.notes || ""
+            };
+        });
+
+        return { success: true, vehicles };
     } catch (error: any) {
-        console.error("Error updating travel activity vehicle_id:", error);
-        return { success: false, error: error.message || "Failed to update vehicle on travel activities." };
+        console.error("Error loading transport requirement vehicles:", error);
+        return { success: false, error: error.message || "Failed to load vehicle assignments." };
     }
 }

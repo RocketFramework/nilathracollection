@@ -1035,9 +1035,9 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
             );
 
             if (transportActivities.length > 0) {
-                // Group by transport_id AND vehicle_id
+                // Group by transport_id
                 const transportGroups = transportActivities.reduce((acc, a) => {
-                    const groupKey = `${a.transport_id}_${a.vehicle_id || 'unassigned'}`;
+                    const groupKey = a.transport_id;
                     if (!acc[groupKey]) acc[groupKey] = [];
                     acc[groupKey].push(a);
                     return acc;
@@ -1080,16 +1080,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         const distanceStr = act.distance ? ` (${act.distance})` : '';
                         const description = `${act.title || 'Transport Segment'}${distanceStr}`;
 
-                        let specialNotes = '';
-                        if (providerData && providerData.transport_vehicles && act.vehicle_id) {
-                            const vehicleData = providerData.transport_vehicles.find((v: any) => v.id === act.vehicle_id);
-                            if (vehicleData) {
-                                const type = vehicleData.vehicle_type || '';
-                                const brandModel = [vehicleData.make, vehicleData.model].filter(Boolean).join(' ') || vehicleData.make_and_model || '';
-                                const plate = vehicleData.vehicle_number ? `(Plate: ${vehicleData.vehicle_number})` : '';
-                                specialNotes = `Assigned Vehicle: ${type} ${brandModel} ${plate}`.trim();
-                            }
-                        }
+                        const specialNotes = '';
 
                         poItems.push({
                             id: crypto.randomUUID(),
@@ -1100,7 +1091,6 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                             quantity: itemQty,
                             unit_price: itemUnitPrice,
                             total_price: itemCalculatedTotal,
-                            vehicle_type: firstAct.vehicle_id || undefined,
                             special_notes: specialNotes || undefined
                         });
                     }

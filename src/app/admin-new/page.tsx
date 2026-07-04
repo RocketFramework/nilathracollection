@@ -168,7 +168,7 @@ import {
   saveDriverDailyActivitiesAction,
   upsertTransportRequirementAction,
   saveTransportRequirementVehiclesAction,
-  updateTravelActivitiesVehicleIdAction
+  getTransportRequirementVehiclesAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -2967,7 +2967,6 @@ function PlannerWizardWorkspace() {
                   !act.driver_id &&
                   !act.guide_id &&
                   !act.restaurant_id &&
-                  !act.vehicle_id &&
                   !act.vendor_activity_id &&
                   !act.hotel_id;
                 return !isInvalidActivity;
@@ -2999,7 +2998,6 @@ function PlannerWizardWorkspace() {
                   !act.driver_id &&
                   !act.guide_id &&
                   !act.restaurant_id &&
-                  !act.vehicle_id &&
                   !act.vendor_activity_id &&
                   !act.hotel_id;
                 return !isInvalidActivity;
@@ -3093,7 +3091,6 @@ function PlannerWizardWorkspace() {
               !act.driver_id &&
               !act.guide_id &&
               !act.restaurant_id &&
-              !act.vehicle_id &&
               !act.vendor_activity_id &&
               !act.hotel_id;
             return !isInvalidActivity;
@@ -7529,7 +7526,6 @@ function PlannerWizardWorkspace() {
                                   !act.driver_id &&
                                   !act.guide_id &&
                                   !act.restaurant_id &&
-                                  !act.vehicle_id &&
                                   !act.vendor_activity_id &&
                                   !act.hotel_id;
                                 return !isInvalidActivity;
@@ -9434,11 +9430,19 @@ function PlannerWizardWorkspace() {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={(e) => {
+                                        onClick={async (e) => {
                                           const rect = e.currentTarget.getBoundingClientRect();
                                           setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
                                           setSelectedTransportBlock(block);
                                           setShowTransportReqModal(true);
+                                          // Pre-populate picked vehicles from the junction table
+                                          const reqId = block.transport_requirement?.id || block.transport_requirement_id;
+                                          if (reqId) {
+                                            const res = await getTransportRequirementVehiclesAction(reqId);
+                                            setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
+                                          } else {
+                                            setReqPickedVehicles([]);
+                                          }
                                         }}
                                         disabled={isLockedByOther}
                                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed text-[9px] font-extrabold transition-all shadow-sm disabled:opacity-40 ${
@@ -9816,9 +9820,7 @@ function PlannerWizardWorkspace() {
                                       const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
                                       const totalDayPrice = legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.charged_total_price) || 0), 0);
                                       
-                                      const distinctVehicles = Array.from(new Set(
-                                        legs.map((t: any) => provider?.transport_vehicles?.find((v: any) => v.id === t.vehicle_id)?.vehicle_type).filter(Boolean)
-                                      ));
+                                      const distinctVehicles: string[] = [];
 
                                       const pathString = legs.map((t: any) => t.title || t.location_name || 'Travel Leg').join(' → ');
                                       const isHighMileage = totalDayDistance > 150; // threshold for daily warning
@@ -14286,6 +14288,7 @@ function PlannerWizardWorkspace() {
                     setIsGlobalTransportReqEdit={setIsGlobalTransportReqEdit}
                     globalTransportReq={globalTransportReq}
                     setGlobalTransportReq={setGlobalTransportReq}
+                    setReqPickedVehicles={setReqPickedVehicles}
                     modalTriggerRect={modalTriggerRect}
                     setModalTriggerRect={setModalTriggerRect}
                     handleUpdateTransportReqField={handleUpdateTransportReqField}
@@ -18398,17 +18401,6 @@ function PlannerWizardWorkspace() {
                         requirementId,
                         reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
                       );
-
-                      // Stamp the primary (first) vehicle onto every linked travel daily_activity
-                      const primaryVehicleId = reqPickedVehicles[0].vehicleId;
-                      await updateTravelActivitiesVehicleIdAction(requirementId, primaryVehicleId);
-
-                      // Optimistically reflect vehicle_id in local itinerary state
-                      setItinerary(prev => prev.map(b =>
-                        b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id === requirementId
-                          ? { ...b, vehicle_id: primaryVehicleId }
-                          : b
-                      ));
                     }
 
                     setShowTransportReqModal(false);
@@ -18498,6 +18490,7 @@ interface AIItineraryBuilderProps {
   modalTriggerRect: { top: number; left: number; width: number; height: number } | null;
   setModalTriggerRect: React.Dispatch<React.SetStateAction<{ top: number; left: number; width: number; height: number } | null>>;
   handleUpdateTransportReqField: (blockId: string | null, field: string, value: any) => void;
+  setReqPickedVehicles: React.Dispatch<React.SetStateAction<Array<{ vehicleId: string; vehicleName: string; providerName: string; quantity: number; notes: string }>>>;
 }
 
 function AIItineraryBuilder({
@@ -18555,7 +18548,8 @@ function AIItineraryBuilder({
   setGlobalTransportReq,
   modalTriggerRect,
   setModalTriggerRect,
-  handleUpdateTransportReqField
+  handleUpdateTransportReqField,
+  setReqPickedVehicles
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
@@ -20971,11 +20965,19 @@ function AIItineraryBuilder({
                       {block.type === ItineraryBlockTypes.TRAVEL && (
                         <button
                           type="button"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
                             setSelectedTransportBlock(block);
                             setShowTransportReqModal(true);
+                            // Pre-populate picked vehicles from the junction table
+                            const reqId = block.transport_requirement?.id || block.transport_requirement_id;
+                            if (reqId) {
+                              const res = await getTransportRequirementVehiclesAction(reqId);
+                              setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
+                            } else {
+                              setReqPickedVehicles([]);
+                            }
                           }}
                           disabled={isLockedByOther}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${

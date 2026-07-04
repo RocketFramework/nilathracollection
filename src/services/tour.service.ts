@@ -789,7 +789,6 @@ export class TourService {
                     charged_unit_price: b.agreedPrice,
                     charged_total_price: b.agreedPrice,
                     transport_id: (b.transportId && isUuid(b.transportId)) ? b.transportId : (b.type === 'travel' ? (tripData.defaultTransportId || null) : null),
-                    vehicle_id: (b.vehicleId && isUuid(b.vehicleId)) ? b.vehicleId : (tripData.defaultVehicleId || null),
                     driver_id: (b.driverId && isUuid(b.driverId)) ? b.driverId : (tripData.defaultDriverId || null),
                     guide_id: (b.guideId && isUuid(b.guideId)) ? b.guideId : (tripData.defaultGuideId || null),
                     restaurant_id: (b.restaurantId && isUuid(b.restaurantId)) ? b.restaurantId : null,
@@ -814,7 +813,6 @@ export class TourService {
                     basePayload.guide_id = null;
                     basePayload.activity_id = null;
                     basePayload.restaurant_id = null;
-                    basePayload.vehicle_id = null;
                     basePayload.vendor_activity_id = null;
                     basePayload.hotel_room_id = null;
                     basePayload.meal_plan = null;
@@ -1007,22 +1005,10 @@ export class TourService {
                         }
                         
                         if (distanceNum > 0) {
-                            let dynamicVehicleKmRate = vehicleKmRate; // Fallback to global settings
-                             const effectiveVehicleId = (b.vehicleId && isUuid(b.vehicleId)) ? b.vehicleId : (tripData.defaultVehicleId || null);
-                            
-                            if (effectiveVehicleId) {
-                                const { data: vData } = await supabaseAdmin
-                                    .from('transport_vehicles')
-                                    .select('additional_km_rate')
-                                    .eq('id', effectiveVehicleId)
-                                    .single();
-                                
-                                if (vData && vData.additional_km_rate) {
-                                    dynamicVehicleKmRate = vData.additional_km_rate;
-                                }
-                            }
+                            // Vehicle km rate from app settings (vehicle is tracked via transport_requirement_vehicles)
+                            const dynamicVehicleKmRate = vehicleKmRate;
 
-                            // Always enforce the actual vehicle's km rate as the contracted base unit rate
+                            // Always enforce the global km rate as the contracted base unit rate
                             contractedPrice = dynamicVehicleKmRate;
                             
                             quantity = distanceNum > 0 ? distanceNum : 1; // Distance is the multiplier (quantity)
@@ -1521,7 +1507,7 @@ export class TourService {
     /**
      * Updates all travel daily_activities in a block to point at a new transport provider,
      * and syncs tours.planner_data + draft versions.
-     * Note: vehicle_id is intentionally left untouched — the user selects the vehicle separately per trip leg.
+     * Note: vehicle assignment is tracked via the transport_requirement_vehicles junction table.
      */
     static async updateChangedTransportProvider(
         tourId: string,
