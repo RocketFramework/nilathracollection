@@ -77,8 +77,9 @@ import {
   Flag,
   Sliders
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
+import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
   getTouristDataAction, 
@@ -489,6 +490,15 @@ function PlannerWizardWorkspace() {
   const [editRfqNotes, setEditRfqNotes] = useState('');
   const [isSavingEditRfq, setIsSavingEditRfq] = useState(false);
   const [editRfqSelected, setEditRfqSelected] = useState<boolean>(false);
+
+  // PO Outcome panel state (shown when RFP email is Declined / Selected / Confirmed)
+  const [poOutcomePaymentTerms, setPoOutcomePaymentTerms] = useState('');
+  const [poOutcomeStatus, setPoOutcomeStatus] = useState<POStatus>('Accepted');
+  const [poOutcomeInternalNotes, setPoOutcomeInternalNotes] = useState('');
+  const [poOutcomeVendorNotes, setPoOutcomeVendorNotes] = useState('');
+  const [poOutcomeInformedByName, setPoOutcomeInformedByName] = useState('');
+  const [poOutcomeInformedDate, setPoOutcomeInformedDate] = useState('');
+  const [isSavingPoOutcome, setIsSavingPoOutcome] = useState(false);
 
   // Digital Signature PO states
   const [poRequireSignature, setPoRequireSignature] = useState(false);
@@ -4847,6 +4857,28 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  const handleSavePoOutcome = async (poId: string) => {
+    if (!poId) return;
+    setIsSavingPoOutcome(true);
+    try {
+      const updates: any = {
+        status: poOutcomeStatus,
+        payment_terms: poOutcomePaymentTerms || null,
+        internal_notes: poOutcomeInternalNotes || null,
+        vendor_notes: poOutcomeVendorNotes || null,
+        informed_by_name: poOutcomeInformedByName || null,
+        informed_date: poOutcomeInformedDate || null,
+      };
+      const res = await updatePurchaseOrderAction(poId, updates);
+      if (!res.success) throw new Error((res as any).error || 'Failed to update PO.');
+      await loadProcurementData(tourId);
+    } catch (err: any) {
+      alert('Error saving PO outcome: ' + err.message);
+    } finally {
+      setIsSavingPoOutcome(false);
+    }
+  };
+
   const handleSendRFQ = async (act: any, vendor: any) => {
     if (!vendor) return;
     setIsSubmittingRfq(true);
@@ -7844,6 +7876,18 @@ function PlannerWizardWorkspace() {
                                                     setEditRfqQuotedPrice(emailLog.quoted_price || 0);
                                                     setEditRfqNotes(emailLog.notes || '');
                                                     setEditRfqSelected(!!emailLog.selected_vendor);
+                                                    // Pre-populate PO outcome state for RFP emails
+                                                    if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
+                                                      const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                      if (linkedPo) {
+                                                        setPoOutcomeStatus(linkedPo.status as POStatus);
+                                                        setPoOutcomePaymentTerms(linkedPo.payment_terms || '');
+                                                        setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
+                                                        setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
+                                                        setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
+                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                      }
+                                                    }
                                                   }
                                                 }}
                                                 className="text-[9px] text-emerald-800 font-bold hover:underline"
@@ -7896,11 +7940,9 @@ function PlannerWizardWorkspace() {
                                                         }}
                                                         className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
                                                       >
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Replied">Replied</option>
-                                                        <option value="Declined">Declined</option>
-                                                        <option value="Expired">Expired</option>
-                                                        <option value="Selected">Selected</option>
+                                                        {[VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED, VENDOR_EMAIL_STATUSES.SELECTED].map(s => (
+                                                          <option key={s} value={s}>{s}</option>
+                                                        ))}
                                                       </select>
                                                     </div>
 
@@ -7964,6 +8006,57 @@ function PlannerWizardWorkspace() {
                                                     </button>
                                                   </div>
                                                 </div>
+
+                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                VENDOR_EMAIL_STATUSES.DECLINED,
+                                                VENDOR_EMAIL_STATUSES.SELECTED,
+                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    Update Purchase Order Record
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                        <option value="Accepted">Accepted</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                      </select>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
 
                                                 {/* Sent Email Body */}
                                                 <div className="space-y-1">
@@ -8374,6 +8467,18 @@ function PlannerWizardWorkspace() {
                                                   setEditRfqQuotedPrice(emailLog.quoted_price || 0);
                                                   setEditRfqNotes(emailLog.notes || '');
                                                   setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  // Pre-populate PO outcome state for RFP emails
+                                                  if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
+                                                    const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                    if (linkedPo) {
+                                                      setPoOutcomeStatus(linkedPo.status as POStatus);
+                                                      setPoOutcomePaymentTerms(linkedPo.payment_terms || '');
+                                                      setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
+                                                      setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
+                                                      setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
+                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                    }
+                                                  }
                                                 }
                                               }}
                                               className="text-[9px] text-emerald-800 font-bold hover:underline"
@@ -8792,6 +8897,18 @@ function PlannerWizardWorkspace() {
                                                   setEditRfqQuotedPrice(emailLog.quoted_price || 0);
                                                   setEditRfqNotes(emailLog.notes || '');
                                                   setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  // Pre-populate PO outcome state for RFP emails
+                                                  if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
+                                                    const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                    if (linkedPo) {
+                                                      setPoOutcomeStatus(linkedPo.status as POStatus);
+                                                      setPoOutcomePaymentTerms(linkedPo.payment_terms || '');
+                                                      setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
+                                                      setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
+                                                      setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
+                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                    }
+                                                  }
                                                 }
                                               }}
                                               className="text-[9px] text-emerald-800 font-bold hover:underline"
@@ -8817,11 +8934,9 @@ function PlannerWizardWorkspace() {
                                                   <div>
                                                     <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Status</label>
                                                     <select value={editRfqStatus} onChange={e => { const s = e.target.value; setEditRfqStatus(s as any); if (s === 'Selected') setEditRfqSelected(true); }} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium">
-                                                      <option value="Sent">Sent</option>
-                                                      <option value="Replied">Replied</option>
-                                                      <option value="Declined">Declined</option>
-                                                      <option value="Expired">Expired</option>
-                                                      <option value="Selected">Selected</option>
+                                                      {[VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED, VENDOR_EMAIL_STATUSES.SELECTED].map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                      ))}
                                                     </select>
                                                   </div>
                                                   <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
@@ -8840,6 +8955,58 @@ function PlannerWizardWorkspace() {
                                                   </button>
                                                 </div>
                                               </div>
+
+                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                VENDOR_EMAIL_STATUSES.DECLINED,
+                                                VENDOR_EMAIL_STATUSES.SELECTED,
+                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    Update Purchase Order Record
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                        <option value="Accepted">Accepted</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                      </select>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+
                                               <div className="space-y-1">
                                                 <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
                                                 <div className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: emailLog.body_html }} />
@@ -9505,6 +9672,18 @@ function PlannerWizardWorkspace() {
                                                   setEditRfqQuotedPrice(emailLog.quoted_price || 0);
                                                   setEditRfqNotes(emailLog.notes || '');
                                                   setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  // Pre-populate PO outcome state for RFP emails
+                                                  if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
+                                                    const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                    if (linkedPo) {
+                                                      setPoOutcomeStatus(linkedPo.status as POStatus);
+                                                      setPoOutcomePaymentTerms(linkedPo.payment_terms || '');
+                                                      setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
+                                                      setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
+                                                      setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
+                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                    }
+                                                  }
                                                 }
                                               }}
                                               className="text-[9px] text-emerald-800 font-bold hover:underline"
@@ -9530,11 +9709,9 @@ function PlannerWizardWorkspace() {
                                                   <div>
                                                     <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Status</label>
                                                     <select value={editRfqStatus} onChange={e => { const s = e.target.value; setEditRfqStatus(s as any); if (s === 'Selected') setEditRfqSelected(true); }} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium">
-                                                      <option value="Sent">Sent</option>
-                                                      <option value="Replied">Replied</option>
-                                                      <option value="Declined">Declined</option>
-                                                      <option value="Expired">Expired</option>
-                                                      <option value="Selected">Selected</option>
+                                                      {[VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED, VENDOR_EMAIL_STATUSES.SELECTED].map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                      ))}
                                                     </select>
                                                   </div>
                                                   <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
@@ -9553,6 +9730,58 @@ function PlannerWizardWorkspace() {
                                                   </button>
                                                 </div>
                                               </div>
+
+                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                VENDOR_EMAIL_STATUSES.DECLINED,
+                                                VENDOR_EMAIL_STATUSES.SELECTED,
+                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    Update Purchase Order Record
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                        <option value="Accepted">Accepted</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                      </select>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+
                                               <div className="space-y-1">
                                                 <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
                                                 <div className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: emailLog.body_html }} />
@@ -10122,6 +10351,18 @@ function PlannerWizardWorkspace() {
                                                     setEditRfqQuotedPrice(emailLog.quoted_price || 0);
                                                     setEditRfqNotes(emailLog.notes || '');
                                                     setEditRfqSelected(!!emailLog.selected_vendor);
+                                                    // Pre-populate PO outcome state for RFP emails
+                                                    if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
+                                                      const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                      if (linkedPo) {
+                                                        setPoOutcomeStatus(linkedPo.status as POStatus);
+                                                        setPoOutcomePaymentTerms(linkedPo.payment_terms || '');
+                                                        setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
+                                                        setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
+                                                        setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
+                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                      }
+                                                    }
                                                   }
                                                 }}
                                                 className="text-[9px] text-emerald-800 font-bold hover:underline"
@@ -10174,11 +10415,9 @@ function PlannerWizardWorkspace() {
                                                         }}
                                                         className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
                                                       >
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Replied">Replied</option>
-                                                        <option value="Declined">Declined</option>
-                                                        <option value="Expired">Expired</option>
-                                                        <option value="Selected">Selected</option>
+                                                        {[VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED, VENDOR_EMAIL_STATUSES.SELECTED].map(s => (
+                                                          <option key={s} value={s}>{s}</option>
+                                                        ))}
                                                       </select>
                                                     </div>
 
@@ -10242,6 +10481,57 @@ function PlannerWizardWorkspace() {
                                                     </button>
                                                   </div>
                                                 </div>
+
+                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                VENDOR_EMAIL_STATUSES.DECLINED,
+                                                VENDOR_EMAIL_STATUSES.SELECTED,
+                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    Update Purchase Order Record
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                        <option value="Accepted">Accepted</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                      </select>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
 
                                                 {/* Sent Email Body */}
                                                 <div className="space-y-1">
@@ -10845,6 +11135,18 @@ function PlannerWizardWorkspace() {
                                                     setEditRfqQuotedPrice(emailLog.quoted_price || 0);
                                                     setEditRfqNotes(emailLog.notes || '');
                                                     setEditRfqSelected(!!emailLog.selected_vendor);
+                                                    // Pre-populate PO outcome state for RFP emails
+                                                    if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
+                                                      const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
+                                                      if (linkedPo) {
+                                                        setPoOutcomeStatus(linkedPo.status as POStatus);
+                                                        setPoOutcomePaymentTerms(linkedPo.payment_terms || '');
+                                                        setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
+                                                        setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
+                                                        setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
+                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                      }
+                                                    }
                                                   }
                                                 }}
                                                 className="text-[9px] text-emerald-800 font-bold hover:underline"
@@ -10897,11 +11199,9 @@ function PlannerWizardWorkspace() {
                                                         }}
                                                         className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium"
                                                       >
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Replied">Replied</option>
-                                                        <option value="Declined">Declined</option>
-                                                        <option value="Expired">Expired</option>
-                                                        <option value="Selected">Selected</option>
+                                                        {[VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED, VENDOR_EMAIL_STATUSES.SELECTED].map(s => (
+                                                          <option key={s} value={s}>{s}</option>
+                                                        ))}
                                                       </select>
                                                     </div>
 
@@ -10965,6 +11265,57 @@ function PlannerWizardWorkspace() {
                                                     </button>
                                                   </div>
                                                 </div>
+
+                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                VENDOR_EMAIL_STATUSES.DECLINED,
+                                                VENDOR_EMAIL_STATUSES.SELECTED,
+                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    Update Purchase Order Record
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                        <option value="Accepted">Accepted</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                      </select>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
 
                                                 {/* Sent Email Body */}
                                                 <div className="space-y-1">
@@ -16959,12 +17310,10 @@ function PlannerWizardWorkspace() {
                       onChange={(e) => setEditRfqStatus(e.target.value as any)}
                       className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Sent">Sent</option>
-                      <option value="Replied">Replied</option>
-                      <option value="Declined">Declined</option>
-                      <option value="Expired">Expired</option>
-                      <option value="Selected">Selected (Finalized Vendor)</option>
+                      {[VENDOR_EMAIL_STATUSES.PENDING, VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                      <option value={VENDOR_EMAIL_STATUSES.SELECTED}>{VENDOR_EMAIL_STATUSES.SELECTED} (Finalized Vendor)</option>
                     </select>
                   </div>
 

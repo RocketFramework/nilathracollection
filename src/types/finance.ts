@@ -92,8 +92,8 @@ export interface DBPurchaseOrder {
     sent_email?: string;
     sent_to_name?: string;
     sent_date?: string;
-    accepted_by_name?: string;
-    accepted_date?: string;
+    informed_by_name?: string;
+    informed_date?: string;
 
     items?: DBPurchaseOrderItem[];
     invoices?: DBSupplierInvoice[];
