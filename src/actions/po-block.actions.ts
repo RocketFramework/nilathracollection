@@ -1,6 +1,7 @@
 "use server";
 
 import { POBlockService } from "@/services/po-block.service";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export async function initializeDefaultBlocksAction(tourId: string) {
@@ -147,5 +148,29 @@ export async function saveTransportRequirementVehiclesAction(
     } catch (error: any) {
         console.error("Error saving transport requirement vehicles:", error);
         return { success: false, error: error.message || "Failed to save vehicle assignments." };
+    }
+}
+
+/**
+ * Sets vehicle_id on every daily_activities row that has the given
+ * transport_requirement_id and activity_type = 'travel'.
+ * Pass null as vehicleId to clear the field.
+ */
+export async function updateTravelActivitiesVehicleIdAction(
+    requirementId: string,
+    vehicleId: string | null
+) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { error } = await adminSupabase
+            .from("daily_activities")
+            .update({ vehicle_id: vehicleId })
+            .eq("transport_requirement_id", requirementId)
+            .eq("activity_type", "travel");
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating travel activity vehicle_id:", error);
+        return { success: false, error: error.message || "Failed to update vehicle on travel activities." };
     }
 }

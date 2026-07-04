@@ -167,7 +167,8 @@ import {
   getDriverDailyActivitiesAction,
   saveDriverDailyActivitiesAction,
   upsertTransportRequirementAction,
-  saveTransportRequirementVehiclesAction
+  saveTransportRequirementVehiclesAction,
+  updateTravelActivitiesVehicleIdAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -1766,7 +1767,6 @@ function PlannerWizardWorkspace() {
    */
   const handleApplyDirectRateOverride = () => {
     if (!editingCustomRateAct) return;
-    const actId = editingCustomRateAct.id;
     const parsedUnit = parseFloat(customRateUnit);
     const parsedTotal = parseFloat(customRateTotal);
     const unitPrice = isNaN(parsedUnit) ? undefined : parsedUnit;
@@ -1776,15 +1776,24 @@ function PlannerWizardWorkspace() {
 
     setIsApplyingRateOverride(true);
 
+    // Support multi-leg day groups: distribute total evenly, remainder to first leg
+    const allLegIds: string[] = editingCustomRateAct._allLegIds || [editingCustomRateAct.id];
+    const numLegs = allLegIds.length;
+    const perLegTotal = totalPrice !== undefined ? parseFloat((totalPrice / numLegs).toFixed(2)) : undefined;
+    const firstLegTotal = totalPrice !== undefined
+      ? parseFloat((totalPrice - (perLegTotal! * (numLegs - 1))).toFixed(2))
+      : undefined;
+
     // Optimistic patch
     setPoBlocks(prev => prev.map(block => ({
       ...block,
       daily_activities: (block.daily_activities || []).map((act: any) => {
-        if (act.id !== actId) return act;
+        const legIdx = allLegIds.indexOf(act.id);
+        if (legIdx === -1) return act;
         return {
           ...act,
           contracted_price: unitPrice ?? act.contracted_price,
-          contracted_total_price: totalPrice ?? act.contracted_total_price,
+          contracted_total_price: (legIdx === 0 ? firstLegTotal : perLegTotal) ?? act.contracted_total_price,
           description: customRateNote.trim() || act.description,
         };
       }),
@@ -1792,12 +1801,14 @@ function PlannerWizardWorkspace() {
 
     setEditingCustomRateAct(null);
 
-    // Persist to DB
-    finalizeActivityPricesAction([{
-      id: actId,
-      contracted_price: unitPrice,
-      contracted_total_price: totalPrice,
-    }])
+    // Persist to DB — update each leg with its share of the total
+    finalizeActivityPricesAction(
+      allLegIds.map((id, legIdx) => ({
+        id,
+        contracted_price: unitPrice,
+        contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
+      }))
+    )
       .catch(err => console.error('Rate override persist failed:', err))
       .finally(() => setIsApplyingRateOverride(false));
   };
@@ -9608,7 +9619,7 @@ function PlannerWizardWorkspace() {
                                               ))}
                                               {vehicles.length > 3 && (
                                                 <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-500 text-[8px] font-bold rounded">
-                                                  +{vehicles.length - 3} more
+                                              {vehicles.length - 3} more
                                                 </span>
                                               )}
                                             </div>
@@ -9627,7 +9638,7 @@ function PlannerWizardWorkspace() {
                                   <div className="flex items-center justify-between border-b border-neutral-150 pb-2">
                                     <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
                                       <Sliders className="w-3.5 h-3.5 text-neutral-400" />
-                                      Transport Requirements & Specifications
+                                      Transport Requirements &amp; Specifications
                                     </h5>
                                     <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 uppercase tracking-wider">
                                       AI Builder Defined
@@ -9645,7 +9656,7 @@ function PlannerWizardWorkspace() {
                                       <div className="space-y-0.5">
                                         <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-tight block">Model Year</span>
                                         <span className="font-bold text-neutral-800 font-mono">
-                                          {formatDate(block.transport_requirement.vehicle_model_year)}
+                                          {block.transport_requirement.vehicle_model_year}
                                         </span>
                                       </div>
                                     )}
@@ -9714,8 +9725,61 @@ function PlannerWizardWorkspace() {
                                       </>
                                     )}
                                   </div>
+
+                                  {/* ── Assigned Vehicles (from junction table) ── */}
+                                  {(block.transport_requirement.transport_requirement_vehicles || []).length > 0 && (
+                                    <div className="border-t border-neutral-200 pt-3.5 space-y-2">
+                                      <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wider block">
+                                        Assigned Vehicles ({block.transport_requirement.transport_requirement_vehicles.length})
+                                      </span>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {block.transport_requirement.transport_requirement_vehicles.map((trv: any) => {
+                                          const v = trv.vehicle;
+                                          if (!v) return null;
+                                          const makeModel = [v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || '';
+                                          const displayName = [makeModel, v.vehicle_type].filter(Boolean).join(' – ');
+                                          return (
+                                            <div key={trv.id} className="bg-white border border-emerald-100 rounded-xl p-3 space-y-1.5 shadow-sm">
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                  <p className="text-[11px] font-black text-neutral-800 leading-tight truncate">{displayName || 'Vehicle'}</p>
+                                                  {v.vehicle_number && (
+                                                    <p className="text-[9px] font-bold text-neutral-400 font-mono">{v.vehicle_number}</p>
+                                                  )}
+                                                </div>
+                                                <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg flex-shrink-0">
+                                                  Qty: {trv.quantity || 1}
+                                                </span>
+                                              </div>
+                                              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                                {v.year_of_manufacture && (
+                                                  <span className="text-[9px] font-bold text-neutral-500">{v.year_of_manufacture}</span>
+                                                )}
+                                                {v.max_seat_capacity && (
+                                                  <span className="text-[9px] font-bold text-neutral-500">{v.max_seat_capacity} seats</span>
+                                                )}
+                                                {v.day_rate && (
+                                                  <span className="text-[9px] font-bold text-amber-700">${v.day_rate}/day</span>
+                                                )}
+                                                {v.km_rate && (
+                                                  <span className="text-[9px] font-bold text-neutral-500">${v.km_rate}/km</span>
+                                                )}
+                                                {v.with_driver && (
+                                                  <span className="text-[9px] font-bold text-emerald-700">Incl. Driver</span>
+                                                )}
+                                              </div>
+                                              {trv.notes && (
+                                                <p className="text-[9px] text-neutral-500 italic border-t border-neutral-100 pt-1">{trv.notes}</p>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               )}
+
 
 
                               {/* Travel Leg Rows — grouped and aggregated by day number */}
@@ -9760,137 +9824,66 @@ function PlannerWizardWorkspace() {
                                       const isHighMileage = totalDayDistance > 150; // threshold for daily warning
 
                                       return (
-                                        <details key={dayKey} className="group py-3">
-                                          <summary className="list-none cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 focus:outline-none select-none">
-                                            <div className="flex items-start gap-3">
-                                              <div className="px-2.5 py-1 bg-amber-700 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
-                                                {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
-                                              </div>
-                                              <div>
-                                                <span className="text-xs font-bold text-neutral-800 block">
-                                                  {pathString}
+                                        <div key={dayKey} className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                          <div className="flex items-start gap-3 min-w-0">
+                                            <div className="px-2.5 py-1 bg-amber-700 text-white font-mono text-[10px] font-bold rounded-lg mt-0.5 shrink-0 shadow-sm">
+                                              {dateVal ? formatDate(dateVal) : `Day ${dayNum}`}
+                                            </div>
+                                            <div className="min-w-0">
+                                              <span className="text-xs font-bold text-neutral-800 block truncate">
+                                                {pathString}
+                                              </span>
+                                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                <span className="px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[9px] font-bold rounded uppercase tracking-wider">
+                                                  Transport · {legs.length} Leg{legs.length > 1 ? 's' : ''}
                                                 </span>
-                                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                                  <span className="px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[9px] font-bold rounded uppercase tracking-wider">
-                                                    Travel
+                                                {distinctVehicles.length > 0 && (
+                                                  <span className="px-2 py-0.5 bg-neutral-50 border border-neutral-200 text-neutral-600 text-[9px] font-bold rounded uppercase">
+                                                    {distinctVehicles.join(', ')}
                                                   </span>
-                                                  {distinctVehicles.length > 0 && (
-                                                    <span className="px-2 py-0.5 bg-neutral-50 border border-neutral-200 text-neutral-600 text-[9px] font-bold rounded uppercase">
-                                                      {distinctVehicles.join(', ')}
-                                                    </span>
-                                                  )}
-                                                  {legs.length > 1 && (
-                                                    <span className="text-[9px] text-neutral-500 font-medium group-open:hidden flex items-center gap-1">
-                                                      ▶ View detailed legs ({legs.length})
-                                                    </span>
-                                                  )}
-                                                  {legs.length > 1 && (
-                                                    <span className="text-[9px] text-neutral-500 font-medium hidden group-open:flex items-center gap-1">
-                                                      ▼ Hide detailed legs
-                                                    </span>
-                                                  )}
-                                                </div>
+                                                )}
                                               </div>
                                             </div>
+                                          </div>
 
-                                            <div className="flex items-center justify-between sm:justify-end gap-4 self-stretch sm:self-auto ml-auto sm:ml-0">
-                                              <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${
-                                                isHighMileage 
-                                                  ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10' 
-                                                  : 'bg-white border-neutral-200 text-neutral-700'
-                                              }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Daily travel distance'}>
-                                                <span>Distance:</span>
-                                                <span className="font-extrabold text-xs">{totalDayDistance} km</span>
+                                          <div className="flex items-center justify-end gap-3 flex-shrink-0 ml-auto">
+                                            <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${
+                                              isHighMileage
+                                                ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10'
+                                                : 'bg-white border-neutral-200 text-neutral-700'
+                                            }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance'}>
+                                              <span>KM:</span>
+                                              <span className="font-extrabold text-xs">{totalDayDistance}</span>
+                                            </div>
+
+                                            {totalDayPrice > 0 && (
+                                              <div className="text-right min-w-[70px]">
+                                                <span className="text-[9px] text-amber-600 uppercase block font-mono">Day Total</span>
+                                                <span className="font-mono text-amber-800 font-bold text-xs">${totalDayPrice.toFixed(2)}</span>
                                               </div>
-                                              
-                                              {totalDayPrice > 0 && (
-                                                <div className="text-right min-w-[70px]">
-                                                  <span className="text-[9px] text-amber-600 uppercase block font-mono">Total Price</span>
-                                                  <span className="font-mono text-amber-800 font-bold text-xs">${totalDayPrice.toFixed(2)}</span>
-                                                </div>
-                                              )}
+                                            )}
 
-                                              {legs.length === 1 ? (
-                                                <button
-                                                  type="button"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    setEditingCustomRateAct(firstLeg);
-                                                    setCustomRateUnit(String(firstLeg.contracted_price ?? firstLeg.charged_unit_price ?? ''));
-                                                    setCustomRateTotal(String(firstLeg.contracted_total_price ?? firstLeg.charged_total_price ?? ''));
-                                                    setCustomRateNote(firstLeg.description || '');
-                                                  }}
-                                                  disabled={isLockedByOther}
-                                                  className="p-1.5 rounded-lg border border-neutral-200 hover:border-amber-400/40 hover:bg-amber-50/20 text-neutral-400 hover:text-amber-700 transition-all shadow-sm shrink-0 disabled:opacity-40"
-                                                  title="Override Contracted Rate"
-                                                >
-                                                  <CircleDollarSign className="w-3.5 h-3.5" />
-                                                </button>
-                                              ) : (
-                                                <div className="w-8 h-8 flex items-center justify-center text-neutral-300 font-bold group-open:rotate-180 transition-transform">
-                                                  ▼
-                                                </div>
-                                              )}
-                                            </div>
-                                          </summary>
-
-                                          {legs.length > 1 && (
-                                            <div className="pl-12 pb-2 pt-3 border-t border-neutral-100/60 space-y-2 mt-3 animate-in fade-in duration-250">
-                                              <p className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Detailed Day Legs</p>
-                                              {legs.map((trip: any, idx: number) => {
-                                                const legVehicle = provider?.transport_vehicles?.find((v: any) => v.id === trip.vehicle_id);
-                                                const unitRate = trip.contracted_price ?? trip.charged_unit_price;
-                                                const totalRate = trip.contracted_total_price ?? trip.charged_total_price;
-
-                                                return (
-                                                  <div key={trip.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 bg-white rounded-xl border border-neutral-150/60 shadow-sm gap-2">
-                                                    <div className="flex items-center gap-2">
-                                                      <span className="text-[9px] bg-neutral-100 text-neutral-500 font-mono px-1.5 py-0.5 rounded font-bold">Leg {idx + 1}</span>
-                                                      <span className="text-xs font-bold text-neutral-700">{trip.title || trip.location_name || 'Travel Leg'}</span>
-                                                      {trip.distance && (
-                                                        <span className="text-[10px] text-neutral-400">
-                                                          ({String(trip.distance).toLowerCase().includes('km') ? trip.distance : `${trip.distance} km`})
-                                                        </span>
-                                                      )}
-                                                      {legVehicle && <span className="text-[9px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-bold uppercase">{legVehicle.vehicle_type}</span>}
-                                                    </div>
-                                                    <div className="flex items-center gap-4 text-xs font-semibold self-end sm:self-auto">
-                                                      {unitRate !== undefined && unitRate !== null && (
-                                                        <div className="text-right">
-                                                          <span className="text-[8px] text-neutral-400 block font-mono">Unit</span>
-                                                          <span className="font-mono text-neutral-600">${Number(unitRate).toFixed(2)}</span>
-                                                        </div>
-                                                      )}
-                                                      {totalRate !== undefined && totalRate !== null && (
-                                                        <div className="text-right">
-                                                          <span className="text-[8px] text-amber-600 block font-mono">Total</span>
-                                                          <span className="font-mono text-amber-800">${Number(totalRate).toFixed(2)}</span>
-                                                        </div>
-                                                      )}
-                                                      <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          e.preventDefault();
-                                                          setEditingCustomRateAct(trip);
-                                                          setCustomRateUnit(String(trip.contracted_price ?? trip.charged_unit_price ?? ''));
-                                                          setCustomRateTotal(String(trip.contracted_total_price ?? trip.charged_total_price ?? ''));
-                                                          setCustomRateNote(trip.description || '');
-                                                        }}
-                                                        disabled={isLockedByOther}
-                                                        className="p-1 rounded-md border border-neutral-200 hover:border-amber-400 hover:bg-amber-50/20 text-neutral-400 hover:text-amber-700 transition-all disabled:opacity-40"
-                                                        title="Override Rate for this Leg"
-                                                      >
-                                                        <CircleDollarSign className="w-3.5 h-3.5" />
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-                                        </details>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setEditingCustomRateAct({
+                                                  ...firstLeg,
+                                                  _allLegIds: legs.map((l: any) => l.id),
+                                                  contracted_price: firstLeg.contracted_price ?? firstLeg.charged_unit_price,
+                                                  contracted_total_price: totalDayPrice || null,
+                                                });
+                                                setCustomRateUnit(String(firstLeg.contracted_price ?? firstLeg.charged_unit_price ?? ''));
+                                                setCustomRateTotal(String(totalDayPrice || ''));
+                                                setCustomRateNote(firstLeg.description || '');
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="p-1.5 rounded-lg border border-neutral-200 hover:border-amber-400/40 hover:bg-amber-50/20 text-neutral-400 hover:text-amber-700 transition-all shadow-sm shrink-0 disabled:opacity-40"
+                                              title={legs.length > 1 ? `Set day rate (applies across ${legs.length} legs)` : 'Set contracted rate'}
+                                            >
+                                              <CircleDollarSign className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
                                       );
                                     })}
                                   </div>
@@ -18405,6 +18398,17 @@ function PlannerWizardWorkspace() {
                         requirementId,
                         reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
                       );
+
+                      // Stamp the primary (first) vehicle onto every linked travel daily_activity
+                      const primaryVehicleId = reqPickedVehicles[0].vehicleId;
+                      await updateTravelActivitiesVehicleIdAction(requirementId, primaryVehicleId);
+
+                      // Optimistically reflect vehicle_id in local itinerary state
+                      setItinerary(prev => prev.map(b =>
+                        b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id === requirementId
+                          ? { ...b, vehicle_id: primaryVehicleId }
+                          : b
+                      ));
                     }
 
                     setShowTransportReqModal(false);

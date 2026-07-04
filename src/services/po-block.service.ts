@@ -38,7 +38,7 @@ export class POBlockService {
         if (dailyActivityIds.length > 0) {
             const { data: actData, error: actErr } = await adminSupabase
                 .from('daily_activities')
-                .select('*, tour_itineraries(day_number, date), service_date, transport_requirement:transport_requirements(*)')
+                .select('*, tour_itineraries(day_number, date), service_date, transport_requirement:transport_requirements(*, transport_requirement_vehicles(*, vehicle:transport_vehicles(*)))')
                 .in('id', dailyActivityIds);
             if (actErr) throw actErr;
             
