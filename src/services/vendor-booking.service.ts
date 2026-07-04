@@ -136,6 +136,39 @@ export class VendorBookingService {
         const totalAmount = calculatedSubtotal + tax - discount;
 
         // 3. Generate and save the PO
+        let resolvedPoBlockId = bookingData.po_block_id || null;
+        if (!resolvedPoBlockId) {
+            if (bookingData.quotation_request_id) {
+                try {
+                    const { data: rfq } = await supabase
+                        .from('tour_rfq_emails')
+                        .select('po_block_id')
+                        .eq('id', bookingData.quotation_request_id)
+                        .maybeSingle();
+                    if (rfq?.po_block_id) {
+                        resolvedPoBlockId = rfq.po_block_id;
+                    }
+                } catch (err) {
+                    console.error("Failed to resolve po_block_id from quotation_request_id:", err);
+                }
+            }
+            if (!resolvedPoBlockId && daily_activity_ids && daily_activity_ids.length > 0) {
+                try {
+                    const { data: mapping } = await supabase
+                        .from('po_block_daily_activities')
+                        .select('po_block_id')
+                        .in('daily_activity_id', daily_activity_ids)
+                        .limit(1)
+                        .maybeSingle();
+                    if (mapping?.po_block_id) {
+                        resolvedPoBlockId = mapping.po_block_id;
+                    }
+                } catch (err) {
+                    console.error("Failed to resolve po_block_id from daily_activities:", err);
+                }
+            }
+        }
+
         const poNumber = bookingData.po_number || `PO-${bookingData.vendor_type.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
         const poPayload: any = {
             id: crypto.randomUUID(),
@@ -158,7 +191,7 @@ export class VendorBookingService {
             cancellation_policy: bookingData.cancellation_policy || undefined,
             vendor_notes: bookingData.notes || undefined,
             daily_activity_vendor_id: bookingData.quotation_request_id || null,
-            po_block_id: bookingData.po_block_id || null
+            po_block_id: resolvedPoBlockId
         };
 
         if (bookingData.vendor_type === 'hotel') poPayload.hotel_id = bookingData.vendor_id;

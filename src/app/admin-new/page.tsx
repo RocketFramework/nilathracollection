@@ -77,7 +77,7 @@ import {
   Flag,
   Sliders
 } from 'lucide-react';
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings } from '../../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { 
@@ -482,7 +482,7 @@ function PlannerWizardWorkspace() {
   // Edit RFQ Details Modal state
   const [showEditRfqModal, setShowEditRfqModal] = useState(false);
   const [editingRfq, setEditingRfq] = useState<any>(null);
-  const [editRfqStatus, setEditRfqStatus] = useState<'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected'>('Pending');
+  const [editRfqStatus, setEditRfqStatus] = useState<VendorEmailStatus>('Pending');
   const [editRfqQuotedPrice, setEditRfqQuotedPrice] = useState<number>(0);
   const [editRfqCurrency, setEditRfqCurrency] = useState('USD');
   const [editRfqRepliedDate, setEditRfqRepliedDate] = useState('');
@@ -5202,7 +5202,16 @@ function PlannerWizardWorkspace() {
     
     setInvoiceDiscountAmount('0.00');
     setInvoiceTaxAmount('0.00');
-    setInvoiceAgencyNote('Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX');
+    
+    // Resolve appropriate bank details based on currency
+    const tourCurrency = tripData?.profile?.currency || 'USD';
+    let defaultNote = '';
+    if (tourCurrency === 'LKR') {
+      defaultNote = appSettings?.[Settings.Bank_Details_Lkr] || 'Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX';
+    } else {
+      defaultNote = appSettings?.[Settings.Bank_Details_Usd] || 'Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank (USD Account)\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405070\nBranch: Colombo Fort\nSWIFT: HNBCLKX';
+    }
+    setInvoiceAgencyNote(defaultNote);
     setInvoiceCustomServiceFee('');
     setInvoiceFlightsQuotedSeparately(false);
     setInvoiceFlightsQuotedPrice('0.00');
@@ -5814,6 +5823,35 @@ function PlannerWizardWorkspace() {
               </span>
             </h1>
             <p className="text-xs text-neutral-400">Build comprehensive client journeys through a structured relational workflow.</p>
+          </div>
+
+          {/* Tourist Info Panel */}
+          <div className="hidden lg:flex items-center gap-6 border-l border-neutral-200 pl-6 ml-2 animate-fade-in">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold font-sans">Tourist</span>
+              <span className="text-xs font-bold text-neutral-850 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-emerald-800" />
+                {`${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim() || tripData?.clientName || 'Not Specified'}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold font-sans">Pack Details</span>
+              <span className="text-xs font-bold text-neutral-850 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-emerald-800" />
+                {`${(touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0) + (touristData?.preferences?.infants || 0)} Pax (${touristData?.preferences?.adults || 0}A / ${touristData?.preferences?.children || 0}C / ${touristData?.preferences?.infants || 0}I)`}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold font-sans">Tour Dates</span>
+              <span className="text-xs font-bold text-neutral-850 flex items-center gap-1.5 font-mono">
+                <Calendar className="w-3.5 h-3.5 text-emerald-800" />
+                {touristData?.preferences?.arrival_date && touristData?.preferences?.departure_date
+                  ? `${new Date(touristData.preferences.arrival_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${new Date(touristData.preferences.departure_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : 'Dates TBD'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -11327,13 +11365,13 @@ function PlannerWizardWorkspace() {
                     </div>
 
                     <div className="space-y-6">
-                      {purchaseOrders.filter(po => po.vendor_type === 'hotel' && po.status !== 'Cancelled').length === 0 ? (
+                      {purchaseOrders.filter(po => po.vendor_type === 'hotel' && po.status === 'Accepted').length === 0 ? (
                         <div className="p-6 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-250">
-                          <p className="text-sm text-neutral-500 italic">No active hotel purchase orders found for this tour.</p>
+                          <p className="text-sm text-neutral-500 italic">There are not purchase order that are accpeted by the suppliers.</p>
                         </div>
                       ) : (
                         purchaseOrders
-                          .filter(po => po.vendor_type === 'hotel' && po.status !== 'Cancelled')
+                          .filter(po => po.vendor_type === 'hotel' && po.status === 'Accepted')
                           .map(po => {
                             const invoices = po.invoices || [];
                             const advPayments = po.advance_payments || [];

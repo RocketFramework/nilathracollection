@@ -1,4 +1,4 @@
-import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, ServiceScope, TripStatus, ItineraryBlockType } from '../types/types';
+import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, ServiceScope, TripStatus, ItineraryBlockType, VendorEmailStatus } from '../types/types';
 import { Activity } from '@/data/activities';
 
 export interface ItineraryElements {
@@ -110,6 +110,7 @@ export interface TripProfile {
     budgetPerPerson: number;
     travelStyle: TravelStyle;
     departureCountry?: string;
+    currency?: string;
     specialConditions: {
         dietary: string;
         medical: string;
@@ -451,7 +452,7 @@ export interface TourRfqEmail {
     vendor_id?: string | null;
     vendor_name?: string | null;
     vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
-    status?: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
+    status?: VendorEmailStatus;
     updated_at?: string | null;
     quoted_price?: number | null;
     notes?: string | null;
@@ -472,7 +473,7 @@ export interface DailyActivityVendor {
     updated_at?: string | null;
     quoted_price?: number | null;
     currency?: string;
-    status: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
+    status: VendorEmailStatus;
     selected_vendor?: boolean;
     notes?: string | null;
     created_by?: string | null;
@@ -509,7 +510,7 @@ export interface TourRfpEmail {
     vendor_id?: string | null;
     vendor_name?: string | null;
     vendor_type?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant' | null;
-    status?: 'Pending' | 'Sent' | 'Replied' | 'Declined' | 'Expired' | 'Selected' | 'Confirmed' | 'Cancelled';
+    status?: VendorEmailStatus;
     updated_at?: string | null;
     quoted_price?: number | null;
     notes?: string | null;

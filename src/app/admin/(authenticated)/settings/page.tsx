@@ -59,6 +59,8 @@ export default function SettingsPage() {
         [Settings.Policy_Draft]: "",
         [Settings.Address]: "",
         [Settings.Company_Logo]: "",
+        [Settings.Bank_Details_Usd]: "",
+        [Settings.Bank_Details_Lkr]: "",
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -146,6 +148,28 @@ export default function SettingsPage() {
                             value={markups[Settings.Address] || ""}
                             onChange={(e) => setMarkups({ ...markups, [Settings.Address]: e.target.value })}
                             placeholder="Enter company address..."
+                            className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">USD Bank Details</label>
+                        <textarea
+                            rows={4}
+                            value={markups[Settings.Bank_Details_Usd] || ""}
+                            onChange={(e) => setMarkups({ ...markups, [Settings.Bank_Details_Usd]: e.target.value })}
+                            placeholder="Enter USD bank details for invoices raised in USD..."
+                            className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">SLR / LKR Bank Details</label>
+                        <textarea
+                            rows={4}
+                            value={markups[Settings.Bank_Details_Lkr] || ""}
+                            onChange={(e) => setMarkups({ ...markups, [Settings.Bank_Details_Lkr]: e.target.value })}
+                            placeholder="Enter SLR/LKR bank details for invoices raised in SLR..."
                             className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-medium text-sm text-[#2B2B2B]"
                         />
                     </div>

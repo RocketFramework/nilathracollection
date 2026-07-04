@@ -1183,12 +1183,14 @@ export async function getAppMarkupsAction() {
             [Settings.Policy_Draft]: "",
             [Settings.Address]: "Nilathra Hotel Management (Pvt) Ltd, 145/1 Vajira Rd, Colombo 00500",
             [Settings.Company_Logo]: "",
+            [Settings.Bank_Details_Usd]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank (USD Account)\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405070\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
+            [Settings.Bank_Details_Lkr]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
         };
 
         if (data) {
             data.forEach(item => {
                 if (item.setting_key in markups) {
-                    if (item.setting_key.startsWith('policy_') || item.setting_key === 'address' || item.setting_key === 'company_logo') {
+                    if (item.setting_key.startsWith('policy_') || item.setting_key === 'address' || item.setting_key === 'company_logo' || item.setting_key === 'bank_details_usd' || item.setting_key === 'bank_details_lkr') {
                         (markups as any)[item.setting_key] = item.setting_value || "";
                     } else {
                         (markups as any)[item.setting_key] = Number(item.setting_value);
@@ -1252,6 +1254,8 @@ export async function getAppMarkupsAction() {
             [Settings.Policy_Draft]: "",
             [Settings.Address]: "Nilathra Hotel Management (Pvt) Ltd, 145/1 Vajira Rd, Colombo 00500",
             [Settings.Company_Logo]: "",
+            [Settings.Bank_Details_Usd]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank (USD Account)\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405070\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
+            [Settings.Bank_Details_Lkr]: "Thank you for booking with Nilathra Collection. Payments can be settled via bank transfer.\n\nBank: Hatton National Bank\nAccount Name: Nilathra Collection Pvt Ltd\nAccount Number: 102030405060\nBranch: Colombo Fort\nSWIFT: HNBCLKX",
         } };
     }
 }

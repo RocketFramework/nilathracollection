@@ -117,14 +117,14 @@ export class InvoiceCalculationService {
       ? Number(appSettings[serviceFeeKey]) 
       : 10;
 
-    const sleepBlocks = itinerary.filter(b => b.type === 'sleep' || b.hotelId);
-    const nights = sleepBlocks.length;
+    const sleepBlocks = itinerary.filter(b => b.type === 'sleep');
+    const nights = Math.min(sleepBlocks.length, Math.max(0, durationDays - 1));
 
     for (let d = 1; d <= durationDays; d++) {
       const overrides = dayCostOverrides[d] || {};
 
       // 1. Accommodation
-      const daySleepBlocks = itinerary.filter(b => b.dayNumber === d && (b.type === 'sleep' || b.hotelId));
+      const daySleepBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'sleep');
       const baseHotelCost = daySleepBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
       const hotelCost = overrides.hotel !== undefined ? overrides.hotel : baseHotelCost;
       hotelTotal += hotelCost;

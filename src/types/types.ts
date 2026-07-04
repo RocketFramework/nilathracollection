@@ -164,7 +164,21 @@ export const Settings = {
   Policy_Ultra_Vip: 'policy_ultra_vip',
   Policy_Draft: 'policy_draft',
   Address: 'address',
-  Company_Logo: 'company_logo'
+  Company_Logo: 'company_logo',
+  Bank_Details_Usd: 'bank_details_usd',
+  Bank_Details_Lkr: 'bank_details_lkr'
 } as const;
 
 export type RoomSizeName = 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
+
+export const VENDOR_EMAIL_STATUSES = {
+  PENDING:   'Pending',
+  SENT:      'Sent',
+  REPLIED:   'Replied',
+  DECLINED:  'Declined',
+  EXPIRED:   'Expired',
+  SELECTED:  'Selected',
+  CONFIRMED: 'Confirmed',
+  CANCELLED: 'Cancelled',
+} as const;
+export type VendorEmailStatus = typeof VENDOR_EMAIL_STATUSES[keyof typeof VENDOR_EMAIL_STATUSES];
