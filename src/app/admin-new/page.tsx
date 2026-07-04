@@ -500,6 +500,25 @@ function PlannerWizardWorkspace() {
   const [poOutcomeInformedDate, setPoOutcomeInformedDate] = useState('');
   const [isSavingPoOutcome, setIsSavingPoOutcome] = useState(false);
 
+  // When the email status changes to a trigger status, sync PO status and default informed date to today
+  useEffect(() => {
+    const triggerStatuses: VendorEmailStatus[] = [
+      VENDOR_EMAIL_STATUSES.DECLINED,
+      VENDOR_EMAIL_STATUSES.SELECTED,
+      VENDOR_EMAIL_STATUSES.CONFIRMED,
+    ];
+    if (triggerStatuses.includes(editRfqStatus)) {
+      const poStatusMap: Record<string, POStatus> = {
+        [VENDOR_EMAIL_STATUSES.DECLINED]:  'Rejected',
+        [VENDOR_EMAIL_STATUSES.SELECTED]:  'Accepted',
+        [VENDOR_EMAIL_STATUSES.CONFIRMED]: 'Accepted',
+      };
+      setPoOutcomeStatus(poStatusMap[editRfqStatus] ?? 'Accepted');
+      // Only default to today if the user/DB hasn't already set a date
+      setPoOutcomeInformedDate(prev => prev || new Date().toISOString().split('T')[0]);
+    }
+  }, [editRfqStatus]);
+
   // Digital Signature PO states
   const [poRequireSignature, setPoRequireSignature] = useState(false);
   const [poSignatureImage, setPoSignatureImage] = useState<string>('/images/bogus_signature.png');
@@ -4819,6 +4838,29 @@ function PlannerWizardWorkspace() {
         throw new Error(res.error || "Failed to update email proposal.");
       }
 
+      // If this is an RFP email and the status is no longer one of the outcome-trigger statuses,
+      // clear the PO outcome fields from purchase_orders so stale data is not retained.
+      const outcomeStatuses: VendorEmailStatus[] = [
+        VENDOR_EMAIL_STATUSES.DECLINED,
+        VENDOR_EMAIL_STATUSES.SELECTED,
+        VENDOR_EMAIL_STATUSES.CONFIRMED,
+      ];
+      if (!isRfq && emailLog.purchase_order_id && !outcomeStatuses.includes(editRfqStatus)) {
+        await updatePurchaseOrderAction(emailLog.purchase_order_id, {
+          payment_terms: null,
+          internal_notes: null,
+          vendor_notes: null,
+          informed_by_name: null,
+          informed_date: null,
+        });
+        // Reset local outcome state
+        setPoOutcomePaymentTerms('');
+        setPoOutcomeInternalNotes('');
+        setPoOutcomeVendorNotes('');
+        setPoOutcomeInformedByName('');
+        setPoOutcomeInformedDate('');
+      }
+
       // Reload all relevant data
       await loadProcurementData(tourId);
       
@@ -7885,7 +7927,7 @@ function PlannerWizardWorkspace() {
                                                         setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
                                                         setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
                                                         setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
-                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : new Date().toISOString().split('T')[0]);
                                                       }
                                                     }
                                                   }
@@ -8476,7 +8518,7 @@ function PlannerWizardWorkspace() {
                                                       setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
                                                       setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
                                                       setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
-                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : new Date().toISOString().split('T')[0]);
                                                     }
                                                   }
                                                 }
@@ -8490,6 +8532,98 @@ function PlannerWizardWorkspace() {
                                             <div><span className="font-semibold text-neutral-400">To:</span> <span className="font-mono">{emailLog.recipient_email}</span></div>
                                             <div><span className="font-semibold text-neutral-400">Subject:</span> <span className="font-bold text-neutral-700">{emailLog.subject}</span></div>
                                           </div>
+
+                                          {isEmailBodyExpanded && (
+                                            <div className="mt-3 pt-3 border-t border-neutral-150 space-y-4">
+                                              <div className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm space-y-3">
+                                                <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">Edit Proposal / Bid Details</h6>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                  <div>
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Quoted Price ($)</label>
+                                                    <input type="number" value={editRfqQuotedPrice} onChange={e => setEditRfqQuotedPrice(Number(e.target.value))} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium" placeholder="e.g. 150" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Status</label>
+                                                    <select value={editRfqStatus} onChange={e => { const s = e.target.value; setEditRfqStatus(s as any); if (s === 'Selected') setEditRfqSelected(true); }} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium">
+                                                      {[VENDOR_EMAIL_STATUSES.SENT, VENDOR_EMAIL_STATUSES.REPLIED, VENDOR_EMAIL_STATUSES.DECLINED, VENDOR_EMAIL_STATUSES.EXPIRED, VENDOR_EMAIL_STATUSES.SELECTED].map(s => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                      ))}
+                                                    </select>
+                                                  </div>
+                                                  <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
+                                                    <input type="checkbox" id={`rst-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
+                                                    <label htmlFor={`rst-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this restaurant</label>
+                                                  </div>
+                                                  <div className="col-span-1 sm:col-span-2">
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes</label>
+                                                    <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
+                                                  </div>
+                                                </div>
+                                                <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
+                                                  <button type="button" onClick={() => { setExpandedEmailId(null); setEditingRfq(null); }} className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors">Cancel</button>
+                                                  <button type="button" onClick={() => handleSaveInlineRfq(emailLog)} disabled={isSavingEditRfq} className="px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    {isSavingEditRfq ? 'Saving...' : 'Save Changes'}
+                                                  </button>
+                                                </div>
+                                              </div>
+
+                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                VENDOR_EMAIL_STATUSES.DECLINED,
+                                                VENDOR_EMAIL_STATUSES.SELECTED,
+                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    Update Purchase Order Record
+                                                  </h6>
+                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                        <option value="Accepted">Accepted</option>
+                                                        <option value="Rejected">Rejected</option>
+                                                        <option value="Sent">Sent</option>
+                                                        <option value="Completed">Completed</option>
+                                                        <option value="Cancelled">Cancelled</option>
+                                                      </select>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                    </div>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              <div className="space-y-1">
+                                                <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
+                                                <div className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: emailLog.body_html }} />
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -8906,7 +9040,7 @@ function PlannerWizardWorkspace() {
                                                       setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
                                                       setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
                                                       setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
-                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : new Date().toISOString().split('T')[0]);
                                                     }
                                                   }
                                                 }
@@ -9681,7 +9815,7 @@ function PlannerWizardWorkspace() {
                                                       setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
                                                       setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
                                                       setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
-                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                      setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : new Date().toISOString().split('T')[0]);
                                                     }
                                                   }
                                                 }
@@ -10360,7 +10494,7 @@ function PlannerWizardWorkspace() {
                                                         setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
                                                         setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
                                                         setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
-                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : new Date().toISOString().split('T')[0]);
                                                       }
                                                     }
                                                   }
@@ -11144,7 +11278,7 @@ function PlannerWizardWorkspace() {
                                                         setPoOutcomeInternalNotes(linkedPo.internal_notes || '');
                                                         setPoOutcomeVendorNotes(linkedPo.vendor_notes || '');
                                                         setPoOutcomeInformedByName(linkedPo.informed_by_name || '');
-                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : '');
+                                                        setPoOutcomeInformedDate(linkedPo.informed_date ? linkedPo.informed_date.split('T')[0] : new Date().toISOString().split('T')[0]);
                                                       }
                                                     }
                                                   }
