@@ -166,7 +166,8 @@ import {
   saveGuideDailyActivitiesAction,
   getDriverDailyActivitiesAction,
   saveDriverDailyActivitiesAction,
-  upsertTransportRequirementAction
+  upsertTransportRequirementAction,
+  saveTransportRequirementVehiclesAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -465,6 +466,11 @@ function PlannerWizardWorkspace() {
   const [poTax, setPoTax] = useState<number>(0);
   const [poMealProvided, setPoMealProvided] = useState<boolean>(false);
   const [poAccommodationProvided, setPoAccommodationProvided] = useState<boolean>(false);
+  // Restaurant-specific PO placeholders
+  const [poDiningOptions, setPoDiningOptions] = useState<string>('');
+  const [poCuisineAvailability, setPoCuisineAvailability] = useState<string>('');
+  const [poRoomBooking, setPoRoomBooking] = useState<string>('');
+  const [poExclusiveBooking, setPoExclusiveBooking] = useState<string>('');
   const [poVendorNotes, setPoVendorNotes] = useState<string>('');
   const [poVendorType, setPoVendorType] = useState<'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant'>('hotel');
 
@@ -490,6 +496,13 @@ function PlannerWizardWorkspace() {
   const [editRfqNotes, setEditRfqNotes] = useState('');
   const [isSavingEditRfq, setIsSavingEditRfq] = useState(false);
   const [editRfqSelected, setEditRfqSelected] = useState<boolean>(false);
+
+  // Restaurant RFQ response fields (stored as JSON inside the notes field)
+  const [rfqServicingHours, setRfqServicingHours] = useState('');
+  const [rfqDiningOptions, setRfqDiningOptions] = useState('');
+  const [rfqCuisineAvailability, setRfqCuisineAvailability] = useState('');
+  const [rfqRoomBooking, setRfqRoomBooking] = useState('');
+  const [rfqExclusiveBooking, setRfqExclusiveBooking] = useState('');
 
   // PO Outcome panel state (shown when RFP email is Declined / Selected / Confirmed)
   const [poOutcomePaymentTerms, setPoOutcomePaymentTerms] = useState('');
@@ -651,6 +664,11 @@ function PlannerWizardWorkspace() {
   const [isGlobalTransportReqEdit, setIsGlobalTransportReqEdit] = useState(false);
   const [globalTransportReq, setGlobalTransportReq] = useState<any>(null);
   const [modalTriggerRect, setModalTriggerRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  // Vehicle picker state inside the transport req modal
+  const [reqPickedVehicles, setReqPickedVehicles] = useState<Array<{ vehicleId: string; vehicleName: string; providerName: string; quantity: number; notes: string }>>([]);
+  const [reqShowVehiclePicker, setReqShowVehiclePicker] = useState(false);
+  const [reqVehicleSearchMake, setReqVehicleSearchMake] = useState('');
+  const [reqVehicleSearchMinYear, setReqVehicleSearchMinYear] = useState<number | ''>('');
 
   const handleUpdateTransportReqField = (blockId: string | null, field: string, value: any) => {
     if (blockId === null) {
@@ -1349,7 +1367,7 @@ function PlannerWizardWorkspace() {
       let label = p?.name || 'Transport Provider';
       let contact = undefined;
       if (v) {
-        label = `${p?.name || ''} - ${v.make_and_model || v.vehicle_type}`;
+        label = `${p?.name || ''} - ${[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type}`;
         if (block.transportQuantity) {
           label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
         }
@@ -4330,6 +4348,10 @@ function PlannerWizardWorkspace() {
     setPoAttachPdf(vType === 'hotel' ? true : false);
     setPoMealProvided(false);
     setPoAccommodationProvided(false);
+    setPoDiningOptions('');
+    setPoCuisineAvailability('');
+    setPoRoomBooking('');
+    setPoExclusiveBooking('');
     setShowPoModal(true);
 
     const sortedStays = [...stays].sort((a, b) => {
@@ -4491,7 +4513,66 @@ function PlannerWizardWorkspace() {
         agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
     }
 
-    const defaultBody = `<p>Dear ${hotel.name} Reservations Team,</p>
+    // Build email body — use a restaurant-specific template for meal blocks
+    let defaultBody: string;
+    if (vType === 'restaurant') {
+      // Derive dining details from the meal activities
+      const firstMeal = sortedStays[0];
+      const mealDate = firstMeal?.service_date ? new Date(firstMeal.service_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : checkInDateFormatted;
+      const paxTotal = (firstMeal?.adults ?? 0) + (firstMeal?.children ?? 0) + (firstMeal?.infants ?? 0);
+      const mealPlan = firstMeal?.meal_plan || 'Lunch';
+      const mealTime = firstMeal?.time_start ? `${firstMeal.time_start}${firstMeal.time_end ? ' – ' + firstMeal.time_end : ''}` : 'To be confirmed';
+      const mealTitle = firstMeal?.title || 'Dining Arrangement';
+
+      const mealRows = sortedStays.map(act => {
+        const qty = act.quantity || paxTotal || 1;
+        const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+        const totalCost = Number(act.contracted_total_price ?? (qty * unitCost));
+        calculatedSubtotal += totalCost;
+        return `<tr>
+          <td style="border: 1px solid #E6E4E0; padding: 6px;">${act.title || act.name || mealPlan}</td>
+          <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: center;">${qty}</td>
+          <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: right;">$${unitCost.toFixed(2)}</td>
+          <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: right;">$${totalCost.toFixed(2)}</td>
+        </tr>`;
+      }).join('');
+
+      // Optional confirmed details block
+      const confirmedDetailLines: string[] = [];
+      if (poDiningOptions) confirmedDetailLines.push(`  <strong>Dining Options:</strong> ${poDiningOptions}<br />`);
+      if (poCuisineAvailability) confirmedDetailLines.push(`  <strong>Cuisine Availability:</strong> ${poCuisineAvailability}<br />`);
+      if (poRoomBooking) confirmedDetailLines.push(`  <strong>Room Booking:</strong> ${poRoomBooking}<br />`);
+      if (poExclusiveBooking) confirmedDetailLines.push(`  <strong>Exclusive Booking:</strong> ${poExclusiveBooking}<br />`);
+      const confirmedDetailsHtml = confirmedDetailLines.length > 0
+        ? `<br /><strong>Confirmed Arrangements:</strong><br />${confirmedDetailLines.join('')}`
+        : '';
+
+      defaultBody = `<p>Dear ${hotel.name || 'F&B'} Team,</p>
+<p>Please find below the formal Purchase Order <strong>${poNumber}</strong> confirming our dining arrangement as detailed:</p>
+<div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
+  <strong>Dining Confirmation Details:</strong><br />
+  Date: ${mealDate}<br />
+  Meal Type: ${mealPlan}<br />
+  Dining Time: ${mealTime}<br />
+  Number of Guests: ${paxTotal} Pax<br />${confirmedDetailsHtml}<br />
+  <strong>Meal / Service Breakdown:</strong><br />
+  <table style="width:100%; border-collapse:collapse; font-size:11px; color:#333; margin-top:8px;">
+    <thead><tr style="background-color:#F5F3EF;">
+      <th style="border:1px solid #E6E4E0; padding:6px; text-align:left;">Service</th>
+      <th style="border:1px solid #E6E4E0; padding:6px; text-align:center;">Pax</th>
+      <th style="border:1px solid #E6E4E0; padding:6px; text-align:right;">Unit Rate</th>
+      <th style="border:1px solid #E6E4E0; padding:6px; text-align:right;">Total</th>
+    </tr></thead>
+    <tbody>${mealRows}</tbody>
+  </table>
+  <br />
+  <strong>Total PO Amount:</strong> $${calculatedSubtotal.toFixed(2)}
+</div>
+<p>Kindly acknowledge receipt and confirm this dining reservation under the agreed rates.</p>
+<p>Thank you for your continued partnership with Nilathra Collection.</p>
+<p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+    } else {
+      defaultBody = `<p>Dear ${hotel.name} Reservations Team,</p>
 <p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> for the guest stays detailed below:</p>
 <div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
   <strong>Reservation Details:</strong><br />
@@ -4508,6 +4589,7 @@ function PlannerWizardWorkspace() {
 <p>Kindly acknowledge receipt and confirm this booking under the agreed contracted rates.</p>
 <p>Thank you for partnering with Nilathra Collection.</p>
 <p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+    }
 
     setPoEmailBodyOriginal(defaultBody);
     setPoEmailBody(defaultBody);
@@ -4825,10 +4907,25 @@ function PlannerWizardWorkspace() {
   const handleSaveInlineRfq = async (emailLog: any) => {
     setIsSavingEditRfq(true);
     try {
+      // For restaurant (meal) RFQ emails, pack the structured response fields into the notes
+      // as JSON so they can be parsed back when the user reopens the details panel.
+      let notesPayload: string | null = editRfqNotes || null;
+      if (emailLog.vendor_type === 'meal') {
+        const structured = {
+          general: editRfqNotes || '',
+          servicing_hours: rfqServicingHours || '',
+          dining_options: rfqDiningOptions || '',
+          cuisine_availability: rfqCuisineAvailability || '',
+          room_booking: rfqRoomBooking || '',
+          exclusive_booking: rfqExclusiveBooking || '',
+        };
+        notesPayload = JSON.stringify(structured);
+      }
+
       const updates = {
         status: editRfqStatus,
         quoted_price: editRfqQuotedPrice ? Number(editRfqQuotedPrice) : null,
-        notes: editRfqNotes || null,
+        notes: notesPayload,
         selected_vendor: editRfqSelected
       };
 
@@ -4899,11 +4996,13 @@ function PlannerWizardWorkspace() {
     }
   };
 
-  const handleSavePoOutcome = async (poId: string) => {
+  const handleSavePoOutcome = async (emailLog: any) => {
+    const poId = emailLog?.purchase_order_id;
     if (!poId) return;
     setIsSavingPoOutcome(true);
     try {
-      const updates: any = {
+      // 1. Update purchase_orders with outcome fields
+      const poUpdates: any = {
         status: poOutcomeStatus,
         payment_terms: poOutcomePaymentTerms || null,
         internal_notes: poOutcomeInternalNotes || null,
@@ -4911,8 +5010,32 @@ function PlannerWizardWorkspace() {
         informed_by_name: poOutcomeInformedByName || null,
         informed_date: poOutcomeInformedDate || null,
       };
-      const res = await updatePurchaseOrderAction(poId, updates);
-      if (!res.success) throw new Error((res as any).error || 'Failed to update PO.');
+      const poRes = await updatePurchaseOrderAction(poId, poUpdates);
+      if (!poRes.success) throw new Error((poRes as any).error || 'Failed to update PO.');
+
+      // 2. Also update tour_rfp_emails with the current bid status and selected flag
+      // For restaurant (meal) RFP emails, serialize the structured response fields into notes as JSON
+      let rfpNotesPayload: string | null = editRfqNotes || null;
+      if (emailLog.vendor_type === 'meal' || rfqServicingHours || rfqDiningOptions || rfqCuisineAvailability || rfqRoomBooking || rfqExclusiveBooking) {
+        const structured = {
+          general: editRfqNotes || '',
+          servicing_hours: rfqServicingHours || '',
+          dining_options: rfqDiningOptions || '',
+          cuisine_availability: rfqCuisineAvailability || '',
+          room_booking: rfqRoomBooking || '',
+          exclusive_booking: rfqExclusiveBooking || '',
+        };
+        rfpNotesPayload = JSON.stringify(structured);
+      }
+      const rfpUpdates = {
+        status: editRfqStatus,
+        quoted_price: editRfqQuotedPrice ? Number(editRfqQuotedPrice) : null,
+        notes: rfpNotesPayload,
+        selected_vendor: editRfqSelected,
+      };
+      const rfpRes = await updateEmailProposalAction(emailLog.id, false /* isRfq=false */, rfpUpdates);
+      if (!rfpRes.success) throw new Error((rfpRes as any).error || 'Failed to update RFP email record.');
+
       await loadProcurementData(tourId);
     } catch (err: any) {
       alert('Error saving PO outcome: ' + err.message);
@@ -8093,7 +8216,7 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
                                                   <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
                                                       {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
                                                     </button>
                                                   </div>
@@ -8507,8 +8630,25 @@ function PlannerWizardWorkspace() {
                                                   setEditingRfq(emailLog);
                                                   setEditRfqStatus((emailLog.status || 'Sent') as any);
                                                   setEditRfqQuotedPrice(emailLog.quoted_price || 0);
-                                                  setEditRfqNotes(emailLog.notes || '');
                                                   setEditRfqSelected(!!emailLog.selected_vendor);
+                                                  // Parse notes — may be plain text or JSON (for meal emails)
+                                                  if (block.block_type === 'meal' && emailLog.notes) {
+                                                    try {
+                                                      const parsed = JSON.parse(emailLog.notes);
+                                                      setEditRfqNotes(parsed.general || '');
+                                                      setRfqServicingHours(parsed.servicing_hours || '');
+                                                      setRfqDiningOptions(parsed.dining_options || '');
+                                                      setRfqCuisineAvailability(parsed.cuisine_availability || '');
+                                                      setRfqRoomBooking(parsed.room_booking || '');
+                                                      setRfqExclusiveBooking(parsed.exclusive_booking || '');
+                                                    } catch {
+                                                      setEditRfqNotes(emailLog.notes || '');
+                                                      setRfqServicingHours(''); setRfqDiningOptions(''); setRfqCuisineAvailability(''); setRfqRoomBooking(''); setRfqExclusiveBooking('');
+                                                    }
+                                                  } else {
+                                                    setEditRfqNotes(emailLog.notes || '');
+                                                    setRfqServicingHours(''); setRfqDiningOptions(''); setRfqCuisineAvailability(''); setRfqRoomBooking(''); setRfqExclusiveBooking('');
+                                                  }
                                                   // Pre-populate PO outcome state for RFP emails
                                                   if (emailLog.logType === 'RFP' && emailLog.purchase_order_id) {
                                                     const linkedPo = purchaseOrders.find((p: any) => p.id === emailLog.purchase_order_id);
@@ -8553,11 +8693,37 @@ function PlannerWizardWorkspace() {
                                                   <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
                                                     <input type="checkbox" id={`rst-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
                                                     <label htmlFor={`rst-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this restaurant</label>
-                                                  </div>
-                                                  <div className="col-span-1 sm:col-span-2">
-                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes</label>
-                                                    <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
-                                                  </div>
+                                                   </div>
+                                                   {/* Restaurant response fields — shown for meal-type emails */}
+                                                   {block.block_type === 'meal' && (<>
+                                                     <div className="col-span-1 sm:col-span-2">
+                                                       <p className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider mb-2 pt-1 border-t border-neutral-100">Restaurant Response Details <span className="font-normal text-neutral-400 normal-case">(optional)</span></p>
+                                                     </div>
+                                                     <div>
+                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Servicing Hours</label>
+                                                       <input type="text" value={rfqServicingHours} onChange={e => setRfqServicingHours(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. 12:00 – 22:00" />
+                                                     </div>
+                                                     <div>
+                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Dining Options</label>
+                                                       <input type="text" value={rfqDiningOptions} onChange={e => setRfqDiningOptions(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. À la carte, set menu" />
+                                                     </div>
+                                                     <div>
+                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cuisine Availability</label>
+                                                       <input type="text" value={rfqCuisineAvailability} onChange={e => setRfqCuisineAvailability(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. Sri Lankan, European, Chinese" />
+                                                     </div>
+                                                     <div>
+                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Room Booking</label>
+                                                       <input type="text" value={rfqRoomBooking} onChange={e => setRfqRoomBooking(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. Private room available for 10+ pax" />
+                                                     </div>
+                                                     <div>
+                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Exclusive Booking</label>
+                                                       <input type="text" value={rfqExclusiveBooking} onChange={e => setRfqExclusiveBooking(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. USD 5,000 for full venue exclusivity" />
+                                                     </div>
+                                                   </>)}
+                                                   <div className="col-span-1 sm:col-span-2">
+                                                     <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">General Notes</label>
+                                                     <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
+                                                   </div>
                                                 </div>
                                                 <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
                                                   <button type="button" onClick={() => { setExpandedEmailId(null); setEditingRfq(null); }} className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors">Cancel</button>
@@ -8611,7 +8777,7 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
                                                   <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
                                                       {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
                                                     </button>
                                                   </div>
@@ -9134,7 +9300,7 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
                                                   <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
                                                       {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
                                                     </button>
                                                   </div>
@@ -9551,25 +9717,6 @@ function PlannerWizardWorkspace() {
                                 </div>
                               )}
 
-                              {/* Provider Fleet Summary */}
-                              {provider && provider.transport_vehicles && provider.transport_vehicles.length > 0 && (
-                                <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-4 space-y-2">
-                                  <h5 className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Available Fleet</h5>
-                                  <div className="flex flex-wrap gap-2">
-                                    {provider.transport_vehicles.map((v: any) => (
-                                      <div key={v.id} className="bg-white border border-amber-150 rounded-xl px-3 py-2 flex flex-col gap-0.5 shadow-sm">
-                                        <span className="text-[10px] font-bold text-neutral-800">{v.vehicle_type}</span>
-                                        {v.make_and_model && <span className="text-[9px] text-neutral-400">{v.make_and_model}</span>}
-                                        <div className="flex gap-2 mt-0.5">
-                                          {v.day_rate && <span className="text-[9px] font-bold text-amber-700">${v.day_rate}/day</span>}
-                                          {v.km_rate && <span className="text-[9px] font-bold text-neutral-500">${v.km_rate}/km</span>}
-                                          {v.with_driver && <span className="text-[9px] font-bold text-emerald-700">Incl. Driver</span>}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
 
                               {/* Travel Leg Rows — grouped and aggregated by day number */}
                               {(() => {
@@ -9909,7 +10056,7 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
                                                   <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
                                                       {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
                                                     </button>
                                                   </div>
@@ -10660,7 +10807,7 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
                                                   <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
                                                       {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
                                                     </button>
                                                   </div>
@@ -11444,7 +11591,7 @@ function PlannerWizardWorkspace() {
                                                     </div>
                                                   </div>
                                                   <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog.purchase_order_id!)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
                                                       {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
                                                     </button>
                                                   </div>
@@ -15229,7 +15376,7 @@ function PlannerWizardWorkspace() {
                                             className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isVehicleSelected ? 'border-emerald-800 bg-emerald-50/5 shadow-sm' : 'border-neutral-200 hover:border-neutral-350'}`}
                                           >
                                             <div>
-                                              <p className="text-xs font-bold text-neutral-800">{v.make_and_model || v.vehicle_type}</p>
+                                              <p className="text-xs font-bold text-neutral-800">{[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type}</p>
                                               <p className="text-[9px] text-neutral-400 font-medium uppercase tracking-tight mt-0.5">{v.vehicle_type} &bull; {v.with_driver ? 'Driver Included' : 'No Driver'}</p>
                                             </div>
                                             <div className="text-right">
@@ -17031,6 +17178,35 @@ function PlannerWizardWorkspace() {
                     </div>
                   </div>
 
+                  {/* Restaurant-specific confirmed details — shown only for restaurant POs */}
+                  {poVendorType === 'restaurant' && (
+                    <div className="space-y-3 pt-2 border-t border-neutral-100">
+                      <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                        Confirmed Dining Details <span className="font-normal normal-case text-neutral-300">(optional — included in PO email if filled)</span>
+                      </span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Dining Options</label>
+                          <input type="text" value={poDiningOptions} onChange={e => setPoDiningOptions(e.target.value)} placeholder="e.g. À la carte, set menu, buffet" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Cuisine Availability</label>
+                          <input type="text" value={poCuisineAvailability} onChange={e => setPoCuisineAvailability(e.target.value)} placeholder="e.g. Sri Lankan, European, Chinese" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Room Booking <span className="font-normal text-neutral-300 normal-case">(optional)</span></label>
+                          <input type="text" value={poRoomBooking} onChange={e => setPoRoomBooking(e.target.value)} placeholder="e.g. Private dining room confirmed for 10 pax" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Exclusive Booking <span className="font-normal text-neutral-300 normal-case">(optional)</span></label>
+                          <input type="text" value={poExclusiveBooking} onChange={e => setPoExclusiveBooking(e.target.value)} placeholder="e.g. Venue exclusively booked — USD 5,000" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Agreed Inclusions — only relevant for hotel / guide / driver POs, not restaurants */}
+                  {poVendorType !== 'restaurant' && (
                   <div className="space-y-2 pt-2 border-t border-neutral-100">
                     <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
                       Agreed Inclusions
@@ -17062,6 +17238,7 @@ function PlannerWizardWorkspace() {
                       </label>
                     </div>
                   </div>
+                  )}
 
                   <div className="space-y-2 pt-2 border-t border-neutral-100">
                     <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
@@ -17857,9 +18034,12 @@ function PlannerWizardWorkspace() {
                   <div>
                     <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Model Year / Manufacture Date</label>
                     <input
-                      type="date"
+                      type="number"
+                      min={1980}
+                      max={new Date().getFullYear() + 1}
+                      placeholder={`e.g. ${new Date().getFullYear()}`}
                       value={reqObj.vehicle_model_year || ''}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_model_year', e.target.value)}
+                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_model_year', e.target.value ? parseInt(e.target.value) : '')}
                       className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
                     />
                   </div>
@@ -17985,6 +18165,139 @@ function PlannerWizardWorkspace() {
 
               </div>
 
+              {/* ── Specific Vehicle Assignments ─────────────────────────────── */}
+              <div className="border-t border-neutral-100 pt-4 px-6 pb-2">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Specific Vehicle Assignments</span>
+                  <button
+                    type="button"
+                    onClick={() => setReqShowVehiclePicker(p => !p)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    {reqShowVehiclePicker ? 'Close Picker' : 'Search & Pick Vehicles'}
+                  </button>
+                </div>
+
+                {reqShowVehiclePicker && (() => {
+                  const allVehicles: Array<{ vehicle: any; provider: any }> = (masterData.transportProviders || []).flatMap(
+                    (p: any) => (p.transport_vehicles || []).map((v: any) => ({ vehicle: v, provider: p }))
+                  );
+                  const filtered = allVehicles.filter(({ vehicle }) => {
+                    const makeMatch = !reqVehicleSearchMake ||
+                      (vehicle.make || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase()) ||
+                      (vehicle.make_and_model || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase());
+                    const yearMatch = !reqVehicleSearchMinYear ||
+                      !vehicle.year_of_manufacture ||
+                      vehicle.year_of_manufacture >= Number(reqVehicleSearchMinYear);
+                    return makeMatch && yearMatch;
+                  });
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Filter by Make</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Toyota"
+                            value={reqVehicleSearchMake}
+                            onChange={e => setReqVehicleSearchMake(e.target.value)}
+                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Min Year (≥)</label>
+                          <input
+                            type="number"
+                            min={1980}
+                            max={new Date().getFullYear() + 1}
+                            placeholder="e.g. 2018"
+                            value={reqVehicleSearchMinYear}
+                            onChange={e => setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value) : '')}
+                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="max-h-52 overflow-y-auto border border-neutral-200 rounded-2xl divide-y divide-neutral-100">
+                        {filtered.length === 0 ? (
+                          <p className="text-center text-[10px] text-neutral-400 py-6">No vehicles match the filters above.</p>
+                        ) : filtered.map(({ vehicle, provider }) => {
+                          const alreadyPicked = reqPickedVehicles.find(pv => pv.vehicleId === vehicle.id);
+                          const vehicleName = [[vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model || '', vehicle.vehicle_type].filter(Boolean).join(' \u2013 ');
+                          return (
+                            <div key={vehicle.id} className={`px-3 py-2.5 transition-colors ${alreadyPicked ? 'bg-emerald-50' : 'hover:bg-neutral-50'}`}>
+                              <div className="flex items-start gap-2.5">
+                                <input
+                                  type="checkbox"
+                                  id={`vpick-${vehicle.id}`}
+                                  checked={!!alreadyPicked}
+                                  onChange={e => {
+                                    if (e.target.checked) {
+                                      setReqPickedVehicles(prev => [...prev, { vehicleId: vehicle.id, vehicleName, providerName: provider.name, quantity: 1, notes: '' }]);
+                                    } else {
+                                      setReqPickedVehicles(prev => prev.filter(pv => pv.vehicleId !== vehicle.id));
+                                    }
+                                  }}
+                                  className="mt-0.5 w-3.5 h-3.5 rounded text-emerald-800 border-neutral-300 flex-shrink-0"
+                                />
+                                <label htmlFor={`vpick-${vehicle.id}`} className="flex-1 cursor-pointer min-w-0">
+                                  <p className="text-[11px] font-bold text-neutral-800 leading-tight">{vehicleName}</p>
+                                  <p className="text-[10px] text-neutral-400">{provider.name}{vehicle.vehicle_number ? ` \u00b7 ${vehicle.vehicle_number}` : ''}{vehicle.year_of_manufacture ? ` \u00b7 ${vehicle.year_of_manufacture}` : ''}</p>
+                                </label>
+                              </div>
+                              {alreadyPicked && (
+                                <div className="mt-2 ml-6 grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Qty</label>
+                                    <input
+                                      type="number" min={1}
+                                      value={alreadyPicked.quantity}
+                                      onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, quantity: parseInt(e.target.value) || 1 } : pv))}
+                                      className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Note</label>
+                                    <input
+                                      type="text" placeholder="Optional note..."
+                                      value={alreadyPicked.notes}
+                                      onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, notes: e.target.value } : pv))}
+                                      className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {reqPickedVehicles.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">{reqPickedVehicles.length} Vehicle{reqPickedVehicles.length > 1 ? 's' : ''} Selected</span>
+                    {reqPickedVehicles.map(pv => (
+                      <div key={pv.vehicleId} className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold text-emerald-900 truncate">{pv.vehicleName}</p>
+                          <p className="text-[10px] text-emerald-600">{pv.providerName} · Qty: {pv.quantity}{pv.notes ? ` · ${pv.notes}` : ''}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReqPickedVehicles(prev => prev.filter(x => x.vehicleId !== pv.vehicleId))}
+                          className="ml-2 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Modal Footer */}
               <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex justify-end gap-2.5">
                 <button
@@ -18086,11 +18399,24 @@ function PlannerWizardWorkspace() {
                       alert('Failed to save specifications: ' + (error || 'Unknown error'));
                     }
 
+                    // Also save vehicle assignments to the junction table
+                    if (reqPickedVehicles.length > 0) {
+                      await saveTransportRequirementVehiclesAction(
+                        requirementId,
+                        reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
+                      );
+                    }
+
                     setShowTransportReqModal(false);
                     setIsGlobalTransportReqEdit(false);
                     setSelectedTransportBlock(null);
                     setGlobalTransportReq(null);
                     setModalTriggerRect(null);
+                    // Reset picker state
+                    setReqPickedVehicles([]);
+                    setReqShowVehiclePicker(false);
+                    setReqVehicleSearchMake('');
+                    setReqVehicleSearchMinYear('');
                   }}
                   className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold transition-all shadow-sm"
                 >

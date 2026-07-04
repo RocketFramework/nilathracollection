@@ -782,7 +782,7 @@ export function ItineraryBuilder({
                 const p = masterData.transportProviders.find((x:any) => x.id === fields.transportId || x.transport_vehicles?.some((v:any) => v.id === fields.vehicleId));
                 if (p) {
                     const v = p.transport_vehicles?.find((vx:any) => vx.id === fields.vehicleId);
-                    if (v) transportUpdates.vehicleNumber = v.vehicle_number || v.make_and_model || '';
+                    if (v) transportUpdates.vehicleNumber = v.vehicle_number || [v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || '';
                 }
             }
             
@@ -1317,7 +1317,7 @@ export function ItineraryBuilder({
             let label = p?.name || 'Transport Provider';
             let contact = undefined;
             if (v) {
-                label = `${p?.name || ''} - ${v.make_and_model || v.vehicle_type}`;
+                label = `${p?.name || ''} - ${[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type}`;
                 if (block.transportQuantity) {
                     label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
                 }
@@ -1510,7 +1510,7 @@ export function ItineraryBuilder({
                                 >
                                     <option value="">Unassigned</option>
                                     {masterData.transportProviders.find(p => p.id === tripData.defaultTransportId)?.transport_vehicles?.map(v => (
-                                        <option key={v.id} value={v.id}>{v.make_and_model || v.vehicle_type} ({v.vehicle_number})</option>
+                                        <option key={v.id} value={v.id}>{[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type} ({v.vehicle_number})</option>
                                     ))}
                                 </select>
                             </div>
@@ -2864,7 +2864,7 @@ export function ItineraryBuilder({
                                                                                 >
                                                                                     <div className="flex justify-between items-start w-full">
                                                                                         <div className="flex-1">
-                                                                                            <p className="text-xs font-bold text-neutral-800">{v.make_and_model || v.vehicle_type}</p>
+                                                                                            <p className="text-xs font-bold text-neutral-800">{[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type}</p>
                                                                                             <div className="flex items-center gap-2 mt-1">
                                                                                                 <span className="text-[9px] bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-500 font-bold uppercase tracking-wider">{v.vehicle_number}</span>
                                                                                                 {v.with_driver && <span className="text-[9px] bg-green-100 px-1.5 py-0.5 rounded text-green-600 font-bold uppercase">Incl. Driver</span>}

@@ -260,7 +260,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
         let label = p?.name || 'Transport';
         if (v) {
-          label = `${p?.name || ''} — ${v.make_and_model || v.vehicle_type}`;
+          label = `${p?.name || ''} — ${[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type}`;
           if (block.transportQuantity) {
             label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
           }

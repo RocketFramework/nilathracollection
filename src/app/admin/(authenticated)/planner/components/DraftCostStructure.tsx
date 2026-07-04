@@ -162,8 +162,8 @@ export function DraftCostStructure({ tripData, updateData }: Props) {
                     const vehicle = provider.transport_vehicles?.find((v: any) => v.id === targetVehicleId);
                     if (vehicle) {
                         kmRate = vehicle.km_rate || 0;
-                        if (vehicle.make_and_model) {
-                            vehicleDetails = `${vehicle.make_and_model} (${vehicle.vehicle_type})`;
+                        if ([vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model) {
+                            vehicleDetails = `${[vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model} (${vehicle.vehicle_type})`;
                         } else if (vehicle.vehicle_type) {
                             // Format mode text
                             const modeParts = vehicle.vehicle_type.split('_');

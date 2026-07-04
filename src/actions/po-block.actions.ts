@@ -136,3 +136,16 @@ export async function upsertTransportRequirementAction(tourId: string, requireme
         return { success: false, error: error.message || "Failed to save transport specifications." };
     }
 }
+
+export async function saveTransportRequirementVehiclesAction(
+    requirementId: string,
+    vehicles: Array<{ vehicle_id: string; quantity: number; notes?: string }>
+) {
+    try {
+        await POBlockService.saveTransportRequirementVehicles(requirementId, vehicles);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving transport requirement vehicles:", error);
+        return { success: false, error: error.message || "Failed to save vehicle assignments." };
+    }
+}

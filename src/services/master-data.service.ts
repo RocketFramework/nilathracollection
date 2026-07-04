@@ -70,7 +70,10 @@ export interface TransportVehicle {
     id?: string;
     provider_id?: string;
     vehicle_type: string;
-    make_and_model?: string;
+    make?: string;
+    model?: string;
+    make_and_model?: string; // legacy — kept for backward compatibility
+    max_seat_capacity?: number; // excludes driver
     year_of_manufacture?: number;
     vehicle_number?: string;
     with_driver?: boolean;
@@ -546,10 +549,14 @@ export class MasterDataService {
 
         if (transport_vehicles && transport_vehicles.length > 0 && savedProviderId) {
             const mappedVehicles = transport_vehicles.map(v => ({
-                id: v.id || crypto.randomUUID(), // Persist ID for upsert logic or generate new UUID to satisfy not-null constraint
+                id: v.id || crypto.randomUUID(),
                 provider_id: savedProviderId,
                 vehicle_type: v.vehicle_type,
-                make_and_model: v.make_and_model,
+                make: v.make || null,
+                model: v.model || null,
+                // Keep make_and_model in sync for any legacy consumers
+                make_and_model: [v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || null,
+                max_seat_capacity: v.max_seat_capacity ?? null,
                 year_of_manufacture: v.year_of_manufacture,
                 vehicle_number: v.vehicle_number,
                 with_driver: v.with_driver !== undefined ? v.with_driver : true,

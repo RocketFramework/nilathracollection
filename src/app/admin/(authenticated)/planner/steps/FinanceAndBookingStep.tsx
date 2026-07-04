@@ -1085,7 +1085,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                             const vehicleData = providerData.transport_vehicles.find((v: any) => v.id === act.vehicle_id);
                             if (vehicleData) {
                                 const type = vehicleData.vehicle_type || '';
-                                const brandModel = vehicleData.make_and_model || '';
+                                const brandModel = [vehicleData.make, vehicleData.model].filter(Boolean).join(' ') || vehicleData.make_and_model || '';
                                 const plate = vehicleData.vehicle_number ? `(Plate: ${vehicleData.vehicle_number})` : '';
                                 specialNotes = `Assigned Vehicle: ${type} ${brandModel} ${plate}`.trim();
                             }

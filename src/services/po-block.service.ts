@@ -693,4 +693,36 @@ export class POBlockService {
         if (error) throw error;
         return upserted;
     }
+
+    /**
+     * Replaces all vehicle assignments for a transport requirement in the junction table.
+     * Deletes existing rows then inserts the new set atomically.
+     */
+    static async saveTransportRequirementVehicles(
+        requirementId: string,
+        vehicles: Array<{ vehicle_id: string; quantity: number; notes?: string }>
+    ): Promise<void> {
+        const adminSupabase = createAdminClient();
+
+        // Delete all existing assignments for this requirement
+        const { error: delErr } = await adminSupabase
+            .from('transport_requirement_vehicles')
+            .delete()
+            .eq('requirement_id', requirementId);
+        if (delErr) throw delErr;
+
+        // Insert new assignments (skip if none selected)
+        if (vehicles.length > 0) {
+            const payload = vehicles.map(v => ({
+                requirement_id: requirementId,
+                vehicle_id: v.vehicle_id,
+                quantity: v.quantity || 1,
+                notes: v.notes || null,
+            }));
+            const { error: insErr } = await adminSupabase
+                .from('transport_requirement_vehicles')
+                .insert(payload);
+            if (insErr) throw insErr;
+        }
+    }
 }

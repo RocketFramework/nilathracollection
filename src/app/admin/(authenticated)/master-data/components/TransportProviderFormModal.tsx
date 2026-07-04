@@ -266,8 +266,53 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                                             </select>
                                         </div>
                                         <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Make and Model</label>
-                                            <input type="text" placeholder="e.g. Toyota Hiace" className="w-full outline-none text-brand-charcoal font-medium" value={vehicle.make_and_model || ''} onChange={e => updateVehicle(index, 'make_and_model', e.target.value)} />
+                                            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Make</label>
+                                            <input
+                                                type="text"
+                                                list={`make-list-${index}`}
+                                                placeholder="e.g. Toyota"
+                                                className="w-full outline-none text-brand-charcoal font-medium bg-transparent"
+                                                value={vehicle.make || ''}
+                                                onChange={e => updateVehicle(index, 'make', e.target.value)}
+                                            />
+                                            <datalist id={`make-list-${index}`}>
+                                                {['Toyota','Honda','Nissan','Mitsubishi','Suzuki','Isuzu','Hyundai','KIA','Mercedes-Benz','BMW','Audi','Volkswagen','Ford','Mazda','Tata','Volvo','Coaster','BYD','Renault','Peugeot'].map(m => (
+                                                    <option key={m} value={m} />
+                                                ))}
+                                            </datalist>
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Model</label>
+                                            <input
+                                                type="text"
+                                                list={`model-list-${index}`}
+                                                placeholder="e.g. Hiace"
+                                                className="w-full outline-none text-brand-charcoal font-medium bg-transparent"
+                                                value={vehicle.model || ''}
+                                                onChange={e => updateVehicle(index, 'model', e.target.value)}
+                                            />
+                                            <datalist id={`model-list-${index}`}>
+                                                {(({
+                                                    'Toyota': ['Land Cruiser','Prado','Alphard','Vellfire','Hiace','Coaster','HiAce Commuter','Fortuner','Innova','Corolla','Camry'],
+                                                    'Honda': ['Vezel','HR-V','CR-V','Odyssey','Accord','Civic','StepWGN'],
+                                                    'Nissan': ['Patrol','Safari','Caravan','X-Trail','Navara'],
+                                                    'Mitsubishi': ['Montero Sport','Pajero','Delica','Outlander','Rosa'],
+                                                    'Suzuki': ['Jimny','Swift','Ertiga','Grand Vitara'],
+                                                    'Mercedes-Benz': ['V-Class','Sprinter','S-Class','GLE','GLS','C-Class'],
+                                                    'BMW': ['7 Series','5 Series','X5','X7'],
+                                                    'Volkswagen': ['Multivan','Caravelle','Touareg'],
+                                                    'Hyundai': ['H1','Staria','Santa Fe','Tucson'],
+                                                    'KIA': ['Carnival','Sorento','Sportage'],
+                                                    'Isuzu': ['D-Max','MU-X','NLR'],
+                                                    'Volvo': ['B7R','9400','FH'],
+                                                })[vehicle.make || ''] || [
+                                                    'Land Cruiser','Hiace','Alphard','Sprinter','Carnival','Prado','H1','Coaster','Vellfire'
+                                                ]).map((m: string) => <option key={m} value={m} />)}
+                                            </datalist>
+                                        </div>
+                                        <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Max Seat Capacity <span className="font-normal normal-case text-neutral-400">(excl. driver)</span></label>
+                                            <input type="number" min="1" placeholder="e.g. 7" className="w-full outline-none text-brand-charcoal font-medium" value={vehicle.max_seat_capacity || ''} onChange={e => updateVehicle(index, 'max_seat_capacity', e.target.value ? parseInt(e.target.value) : undefined)} />
                                         </div>
                                         <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                             <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Year of Manufacture</label>
