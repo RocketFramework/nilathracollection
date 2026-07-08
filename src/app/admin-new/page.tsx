@@ -180,7 +180,7 @@ import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
-import { generateHotelPoPdf } from '@/utils/po-pdf';
+import { generateHotelPoPdf, generateTransportPoPdf } from '@/utils/po-pdf';
 
 interface StepItem {
   id: string;
@@ -4629,7 +4629,64 @@ function PlannerWizardWorkspace() {
 <p>Thank you for your continued partnership with Nilathra Collection.</p>
 <p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
     } else if (vType === 'transport_provider') {
-      // ── TRANSPORT PO body — group travel legs by day, one row per day ──────
+      // ── TRANSPORT PO body — professional, matches RFQ template quality ──────
+
+      // Pull transport_requirement from the po_block (has nested vehicle pricing)
+      const poBlock = poBlocks.find((b: any) => b.id === blockId);
+      const tpReq = (poBlock?.transport_requirement || sortedStays[0]?.transport_requirement || {}) as any;
+      const tpReqVehicles: any[] = tpReq.transport_requirement_vehicles || [];
+
+      const formatModelYear = (dateStr: string) => {
+        if (!dateStr) return 'Any Year';
+        try { const d = new Date(dateStr); return isNaN(d.getTime()) ? dateStr : String(d.getFullYear()); }
+        catch { return dateStr; }
+      };
+
+      // Build vehicle specs row if available
+      const vehicleSpecRows = tpReqVehicles.length > 0
+        ? tpReqVehicles.map((rv: any) => {
+            const v = rv.vehicle || {};
+            const label = [v.make_and_model || v.make || tpReq.vehicle_make || 'Vehicle', v.vehicle_type ? `(${v.vehicle_type})` : ''].filter(Boolean).join(' ');
+            const qty = rv.quantity || 1;
+            const dayRate = Number(v.day_rate) || 0;
+            return `<tr>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;">${label}</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">${qty}</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;">${formatModelYear(tpReq.vehicle_model_year || '')}</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">${dayRate > 0 ? `$${dayRate.toFixed(2)} / day` : 'As quoted'}</td>
+            </tr>`;
+          }).join('')
+        : `<tr><td colspan="4" style="border:1px solid #E6E4E0;padding:6px 10px;color:#888;">As per quotation</td></tr>`;
+
+      const vehicleSpecsHtml = `
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Agreed Vehicle Details</p>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
+    <thead><tr style="background-color:#EAE8E4;">
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Vehicle</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;width:50px;">Qty</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;width:90px;">Model Year</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">Day Rate</th>
+    </tr></thead>
+    <tbody>${vehicleSpecRows}</tbody>
+  </table>
+</div>`;
+
+      // Chauffeur details block
+      const chauffeurLines: string[] = [];
+      if (tpReq.chauffeur_required !== false) chauffeurLines.push(`<li><strong>Chauffeur:</strong> Required</li>`);
+      if (tpReq.chauffeur_speak_english !== false) chauffeurLines.push(`<li><strong>English Speaking:</strong> Yes</li>`);
+      if (tpReq.chauffeur_other_languages) chauffeurLines.push(`<li><strong>Other Languages:</strong> ${tpReq.chauffeur_other_languages}</li>`);
+      if (tpReq.chauffeur_accommodation_needed) chauffeurLines.push(`<li><strong>Chauffeur Accommodation:</strong> To be arranged (cost included)</li>`);
+      if (tpReq.chauffeur_meal_needed) chauffeurLines.push(`<li><strong>Chauffeur Meals:</strong> To be arranged (cost included)</li>`);
+
+      const chauffeurHtml = chauffeurLines.length > 0 ? `
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Chauffeur Requirements</p>
+  <ul style="margin:0;padding-left:16px;font-size:12px;color:#333;line-height:1.7;">${chauffeurLines.join('')}</ul>
+</div>` : '';
+
+      // Group legs by day
       const tpDayGroups: Record<string, any[]> = {};
       for (const leg of sortedStays) {
         const key = leg.service_date
@@ -4653,15 +4710,12 @@ function PlannerWizardWorkspace() {
           const to = last.dropoff_location || last.destination_location || last.location_name || 'Destination';
           const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
 
-          // Compute day rate from vehicle pricing nested on the first leg's transport_requirement
+          // Day rate from vehicle pricing
           let dayRate = 0;
-          const req = (first.transport_requirement || {}) as any;
-          const reqVehicles: any[] = req.transport_requirement_vehicles || [];
-          for (const rv of reqVehicles) {
+          for (const rv of tpReqVehicles) {
             const v = rv.vehicle || {};
             dayRate += (Number(v.day_rate) || 0) * (Number(rv.quantity) || 1);
           }
-          // Fallback: use contracted_total_price summed across legs if no vehicle pricing
           if (dayRate === 0) {
             dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
           }
@@ -4678,12 +4732,50 @@ function PlannerWizardWorkspace() {
 
       calculatedSubtotal = tpSubtotal;
       const tpTotalDisplay = tpSubtotal > 0 ? `$${tpSubtotal.toFixed(2)}` : 'As per quotation';
+      const durationDays = Object.keys(tpDayGroups).length;
 
-      defaultBody = `<p>Dear ${hotel.name} Team,</p>
-<p>Please find below the formal Purchase Order <strong>${poNumber}</strong> confirming the transport arrangement for our guest itinerary:</p>
-<div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
-  <strong>Transport Schedule:</strong><br /><br />
-  <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
+      defaultBody = `
+<p style="margin:0 0 12px;font-size:13px;color:#1B3A2D;">Dear <strong>${hotel.name}</strong> Team,</p>
+<p style="margin:0 0 12px;font-size:13px;color:#333;">
+  Please find below the formal Purchase Order <strong>${poNumber}</strong> issued by Nilathra Collection
+  confirming the transport arrangement for our guest itinerary. Kindly review, acknowledge, and
+  confirm your acceptance of the terms herein.
+</p>
+
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Purchase Order Summary</p>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
+    <tbody>
+      <tr>
+        <td style="padding:4px 8px;width:40%;color:#555;font-weight:600;">PO Number</td>
+        <td style="padding:4px 8px;"><strong>${poNumber}</strong></td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Transport Provider</td>
+        <td style="padding:4px 8px;">${hotel.name}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Engagement Duration</td>
+        <td style="padding:4px 8px;">${durationDays} Day${durationDays !== 1 ? 's' : ''}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Number of Vehicles</td>
+        <td style="padding:4px 8px;">${tpReq.number_of_vehicles || tpReqVehicles.reduce((s: number, rv: any) => s + (rv.quantity || 1), 0) || 1}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Total PO Value</td>
+        <td style="padding:4px 8px;"><strong>${tpTotalDisplay}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+${vehicleSpecsHtml}
+${chauffeurHtml}
+
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Confirmed Transport Schedule</p>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
     <thead><tr style="background-color:#EAE8E4;">
       <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Day</th>
       <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Date</th>
@@ -4692,16 +4784,38 @@ function PlannerWizardWorkspace() {
       <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">Day Rate (USD)</th>
     </tr></thead>
     <tbody>${tpRows}</tbody>
+    <tfoot>
+      <tr style="background-color:#EAE8E4;">
+        <td colspan="4" style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:700;">Total PO Amount</td>
+        <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:700;">${tpTotalDisplay}</td>
+      </tr>
+    </tfoot>
   </table>
-  <br />
-  <strong>Total PO Amount:</strong> ${tpTotalDisplay}
   ${agreedInclusionsHtml}
 </div>
-<p>Kindly acknowledge receipt and confirm this transport arrangement under the agreed rates.</p>
-<p>Thank you for your continued partnership with Nilathra Collection.</p>
-<p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+
+<p style="font-size:13px;color:#333;margin:0 0 10px;">
+  The above rates are inclusive of fuel, tolls, and standard driver allowances. Any additional
+  charges for excess kilometres beyond the agreed daily inclusion must be pre-agreed and submitted
+  with supporting documentation.
+</p>
+<p style="font-size:13px;color:#333;margin:0 0 16px;">
+  Kindly sign and return a copy of this Purchase Order to confirm acceptance, or reply to this
+  email with your written confirmation. A signed copy constitutes your agreement to fulfil the
+  above transport arrangement at the rates stated.
+</p>
+
+<p style="font-size:13px;color:#333;margin:0;">
+  Thank you for your continued partnership with Nilathra Collection.<br /><br />
+  Warm regards,<br />
+  <strong>${agentName}</strong><br />
+  Nilathra Collection — Concierge Operations<br />
+  <span style="color:#888;font-size:11px;">concierge@nilathra.com</span>
+</p>`.trim();
+
 
     } else {
+
       defaultBody = `<p>Dear ${hotel.name} Reservations Team,</p>
 <p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> for the guest stays detailed below:</p>
 <div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
@@ -4745,22 +4859,44 @@ function PlannerWizardWorkspace() {
       const prefix = poVendorType === 'hotel' ? 'HOT' : (poVendorType === 'restaurant' ? 'RES' : (poVendorType === 'tour_guide' ? 'GUI' : (poVendorType === 'driver' ? 'DRI' : (poVendorType === 'transport_provider' ? 'TRA' : 'ACT'))));
       const poNum = poNumMatch ? poNumMatch[0] : `PO-${prefix}-${Date.now().toString().slice(-6)}`;
 
-      const doc = await generateHotelPoPdf(
-        hotel,
-        stays,
-        appSettings,
-        agentName,
-        touristData,
-        {
-          requireSignature: poRequireSignature,
-          signatureImage: poSignatureImage,
-          poNumber: poNum,
-          discount: poDiscount,
-          tax: poTax,
-          mealProvided: poMealProvided,
-          accommodationProvided: poAccommodationProvided
-        }
-      );
+      let doc: any;
+      if (poVendorType === 'transport_provider') {
+        const tpPoBlock = poBlocks.find((b: any) => b.id === poBlockId);
+        const tpReq = tpPoBlock?.transport_requirement || stays[0]?.transport_requirement;
+        doc = await generateTransportPoPdf(
+          hotel,
+          stays,
+          appSettings,
+          agentName,
+          touristData,
+          {
+            requireSignature: poRequireSignature,
+            signatureImage: poSignatureImage,
+            poNumber: poNum,
+            discount: poDiscount,
+            tax: poTax,
+            transportRequirement: tpReq,
+            poBlockId: poBlockId || undefined
+          }
+        );
+      } else {
+        doc = await generateHotelPoPdf(
+          hotel,
+          stays,
+          appSettings,
+          agentName,
+          touristData,
+          {
+            requireSignature: poRequireSignature,
+            signatureImage: poSignatureImage,
+            poNumber: poNum,
+            discount: poDiscount,
+            tax: poTax,
+            mealProvided: poMealProvided,
+            accommodationProvided: poAccommodationProvided
+          }
+        );
+      }
       
       if (doc) {
         doc.save(`${poNum}_${hotel.name.replace(/\s+/g, '_')}.pdf`);
@@ -4859,23 +4995,45 @@ function PlannerWizardWorkspace() {
       let pdfFilename = '';
 
       if (poAttachPdf) {
-        const doc = await generateHotelPoPdf(
-          selectedPoHotel,
-          selectedPoStays,
-          appSettings,
-          agentName,
-          touristData,
-          {
-            requireSignature: poRequireSignature,
-            signatureImage: poSignatureImage,
-            poNumber: poNum,
-            discount: poDiscount,
-            tax: poTax,
-            mealProvided: poMealProvided,
-            accommodationProvided: poAccommodationProvided
-          }
-        );
-        pdfBase64 = doc.output('datauristring').split(',')[1];
+        let pdfDoc: any;
+        if (poVendorType === 'transport_provider') {
+          const tpPoBlock = poBlocks.find((b: any) => b.id === poBlockId);
+          const tpReq = tpPoBlock?.transport_requirement || selectedPoStays[0]?.transport_requirement;
+          pdfDoc = await generateTransportPoPdf(
+            selectedPoHotel,
+            selectedPoStays,
+            appSettings,
+            agentName,
+            touristData,
+            {
+              requireSignature: poRequireSignature,
+              signatureImage: poSignatureImage,
+              poNumber: poNum,
+              discount: poDiscount,
+              tax: poTax,
+              transportRequirement: tpReq,
+              poBlockId: poBlockId || undefined
+            }
+          );
+        } else {
+          pdfDoc = await generateHotelPoPdf(
+            selectedPoHotel,
+            selectedPoStays,
+            appSettings,
+            agentName,
+            touristData,
+            {
+              requireSignature: poRequireSignature,
+              signatureImage: poSignatureImage,
+              poNumber: poNum,
+              discount: poDiscount,
+              tax: poTax,
+              mealProvided: poMealProvided,
+              accommodationProvided: poAccommodationProvided
+            }
+          );
+        }
+        pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
         pdfFilename = `${poNum}.pdf`;
       }
 
