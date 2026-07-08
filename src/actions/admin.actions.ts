@@ -1693,6 +1693,123 @@ export async function getRestaurantRfqTemplateAction() {
 export async function getTransportRfqTemplateAction(tourId: string) {
     try {
         const adminSupabase = createAdminClient();
+
+        // The canonical transport RFQ template.
+        // All {{placeholders}} are replaced client-side in handleOpenRfqModal.
+        const TRANSPORT_RFQ_TEMPLATE_SUBJECT =
+            `Request for Quotation – Transport Services | {{Transport Provider Name}}`;
+
+        const TRANSPORT_RFQ_TEMPLATE_BODY = `
+<p style="margin:0 0 14px;font-family:sans-serif;font-size:13px;color:#1B3A2D;">
+  Dear <strong>{{Transport Provider Name}}</strong> Team,
+</p>
+<p style="margin:0 0 14px;font-family:sans-serif;font-size:13px;color:#333;">
+  On behalf of <strong>Nilathra Collection</strong>, we are writing to request a formal quotation
+  for transport services required for an upcoming guest itinerary. We would appreciate your best
+  available rate for a dedicated chauffeur-driven vehicle as detailed below.
+</p>
+
+<!-- ─── Vehicle Requirements ─────────────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:16px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Vehicle Specifications Required
+  </p>
+  <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
+    <tbody>
+      <tr>
+        <td style="padding:5px 8px;width:45%;color:#555;font-weight:600;">Vehicle Make / Type</td>
+        <td style="padding:5px 8px;">{{Vehicle Make}}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Model Year</td>
+        <td style="padding:5px 8px;">{{Model Year}}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Number of Vehicles</td>
+        <td style="padding:5px 8px;">{{Number of Vehicles}}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Engagement Duration</td>
+        <td style="padding:5px 8px;">{{Vehicle Duration}}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Estimated Total KM</td>
+        <td style="padding:5px 8px;">{{Total Km}} km</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Leather Seats</td>
+        <td style="padding:5px 8px;">{{Leather Seats}}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Vehicle Colour Preference</td>
+        <td style="padding:5px 8px;">{{Vehicle Color}}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Mint / Showroom Condition</td>
+        <td style="padding:5px 8px;">{{Mint Condition}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── Chauffeur Requirements ────────────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:16px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Chauffeur Requirements
+  </p>
+  <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
+    <tbody>
+      <tr>
+        <td style="padding:5px 8px;width:45%;color:#555;font-weight:600;">Chauffeur Required</td>
+        <td style="padding:5px 8px;">{{Chauffeur Required}}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:5px 8px;color:#555;font-weight:600;">English Speaking</td>
+        <td style="padding:5px 8px;">{{English Speaking}}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Other Languages</td>
+        <td style="padding:5px 8px;">{{Other Languages}}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Driver Accommodation</td>
+        <td style="padding:5px 8px;">{{Driver Accommodation}}</td>
+      </tr>
+      <tr>
+        <td style="padding:5px 8px;color:#555;font-weight:600;">Driver Meals</td>
+        <td style="padding:5px 8px;">{{Meal Price}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ─── Itinerary / Route Schedule ───────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:16px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Daily Route Schedule
+  </p>
+  {{Itinerary Details}}
+</div>
+
+<!-- ─── Pricing Request ──────────────────────────────────────────────────── -->
+<p style="font-family:sans-serif;font-size:13px;color:#333;margin:0 0 10px;">
+  Please provide your best competitive rate <strong>per day</strong> inclusive of fuel,
+  tolls, and driver allowances as applicable. Kindly also indicate any additional charges
+  for excess kilometres beyond your standard daily inclusion, and confirm availability for
+  the dates above.
+</p>
+<p style="font-family:sans-serif;font-size:13px;color:#333;margin:0 0 16px;">
+  Please reply at your earliest convenience so we may confirm arrangements with our guest.
+</p>
+
+<p style="font-family:sans-serif;font-size:13px;color:#333;margin:0;">
+  Warm regards,<br />
+  <strong>{{Agent Name}}</strong><br />
+  Nilathra Collection — Concierge Operations<br />
+  <span style="color:#888;font-size:11px;">concierge@nilathra.com</span>
+</p>
+`.trim();
+
         const [templateResult, tourResult] = await Promise.all([
             adminSupabase
                 .from('email_templates')
@@ -1707,16 +1824,72 @@ export async function getTransportRfqTemplateAction(tourId: string) {
         ]);
         if (templateResult.error) throw templateResult.error;
         if (tourResult.error) throw tourResult.error;
-        return { 
-            success: true, 
-            template: templateResult.data, 
-            total_km: tourResult.data?.total_km || 0 
+
+        const dbTemplate = templateResult.data;
+
+        // Detect whether the DB row is missing or still contains guide-specific
+        // content (copied from the guide RFQ template).
+        const body = (dbTemplate?.body_html || '').toLowerCase();
+        const isStale = !dbTemplate ||
+            body.includes('tour guide services') ||
+            body.includes('professional tour guide') ||
+            body.includes('guide services for the following') ||
+            body.includes('{{guide name}}');
+
+        // Best-effort: update the DB row so future loads are correct.
+        // We use UPDATE (not upsert) to avoid needing a unique constraint on name.
+        if (isStale) {
+            if (dbTemplate?.id) {
+                // Row exists but has stale content — update it
+                adminSupabase
+                    .from('email_templates')
+                    .update({
+                        subject: TRANSPORT_RFQ_TEMPLATE_SUBJECT,
+                        body_html: TRANSPORT_RFQ_TEMPLATE_BODY,
+                    })
+                    .eq('id', dbTemplate.id)
+                    .then(({ error }) => {
+                        if (error) console.warn('Could not update transport RFQ template in DB:', error.message);
+                    });
+            } else {
+                // No row yet — insert one
+                adminSupabase
+                    .from('email_templates')
+                    .insert({
+                        name: 'Request for Quote - Transport',
+                        subject: TRANSPORT_RFQ_TEMPLATE_SUBJECT,
+                        body_html: TRANSPORT_RFQ_TEMPLATE_BODY,
+                    })
+                    .then(({ error }) => {
+                        if (error) console.warn('Could not insert transport RFQ template in DB:', error.message);
+                    });
+            }
+
+            // Always return the correct inline template immediately — don't wait for DB
+            return {
+                success: true,
+                template: {
+                    name: 'Request for Quote - Transport',
+                    subject: TRANSPORT_RFQ_TEMPLATE_SUBJECT,
+                    body_html: TRANSPORT_RFQ_TEMPLATE_BODY,
+                },
+                total_km: tourResult.data?.total_km || 0
+            };
+        }
+
+        return {
+            success: true,
+            template: dbTemplate,
+            total_km: tourResult.data?.total_km || 0
         };
+
     } catch (error: any) {
-        console.error("Error fetching Transport RFQ template and tour info:", error);
+        console.error('Error fetching Transport RFQ template and tour info:', error);
         return { success: false, error: error.message };
     }
 }
+
+
 
 export async function getGuideRfqTemplateAction() {
     try {

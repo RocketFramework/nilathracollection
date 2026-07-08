@@ -3655,9 +3655,14 @@ function PlannerWizardWorkspace() {
     const block = itinerary.find(b => b.id === blockId);
     const poBlock = poBlocks.find(b => b.id === blockId);
     const isRestaurant = block?.type === 'meal' || poBlock?.block_type === 'meal' || poBlock?.block_type === 'restaurant' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id);
-    const isGuide = block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id);
-    const isDriver = (block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id);
-    const isTransport = !isGuide && !isDriver && (block?.type === 'travel' || poBlock?.block_type === 'travel' || stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id));
+    // If the po_block is explicitly typed as 'travel', treat it as transport — never guide.
+    // guide_id / driver_id are set on ALL daily_activities for the tour (the guide/driver
+    // accompanies everything), so we must not use those fields alone to decide type.
+    const isExplicitTravelBlock = poBlock?.block_type === 'travel' || block?.type === 'travel';
+    const isGuide  = !isExplicitTravelBlock && (block?.type === 'guide'  || poBlock?.block_type === 'guide'  || stays.some(s => s.activity_type === 'travel' && s.guide_id  && !s.transport_id));
+    const isDriver = !isExplicitTravelBlock && ((block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id && !s.transport_id));
+    const isTransport = isExplicitTravelBlock || (!isGuide && !isDriver && stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id));
+
     setRfqIsRestaurant(isRestaurant);
     setRfqIsTransport(isTransport);
     setRfqIsGuide(isGuide);
