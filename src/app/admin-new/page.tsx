@@ -17656,7 +17656,7 @@ ${chauffeurHtml}
                 </div>
 
                 {/* Right Column: Email Body Preview & Editor */}
-                <div className="lg:col-span-7 flex flex-col space-y-2 h-[480px]">
+                <div className="lg:col-span-7 flex flex-col space-y-2 self-stretch">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-emerald-800" /> Email Message Preview
@@ -17707,7 +17707,7 @@ ${chauffeurHtml}
                             setPoEmailBody(poEditorRef.current.innerHTML);
                           }
                         }}
-                        className="w-full h-full p-4 bg-transparent outline-none text-xs text-neutral-800 overflow-y-auto prose prose-sm max-w-none min-h-[380px]"
+                        className="w-full h-full p-4 bg-transparent outline-none text-xs text-neutral-800 overflow-y-auto prose prose-sm max-w-none"
                       />
                     )}
                   </div>
