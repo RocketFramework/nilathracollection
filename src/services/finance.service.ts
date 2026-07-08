@@ -11,7 +11,19 @@ export class FinanceService {
             .from('purchase_orders')
             .select(`
                 *,
-                items:purchase_order_items(*),
+                items:purchase_order_items(
+                    *,
+                    transport_legs:purchase_order_daily_transport_items(
+                        *,
+                        transport_requirement:transport_requirements(
+                            *,
+                            transport_requirement_vehicles(
+                                *,
+                                vehicle:transport_vehicles(*)
+                            )
+                        )
+                    )
+                ),
                 invoices:supplier_invoices(
                     *,
                     items:supplier_invoice_items(*),
@@ -19,6 +31,7 @@ export class FinanceService {
                 ),
                 advance_payments:supplier_payments(*)
             `)
+
             .eq('tour_id', tourId)
             .order('created_at', { ascending: false });
 

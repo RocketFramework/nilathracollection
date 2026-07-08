@@ -494,8 +494,62 @@ export interface DailyActivityVendorLink {
     updated_at?: string;
 }
 
+/**
+ * One row in purchase_order_daily_transport_items.
+ * Links a single per-day purchase_order_items billing row to an individual
+ * daily_activities travel leg, and carries snapshot pricing from transport_vehicles.
+ */
+export interface PurchaseOrderDailyTransportItem {
+    id: string;
+    purchase_order_item_id: string;
+    daily_activity_id: string | null;
+    transport_requirement_id: string | null;
+
+    // Snapshot pricing from transport_vehicles at PO creation time
+    day_rate: number;
+    max_km_per_day: number;
+    additional_km_rate: number;
+    total_km_for_day: number;
+
+    // Computed by DB (GENERATED ALWAYS AS ... STORED)
+    extra_km: number;
+    extra_km_charge: number;
+    day_total_price: number;
+
+    created_at?: string;
+
+    // Optional joined data
+    transport_requirement?: {
+        id?: string;
+        tour_id?: string;
+        vehicle_duration?: number | null;
+        number_of_vehicles?: number;
+        vehicle_make?: string | null;
+        chauffeur_required?: boolean;
+        transport_requirement_vehicles?: Array<{
+            id: string;
+            requirement_id: string;
+            vehicle_id: string;
+            quantity: number;
+            notes?: string | null;
+            vehicle?: {
+                id: string;
+                vehicle_type: string;
+                make_and_model?: string | null;
+                make?: string | null;
+                model?: string | null;
+                vehicle_number?: string | null;
+                day_rate?: number | null;
+                max_km_per_day?: number | null;
+                additional_km_rate?: number | null;
+            };
+        }>;
+    } | null;
+}
+
 
 export interface TourRfpEmail {
+
     id: string;
     tour_id: string;
     purchase_order_id?: string;

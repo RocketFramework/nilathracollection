@@ -162,6 +162,9 @@ import {
   updatePOBlockAction,
   deletePOBlockAction,
   finalizePOBlockAction,
+  forceRebuildAllPODataAction,
+  markItineraryRegeneratedAction,
+  getTourPORebuildStatusAction,
   getGuideDailyActivitiesAction,
   saveGuideDailyActivitiesAction,
   getDriverDailyActivitiesAction,
@@ -412,6 +415,7 @@ function PlannerWizardWorkspace() {
   // PO Blocks state variables
   const [poBlocks, setPoBlocks] = useState<POBlock[]>([]);
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
+  const [poDataNeedsRebuild, setPoDataNeedsRebuild] = useState<boolean>(false);
   const [isHotelChanging, setIsHotelChanging] = useState<boolean>(false);
   const [isRestaurantChanging, setIsRestaurantChanging] = useState<boolean>(false);
   const [isVendorChanging, setIsVendorChanging] = useState<boolean>(false);
@@ -670,6 +674,7 @@ function PlannerWizardWorkspace() {
   const [reqShowVehiclePicker, setReqShowVehiclePicker] = useState(false);
   const [reqVehicleSearchMake, setReqVehicleSearchMake] = useState('');
   const [reqVehicleSearchMinYear, setReqVehicleSearchMinYear] = useState<number | ''>('');
+  const [reqVehiclesLoading, setReqVehiclesLoading] = useState(false);
 
   const handleUpdateTransportReqField = (blockId: string | null, field: string, value: any) => {
     if (blockId === null) {
@@ -2486,27 +2491,26 @@ function PlannerWizardWorkspace() {
 
     setLoadingBlocks(true);
 
-    // Run full initialize when:
-    // 1. No blocks in state yet (first visit), OR
-    // 2. Blocks exist but ALL have empty daily_activities — mappings are missing in DB
-    const blocksMissingMappings = poBlocks.length > 0 && poBlocks.every(b => (b.daily_activities || []).length === 0);
-    const hasInvalidGuideOrDriverBlock = poBlocks.some(b => 
-      (b.block_type === 'guide' || b.block_type === 'driver') && !b.name.includes('| ID:')
-    );
-    const needsInitialize = poBlocks.length === 0 || blocksMissingMappings || hasInvalidGuideOrDriverBlock;
-
-    const loader = needsInitialize
-      ? initializeDefaultBlocksAction(tourId)
-      : getPOBlocksAction(tourId);
-
-    loader.then(res => {
-      if (res.success && res.blocks) {
-        setPoBlocks(res.blocks);
+    // Read the explicit flag from the tours table (set by markItineraryRegeneratedAction
+    // right after AI generation), then load blocks normally.
+    Promise.all([
+      getTourPORebuildStatusAction(tourId),
+      initializeDefaultBlocksAction(tourId)
+    ]).then(([statusRes, blocksRes]) => {
+      // Flag takes priority: if AI regenerated, show the banner regardless
+      if (statusRes.needsRebuild) {
+        setPoDataNeedsRebuild(true);
       } else {
-        console.error("Failed to load PO blocks:", res.error);
+        setPoDataNeedsRebuild(false);
+      }
+      if (blocksRes.success && blocksRes.blocks) {
+        setPoBlocks(blocksRes.blocks);
+      } else {
+        console.error("Failed to load PO blocks:", blocksRes.error);
       }
       setLoadingBlocks(false);
     });
+
   }, [tourId, currentStep?.id, isStateRestored]);
 
 
@@ -3805,7 +3809,47 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{Other Languages}}/g, req.chauffeur_other_languages || 'None');
           bodyHtml = bodyHtml.replace(/{{Driver Accommodation}}/g, req.chauffeur_accommodation_needed ? 'Required (accommodation needed)' : 'Not Required (included/FOC)');
           bodyHtml = bodyHtml.replace(/{{Meal Price}}/g, req.chauffeur_meal_needed ? 'Required (meals needed)' : 'Not Required (included/FOC)');
+
+          // ── Build day-by-day itinerary table for transport RFQ ─────────────────
+          const rfqDayGroups: Record<string, any[]> = {};
+          for (const leg of sortedStays) {
+            const key = leg.service_date
+              ? new Date(leg.service_date).toISOString().split('T')[0]
+              : (leg as any).tour_itineraries?.date
+                ? new Date((leg as any).tour_itineraries.date).toISOString().split('T')[0]
+                : `day-${(leg as any).tour_itineraries?.day_number ?? 'x'}`;
+            if (!rfqDayGroups[key]) rfqDayGroups[key] = [];
+            rfqDayGroups[key].push(leg);
+          }
+          const rfqDayRows = Object.entries(rfqDayGroups)
+            .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+            .map(([dateKey, legs]) => {
+              const first = legs[0] as any;
+              const dayNum = first.tour_itineraries?.day_number || first.day_number || '';
+              const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
+              const from = first.pickup_location || first.location_name || 'Origin';
+              const last = legs[legs.length - 1] as any;
+              const to = last.dropoff_location || last.destination_location || last.location_name || 'Destination';
+              const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
+              return `<tr>
+                <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;white-space:nowrap;">Day ${dayNum}</td>
+                <td style="border:1px solid #E6E4E0;padding:7px 10px;">${displayDate}</td>
+                <td style="border:1px solid #E6E4E0;padding:7px 10px;">${from} &#8594; ${to}</td>
+                <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">${totalKm > 0 ? totalKm + ' km' : 'TBD'}</td>
+              </tr>`;
+            }).join('');
+          const rfqItineraryTable = `<table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;margin-top:8px;">
+  <thead><tr style="background-color:#F5F3EF;">
+    <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Day</th>
+    <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Date</th>
+    <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Route</th>
+    <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">Est. KM</th>
+  </tr></thead>
+  <tbody>${rfqDayRows}</tbody>
+</table>`;
+          bodyHtml = bodyHtml.replace(/{{Itinerary Details}}/g, rfqItineraryTable);
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
+
         } else if (isRestaurant) {
           subject = subject.replace(/{{Restaurant Name}}/g, hotel?.name || '');
           subject = subject.replace(/{{Date}}/g, checkInDateFormatted);
@@ -4579,6 +4623,79 @@ function PlannerWizardWorkspace() {
 <p>Kindly acknowledge receipt and confirm this dining reservation under the agreed rates.</p>
 <p>Thank you for your continued partnership with Nilathra Collection.</p>
 <p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+    } else if (vType === 'transport_provider') {
+      // ── TRANSPORT PO body — group travel legs by day, one row per day ──────
+      const tpDayGroups: Record<string, any[]> = {};
+      for (const leg of sortedStays) {
+        const key = leg.service_date
+          ? new Date(leg.service_date).toISOString().split('T')[0]
+          : (leg as any).tour_itineraries?.date
+            ? new Date((leg as any).tour_itineraries.date).toISOString().split('T')[0]
+            : `day-${(leg as any).tour_itineraries?.day_number ?? 'x'}`;
+        if (!tpDayGroups[key]) tpDayGroups[key] = [];
+        tpDayGroups[key].push(leg);
+      }
+
+      let tpSubtotal = 0;
+      const tpRows = Object.entries(tpDayGroups)
+        .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+        .map(([dateKey, legs]) => {
+          const first = legs[0] as any;
+          const dayNum = first.tour_itineraries?.day_number || first.day_number || '';
+          const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
+          const from = first.pickup_location || first.location_name || 'Origin';
+          const last = legs[legs.length - 1] as any;
+          const to = last.dropoff_location || last.destination_location || last.location_name || 'Destination';
+          const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
+
+          // Compute day rate from vehicle pricing nested on the first leg's transport_requirement
+          let dayRate = 0;
+          const req = (first.transport_requirement || {}) as any;
+          const reqVehicles: any[] = req.transport_requirement_vehicles || [];
+          for (const rv of reqVehicles) {
+            const v = rv.vehicle || {};
+            dayRate += (Number(v.day_rate) || 0) * (Number(rv.quantity) || 1);
+          }
+          // Fallback: use contracted_total_price summed across legs if no vehicle pricing
+          if (dayRate === 0) {
+            dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
+          }
+          tpSubtotal += dayRate;
+          const rateDisplay = dayRate > 0 ? `$${dayRate.toFixed(2)}` : 'As per quote';
+          return `<tr>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;">Day ${dayNum}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;">${displayDate}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;">${from} &#8594; ${to}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">${totalKm > 0 ? totalKm + ' km' : 'TBD'}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:bold;">${rateDisplay}</td>
+          </tr>`;
+        }).join('');
+
+      calculatedSubtotal = tpSubtotal;
+      const tpTotalDisplay = tpSubtotal > 0 ? `$${tpSubtotal.toFixed(2)}` : 'As per quotation';
+
+      defaultBody = `<p>Dear ${hotel.name} Team,</p>
+<p>Please find below the formal Purchase Order <strong>${poNumber}</strong> confirming the transport arrangement for our guest itinerary:</p>
+<div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
+  <strong>Transport Schedule:</strong><br /><br />
+  <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
+    <thead><tr style="background-color:#EAE8E4;">
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Day</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Date</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Route</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">Est. KM</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">Day Rate (USD)</th>
+    </tr></thead>
+    <tbody>${tpRows}</tbody>
+  </table>
+  <br />
+  <strong>Total PO Amount:</strong> ${tpTotalDisplay}
+  ${agreedInclusionsHtml}
+</div>
+<p>Kindly acknowledge receipt and confirm this transport arrangement under the agreed rates.</p>
+<p>Thank you for your continued partnership with Nilathra Collection.</p>
+<p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+
     } else {
       defaultBody = `<p>Dear ${hotel.name} Reservations Team,</p>
 <p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> for the guest stays detailed below:</p>
@@ -4662,10 +4779,15 @@ function PlannerWizardWorkspace() {
           return dayA - dayB;
       });
 
-      // Calculate agreed price
+      // For transport, pass 0 — the createBookingRequest service groups by day
+      // and computes the real total from vehicle day_rates. Per-activity summing
+      // is meaningless for consolidated transport POs.
       let calculatedSubtotal = 0;
       const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-      sortedStays.forEach(act => {
+      if (poVendorType === 'transport_provider') {
+        calculatedSubtotal = 0; // service computes from vehicle rates
+      } else {
+        sortedStays.forEach(act => {
           let totalQty = 0;
           if (act.isCustomPO) {
               totalQty = act.quantity || 1;
@@ -4681,7 +4803,8 @@ function PlannerWizardWorkspace() {
           }
           const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
           calculatedSubtotal += (totalQty * unitCost);
-      });
+        });
+      }
 
       const poNumMatch = poEmailSubject.match(/PO-[A-Z]+-\d+/);
       const prefix = poVendorType === 'hotel' ? 'HOT' : (poVendorType === 'restaurant' ? 'RES' : (poVendorType === 'tour_guide' ? 'GUI' : (poVendorType === 'driver' ? 'DRI' : (poVendorType === 'transport_provider' ? 'TRA' : 'ACT'))));
@@ -7257,6 +7380,7 @@ function PlannerWizardWorkspace() {
                       <button
                         onClick={async () => {
                           setLoadingBlocks(true);
+                          setPoDataNeedsRebuild(false);
                           const res = await initializeDefaultBlocksAction(tourId);
                           if (res.success && res.blocks) {
                             setPoBlocks(res.blocks);
@@ -7291,6 +7415,54 @@ function PlannerWizardWorkspace() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* ── Rebuild Warning Banner ─────────────────────────────── */}
+                        {poDataNeedsRebuild && (
+                          <div className="lg:col-span-12">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+                              <div className="flex items-start gap-3 flex-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                                <div>
+                                  <p className="text-sm font-bold text-amber-900">Itinerary Fully Regenerated</p>
+                                  <p className="text-xs text-amber-700 mt-0.5">
+                                    The itinerary was regenerated with completely new activities. All existing PO blocks, purchase orders, supplier invoices, and payments are linked to the old itinerary and must be cleared before new blocks can be built.
+                                  </p>
+                                  {poBlocks.some(b => b.has_finalized) && (
+                                    <p className="text-xs font-semibold text-red-700 mt-1">
+                                      ⚠ This includes {poBlocks.filter(b => b.has_finalized).length} finalized block(s) with associated POs and invoices.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setPoDataNeedsRebuild(false)}
+                                  className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-white border border-amber-300 rounded-xl hover:bg-amber-50 transition-colors"
+                                >
+                                  Keep Existing
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setLoadingBlocks(true);
+                                    setPoDataNeedsRebuild(false);
+                                    const res = await forceRebuildAllPODataAction(tourId);
+                                    if (res.success && res.blocks) {
+                                      setPoBlocks(res.blocks);
+                                    } else {
+                                      console.error('Force rebuild failed:', res.error);
+                                    }
+                                    setLoadingBlocks(false);
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors flex items-center gap-1.5"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                  Confirm &amp; Rebuild All PO Data
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         {/* Left Side: Current Blocks List */}
                         <div className="lg:col-span-6 space-y-6">
                           <h4 className="text-sm font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-2">
@@ -9434,12 +9606,16 @@ function PlannerWizardWorkspace() {
                                           const rect = e.currentTarget.getBoundingClientRect();
                                           setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
                                           setSelectedTransportBlock(block);
+                                          setReqShowVehiclePicker(false);
+                                          setReqPickedVehicles([]);
                                           setShowTransportReqModal(true);
-                                          // Pre-populate picked vehicles from the junction table
-                                          const reqId = block.transport_requirement?.id || block.transport_requirement_id;
+                                          // Pre-populate picked vehicles — prefer flat id field first
+                                          const reqId = block.transport_requirement_id || block.transport_requirement?.id;
                                           if (reqId) {
+                                            setReqVehiclesLoading(true);
                                             const res = await getTransportRequirementVehiclesAction(reqId);
                                             setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
+                                            setReqVehiclesLoading(false);
                                           } else {
                                             setReqPickedVehicles([]);
                                           }
@@ -14289,6 +14465,8 @@ function PlannerWizardWorkspace() {
                     globalTransportReq={globalTransportReq}
                     setGlobalTransportReq={setGlobalTransportReq}
                     setReqPickedVehicles={setReqPickedVehicles}
+                    setReqShowVehiclePicker={setReqShowVehiclePicker}
+                    setReqVehiclesLoading={setReqVehiclesLoading}
                     modalTriggerRect={modalTriggerRect}
                     setModalTriggerRect={setModalTriggerRect}
                     handleUpdateTransportReqField={handleUpdateTransportReqField}
@@ -17958,6 +18136,8 @@ function PlannerWizardWorkspace() {
                 setSelectedTransportBlock(null);
                 setGlobalTransportReq(null);
                 setModalTriggerRect(null);
+                setReqShowVehiclePicker(false);
+                setReqVehiclesLoading(false);
               }}
             />
 
@@ -17983,6 +18163,8 @@ function PlannerWizardWorkspace() {
                     setSelectedTransportBlock(null);
                     setGlobalTransportReq(null);
                     setModalTriggerRect(null);
+                    setReqShowVehiclePicker(false);
+                    setReqVehiclesLoading(false);
                   }}
                   className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-450 hover:text-neutral-705"
                 >
@@ -18164,7 +18346,12 @@ function PlannerWizardWorkspace() {
               {/* ── Specific Vehicle Assignments ─────────────────────────────── */}
               <div className="border-t border-neutral-100 pt-4 px-6 pb-2">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Specific Vehicle Assignments</span>
+                  <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
+                    Specific Vehicle Assignments
+                    {reqVehiclesLoading && (
+                      <span className="ml-2 text-[9px] font-bold text-emerald-600 normal-case tracking-normal animate-pulse">Loading assigned vehicles...</span>
+                    )}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setReqShowVehiclePicker(p => !p)}
@@ -18304,6 +18491,8 @@ function PlannerWizardWorkspace() {
                     setSelectedTransportBlock(null);
                     setGlobalTransportReq(null);
                     setModalTriggerRect(null);
+                    setReqShowVehiclePicker(false);
+                    setReqVehiclesLoading(false);
                   }}
                   className="px-4 py-2 rounded-xl hover:bg-neutral-100 text-[11px] font-bold text-neutral-500 transition-colors"
                 >
@@ -18396,11 +18585,14 @@ function PlannerWizardWorkspace() {
                     }
 
                     // Also save vehicle assignments to the junction table
-                    if (reqPickedVehicles.length > 0) {
-                      await saveTransportRequirementVehiclesAction(
-                        requirementId,
-                        reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
-                      );
+                    // Always call save (even when empty) so that removing all vehicles deletes old DB rows
+                    const vehicleSaveRes = await saveTransportRequirementVehiclesAction(
+                      requirementId,
+                      reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
+                    );
+                    if (!vehicleSaveRes.success) {
+                      console.error('[TransportSpecs] Vehicle save failed:', vehicleSaveRes.error);
+                      alert('Transport specs saved but vehicle assignments failed: ' + (vehicleSaveRes.error || 'Unknown error'));
                     }
 
                     setShowTransportReqModal(false);
@@ -18491,6 +18683,8 @@ interface AIItineraryBuilderProps {
   setModalTriggerRect: React.Dispatch<React.SetStateAction<{ top: number; left: number; width: number; height: number } | null>>;
   handleUpdateTransportReqField: (blockId: string | null, field: string, value: any) => void;
   setReqPickedVehicles: React.Dispatch<React.SetStateAction<Array<{ vehicleId: string; vehicleName: string; providerName: string; quantity: number; notes: string }>>>;
+  setReqShowVehiclePicker: React.Dispatch<React.SetStateAction<boolean>>;
+  setReqVehiclesLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 function AIItineraryBuilder({
@@ -18549,7 +18743,9 @@ function AIItineraryBuilder({
   modalTriggerRect,
   setModalTriggerRect,
   handleUpdateTransportReqField,
-  setReqPickedVehicles
+  setReqPickedVehicles,
+  setReqShowVehiclePicker,
+  setReqVehiclesLoading
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
@@ -19531,6 +19727,8 @@ function AIItineraryBuilder({
       }
 
       setItinerary([...sortedPostProcessedBlocks, ...dropped]);
+      // Mark the tours table so the po-creation step knows to show the rebuild banner.
+      markItineraryRegeneratedAction(tourId).catch(e => console.warn('Failed to mark itinerary regenerated:', e));
       alert("AI itinerary generated successfully! Review the itinerary days and verify the plan.");
     } catch (error: any) {
       console.error("AI Generation failed:", error);
@@ -19887,22 +20085,45 @@ function AIItineraryBuilder({
             </select>
             <button
               type="button"
-              onClick={(e) => {
+              onClick={async (e) => {
+                // Use the exact same flow as the per-block "Transport Specs" button:
+                // find the first travel block that has (or could have) a requirement, open the modal, fetch its vehicles.
                 const rect = e.currentTarget.getBoundingClientRect();
                 setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-                const existingTravelBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement);
-                setGlobalTransportReq(existingTravelBlock?.transport_requirement || {});
-                setIsGlobalTransportReqEdit(true);
+
+                // Prefer a block that already has a requirement id, fall back to any travel block
+                const blockWithReq = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id);
+                const anyTravelBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL);
+                const targetBlock = blockWithReq || anyTravelBlock;
+
+                if (!targetBlock) return; // no travel blocks at all — nothing to open
+
+                setReqShowVehiclePicker(false);
+                setReqPickedVehicles([]);
+                setSelectedTransportBlock(targetBlock);
+                setShowTransportReqModal(true);
+
+                const reqId = targetBlock.transport_requirement_id || targetBlock.transport_requirement?.id;
+                if (reqId) {
+                  setReqVehiclesLoading(true);
+                  const res = await getTransportRequirementVehiclesAction(reqId);
+                  setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
+                  setReqVehiclesLoading(false);
+                }
               }}
               disabled={isLockedByOther}
               className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${
-                itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement)
+                itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
                   ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
                   : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-855'
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Transport Specs</span>
+              <span>
+                {itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
+                  ? 'Edit Transport Specs'
+                  : 'Transport Specs'}
+              </span>
             </button>
           </div>
 
@@ -20969,12 +21190,18 @@ function AIItineraryBuilder({
                             const rect = e.currentTarget.getBoundingClientRect();
                             setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
                             setSelectedTransportBlock(block);
+                            setReqShowVehiclePicker(false);
+                            setReqPickedVehicles([]);
                             setShowTransportReqModal(true);
                             // Pre-populate picked vehicles from the junction table
-                            const reqId = block.transport_requirement?.id || block.transport_requirement_id;
+                            // Prefer transport_requirement_id (flat field) over the nested .id
+                            // because transport_requirement object may be null even when the id is saved
+                            const reqId = block.transport_requirement_id || block.transport_requirement?.id;
                             if (reqId) {
+                              setReqVehiclesLoading(true);
                               const res = await getTransportRequirementVehiclesAction(reqId);
                               setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
+                              setReqVehiclesLoading(false);
                             } else {
                               setReqPickedVehicles([]);
                             }

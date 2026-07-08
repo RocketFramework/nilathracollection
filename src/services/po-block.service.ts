@@ -178,6 +178,136 @@ export class POBlockService {
      * Deletes in order: tour_rfq_emails, tour_rfp_emails, purchase_order_items,
      * purchase_orders, po_block_daily_activities, then po_blocks.
      */
+    /**
+     * Full cascade delete of ALL PO-related data for a tour.
+     * Deletes in FK-safe order:
+     *   supplier_payments → supplier_invoice_items → supplier_invoices
+     *   → purchase_order_daily_transport_items → purchase_order_items
+     *   → tour_rfq_emails / tour_rfp_emails → purchase_orders → po_blocks
+     *   (po_block_daily_activities is cascade-deleted by the po_blocks FK)
+     *
+     * Called only when a full AI itinerary regeneration is confirmed by the agent.
+     * Works regardless of has_finalized status.
+     */
+    static async deleteAllPODataForTour(tourId: string): Promise<void> {
+        const adminSupabase = createAdminClient();
+
+        // 1. Collect all block IDs for this tour
+        const { data: blockRows, error: blockFetchErr } = await adminSupabase
+            .from('po_blocks')
+            .select('id')
+            .eq('tour_id', tourId);
+        if (blockFetchErr) throw blockFetchErr;
+        const blockIds = (blockRows || []).map((b: any) => b.id);
+        if (blockIds.length === 0) return; // Nothing to delete
+
+        // 2. Collect ALL purchase order IDs for this tour.
+        // Use tour_id (not po_block_id) so we also catch POs with po_block_id = NULL
+        // (e.g. hotel custom buying-rate POs that are linked to the tour but not a block).
+        const { data: poRows, error: poFetchErr } = await adminSupabase
+            .from('purchase_orders')
+            .select('id')
+            .eq('tour_id', tourId);
+        if (poFetchErr) throw poFetchErr;
+        const poIds = (poRows || []).map((p: any) => p.id);
+
+        if (poIds.length > 0) {
+            // 3. Collect all supplier invoice IDs linked to these POs
+            const { data: invRows, error: invFetchErr } = await adminSupabase
+                .from('supplier_invoices')
+                .select('id')
+                .in('purchase_order_id', poIds);
+            if (invFetchErr) throw invFetchErr;
+            const invoiceIds = (invRows || []).map((i: any) => i.id);
+
+            if (invoiceIds.length > 0) {
+                // 4a. Delete payments tied to invoices
+                const { error: e1 } = await adminSupabase
+                    .from('supplier_payments')
+                    .delete()
+                    .in('supplier_invoice_id', invoiceIds);
+                if (e1) throw e1;
+
+                // 4b. Delete invoice line items
+                const { error: e2 } = await adminSupabase
+                    .from('supplier_invoice_items')
+                    .delete()
+                    .in('supplier_invoice_id', invoiceIds);
+                if (e2) throw e2;
+
+                // 4c. Delete the invoices themselves
+                const { error: e3 } = await adminSupabase
+                    .from('supplier_invoices')
+                    .delete()
+                    .in('id', invoiceIds);
+                if (e3) throw e3;
+            }
+
+            // 5. Delete advance payments attached directly to POs (no invoice)
+            const { error: e4 } = await adminSupabase
+                .from('supplier_payments')
+                .delete()
+                .in('purchase_order_id', poIds)
+                .is('supplier_invoice_id', null);
+            if (e4) throw e4;
+
+            // 6. Delete transport leg items
+            const { error: e5 } = await adminSupabase
+                .from('purchase_order_daily_transport_items')
+                .delete()
+                .in('purchase_order_id', poIds);
+            if (e5) throw e5;
+
+            // 7. Delete PO line items
+            const { error: e6 } = await adminSupabase
+                .from('purchase_order_items')
+                .delete()
+                .in('purchase_order_id', poIds);
+            if (e6) throw e6;
+        }
+
+        // 8. Delete RFQ / RFP emails for these blocks
+        const { error: e7 } = await adminSupabase
+            .from('tour_rfq_emails')
+            .delete()
+            .in('po_block_id', blockIds);
+        if (e7) throw e7;
+
+        const { error: e8 } = await adminSupabase
+            .from('tour_rfp_emails')
+            .delete()
+            .in('po_block_id', blockIds);
+        if (e8) throw e8;
+
+        // 9. Delete purchase orders
+        if (poIds.length > 0) {
+            const { error: e9 } = await adminSupabase
+                .from('purchase_orders')
+                .delete()
+                .in('id', poIds);
+            if (e9) throw e9;
+        }
+
+        // 10. Delete blocks — DB ON DELETE CASCADE removes po_block_daily_activities
+        const { error: e10 } = await adminSupabase
+            .from('po_blocks')
+            .delete()
+            .in('id', blockIds);
+        if (e10) throw e10;
+    }
+
+    /**
+     * Force-wipes all PO data for the tour and rebuilds blocks from scratch.
+     * Called only after the agent explicitly confirms the rebuild in the UI.
+     */
+    static async rebuildAllPOData(tourId: string): Promise<{ blocks: POBlock[]; status: 'rebuilt' }> {
+        await this.deleteAllPODataForTour(tourId);
+        // Re-run initializeDefaultBlocks; the wipe guarantees zero existing blocks,
+        // so detection will skip straight to building.
+        const result = await this.initializeDefaultBlocks(tourId);
+        return { blocks: result.blocks, status: 'rebuilt' };
+    }
+
     static async deleteBlockWithCascade(blockId: string): Promise<void> {
         const adminSupabase = createAdminClient();
 
@@ -284,10 +414,16 @@ export class POBlockService {
         }
     }
 
-    static async initializeDefaultBlocks(tourId: string): Promise<POBlock[]> {
+    static async initializeDefaultBlocks(tourId: string): Promise<{
+        blocks: POBlock[];
+        status: 'unchanged' | 'rebuilt' | 'needs_full_rebuild';
+    }> {
         const adminSupabase = createAdminClient();
 
-        // 1. Fetch all existing blocks and all daily activities in parallel
+        // 1. Fetch all existing blocks, all daily activities, and all existing junction
+        //    mappings in parallel. The junction table is queried directly so that
+        //    brand-new-itinerary detection works even after saveTour deletes the old
+        //    daily_activities rows (the junction rows themselves survive the delete).
         const [existingBlocks, activityResult] = await Promise.all([
             this.getPOBlocksForTour(tourId),
             adminSupabase
@@ -310,14 +446,48 @@ export class POBlockService {
             return !isInvalidActivity;
         });
 
-        if (activities.length === 0) return existingBlocks;
+        if (activities.length === 0) return { blocks: existingBlocks, status: 'unchanged' };
 
         // Find activities not already in finalized blocks
         const finalizedActivityIds = new Set<string>();
         finalizedBlocks.forEach(b => b.daily_activities?.forEach(act => { if (act.id) finalizedActivityIds.add(act.id); }));
         const activitiesToGroup = activities.filter(act => !finalizedActivityIds.has(act.id));
 
-        // FIX B: Compare activity signatures — skip full rebuild if nothing changed
+        // ── Brand-new itinerary detection ─────────────────────────────────────────
+        // Query: do ANY of the current daily_activities IDs already exist in the
+        // po_block_daily_activities junction table for these blocks?
+        //
+        // This single query is the most reliable signal regardless of FK cascade:
+        //   - If CASCADE deleted junction rows → 0 results → regenerated ✓
+        //   - If junction has stale old IDs → new IDs won't be in it → 0 results → regenerated ✓
+        //   - If normal edit (same IDs) → results found → not regenerated ✓
+        if (existingBlocks.length > 0 && activitiesToGroup.length > 0) {
+            const blockIds = existingBlocks.map(b => b.id);
+            const incomingActivityIds = activitiesToGroup.map(a => a.id);
+
+            const { data: validLinks, error: vlError } = await adminSupabase
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', blockIds)
+                .in('daily_activity_id', incomingActivityIds)
+                .limit(1);
+
+            console.log('[POBlock] Detection check:', {
+                existingBlockCount: existingBlocks.length,
+                incomingActivityCount: incomingActivityIds.length,
+                validLinksFound: validLinks?.length ?? 0,
+                vlError
+            });
+
+            if (!vlError && (!validLinks || validLinks.length === 0)) {
+                // No current activity is linked to any existing block → full regeneration.
+                console.log('[POBlock] Brand-new itinerary detected → needs_full_rebuild');
+                return { blocks: existingBlocks, status: 'needs_full_rebuild' };
+            }
+        }
+
+
+        // ── Normal rebuild: Compare activity signatures ───────────────────────────
         if (nonFinalizedBlocks.length > 0) {
             const buildSig = (acts: any[]) =>
                 acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.transport_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}:${a.guide_id || ''}:${a.driver_id || ''}`)
@@ -337,12 +507,12 @@ export class POBlockService {
             );
 
             if (!hasInvalidNames && !allBlocksHaveNoMappings && incomingSig === existingSig) {
-                return existingBlocks; // Nothing changed — skip all writes
+                return { blocks: existingBlocks, status: 'unchanged' }; // Nothing changed
             }
         }
 
 
-        // Delete non-finalized blocks (cascade handles mapping rows)
+        // Delete non-finalized blocks (cascade handles po_block_daily_activities)
         if (nonFinalizedBlocks.length > 0) {
             const { error: deleteErr } = await adminSupabase
                 .from('po_blocks')
@@ -351,7 +521,7 @@ export class POBlockService {
             if (deleteErr) throw deleteErr;
         }
 
-        if (activitiesToGroup.length === 0) return this.getPOBlocksForTour(tourId);
+        if (activitiesToGroup.length === 0) return { blocks: await this.getPOBlocksForTour(tourId), status: 'rebuilt' };
 
         let currentBlockNumber = finalizedBlocks.length > 0
             ? Math.max(...finalizedBlocks.map(b => b.block_number || 0)) + 1
@@ -520,7 +690,7 @@ export class POBlockService {
             this.createPOBlocksBatch(tourId, driverDescriptors)
         ]);
 
-        return this.getPOBlocksForTour(tourId);
+        return { blocks: await this.getPOBlocksForTour(tourId), status: 'rebuilt' };
     }
 
     static async finalizePOBlock(blockId: string): Promise<void> {

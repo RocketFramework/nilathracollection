@@ -1,30 +1,41 @@
 export class CurrencyService {
     private static DEFAULT_RATE = 300;
-    private static API_URL = 'https://api.budjet.org/fiat/USD/LKR';
+
+    // Primary: open.er-api.com — no key required, reliable TLS
+    private static PRIMARY_URL = 'https://open.er-api.com/v6/latest/USD';
+    // Secondary: Frankfurter (ECB data mirror) — also no key, stable TLS
+    private static SECONDARY_URL = 'https://api.frankfurter.app/latest?from=USD&to=LKR';
 
     /**
      * Fetches current USD to LKR exchange rate.
-     * Falls back to 300 if API fails.
+     * Tries PRIMARY then SECONDARY API before falling back to DEFAULT_RATE (300).
      */
     static async getUSDTOLKR(): Promise<number> {
+        // --- Try primary ---
         try {
-            const response = await fetch(this.API_URL, {
-                next: { revalidate: 3600 } // Cache for 1 hour
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch exchange rate');
-
-            const data = await response.json();
-            const rate = data.conversion_rate || data.rate || data.USD_LKR || data.value;
-
-            if (typeof rate === 'number' && rate > 0) {
-                return rate;
+            const res = await fetch(this.PRIMARY_URL, { next: { revalidate: 3600 } });
+            if (res.ok) {
+                const data = await res.json();
+                const rate = data?.rates?.LKR;
+                if (typeof rate === 'number' && rate > 0) return rate;
             }
-
-            return this.DEFAULT_RATE;
-        } catch (error) {
-            console.error("Exchange rate fetch failed, using fallback:", error);
-            return this.DEFAULT_RATE;
+        } catch {
+            // fall through to secondary
         }
+
+        // --- Try secondary ---
+        try {
+            const res = await fetch(this.SECONDARY_URL, { next: { revalidate: 3600 } });
+            if (res.ok) {
+                const data = await res.json();
+                const rate = data?.rates?.LKR;
+                if (typeof rate === 'number' && rate > 0) return rate;
+            }
+        } catch {
+            // fall through to default
+        }
+
+        console.warn('[CurrencyService] All exchange rate APIs failed — using fallback rate of', this.DEFAULT_RATE);
+        return this.DEFAULT_RATE;
     }
 }

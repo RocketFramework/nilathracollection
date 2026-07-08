@@ -6,12 +6,17 @@ import { revalidatePath } from "next/cache";
 
 export async function initializeDefaultBlocksAction(tourId: string) {
     try {
-        const blocks = await POBlockService.initializeDefaultBlocks(tourId);
+        const result = await POBlockService.initializeDefaultBlocks(tourId);
+        // If blocks were rebuilt normally, clear the regeneration flag
+        if (result.status === 'rebuilt') {
+            const adminSupabase = createAdminClient();
+            await adminSupabase.from('tours').update({ itinerary_needs_po_rebuild: false }).eq('id', tourId);
+        }
         revalidatePath(`/admin-new`);
-        return { success: true, blocks };
+        return { success: true, blocks: result.blocks, status: result.status };
     } catch (error: any) {
         console.error("Error initializing default blocks:", error);
-        return { success: false, error: error.message || "Failed to initialize blocks." };
+        return { success: false, error: error.message || "Failed to initialize blocks.", status: 'error' as const };
     }
 }
 
@@ -71,6 +76,66 @@ export async function deletePOBlockAction(blockId: string) {
     } catch (error: any) {
         console.error("Error deleting block:", error);
         return { success: false, error: error.message || "Failed to delete block." };
+    }
+}
+
+/**
+ * Force-wipes ALL PO data for the tour (po_blocks, purchase_orders, supplier_invoices,
+ * supplier_payments, etc.) and rebuilds blocks from the current daily_activities.
+ * Only called after the agent explicitly confirms the rebuild warning in the UI.
+ * Also clears the itinerary_needs_po_rebuild flag.
+ */
+export async function forceRebuildAllPODataAction(tourId: string) {
+    try {
+        const result = await POBlockService.rebuildAllPOData(tourId);
+        // Clear the flag — blocks are now in sync with the current itinerary
+        const adminSupabase = createAdminClient();
+        await adminSupabase.from('tours').update({ itinerary_needs_po_rebuild: false }).eq('id', tourId);
+        revalidatePath(`/admin-new`);
+        return { success: true, blocks: result.blocks };
+    } catch (error: any) {
+        console.error("Error force-rebuilding PO data:", error);
+        return { success: false, error: error.message || "Failed to rebuild PO data." };
+    }
+}
+
+/**
+ * Sets itinerary_needs_po_rebuild = TRUE on the tour.
+ * Called immediately after AI generates a new itinerary so the po-creation step
+ * can show a confirmation banner without any complex DB state inference.
+ */
+export async function markItineraryRegeneratedAction(tourId: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { error } = await adminSupabase
+            .from('tours')
+            .update({ itinerary_needs_po_rebuild: true })
+            .eq('id', tourId);
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error marking itinerary regenerated:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Reads the itinerary_needs_po_rebuild flag from the tours table.
+ * Used by the po-creation step on load to decide whether to show the rebuild banner.
+ */
+export async function getTourPORebuildStatusAction(tourId: string) {
+    try {
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase
+            .from('tours')
+            .select('itinerary_needs_po_rebuild')
+            .eq('id', tourId)
+            .single();
+        if (error) throw error;
+        return { success: true, needsRebuild: data?.itinerary_needs_po_rebuild ?? false };
+    } catch (error: any) {
+        console.error("Error reading PO rebuild status:", error);
+        return { success: false, needsRebuild: false, error: error.message };
     }
 }
 
@@ -154,6 +219,7 @@ export async function saveTransportRequirementVehiclesAction(
 /**
  * Loads all previously assigned vehicles for a transport requirement from the junction table.
  * Returns them mapped to the reqPickedVehicles UI shape so the modal can be pre-populated.
+ * Uses two flat queries instead of a nested join to avoid PostgREST FK-inference issues.
  */
 export async function getTransportRequirementVehiclesAction(requirementId: string): Promise<{
     success: boolean;
@@ -162,23 +228,56 @@ export async function getTransportRequirementVehiclesAction(requirementId: strin
 }> {
     try {
         const adminSupabase = createAdminClient();
-        const { data, error } = await adminSupabase
+
+        // Step 1: load junction rows (vehicle_id, quantity, notes)
+        const { data: junctionRows, error: jErr } = await adminSupabase
             .from("transport_requirement_vehicles")
-            .select("vehicle_id, quantity, notes, vehicle:transport_vehicles(id, make, model, make_and_model, vehicle_type, vehicle_number, provider:transport_providers(id, name))")
+            .select("vehicle_id, quantity, notes")
             .eq("requirement_id", requirementId);
 
-        if (error) throw error;
+        if (jErr) {
+            console.error("[getTransportRequirementVehiclesAction] junction query error:", jErr);
+            throw jErr;
+        }
 
-        const vehicles = (data || []).map((row: any) => {
-            const v = row.vehicle || {};
+        if (!junctionRows || junctionRows.length === 0) {
+            return { success: true, vehicles: [] };
+        }
+
+        // Step 2: load vehicle + provider details for the returned vehicle IDs
+        const vehicleIds = junctionRows.map((r: any) => r.vehicle_id);
+        const { data: vehicleRows, error: vErr } = await adminSupabase
+            .from("transport_vehicles")
+            .select("id, make, model, make_and_model, vehicle_type, vehicle_number, provider_id")
+            .in("id", vehicleIds);
+
+        if (vErr) {
+            console.error("[getTransportRequirementVehiclesAction] vehicles query error:", vErr);
+            throw vErr;
+        }
+
+        // Step 3: load provider names
+        const providerIds = [...new Set((vehicleRows || []).map((v: any) => v.provider_id).filter(Boolean))];
+        let providerMap: Record<string, string> = {};
+        if (providerIds.length > 0) {
+            const { data: providerRows } = await adminSupabase
+                .from("transport_providers")
+                .select("id, name")
+                .in("id", providerIds);
+            (providerRows || []).forEach((p: any) => { providerMap[p.id] = p.name; });
+        }
+
+        // Step 4: assemble the result
+        const vehicles = junctionRows.map((row: any) => {
+            const v = (vehicleRows || []).find((vr: any) => vr.id === row.vehicle_id) || {} as any;
             const vehicleName = [
                 [v.make, v.model].filter(Boolean).join(" ") || v.make_and_model || "",
                 v.vehicle_type
             ].filter(Boolean).join(" – ");
             return {
                 vehicleId: row.vehicle_id,
-                vehicleName,
-                providerName: v.provider?.name || "Unknown Provider",
+                vehicleName: vehicleName || "Unknown Vehicle",
+                providerName: providerMap[v.provider_id] || "Unknown Provider",
                 quantity: row.quantity || 1,
                 notes: row.notes || ""
             };
