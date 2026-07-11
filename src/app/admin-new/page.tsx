@@ -75,7 +75,8 @@ import {
   Train,
   Pencil,
   Flag,
-  Sliders
+  Sliders,
+  RefreshCw
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
@@ -2484,35 +2485,7 @@ function PlannerWizardWorkspace() {
     }
   }, [currentStep?.id, touristData, tourId, shareTemplateLoaded]);
 
-  // Load PO blocks when tourId or step changes
-  useEffect(() => {
-    if (!isStateRestored || !tourId || tourId === 'draft-tour') return;
-    const isPoStep = currentStep?.id === 'po-creation' || currentStep?.id === 'hotel-selection' || currentStep?.id === 'restaurant-selection' || currentStep?.id === 'activity-provider' || currentStep?.id === 'transport-provider' || currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection';
-    if (!isPoStep) return;
 
-    setLoadingBlocks(true);
-
-    // Read the explicit flag from the tours table (set by markItineraryRegeneratedAction
-    // right after AI generation), then load blocks normally.
-    Promise.all([
-      getTourPORebuildStatusAction(tourId),
-      initializeDefaultBlocksAction(tourId)
-    ]).then(([statusRes, blocksRes]) => {
-      // Flag takes priority: if AI regenerated, show the banner regardless
-      if (statusRes.needsRebuild) {
-        setPoDataNeedsRebuild(true);
-      } else {
-        setPoDataNeedsRebuild(false);
-      }
-      if (blocksRes.success && blocksRes.blocks) {
-        setPoBlocks(blocksRes.blocks);
-      } else {
-        console.error("Failed to load PO blocks:", blocksRes.error);
-      }
-      setLoadingBlocks(false);
-    });
-
-  }, [tourId, currentStep?.id, isStateRestored]);
 
 
   // Load email sharing history logs
@@ -2532,54 +2505,9 @@ function PlannerWizardWorkspace() {
     }
   }, [currentStep?.id, tourId]);
 
-  // Load customer invoices and advance payments when step is 'payment-receive' or 'profit-loss'
-  useEffect(() => {
-    if ((currentStep?.id === 'payment-receive' || currentStep?.id === 'profit-loss') && tourId) {
-      async function loadCustomerBillingData() {
-        setIsLoadingCustomerInvoices(true);
-        try {
-          const [invRes, advRes] = await Promise.all([
-            getCustomerInvoicesAction(tourId),
-            getCustomerAdvancePaymentsAction(tourId)
-          ]);
-          if (invRes.success && invRes.invoices) {
-            setCustomerInvoices(invRes.invoices);
-          }
-          if (advRes.success && advRes.payments) {
-            setCustomerAdvancePayments(advRes.payments);
-          }
-        } catch (err) {
-          console.error("Error loading customer billing data:", err);
-        } finally {
-          setIsLoadingCustomerInvoices(false);
-        }
-      }
-      loadCustomerBillingData();
-    }
-  }, [currentStep?.id, tourId]);
 
-  // Load guide daily activities & initialize rates editing state
-  useEffect(() => {
-    if (!isStateRestored || !tourId) return;
-    if (currentStep?.id === 'guide-selection') {
-      (async () => {
-        setIsLoadingGuideRates(true);
-        const res = await getGuideDailyActivitiesAction(tourId);
-        if (res.success && res.activities) {
-          setGuideActivities(res.activities);
-        }
-        try {
-          const rfqRes = await getGuideRfqDetailsAction(tourId);
-          if (rfqRes.success && rfqRes.tour) {
-            setGuideRfqDetails(rfqRes);
-          }
-        } catch (err) {
-          console.error("Error loading guide RFQ details:", err);
-        }
-        setIsLoadingGuideRates(false);
-      })();
-    }
-  }, [currentStep?.id, tourId, isStateRestored]);
+
+
 
   useEffect(() => {
     if (currentStep?.id === 'guide-selection' && tourId && poBlocks.length > 0) {
@@ -2664,27 +2592,7 @@ function PlannerWizardWorkspace() {
   }, [currentStep?.id, guideActivities, poBlocks, touristData, appSettings, masterData.guides]);
 
   // Load driver daily activities & initialize rates editing state
-  useEffect(() => {
-    if (!isStateRestored || !tourId) return;
-    if (currentStep?.id === 'driver-selection') {
-      (async () => {
-        setIsLoadingDriverRates(true);
-        const res = await getDriverDailyActivitiesAction(tourId);
-        if (res.success && res.activities) {
-          setDriverActivities(res.activities);
-        }
-        try {
-          const rfqRes = await getGuideRfqDetailsAction(tourId);
-          if (rfqRes.success && rfqRes.tour) {
-            setGuideRfqDetails(rfqRes);
-          }
-        } catch (err) {
-          console.error("Error loading driver RFQ details:", err);
-        }
-        setIsLoadingDriverRates(false);
-      })();
-    }
-  }, [currentStep?.id, tourId, isStateRestored]);
+
 
   useEffect(() => {
     if (currentStep?.id === 'driver-selection' && tourId && poBlocks.length > 0) {
@@ -3185,6 +3093,129 @@ function PlannerWizardWorkspace() {
       console.error("Error loading procurement data:", err);
     } finally {
       setIsLoadingProcurement(false);
+    }
+  };
+
+  const loadAllFinalTrackData = async (tid: string, forceRefresh = false) => {
+    if (!tid || tid === 'draft-tour') return;
+
+    setLoadingBlocks(true);
+    setIsLoadingDbActivities(true);
+    setIsLoadingProcurement(true);
+    setIsLoadingCustomerInvoices(true);
+    setIsLoadingGuideRates(true);
+    setIsLoadingDriverRates(true);
+
+    try {
+      const [
+        statusRes,
+        blocksRes,
+        dbActivitiesRes,
+        quotesRes,
+        posRes,
+        bookingsRes,
+        rfqEmailsRes,
+        rfpEmailsRes,
+        invRes,
+        advRes,
+        guideActivitiesRes,
+        driverActivitiesRes,
+        guideRfqRes
+      ] = await Promise.all([
+        getTourPORebuildStatusAction(tid),
+        getPOBlocksAction(tid),
+        getDailyActivitiesAction(tid),
+        getQuotationRequestsForTourAction(tid),
+        getPurchaseOrdersAction(tid),
+        getVendorBookingsAction(tid),
+        getRfqEmailsForTourAction(tid),
+        getRfpEmailsForTourAction(tid),
+        getCustomerInvoicesAction(tid),
+        getCustomerAdvancePaymentsAction(tid),
+        getGuideDailyActivitiesAction(tid),
+        getDriverDailyActivitiesAction(tid),
+        getGuideRfqDetailsAction(tid)
+      ]);
+
+      if (statusRes.success && statusRes.needsRebuild) {
+        setPoDataNeedsRebuild(true);
+      } else {
+        setPoDataNeedsRebuild(false);
+      }
+
+      if (blocksRes.success && blocksRes.blocks) {
+        setPoBlocks(blocksRes.blocks);
+      }
+
+      if (dbActivitiesRes.success && dbActivitiesRes.activities) {
+        const mapped = dbActivitiesRes.activities
+          .filter((act: any) => {
+            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
+              !act.vendor_id &&
+              !act.transport_id &&
+              !act.driver_id &&
+              !act.guide_id &&
+              !act.restaurant_id &&
+              !act.vendor_activity_id &&
+              !act.hotel_id;
+            return !isInvalidActivity;
+          })
+          .map((a: any) => ({
+            ...a,
+            isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
+          }));
+        setDbActivities(mapped);
+      }
+
+      if (quotesRes.success && quotesRes.quotes) {
+        setQuotationRequests(quotesRes.quotes);
+      }
+      if (posRes.success && posRes.pos) {
+        setPurchaseOrders(posRes.pos);
+      }
+      if (bookingsRes.success && bookingsRes.bookings) {
+        setVendorBookings(bookingsRes.bookings);
+      }
+      if (rfqEmailsRes.success && rfqEmailsRes.emails) {
+        setRfqEmails(rfqEmailsRes.emails as TourRfqEmail[]);
+      }
+      if (rfpEmailsRes.success && rfpEmailsRes.emails) {
+        setRfpEmails(rfpEmailsRes.emails as TourRfpEmail[]);
+      }
+
+      if (invRes.success && invRes.invoices) {
+        setCustomerInvoices(invRes.invoices);
+      }
+      if (advRes.success && advRes.payments) {
+        setCustomerAdvancePayments(advRes.payments);
+      }
+
+      if (guideActivitiesRes.success && guideActivitiesRes.activities) {
+        setGuideActivities(guideActivitiesRes.activities);
+      }
+      if (guideRfqRes.success && guideRfqRes.tour) {
+        setGuideRfqDetails(guideRfqRes);
+      }
+
+      if (driverActivitiesRes.success && driverActivitiesRes.activities) {
+        setDriverActivities(driverActivitiesRes.activities);
+      }
+
+      if (forceRefresh) {
+        alert("Workflow data refreshed successfully from the database!");
+      }
+    } catch (err: any) {
+      console.error("Error loading final track data:", err);
+      if (forceRefresh) {
+        alert("Failed to refresh data: " + (err.message || err));
+      }
+    } finally {
+      setLoadingBlocks(false);
+      setIsLoadingDbActivities(false);
+      setIsLoadingProcurement(false);
+      setIsLoadingCustomerInvoices(false);
+      setIsLoadingGuideRates(false);
+      setIsLoadingDriverRates(false);
     }
   };
 
@@ -5870,8 +5901,7 @@ ${chauffeurHtml}
     }
 
     if (track === 'final' && tourId) {
-      loadDailyActivities(tourId);
-      loadProcurementData(tourId);
+      loadAllFinalTrackData(tourId);
     }
 
     lastLoadedRef.current = { tourId, track };
@@ -6380,40 +6410,62 @@ ${chauffeurHtml}
           </div>
         </div>
 
-        {/* Dynamic Track Toggle */}
-        <div className="flex items-center gap-2 bg-neutral-100 p-1.5 rounded-xl border border-neutral-200 mt-2 sm:mt-0">
-          <button
-            onClick={() => {
-              setTrack('basic');
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide
-              ${track === 'basic' 
-                ? 'bg-white text-emerald-800 shadow-sm' 
-                : 'text-neutral-500 hover:text-neutral-800'
-              }`}
-          >
-            <Map className="w-3.5 h-3.5" />
-            1. Basic Itinerary
-          </button>
-          <button
-            onClick={() => {
-              setTrack('final');
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide relative
-              ${track === 'final' 
-                ? 'bg-white text-emerald-800 shadow-sm' 
-                : 'text-neutral-500 hover:text-neutral-800'
-              }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            2. Final Itinerary
-            {basicCompleted && (
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-            )}
-          </button>
+        <div className="flex items-center gap-3 mt-2 sm:mt-0">
+          {track === 'final' && (
+            <button
+              type="button"
+              onClick={() => loadAllFinalTrackData(tourId, true)}
+              disabled={
+                loadingBlocks ||
+                isLoadingDbActivities ||
+                isLoadingProcurement ||
+                isLoadingCustomerInvoices ||
+                isLoadingGuideRates ||
+                isLoadingDriverRates
+              }
+              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-emerald-800 text-xs font-bold rounded-xl border border-neutral-200 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              title="Refresh all workflow datasets from the database"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${(loadingBlocks || isLoadingDbActivities || isLoadingProcurement || isLoadingCustomerInvoices || isLoadingGuideRates || isLoadingDriverRates) ? 'animate-spin text-emerald-800' : 'text-neutral-400 hover:text-emerald-800'}`} />
+              <span>Refresh Data</span>
+            </button>
+          )}
+
+          {/* Dynamic Track Toggle */}
+          <div className="flex items-center gap-2 bg-neutral-100 p-1.5 rounded-xl border border-neutral-200">
+            <button
+              onClick={() => {
+                setTrack('basic');
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide
+                ${track === 'basic' 
+                  ? 'bg-white text-emerald-800 shadow-sm' 
+                  : 'text-neutral-500 hover:text-neutral-800'
+                }`}
+            >
+              <Map className="w-3.5 h-3.5" />
+              1. Basic Itinerary
+            </button>
+            <button
+              onClick={() => {
+                setTrack('final');
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide relative
+                ${track === 'final' 
+                  ? 'bg-white text-emerald-800 shadow-sm' 
+                  : 'text-neutral-500 hover:text-neutral-800'
+                }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              2. Final Itinerary
+              {basicCompleted && (
+                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -7666,9 +7718,32 @@ ${chauffeurHtml}
                             Active Procurement Blocks ({poBlocks.length})
                           </h4>
                           {poBlocks.length === 0 ? (
-                            <div className="p-6 rounded-2xl bg-neutral-50/30 border border-dashed border-neutral-200 text-center space-y-2">
-                              <p className="text-xs text-neutral-400 italic">No blocks configured yet.</p>
-                              <p className="text-[10px] text-neutral-400">Select activities on the right to package them into blocks.</p>
+                            <div className="p-8 rounded-2xl bg-neutral-50/50 border border-dashed border-neutral-250 text-center space-y-4 max-w-md mx-auto my-8 animate-in fade-in zoom-in duration-300">
+                              <Briefcase className="w-10 h-10 text-neutral-300 mx-auto" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-bold text-neutral-700">No PO Blocks Initialized</p>
+                                <p className="text-xs text-neutral-400">
+                                  Procurement blocks have not been initialized for this tour yet. You can auto-generate blocks based on the itinerary's activities.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setLoadingBlocks(true);
+                                  setPoDataNeedsRebuild(false);
+                                  const res = await initializeDefaultBlocksAction(tourId);
+                                  if (res.success && res.blocks) {
+                                    setPoBlocks(res.blocks);
+                                  } else {
+                                    alert("Failed to initialize PO blocks: " + (res.error || "Unknown error"));
+                                  }
+                                  setLoadingBlocks(false);
+                                }}
+                                className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+                              >
+                                <History className="w-3.5 h-3.5" />
+                                Auto-Generate PO Blocks
+                              </button>
                             </div>
                           ) : (
                             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
