@@ -18622,6 +18622,37 @@ ${chauffeurHtml}
                       setDbActivities(prev => [...prev, newPO]);
                       setItinerary(prev => [...prev, newBlock]);
                     }
+
+                    // Auto-map the new custom hotel item in the frontend poBlocks state
+                    setPoBlocks(prevBlocks => {
+                      return prevBlocks.map(block => {
+                        const standardStays = block.daily_activities?.filter((a: any) => a.activity_type === 'sleep');
+                        const hasMatchingHotel = standardStays?.some((a: any) => a.hotel_id === customHotelItemBaseHotel.id);
+                        
+                        if (hasMatchingHotel) {
+                          const exists = block.daily_activities?.some((a: any) => a.id === newPOId);
+                          let nextActs = block.daily_activities || [];
+                          const mappedActivity = {
+                            ...newPO,
+                            name: customHotelItemTitle,
+                            title: customHotelItemTitle,
+                            contractedPrice: customHotelItemContractedPrice,
+                            agreedPrice: customHotelItemChargedUnitPrice,
+                          };
+
+                          if (exists) {
+                            nextActs = nextActs.map((a: any) => a.id === newPOId ? { ...a, ...mappedActivity } : a);
+                          } else {
+                            nextActs = [...nextActs, mappedActivity];
+                          }
+                          return {
+                            ...block,
+                            daily_activities: nextActs
+                          };
+                        }
+                        return block;
+                      });
+                    });
                     
                     setEditingCustomHotelItem(null);
                     setShowCustomHotelItemModal(false);
