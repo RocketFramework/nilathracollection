@@ -5893,18 +5893,11 @@ ${chauffeurHtml}
   };
 
   useEffect(() => {
-    if (!isStateRestored) return;
+    if (!isStateRestored || !tourId || tourId === 'draft-tour') return;
 
-    if (lastLoadedRef.current.tourId === tourId && lastLoadedRef.current.track === track) {
-      // Already loaded this combination, skip redundant initial mount load
-      return;
-    }
-
-    if (track === 'final' && tourId) {
+    if (track === 'final') {
       loadAllFinalTrackData(tourId);
     }
-
-    lastLoadedRef.current = { tourId, track };
   }, [track, tourId, isStateRestored]);
 
 
