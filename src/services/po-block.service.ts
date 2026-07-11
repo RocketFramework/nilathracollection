@@ -162,6 +162,20 @@ export class POBlockService {
 
     static async deletePOBlock(blockId: string): Promise<void> {
         const adminSupabase = createAdminClient();
+
+        // 1. Delete associated tour_rfq_emails
+        const { error: rfqErr } = await adminSupabase
+            .from('tour_rfq_emails')
+            .delete()
+            .eq('po_block_id', blockId);
+        if (rfqErr) throw rfqErr;
+
+        // 2. Delete associated tour_rfp_emails
+        const { error: rfpErr } = await adminSupabase
+            .from('tour_rfp_emails')
+            .delete()
+            .eq('po_block_id', blockId);
+        if (rfpErr) throw rfpErr;
         
         // Deleting block cascade deletes mappings in po_block_daily_activities
         const { error } = await adminSupabase
@@ -441,8 +455,10 @@ export class POBlockService {
         // Filter to only meaningful activities
         const activities = rawActivities.filter(act => {
             const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                !act.vendor_id && !act.transport_id && !act.driver_id && !act.guide_id &&
-                !act.restaurant_id && !act.vendor_activity_id && !act.hotel_id;
+                !act.vendor_id &&
+                !act.restaurant_id &&
+                !act.vendor_activity_id &&
+                !act.hotel_id;
             return !isInvalidActivity;
         });
 
@@ -493,9 +509,17 @@ export class POBlockService {
                 acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.transport_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}:${a.guide_id || ''}:${a.driver_id || ''}`)
                     .sort().join('|');
 
-            const incomingSig = buildSig(activitiesToGroup);
+            const isMappableActivity = (a: any) => {
+                if (a.activity_type === 'sleep' || a.hotel_id) return true;
+                if (a.activity_type === 'travel' && a.transport_id) return true;
+                if (a.activity_type === 'meal') return true;
+                if (a.activity_type === 'activity') return true;
+                return false;
+            };
+
+            const incomingSig = buildSig(activitiesToGroup.filter(isMappableActivity));
             const existingSig = buildSig(
-                nonFinalizedBlocks.flatMap(b => b.daily_activities || [])
+                nonFinalizedBlocks.flatMap(b => b.daily_activities || []).filter(isMappableActivity)
             );
 
             // Guard: if all non-finalized blocks have zero activities mapped,
@@ -514,10 +538,26 @@ export class POBlockService {
 
         // Delete non-finalized blocks (cascade handles po_block_daily_activities)
         if (nonFinalizedBlocks.length > 0) {
+            const nonFinalizedBlockIds = nonFinalizedBlocks.map(b => b.id);
+
+            // 1. Delete associated tour_rfq_emails
+            const { error: rfqErr } = await adminSupabase
+                .from('tour_rfq_emails')
+                .delete()
+                .in('po_block_id', nonFinalizedBlockIds);
+            if (rfqErr) throw rfqErr;
+
+            // 2. Delete associated tour_rfp_emails
+            const { error: rfpErr } = await adminSupabase
+                .from('tour_rfp_emails')
+                .delete()
+                .in('po_block_id', nonFinalizedBlockIds);
+            if (rfpErr) throw rfpErr;
+
             const { error: deleteErr } = await adminSupabase
                 .from('po_blocks')
                 .delete()
-                .in('id', nonFinalizedBlocks.map(b => b.id));
+                .in('id', nonFinalizedBlockIds);
             if (deleteErr) throw deleteErr;
         }
 

@@ -7,6 +7,23 @@ export class VendorEmailHistoryService {
         const db = client || createAdminClient();
         const rfqId = (data as any).daily_activity_vendor_id || (data as any).quotation_request_id;
 
+        let resolvedBlockId = data.po_block_id || null;
+        if (resolvedBlockId) {
+            try {
+                const { data: blockExists } = await db
+                    .from('po_blocks')
+                    .select('id')
+                    .eq('id', resolvedBlockId)
+                    .maybeSingle();
+                if (!blockExists) {
+                    resolvedBlockId = null;
+                }
+            } catch (err) {
+                console.error("Error verifying RFQ email po_block_id existence:", err);
+                resolvedBlockId = null;
+            }
+        }
+
         if (rfqId) {
             const { data: updated, error } = await db
                 .from('tour_rfq_emails')
@@ -15,7 +32,7 @@ export class VendorEmailHistoryService {
                     body_html: (data as any).body_html,
                     attachments: data.attachments || [],
                     sent_by: data.sent_by || null,
-                    po_block_id: data.po_block_id || null
+                    po_block_id: resolvedBlockId
                 })
                 .eq('id', rfqId)
                 .select('id')
@@ -38,7 +55,7 @@ export class VendorEmailHistoryService {
             attachments: data.attachments || [],
             sent_by: data.sent_by || null,
             daily_activity_vendor_id: rfqId || null,
-            po_block_id: data.po_block_id || null,
+            po_block_id: resolvedBlockId,
             status: 'Sent'
         };
 
@@ -98,6 +115,38 @@ export class VendorEmailHistoryService {
 
     static async logRfpEmail(data: LogRfpEmailDTO, client?: any): Promise<string> {
         const db = client || createAdminClient();
+        let resolvedBlockId = data.po_block_id || null;
+        if (data.purchase_order_id) {
+            try {
+                const { data: po } = await db
+                    .from('purchase_orders')
+                    .select('po_block_id')
+                    .eq('id', data.purchase_order_id)
+                    .maybeSingle();
+                if (po?.po_block_id) {
+                    resolvedBlockId = po.po_block_id;
+                }
+            } catch (err) {
+                console.error("Error resolving RFP email po_block_id from PO:", err);
+            }
+        }
+        
+        if (resolvedBlockId) {
+            try {
+                const { data: blockExists } = await db
+                    .from('po_blocks')
+                    .select('id')
+                    .eq('id', resolvedBlockId)
+                    .maybeSingle();
+                if (!blockExists) {
+                    resolvedBlockId = null;
+                }
+            } catch (err) {
+                console.error("Error verifying RFP email po_block_id existence:", err);
+                resolvedBlockId = null;
+            }
+        }
+
         const { data: inserted, error } = await db
             .from('tour_rfp_emails')
             .insert([{
@@ -112,7 +161,7 @@ export class VendorEmailHistoryService {
                 body_html: (data as any).body_html,
                 attachments: data.attachments || [],
                 sent_by: data.sent_by || null,
-                po_block_id: data.po_block_id || null,
+                po_block_id: resolvedBlockId,
                 status: 'Sent'
             }])
             .select('id')

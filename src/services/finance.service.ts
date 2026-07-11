@@ -274,6 +274,36 @@ export class FinanceService {
     }
 
     /**
+     * Deletes a supplier invoice, its items, and associated payments.
+     */
+    static async deleteSupplierInvoice(id: string): Promise<boolean> {
+        const supabase = createAdminClient();
+
+        // 1. Delete associated payments disabursed against this invoice
+        const { error: payError } = await supabase
+            .from('supplier_payments')
+            .delete()
+            .eq('supplier_invoice_id', id);
+        if (payError) throw payError;
+
+        // 2. Delete associated invoice items
+        const { error: itemsError } = await supabase
+            .from('supplier_invoice_items')
+            .delete()
+            .eq('supplier_invoice_id', id);
+        if (itemsError) throw itemsError;
+
+        // 3. Delete the invoice itself
+        const { error: invError } = await supabase
+            .from('supplier_invoices')
+            .delete()
+            .eq('id', id);
+        if (invError) throw invError;
+
+        return true;
+    }
+
+    /**
      * Aggregates itinerary data and creates Draft POs in the database.
      */
     static async syncItineraryToRelationalPOs(tourId: string, itinerary: any[]) {

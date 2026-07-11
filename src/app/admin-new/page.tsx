@@ -126,6 +126,7 @@ import {
   saveSupplierInvoiceAction,
   saveSupplierPaymentAction,
   deleteSupplierPaymentAction,
+  deleteSupplierInvoiceAction,
   getExchangeRateAction,
   createVendorBookingAction,
   confirmFinalVendorBookingAction,
@@ -5637,6 +5638,14 @@ ${chauffeurHtml}
   };
 
   const handleDeletePayment = async (paymentId: string) => {
+    const password = prompt("Enter admin password to confirm deleting/reversing this payment:");
+    if (password === null) return;
+    const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123';
+    if (password !== correctPassword) {
+      alert("Incorrect admin password. Deletion aborted.");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to delete/reverse this payment? This will update the balances and cannot be undone.")) {
       return;
     }
@@ -5647,6 +5656,31 @@ ${chauffeurHtml}
         loadProcurementData(tourId);
       } else {
         alert("Failed to delete payment: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    const password = prompt("Enter admin password to confirm deleting this invoice:");
+    if (password === null) return;
+    const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123';
+    if (password !== correctPassword) {
+      alert("Incorrect admin password. Deletion aborted.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this invoice? This will also delete any recorded payments for this invoice and cannot be undone.")) {
+      return;
+    }
+    try {
+      const res = await deleteSupplierInvoiceAction(invoiceId);
+      if (res.success) {
+        alert("Invoice and associated payments deleted successfully.");
+        loadProcurementData(tourId);
+      } else {
+        alert("Failed to delete invoice: " + res.error);
       }
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -9816,6 +9850,96 @@ ${chauffeurHtml}
                                             <FileText className="w-3.5 h-3.5 text-amber-600" />
                                             <span>Create PO</span>
                                           </button>
+                                          {block.transport_requirement?.transport_requirement_vehicles?.length > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={async () => {
+                                                if (confirm('Apply recommended vehicle day rates (including mileage surcharge where applicable) to all days in this travel block?')) {
+                                                  try {
+                                                    const groupedDaysMap = new globalThis.Map<string, any[]>();
+                                                    travelItems.forEach((trip: any) => {
+                                                      const dayNum = trip.tour_itineraries?.day_number || trip.day_number || 0;
+                                                      const dateVal = trip.tour_itineraries?.date || trip.service_date;
+                                                      const dayKey = dateVal ? String(dateVal) : `Day ${dayNum}`;
+                                                      if (!groupedDaysMap.has(dayKey)) {
+                                                        groupedDaysMap.set(dayKey, []);
+                                                      }
+                                                      groupedDaysMap.get(dayKey)!.push(trip);
+                                                    });
+
+                                                    const updates: any[] = [];
+                                                    const optimisticActivities: Record<string, { contracted_total_price: number }> = {};
+
+                                                    const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
+                                                    const baseRate = blockVehicles.reduce((sum: number, trv: any) => {
+                                                      const v = trv.vehicle;
+                                                      return sum + ((Number(v?.day_rate) || 0) * (Number(trv.quantity) || 1));
+                                                    }, 0);
+
+                                                    const maxMileage = blockVehicles.reduce((sum: number, trv: any) => {
+                                                      const v = trv.vehicle;
+                                                      return sum + ((Number(v?.max_km_per_day) || 80) * (Number(trv.quantity) || 1));
+                                                    }, 0);
+
+                                                    const extraKmRate = blockVehicles.reduce((sum: number, trv: any) => {
+                                                      const v = trv.vehicle;
+                                                      return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
+                                                    }, 0);
+
+                                                    for (const [, legs] of groupedDaysMap.entries()) {
+                                                      const totalDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                                                      const excessDistance = Math.max(0, totalDistance - maxMileage);
+                                                      const extraKmCost = excessDistance * extraKmRate;
+                                                      const recommendedRate = baseRate + extraKmCost;
+
+                                                      const allLegIds = legs.map((l: any) => l.id);
+                                                      const numLegs = allLegIds.length;
+                                                      const perLegTotal = parseFloat((recommendedRate / numLegs).toFixed(2));
+                                                      const firstLegTotal = parseFloat((recommendedRate - (perLegTotal * (numLegs - 1))).toFixed(2));
+
+                                                      allLegIds.forEach((id: string, legIdx: number) => {
+                                                        const targetPrice = legIdx === 0 ? firstLegTotal : perLegTotal;
+                                                        updates.push({
+                                                          id,
+                                                          contracted_price: null,
+                                                          contracted_total_price: targetPrice,
+                                                        });
+                                                        optimisticActivities[id] = { contracted_total_price: targetPrice };
+                                                      });
+                                                    }
+
+                                                    // Optimistic UI update
+                                                    setPoBlocks(prev => prev.map(pb => {
+                                                      if (pb.id !== block.id) return pb;
+                                                      return {
+                                                        ...pb,
+                                                        daily_activities: (pb.daily_activities || []).map((da: any) => {
+                                                          if (optimisticActivities[da.id]) {
+                                                            return {
+                                                              ...da,
+                                                              contracted_total_price: optimisticActivities[da.id].contracted_total_price,
+                                                            };
+                                                          }
+                                                          return da;
+                                                        })
+                                                      };
+                                                    }));
+
+                                                    // Persist to DB
+                                                    await finalizeActivityPricesAction(updates);
+                                                  } catch (err) {
+                                                    console.error('Failed to apply recommended block rates:', err);
+                                                  }
+                                                }
+                                              }}
+                                              disabled={isLockedByOther}
+                                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-amber-600/40 hover:border-amber-600 hover:bg-amber-50/20 text-[9px] font-extrabold text-amber-700 transition-all shadow-sm disabled:opacity-40"
+                                              title="Apply recommended day rates to all days in this block"
+                                            >
+                                              <CircleDollarSign className="w-3.5 h-3.5 text-amber-600" />
+                                              <span>Apply Vehicle Day Rates</span>
+                                            </button>
+                                          )}
                                         </>
                                       )}
                                     </div>
@@ -10140,7 +10264,6 @@ ${chauffeurHtml}
                                   }
                                   groupedDaysMap.get(dayKey)!.push(trip);
                                 });
-
                                 // Sort the days
                                 const sortedGroupedDays = Array.from(groupedDaysMap.entries()).sort((a: [string, any[]], b: [string, any[]]) => {
                                   const dateA = new Date(a[0]).getTime();
@@ -10159,7 +10282,43 @@ ${chauffeurHtml}
                                       const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
                                       const totalDayPrice = legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.charged_total_price) || 0), 0);
                                       
+                                      const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
+                                      let baseDayRate = 0;
+                                      let maxMileageLimit = 0;
+                                      let excessDistance = 0;
+                                      let additionalMileageRate = 0;
+                                      let excessMileageCost = 0;
+                                      let recommendedDailyRate = 0;
+
+                                      if (blockVehicles.length > 0) {
+                                        baseDayRate = blockVehicles.reduce((sum: number, trv: any) => {
+                                          const v = trv.vehicle;
+                                          return sum + ((Number(v?.day_rate) || 0) * (Number(trv.quantity) || 1));
+                                        }, 0);
+
+                                        maxMileageLimit = blockVehicles.reduce((sum: number, trv: any) => {
+                                          const v = trv.vehicle;
+                                          return sum + ((Number(v?.max_km_per_day) || 80) * (Number(trv.quantity) || 1));
+                                        }, 0);
+
+                                        excessDistance = Math.max(0, totalDayDistance - maxMileageLimit);
+
+                                        additionalMileageRate = blockVehicles.reduce((sum: number, trv: any) => {
+                                          const v = trv.vehicle;
+                                          return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
+                                        }, 0);
+
+                                        excessMileageCost = excessDistance * additionalMileageRate;
+                                        recommendedDailyRate = baseDayRate + excessMileageCost;
+                                      }
+
                                       const distinctVehicles: string[] = [];
+                                      blockVehicles.forEach((trv: any) => {
+                                        const vt = trv.vehicle?.vehicle_type;
+                                        if (vt && !distinctVehicles.includes(vt)) {
+                                          distinctVehicles.push(vt);
+                                        }
+                                      });
 
                                       const pathString = legs.map((t: any) => t.title || t.location_name || 'Travel Leg').join(' → ');
                                       const isHighMileage = totalDayDistance > 150; // threshold for daily warning
@@ -10197,11 +10356,67 @@ ${chauffeurHtml}
                                               <span className="font-extrabold text-xs">{totalDayDistance}</span>
                                             </div>
 
-                                            {totalDayPrice > 0 && (
-                                              <div className="text-right min-w-[70px]">
-                                                <span className="text-[9px] text-amber-600 uppercase block font-mono">Day Total</span>
-                                                <span className="font-mono text-amber-800 font-bold text-xs">${totalDayPrice.toFixed(2)}</span>
+                                            {recommendedDailyRate > 0 && (
+                                              <div className="text-right min-w-[90px] border-r border-neutral-100 pr-3">
+                                                <span className="text-[9px] text-neutral-400 uppercase block">Rec. Day Rate</span>
+                                                <span className="font-mono text-neutral-650 font-bold text-xs">${recommendedDailyRate.toFixed(2)}</span>
+                                                {excessDistance > 0 && (
+                                                  <span className="text-[8px] text-rose-500 block font-semibold leading-none mt-0.5">
+                                                    +{excessDistance.toFixed(0)} km extra
+                                                  </span>
+                                                )}
                                               </div>
+                                            )}
+
+                                            <div className="text-right min-w-[70px]">
+                                              <span className="text-[9px] text-amber-600 uppercase block font-mono">Day Total</span>
+                                              <span className="font-mono text-amber-800 font-bold text-xs">
+                                                {totalDayPrice > 0 ? `$${totalDayPrice.toFixed(2)}` : '$0.00'}
+                                              </span>
+                                            </div>
+
+                                            {recommendedDailyRate > 0 && Math.abs(totalDayPrice - recommendedDailyRate) > 0.01 && (
+                                              <button
+                                                type="button"
+                                                onClick={async () => {
+                                                  if (confirm(`Apply recommended vehicle day rate of $${recommendedDailyRate.toFixed(2)} for this day?`)) {
+                                                    const allLegIds = legs.map((l: any) => l.id);
+                                                    const numLegs = allLegIds.length;
+                                                    const perLegTotal = parseFloat((recommendedDailyRate / numLegs).toFixed(2));
+                                                    const firstLegTotal = parseFloat((recommendedDailyRate - (perLegTotal * (numLegs - 1))).toFixed(2));
+
+                                                    // Optimistic UI update
+                                                    setPoBlocks(prev => prev.map(pb => {
+                                                      if (pb.id !== block.id) return pb;
+                                                      return {
+                                                        ...pb,
+                                                        daily_activities: (pb.daily_activities || []).map((da: any) => {
+                                                          const legIdx = allLegIds.indexOf(da.id);
+                                                          if (legIdx === -1) return da;
+                                                          return {
+                                                            ...da,
+                                                            contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
+                                                          };
+                                                        })
+                                                      };
+                                                    }));
+
+                                                    // Persist to DB
+                                                    await finalizeActivityPricesAction(
+                                                      allLegIds.map((id, legIdx) => ({
+                                                        id,
+                                                        contracted_price: null,
+                                                        contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
+                                                      }))
+                                                    );
+                                                  }
+                                                }}
+                                                disabled={isLockedByOther}
+                                                className="px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-bold uppercase transition-all shrink-0 ml-1 shadow-sm"
+                                                title="Quick apply recommended vehicle day rate"
+                                              >
+                                                Apply Rec
+                                              </button>
                                             )}
 
                                             <button
@@ -12365,16 +12580,31 @@ ${chauffeurHtml}
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-150 pb-4">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <span className="text-sm font-bold text-neutral-850 font-mono">{po.po_number}</span>
+                                      <span className="text-sm font-bold text-neutral-855 font-mono">{po.po_number}</span>
                                       <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
                                       <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                        po.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                        po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
-                                        po.status === 'Accepted' ? 'bg-emerald-100 text-emerald-800' :
-                                        'bg-neutral-100 text-neutral-600'
+                                        po.status === 'Completed' ? 'bg-green-105 text-green-800' :
+                                        po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
+                                        po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
+                                        'bg-neutral-105 text-neutral-600'
                                       }`}>
                                         PO: {po.status}
                                       </span>
+                                      {po.status !== 'Cancelled' && po.status !== 'Completed' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const booking = vendorBookings.find(b => b.purchase_order_id === po.id || b.daily_activity_ids?.some((id: string) => po.items?.some((item: any) => item.daily_activity_id === id)));
+                                            const bookingId = booking?.id || po.booking_id || po.id;
+                                            const reason = prompt("Enter reason for cancellation:");
+                                            if (reason !== null) handleCancelPO(bookingId, reason);
+                                          }}
+                                          className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all focus:outline-none cursor-pointer flex items-center justify-center"
+                                          title="Cancel PO & Booking"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
                                     </div>
                                     <p className="text-[10px] text-neutral-400 mt-1">Date: {new Date(po.po_date).toLocaleDateString()}</p>
                                   </div>
@@ -12982,6 +13212,14 @@ ${chauffeurHtml}
                                                   }`}>
                                                     {inv.status}
                                                   </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteInvoice(inv.id)}
+                                                    className="p-1 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all focus:outline-none cursor-pointer"
+                                                    title="Delete Supplier Invoice"
+                                                  >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                  </button>
                                                 </div>
                                                 <p className="text-[10px] text-neutral-450 mt-1 font-mono">Date: {new Date(inv.invoice_date).toLocaleDateString()}</p>
                                               </div>
@@ -16910,6 +17148,104 @@ ${chauffeurHtml}
                   </div>
                 </div>
 
+                {(() => {
+                  if (editingCustomRateAct.activity_type !== 'travel') return null;
+                  const block = poBlocks.find((pb: any) => 
+                    (pb.daily_activities || []).some((da: any) => da.id === editingCustomRateAct.id)
+                  );
+                  if (!block) return null;
+                  
+                  const blockActivities = block.daily_activities || [];
+                  const travelItems = blockActivities.filter((a: any) => a.activity_type === 'travel');
+
+                  // Group by day to find the exact legs of this day
+                  const dayNum = editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || 0;
+                  const dateVal = editingCustomRateAct.tour_itineraries?.date || editingCustomRateAct.service_date;
+                  const dayKey = dateVal ? String(dateVal) : `Day ${dayNum}`;
+
+                  const legs = travelItems.filter((t: any) => {
+                    const tDayNum = t.tour_itineraries?.day_number || t.day_number || 0;
+                    const tDateVal = t.tour_itineraries?.date || t.service_date;
+                    const tDayKey = tDateVal ? String(tDateVal) : `Day ${tDayNum}`;
+                    return tDayKey === dayKey;
+                  });
+
+                  const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+                  const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
+                  
+                  let baseDayRate = 0;
+                  let maxMileageLimit = 0;
+                  let excessDistance = 0;
+                  let additionalMileageRate = 0;
+                  let excessMileageCost = 0;
+                  let recommendedDailyRate = 0;
+
+                  if (blockVehicles.length > 0) {
+                    baseDayRate = blockVehicles.reduce((sum: number, trv: any) => {
+                      const v = trv.vehicle;
+                      return sum + ((Number(v?.day_rate) || 0) * (Number(trv.quantity) || 1));
+                    }, 0);
+
+                    maxMileageLimit = blockVehicles.reduce((sum: number, trv: any) => {
+                      const v = trv.vehicle;
+                      return sum + ((Number(v?.max_km_per_day) || 80) * (Number(trv.quantity) || 1));
+                    }, 0);
+
+                    excessDistance = Math.max(0, totalDayDistance - maxMileageLimit);
+
+                    additionalMileageRate = blockVehicles.reduce((sum: number, trv: any) => {
+                      const v = trv.vehicle;
+                      return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
+                    }, 0);
+
+                    excessMileageCost = excessDistance * additionalMileageRate;
+                    recommendedDailyRate = baseDayRate + excessMileageCost;
+                  }
+
+                  if (recommendedDailyRate <= 0) return null;
+
+                  return (
+                    <div className="text-[10px] text-amber-805 bg-amber-50/50 p-3.5 rounded-2xl border border-amber-200/60 space-y-2 mt-2 shadow-sm animate-in fade-in duration-200">
+                      <span className="font-bold uppercase tracking-wider text-[9px] block text-amber-700">
+                        Recommended Vehicle Day Rate Details
+                      </span>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Base Day Rate:</span>
+                          <span className="font-mono font-semibold">${baseDayRate.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Max Distance:</span>
+                          <span className="font-mono font-semibold">{maxMileageLimit} km</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Day Distance:</span>
+                          <span className="font-mono font-semibold">{totalDayDistance.toFixed(1)} km</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-500">Excess Distance:</span>
+                          <span className="font-mono font-semibold text-rose-600">{excessDistance.toFixed(1)} km</span>
+                        </div>
+                        <div className="flex justify-between col-span-2 mt-1.5 pt-1.5 border-t border-amber-200/50 font-bold text-amber-900 text-xs">
+                          <span>Recommended Total:</span>
+                          <span className="font-mono text-sm">${recommendedDailyRate.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomRateTotal(String(recommendedDailyRate.toFixed(2)));
+                          setCustomRateUnit('');
+                          setCustomRateNote(`Applied recommended vehicle day rate ($${recommendedDailyRate.toFixed(2)}) based on assigned vehicles and daily mileage.`);
+                        }}
+                        className="w-full mt-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[9px] font-bold uppercase transition-all shadow-sm flex items-center justify-center gap-1"
+                      >
+                        Auto-fill Recommended Day Rate
+                      </button>
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
                     Change Note / Reason
@@ -18747,8 +19083,6 @@ ${chauffeurHtml}
                       alert('Failed to save specifications: ' + (error || 'Unknown error'));
                     }
 
-                    // Also save vehicle assignments to the junction table
-                    // Always call save (even when empty) so that removing all vehicles deletes old DB rows
                     const vehicleSaveRes = await saveTransportRequirementVehiclesAction(
                       requirementId,
                       reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
@@ -18756,6 +19090,11 @@ ${chauffeurHtml}
                     if (!vehicleSaveRes.success) {
                       console.error('[TransportSpecs] Vehicle save failed:', vehicleSaveRes.error);
                       alert('Transport specs saved but vehicle assignments failed: ' + (vehicleSaveRes.error || 'Unknown error'));
+                    } else {
+                      const blocksRes = await getPOBlocksAction(tourId);
+                      if (blocksRes.success && blocksRes.blocks) {
+                        setPoBlocks(blocksRes.blocks);
+                      }
                     }
 
                     setShowTransportReqModal(false);

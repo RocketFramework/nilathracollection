@@ -301,6 +301,21 @@ export class VendorBookingService {
 
         // 3. Generate and save the PO
         let resolvedPoBlockId = bookingData.po_block_id || null;
+        if (resolvedPoBlockId) {
+            try {
+                const { data: blockExists } = await supabase
+                    .from('po_blocks')
+                    .select('id')
+                    .eq('id', resolvedPoBlockId)
+                    .maybeSingle();
+                if (!blockExists) {
+                    resolvedPoBlockId = null;
+                }
+            } catch (err) {
+                console.error("Error verifying po_block_id existence:", err);
+                resolvedPoBlockId = null;
+            }
+        }
         if (!resolvedPoBlockId) {
             if (bookingData.quotation_request_id) {
                 try {
@@ -384,6 +399,18 @@ export class VendorBookingService {
                 .from('tour_rfq_emails')
                 .update({ status: 'Selected', selected_vendor: true })
                 .eq('id', bookingData.quotation_request_id);
+        }
+
+        // 5. Finalize the block in the database so it freezes and is preserved on reload
+        if (resolvedPoBlockId) {
+            try {
+                await supabase
+                    .from('po_blocks')
+                    .update({ has_finalized: true, updated_at: new Date().toISOString() })
+                    .eq('id', resolvedPoBlockId);
+            } catch (err) {
+                console.error("Failed to finalize PO block on booking creation:", err);
+            }
         }
 
         return {

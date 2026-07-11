@@ -848,6 +848,16 @@ export async function deleteSupplierPaymentAction(id: string) {
         return { success: false, error: error.message || "Failed to delete supplier payment." };
     }
 }
+
+export async function deleteSupplierInvoiceAction(id: string) {
+    try {
+        await FinanceService.deleteSupplierInvoice(id);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting supplier invoice:", error);
+        return { success: false, error: error.message || "Failed to delete supplier invoice." };
+    }
+}
 export async function getExchangeRateAction() {
     try {
         const rate = await CurrencyService.getUSDTOLKR();
@@ -1408,6 +1418,7 @@ export async function selectQuotationAction(quoteId: string, dailyActivityId: st
 
 export async function createVendorBookingAction(dto: CreateVendorBookingDTO) {
     try {
+        console.log("createVendorBookingAction DTO RECEIVED:", JSON.stringify(dto, null, 2));
         const booking = await VendorBookingService.createBookingRequest(dto);
         revalidatePath("/admin-new");
         return { success: true, booking };
@@ -2180,6 +2191,7 @@ export async function logRfqEmailAction(
     vendorType?: string | null
 ) {
     try {
+        console.log("logRfqEmailAction RECEIVED poBlockId:", poBlockId);
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
         const sentBy = user ? user.id : undefined;
@@ -2230,6 +2242,7 @@ export async function logRfpEmailAction(
     vendorType?: string | null
 ) {
     try {
+        console.log("logRfpEmailAction RECEIVED poBlockId:", poBlockId);
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
         const sentBy = user ? user.id : undefined;
