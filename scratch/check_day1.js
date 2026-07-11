@@ -6,21 +6,23 @@ const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZi
 const supabase = createClient(url, key);
 
 async function run() {
-    const { data: tours, error } = await supabase
+    const tourId = "9bfb345a-da5d-443a-8644-90148b0b3a5a";
+    
+    const { data: tour, error } = await supabase
         .from('tours')
-        .select('id, title, updated_at')
-        .order('updated_at', { ascending: false })
-        .limit(10);
+        .select('planner_data')
+        .eq('id', tourId)
+        .single();
 
     if (error) {
         console.error(error);
         return;
     }
 
-    console.log("Recent Tours in DB:");
-    tours.forEach(t => {
-        console.log(`- ID: ${t.id} | Title: ${t.title} | Updated at: ${t.updated_at}`);
-    });
+    const tripData = tour.planner_data;
+    const day1Acc = tripData.accommodations?.find(a => a.nightIndex === 1);
+    console.log("Day 1 Accommodation in Planner Data:");
+    console.log(JSON.stringify(day1Acc, null, 2));
 }
 
 run();

@@ -2726,7 +2726,9 @@ function PlannerWizardWorkspace() {
             posRes,
             bookingsRes,
             rfqEmailsRes,
-            rfpEmailsRes
+            rfpEmailsRes,
+            blocksRes,
+            rebuildStatusRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -2737,7 +2739,9 @@ function PlannerWizardWorkspace() {
             getPurchaseOrdersAction(activeTourId),
             getVendorBookingsAction(activeTourId),
             getRfqEmailsForTourAction(activeTourId),
-            getRfpEmailsForTourAction(activeTourId)
+            getRfpEmailsForTourAction(activeTourId),
+            getPOBlocksAction(activeTourId),
+            getTourPORebuildStatusAction(activeTourId)
           ]);
 
           if (touristRes.success && touristRes.data) {
@@ -2859,6 +2863,14 @@ function PlannerWizardWorkspace() {
           }
           if (rfpEmailsRes && rfpEmailsRes.success && rfpEmailsRes.emails) {
             setRfpEmails(rfpEmailsRes.emails as TourRfpEmail[]);
+          }
+          if (blocksRes && blocksRes.success && blocksRes.blocks) {
+            setPoBlocks(blocksRes.blocks);
+          }
+          if (rebuildStatusRes && rebuildStatusRes.success && rebuildStatusRes.needsRebuild) {
+            setPoDataNeedsRebuild(true);
+          } else {
+            setPoDataNeedsRebuild(false);
           }
 
           // Process appStateData
@@ -5964,6 +5976,12 @@ ${chauffeurHtml}
 
   // C. CENTRALIZED DEBOUNCED AUTO-SAVE ITINERARY OPERATIONAL RECORDS (whenever itinerary changes)
   useEffect(() => {
+    fetch('/api/debug-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: `Auto-save useEffect hook triggered. isStateRestored: ${isStateRestored}, tourId: ${tourId}, tripData: ${!!tripData}` })
+    }).catch(() => {});
+
     if (!isStateRestored || !tourId || tourId === 'draft-tour' || !tripData) return;
 
     const handler = setTimeout(async () => {
@@ -6015,13 +6033,34 @@ ${chauffeurHtml}
           })) : tripData.travelers
         };
 
+        fetch('/api/debug-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `Executing saveTourAction. accommodations: ${JSON.stringify(updatedTripData.accommodations?.map(a => ({ night: a.nightIndex, hotelId: a.hotelId, name: a.hotelName })))}` })
+        }).catch(() => {});
+
         const res = await saveTourAction(tourId, updatedTripData);
         if (res.success) {
+          fetch('/api/debug-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `saveTourAction success!` })
+          }).catch(() => {});
           console.log("Successfully auto-persisted itinerary updates to database.");
         } else {
+          fetch('/api/debug-log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `saveTourAction failed: ${res.error}` })
+          }).catch(() => {});
           console.error("Auto-persist itinerary failed:", res.error);
         }
-      } catch (err) {
+      } catch (err: any) {
+        fetch('/api/debug-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `saveTourAction exception: ${err.message}` })
+        }).catch(() => {});
         console.error("Auto-persist itinerary caught exception:", err);
       }
     }, 1500);

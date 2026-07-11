@@ -394,13 +394,19 @@ export class TourService {
      * table rows for reporting / operations!
      */
     static async saveTour(tourId: string, tripData: TripData) {
+        const fs = require('fs');
+        const logMsg = `[${new Date().toISOString()}] saveTour called for tourId: ${tourId}\n` +
+                       `tripData itinerary length: ${tripData?.itinerary?.length}\n` +
+                       `tripData accommodations length: ${tripData?.accommodations?.length}\n\n`;
+        fs.appendFileSync('save_tour_debug.log', logMsg);
+
         const supabaseAdmin = createAdminClient();
 
         // Fetch existing quotation mappings before any deletions
         // Fetch existing itineraries for this tour to cover any mapping rows with null tour_id
         const { data: existingItins } = await supabaseAdmin
             .from('tour_itineraries')
-            .select('id')
+            .select('id, day_number')
             .eq('tour_id', tourId);
         
         const itinIds = existingItins?.map(i => i.id) || [];
@@ -586,13 +592,6 @@ export class TourService {
         }
 
         // 2. SYNC ITINERARY TO RELATIONAL TABLES
-        // Explicitly delete daily_activities and tour_itineraries directly by tour_id
-        const { error: daDeleteErr } = await supabaseAdmin.from('daily_activities').delete().eq('tour_id', tourId);
-        if (daDeleteErr) console.error("Failed to delete daily_activities by tour_id:", daDeleteErr);
-        
-        const { error: itinDeleteErr } = await supabaseAdmin.from('tour_itineraries').delete().eq('tour_id', tourId);
-        if (itinDeleteErr) console.error("Failed to delete tour_itineraries by tour_id:", itinDeleteErr);
-
         // Map TripData.itinerary into days
         if (!tripData.itinerary || tripData.itinerary.length === 0) return;
 
@@ -606,6 +605,7 @@ export class TourService {
         const days = Object.keys(blocksByDay).map(Number).sort((a, b) => a - b);
 
         let grandTotalCost = 0;
+        const allActivitiesToUpsert: any[] = [];
 
         for (const day of days) {
 
@@ -648,21 +648,42 @@ export class TourService {
                 }
             }
 
-            // A) Create 'tour_itineraries' header for the day
-            const { data: dbItin, error: itinErr } = await supabaseAdmin
-                .from('tour_itineraries')
-                .insert([{
-                    tour_id: tourId,
-                    day_number: day,
-                    date: dayDate,
-                    title: `Day ${day}`,
-                    hotel_id: dbHotelId
-                }])
-                .select('id')
-                .single();
+            // A) Create/Update 'tour_itineraries' header for the day
+            const existingItin = existingItins?.find(i => i.day_number === day);
+            let dbItin: any = null;
+            let itinErr: any = null;
+
+            if (existingItin) {
+                const { data, error } = await supabaseAdmin
+                    .from('tour_itineraries')
+                    .update({
+                        date: dayDate,
+                        title: `Day ${day}`,
+                        hotel_id: dbHotelId
+                    })
+                    .eq('id', existingItin.id)
+                    .select('id')
+                    .single();
+                dbItin = data;
+                itinErr = error;
+            } else {
+                const { data, error } = await supabaseAdmin
+                    .from('tour_itineraries')
+                    .insert([{
+                        tour_id: tourId,
+                        day_number: day,
+                        date: dayDate,
+                        title: `Day ${day}`,
+                        hotel_id: dbHotelId
+                    }])
+                    .select('id')
+                    .single();
+                dbItin = data;
+                itinErr = error;
+            }
 
             if (!dbItin) {
-                const err = itinErr || new Error("Unknown error creating tour_itineraries");
+                const err = itinErr || new Error("Unknown error creating/updating tour_itineraries");
                 console.error("Failed to map day", day, err);
                 throw new Error(`Failed to save itinerary day ${day}: ${err.message}`);
             }
@@ -1057,45 +1078,112 @@ export class TourService {
                 }
             }
 
-            if (activitiesToInsert.length > 0) {
-                console.log("activitiesToInsert payload for Day " + day + ":", JSON.stringify(activitiesToInsert, null, 2));
-                const { error: actErr } = await supabaseAdmin.from('daily_activities').insert(activitiesToInsert);
-                if (actErr) {
-                    console.error("Failed to insert activities for day", day, actErr);
-                    throw new Error(`Failed to save activities for Day ${day}: ${actErr.message}`);
+            // Accumulate active activities
+            for (const act of activitiesToInsert) {
+                if (act.charged_total_price) {
+                    grandTotalCost += act.charged_total_price;
                 }
-
-                // Accumulate grand total cost
-                for (const act of activitiesToInsert) {
-                    if (act.charged_total_price) {
-                        grandTotalCost += act.charged_total_price;
-                    }
-                    allInsertedActivities.push(act);
-                }
+                allActivitiesToUpsert.push(act);
+                allInsertedActivities.push(act);
             }
         }
 
-        // C) daily_activity_vendor_links restore removed as table is deprecated
+        // C) Delete removed itineraries
+        if (days.length > 0) {
+            const { error: itinDelErr } = await supabaseAdmin
+                .from('tour_itineraries')
+                .delete()
+                .eq('tour_id', tourId)
+                .not('day_number', 'in', `(${days.join(',')})`);
+            if (itinDelErr) {
+                console.error("Failed to delete removed itineraries:", itinDelErr);
+            }
+        } else {
+            await supabaseAdmin.from('tour_itineraries').delete().eq('tour_id', tourId);
+        }
 
-        // D) Restore po_block_daily_activities mappings
-        if (existingPOBlockMappings && existingPOBlockMappings.length > 0) {
-            const insertedActivityIds = new Set(allInsertedActivities.map(act => act.id).filter(Boolean));
-            
-            const poMappingsToReinsert = existingPOBlockMappings
-                .filter(m => insertedActivityIds.has(m.daily_activity_id))
-                .map(m => ({
-                    po_block_id: m.po_block_id,
-                    daily_activity_id: m.daily_activity_id
-                }));
+        // D) Delete removed daily activities & upsert active ones
+        const activeActivityIds = allActivitiesToUpsert.map(act => act.id).filter(Boolean);
+        if (activeActivityIds.length > 0) {
+            const { error: actDelErr } = await supabaseAdmin
+                .from('daily_activities')
+                .delete()
+                .eq('tour_id', tourId)
+                .not('id', 'in', `(${activeActivityIds.join(',')})`);
+            if (actDelErr) {
+                console.error("Failed to delete removed daily activities:", actDelErr);
+            }
+        } else {
+            await supabaseAdmin.from('daily_activities').delete().eq('tour_id', tourId);
+        }
 
-            if (poMappingsToReinsert.length > 0) {
-                const { error: poReinsertErr } = await supabaseAdmin
-                    .from('po_block_daily_activities')
-                    .insert(poMappingsToReinsert);
-                
-                if (poReinsertErr) {
-                    console.error("Failed to restore po_block_daily_activities mappings:", poReinsertErr);
+        if (allActivitiesToUpsert.length > 0) {
+            console.log("Upserting daily activities:", allActivitiesToUpsert.map(a => ({ id: a.id, title: a.title, type: a.activity_type, hotel_id: a.hotel_id })));
+            const { error: upsertErr } = await supabaseAdmin
+                .from('daily_activities')
+                .upsert(allActivitiesToUpsert);
+
+            if (upsertErr) {
+                console.error("Failed to upsert daily activities:", upsertErr);
+                throw new Error(`Failed to save daily activities: ${upsertErr.message}`);
+            }
+        }
+
+        // E) Restore po_block_daily_activities mappings
+        const insertedActivityIds = new Set(allInsertedActivities.map(act => act.id).filter(Boolean));
+        
+        const poMappingsToReinsert = (existingPOBlockMappings || [])
+            .filter(m => insertedActivityIds.has(m.daily_activity_id))
+            .map(m => ({
+                po_block_id: m.po_block_id,
+                daily_activity_id: m.daily_activity_id
+            }));
+
+        // Auto-link custom hotel items:
+        // Any inserted activity that has hotel_id and is not a sleep activity
+        // should be linked to the same PO block as the hotel sleep activity.
+        const mappedActivityIds = new Set(poMappingsToReinsert.map(m => m.daily_activity_id));
+        
+        const hotelBlockMap = new Map<string, string>();
+        allInsertedActivities.forEach(act => {
+            if (act.hotel_id && (act.activity_type === 'sleep' || act.activity_type === 'accommodation')) {
+                const mapping = poMappingsToReinsert.find(m => m.daily_activity_id === act.id);
+                if (mapping) {
+                    hotelBlockMap.set(act.hotel_id, mapping.po_block_id);
                 }
+            }
+        });
+
+        allInsertedActivities.forEach(act => {
+            if (act.hotel_id && act.activity_type !== 'sleep' && !mappedActivityIds.has(act.id)) {
+                const poBlockId = hotelBlockMap.get(act.hotel_id);
+                if (poBlockId) {
+                    poMappingsToReinsert.push({
+                        po_block_id: poBlockId,
+                        daily_activity_id: act.id
+                    });
+                    mappedActivityIds.add(act.id);
+                }
+            }
+        });
+
+        if (poMappingsToReinsert.length > 0) {
+            if (tourBlockIds.length > 0) {
+                const { error: clearMappingsErr } = await supabaseAdmin
+                    .from('po_block_daily_activities')
+                    .delete()
+                    .in('po_block_id', tourBlockIds);
+                if (clearMappingsErr) {
+                    console.error("Failed to clear old po_block_daily_activities mappings:", clearMappingsErr);
+                }
+            }
+
+            const { error: poReinsertErr } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .insert(poMappingsToReinsert);
+            
+            if (poReinsertErr) {
+                console.error("Failed to restore po_block_daily_activities mappings:", poReinsertErr);
             }
         }
 
