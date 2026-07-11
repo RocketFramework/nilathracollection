@@ -2104,6 +2104,7 @@ export async function changeHotelDatabaseAction(
 ) {
     try {
         await TourService.updateChangedHotel(tourId, stayIds, newHotelId, selectedRooms);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error in changeHotelDatabaseAction:", error);
@@ -2118,6 +2119,7 @@ export async function changeRestaurantAction(
 ) {
     try {
         await TourService.updateChangedRestaurant(tourId, mealActivityIds, newRestaurantId);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error in changeRestaurantAction:", error);
@@ -2132,6 +2134,7 @@ export async function changeVendorAction(
 ) {
     try {
         await TourService.updateChangedVendor(tourId, activityIds, newVendorId);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error in changeVendorAction:", error);
@@ -2146,6 +2149,7 @@ export async function changeTransportProviderAction(
 ) {
     try {
         await TourService.updateChangedTransportProvider(tourId, travelActivityIds, newProviderId);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error in changeTransportProviderAction:", error);
@@ -2160,6 +2164,7 @@ export async function changeGuideAction(
 ) {
     try {
         await TourService.updateChangedGuide(tourId, oldGuideId, newGuideId);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error in changeGuideAction:", error);
@@ -2174,6 +2179,7 @@ export async function changeDriverAction(
 ) {
     try {
         await TourService.updateChangedDriver(tourId, oldDriverId, newDriverId);
+        revalidatePath(`/admin-new`);
         return { success: true };
     } catch (error: any) {
         console.error("Error in changeDriverAction:", error);

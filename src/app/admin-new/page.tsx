@@ -17056,8 +17056,7 @@ ${chauffeurHtml}
                                                                 family_room_count: roomsMap.Family?.quantity || null
                                                               };
                                                             }
-                                                            const actDay = Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0);
-                                                            if (act.isCustomPO && act.hotel_id === oldHotelId && stayDays.has(actDay)) {
+                                                            if (act.isCustomPO && act.hotel_id === oldHotelId) {
                                                               return {
                                                                 ...act,
                                                                 hotel_id: h.id,
@@ -17083,7 +17082,7 @@ ${chauffeurHtml}
                                                                 locationName: h.location_address || h.closest_city || ''
                                                               };
                                                             }
-                                                            if (b.isCustomPO && b.hotelId === oldHotelId && stayDays.has(dayNum)) {
+                                                            if (b.isCustomPO && b.hotelId === oldHotelId) {
                                                               return {
                                                                 ...b,
                                                                 hotelId: h.id,

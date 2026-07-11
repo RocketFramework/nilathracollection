@@ -1217,7 +1217,7 @@ export class TourService {
                 : Promise.resolve({ data: [] as any[], error: null }),
             supabaseAdmin.from('daily_activities').select('hotel_id').in('id', stayIds).limit(1).single(),
             supabaseAdmin.from('app_settings').select('setting_value').eq('setting_key', 'room_markup').single(),
-            supabaseAdmin.from('daily_activities').select('id, itinerary_id').in('id', stayIds)
+            supabaseAdmin.from('daily_activities').select('id, itinerary_id, hotel_id').in('id', stayIds)
         ]);
 
         if (newHotelResult.error || !newHotelResult.data) throw new Error("New hotel not found: " + newHotelResult.error?.message);
@@ -1328,15 +1328,20 @@ export class TourService {
             ]);
         }));
 
-        // Update custom PO daily activities on the same days under the old hotel
-        if (firstStay?.hotel_id && dayNumbers.length > 0) {
-            await supabaseAdmin
+        // Update custom PO daily activities under the old hotel
+        const oldHotelIds = Array.from(new Set(stays.map((s: any) => s.hotel_id).filter(Boolean)));
+        if (oldHotelIds.length > 0) {
+            const { error: customUpdateErr } = await supabaseAdmin
                 .from('daily_activities')
                 .update({ hotel_id: newHotelId, location_name: newHotel.location_address || '' })
                 .eq('tour_id', tourId)
-                .eq('hotel_id', firstStay.hotel_id)
-                .in('day_number', dayNumbers)
-                .is('hotel_room_id', null);
+                .in('hotel_id', oldHotelIds)
+                .neq('activity_type', 'sleep');
+            
+            if (customUpdateErr) {
+                console.error("Error updating custom activities for changed hotel:", customUpdateErr);
+                throw new Error(`Failed to update custom activities: ${customUpdateErr.message}`);
+            }
         }
 
         // Fetch tours.planner_data, latest draft, and po_block junction in parallel
@@ -1356,7 +1361,7 @@ export class TourService {
                     if (b.type === 'sleep' && dayNumbers.includes(Number(b.dayNumber))) {
                         return { ...b, hotelId: newHotelId, hotelName: newHotel.name, roomName: selectedRooms[0]?.roomName || '', mealPlan: selectedRooms[0]?.mealPlan || 'BB', agreedPrice: avgChargedPriceAcrossStays * totalRoomsAcrossStays, contractedPrice: avgContractedPriceAcrossStays, description: `${oldHotelName} changed due to ${newHotel.name} due to availability` };
                     }
-                    if (b.isCustomPO && b.hotelId === firstStay?.hotel_id && dayNumbers.includes(Number(b.dayNumber))) {
+                    if (b.isCustomPO && b.hotelId === firstStay?.hotel_id) {
                         return { ...b, hotelId: newHotelId, hotelName: newHotel.name, locationName: newHotel.location_address || '' };
                     }
                     return b;
@@ -1377,6 +1382,9 @@ export class TourService {
             const updatedDraft = (latestDraftResult.data as any).itinerary_data.map((b: any) => {
                 if (b.type === 'sleep' && dayNumbers.includes(Number(b.dayNumber))) {
                     return { ...b, hotelId: newHotelId, hotelName: newHotel.name, roomName: selectedRooms[0]?.roomName || '', mealPlan: selectedRooms[0]?.mealPlan || 'BB', agreedPrice: avgChargedPriceAcrossStays * totalRoomsAcrossStays, contractedPrice: avgContractedPriceAcrossStays, description: `${oldHotelName} changed due to ${newHotel.name} due to availability` };
+                }
+                if (b.isCustomPO && b.hotelId === firstStay?.hotel_id) {
+                    return { ...b, hotelId: newHotelId, hotelName: newHotel.name, locationName: newHotel.location_address || '' };
                 }
                 return b;
             });
