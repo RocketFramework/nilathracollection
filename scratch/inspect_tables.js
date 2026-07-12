@@ -2,49 +2,43 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
-try {
-    const envPath = path.join(__dirname, '../.env.local');
-    if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        envContent.split('\n').forEach(line => {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) return;
-            const idx = trimmed.indexOf('=');
-            if (idx !== -1) {
-                const key = trimmed.substring(0, idx).trim();
-                let value = trimmed.substring(idx + 1).trim();
-                if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-                    value = value.substring(1, value.length - 1);
-                }
-                process.env[key] = value;
-            }
-        });
+// Manually parse .env.local
+const envPath = path.join(__dirname, '../.env.local');
+const envContent = fs.readFileSync(envPath, 'utf8');
+const env = {};
+envContent.split('\n').forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+        let value = match[2] || '';
+        // Remove quotes if present
+        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+        env[match[1]] = value;
     }
-} catch (err) {}
+});
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url = env.NEXT_PUBLIC_SUPABASE_URL;
+const key = env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !key) {
+    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local");
+    process.exit(1);
+}
+
 const supabase = createClient(url, key);
 
 async function inspect() {
-    console.log("---- purchase_orders columns ----");
-    const { data: po, error: poErr } = await supabase.from('purchase_orders').select('*').limit(1);
-    if (po && po.length > 0) {
-        console.log(Object.keys(po[0]));
-    } else if (poErr) {
-        console.error(poErr);
-    } else {
-        console.log("No rows in purchase_orders");
-    }
-
-    console.log("---- tour_rfq_emails columns ----");
-    const { data: rfq, error: rfqErr } = await supabase.from('tour_rfq_emails').select('*').limit(1);
-    if (rfq && rfq.length > 0) {
-        console.log(Object.keys(rfq[0]));
-    } else if (rfqErr) {
-        console.error(rfqErr);
-    } else {
-        console.log("No rows in tour_rfq_emails");
+    const tables = ['daily_activities', 'purchase_orders', 'purchase_order_items', 'po_blocks', 'po_block_daily_activities'];
+    for (const table of tables) {
+        const { data, error } = await supabase.from(table).select('*').limit(1);
+        if (error) {
+            console.error(`Error fetching from ${table}:`, error.message);
+        } else if (data && data.length > 0) {
+            console.log(`\nTable: ${table}`);
+            console.log('Columns:', Object.keys(data[0]));
+        } else {
+            console.log(`\nTable: ${table} (empty)`);
+        }
     }
 }
 

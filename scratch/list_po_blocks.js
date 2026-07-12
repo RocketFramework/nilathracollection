@@ -25,29 +25,18 @@ const db = createClient(supabaseUrl, supabaseServiceKey);
 
 async function run() {
   try {
-    const tourId = '9bfb345a-da5d-443a-8644-90148b0b3a5a';
-    
-    // Stays for Ceylon Tea Trails block:
-    const stayIds = [
-      '1fe01e42-0b03-44f9-8aec-9cb0b47a4b2b',
-      '2d993260-49d5-48df-8c75-28052979f857',
-      '94797ffb-d778-4c4d-a8fb-fd299f8d503c'
-    ];
-    
-    // Check junctionResult
-    const { data: junctionData, error: jErr } = await db
-      .from('po_block_daily_activities')
-      .select('po_block_id')
-      .in('daily_activity_id', stayIds);
-      
-    if (jErr) throw jErr;
-    console.log("junctionResult data:", junctionData);
-    
-    const poBlockIds = Array.from(new Set((junctionData || []).map((r) => r.po_block_id).filter(Boolean)));
-    console.log("Derived poBlockIds:", poBlockIds);
-    
+    // Get all purchase orders
+    const { data: pos, error: posErr } = await db
+      .from('purchase_orders')
+      .select('*');
+
+    if (posErr) throw posErr;
+    console.log(`Found ${pos?.length || 0} purchase orders:`);
+    for (const po of pos || []) {
+      console.log(`PO ID: ${po.id}, Supplier/Vendor: "${po.vendor_name}", Tour ID: ${po.tour_id}, Block ID: ${po.po_block_id}, Status: ${po.status}`);
+    }
   } catch (err) {
-    console.error("Test failed:", err);
+    console.error("Failed to list POs:", err);
   }
 }
 

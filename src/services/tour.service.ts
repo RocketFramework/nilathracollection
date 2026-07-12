@@ -1211,7 +1211,7 @@ export class TourService {
             markupResult,
             staysResult
         ] = await Promise.all([
-            supabaseAdmin.from('hotels').select('name, location_address').eq('id', newHotelId).single(),
+            supabaseAdmin.from('hotels').select('name, location_address, reservation_agent_contact, reservation_email').eq('id', newHotelId).single(),
             selectedRoomIds.length > 0
                 ? supabaseAdmin.from('room_rates').select('*').in('hotel_room_id', selectedRoomIds)
                 : Promise.resolve({ data: [] as any[], error: null }),
@@ -1328,22 +1328,6 @@ export class TourService {
             ]);
         }));
 
-        // Update custom PO daily activities under the old hotel
-        const oldHotelIds = Array.from(new Set(stays.map((s: any) => s.hotel_id).filter(Boolean)));
-        if (oldHotelIds.length > 0) {
-            const { error: customUpdateErr } = await supabaseAdmin
-                .from('daily_activities')
-                .update({ hotel_id: newHotelId, location_name: newHotel.location_address || '' })
-                .eq('tour_id', tourId)
-                .in('hotel_id', oldHotelIds)
-                .neq('activity_type', 'sleep');
-            
-            if (customUpdateErr) {
-                console.error("Error updating custom activities for changed hotel:", customUpdateErr);
-                throw new Error(`Failed to update custom activities: ${customUpdateErr.message}`);
-            }
-        }
-
         // Fetch tours.planner_data, latest draft, and po_block junction in parallel
         const [tourRecord, latestDraftResult, junctionResult] = await Promise.all([
             supabaseAdmin.from('tours').select('planner_data').eq('id', tourId).single(),
@@ -1351,8 +1335,73 @@ export class TourService {
             supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', stayIds)
         ]);
 
+        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+
         // Fire all final writes in parallel
         const finalWrites: PromiseLike<any>[] = [];
+
+        // 1. Fetch all mapped daily activities for these blocks (includes standard stay + custom activities!)
+        let mappedActivityIds: string[] = [];
+        if (poBlockIds.length > 0) {
+            const { data: mappedActs } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', poBlockIds);
+            mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
+        }
+
+        // 2. Update all mapped daily activities
+        if (mappedActivityIds.length > 0) {
+            const { data: actsToUpdate } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', mappedActivityIds);
+
+            for (const act of actsToUpdate || []) {
+                const actUpdates: any = {
+                    location_name: newHotel.location_address || '',
+                    updated_at: new Date().toISOString()
+                };
+
+                // Check if it's a sleep stay or has hotel_id
+                if (act.hotel_id || act.activity_type === 'sleep' || act.activity_type === 'accommodation') {
+                    actUpdates.hotel_id = newHotelId;
+                }
+
+                if (act.title && oldHotelName) {
+                    actUpdates.title = act.title.replace(new RegExp(oldHotelName, 'gi'), newHotel.name);
+                }
+                if (act.description && oldHotelName) {
+                    actUpdates.description = act.description.replace(new RegExp(oldHotelName, 'gi'), newHotel.name);
+                }
+                
+                finalWrites.push(
+                    supabaseAdmin
+                        .from('daily_activities')
+                        .update(actUpdates)
+                        .eq('id', act.id)
+                );
+            }
+        }
+
+        // 3. Update POs and items using our helper
+        if (poBlockIds.length > 0) {
+            await TourService.handlePOChangesForAssignmentUpdate(
+                supabaseAdmin,
+                tourId,
+                poBlockIds,
+                oldHotelName,
+                newHotel.name,
+                newHotelId,
+                {
+                    name: newHotel.name,
+                    address: newHotel.location_address,
+                    phone: newHotel.reservation_agent_contact,
+                    email: newHotel.reservation_email
+                },
+                'hotel'
+            );
+        }
 
         if (tourRecord.data?.planner_data) {
             const pData = tourRecord.data.planner_data as any;
@@ -1391,12 +1440,12 @@ export class TourService {
             finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraftResult.data as any).id).then(r => r));
         }
 
-        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
         if (poBlockIds.length > 0) {
             finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${newHotel.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds).then(r => r));
         }
 
         await Promise.all(finalWrites);
+
     }
 
     /**
@@ -1464,6 +1513,19 @@ export class TourService {
             itinUpdates.push(supabaseAdmin.from('tour_itineraries').update({ restaurant_id: newRestaurantId }).in('id', itinIds));
         }
 
+        // Fetch old restaurant name
+        const { data: oldRestaurantAct } = await supabaseAdmin
+            .from('daily_activities')
+            .select('restaurant_id')
+            .in('id', mealActivityIds)
+            .limit(1)
+            .maybeSingle();
+        const oldRestaurantId = oldRestaurantAct?.restaurant_id;
+        const oldRestaurantResult = oldRestaurantId
+            ? await supabaseAdmin.from('restaurants').select('name').eq('id', oldRestaurantId).maybeSingle()
+            : { data: null };
+        const oldRestaurantName = oldRestaurantResult.data?.name || "Old Restaurant";
+
         // Fetch po_block junction + tours planner_data + latest draft in parallel
         const [junctionResult, tourRecord, latestDraftResult] = await Promise.all([
             supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', mealActivityIds),
@@ -1471,10 +1533,65 @@ export class TourService {
             supabaseAdmin.from('draft_itinerary_versions').select('id, itinerary_data').eq('tour_id', tourId).order('version_number', { ascending: false }).limit(1).single()
         ]);
 
+        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+
         const finalWrites: PromiseLike<any>[] = [...itinUpdates];
 
+        // 1. Fetch and update all mapped daily activities to replace restaurant names
+        let mappedActivityIds: string[] = [];
+        if (poBlockIds.length > 0) {
+            const { data: mappedActs } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', poBlockIds);
+            mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
+        }
+
+        if (mappedActivityIds.length > 0) {
+            const { data: actsToUpdate } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', mappedActivityIds);
+
+            for (const act of actsToUpdate || []) {
+                const actUpdates: any = {};
+                if (act.title && oldRestaurantName) {
+                    actUpdates.title = act.title.replace(new RegExp(oldRestaurantName, 'gi'), restaurant.name);
+                }
+                if (act.description && oldRestaurantName) {
+                    actUpdates.description = act.description.replace(new RegExp(oldRestaurantName, 'gi'), restaurant.name);
+                }
+                if (Object.keys(actUpdates).length > 0) {
+                    finalWrites.push(
+                        supabaseAdmin
+                            .from('daily_activities')
+                            .update(actUpdates)
+                            .eq('id', act.id)
+                    );
+                }
+            }
+        }
+
+        // 2. Update/Cancel POs
+        if (poBlockIds.length > 0) {
+            await TourService.handlePOChangesForAssignmentUpdate(
+                supabaseAdmin,
+                tourId,
+                poBlockIds,
+                oldRestaurantName,
+                restaurant.name,
+                newRestaurantId,
+                {
+                    name: restaurant.name,
+                    address: restaurant.address || restaurant.city || '',
+                    phone: restaurant.contact_number,
+                    email: restaurant.email
+                },
+                'restaurant'
+            );
+        }
+
         // Update po_blocks name
-        const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
         if (poBlockIds.length > 0) {
             finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${restaurant.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds).then(r => r));
         }
@@ -1557,6 +1674,19 @@ export class TourService {
         const itineraries: any[] = (itinerariesResult as any).data || [];
         const dayNumbers = itineraries.map((i: any) => Number(i.day_number)).filter(Boolean);
 
+        // Fetch old vendor name
+        const { data: oldVendorAct } = await supabaseAdmin
+            .from('daily_activities')
+            .select('vendor_id')
+            .in('id', activityIds)
+            .limit(1)
+            .maybeSingle();
+        const oldVendorId = oldVendorAct?.vendor_id;
+        const oldVendorResult = oldVendorId
+            ? await supabaseAdmin.from('vendors').select('name').eq('id', oldVendorId).maybeSingle()
+            : { data: null };
+        const oldVendorName = oldVendorResult.data?.name || "Old Vendor";
+
         // Fetch po_block junction + tours planner_data + latest draft in parallel
         const [junctionResult, tourRecord, latestDraftResult] = await Promise.all([
             supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', activityIds),
@@ -1566,8 +1696,63 @@ export class TourService {
 
         const finalWrites: PromiseLike<any>[] = [];
 
-        // Update po_blocks name
         const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+
+        // 1. Fetch and update all mapped daily activities to replace vendor name
+        let mappedActivityIds: string[] = [];
+        if (poBlockIds.length > 0) {
+            const { data: mappedActs } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', poBlockIds);
+            mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
+        }
+
+        if (mappedActivityIds.length > 0) {
+            const { data: actsToUpdate } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', mappedActivityIds);
+
+            for (const act of actsToUpdate || []) {
+                const actUpdates: any = {};
+                if (act.title && oldVendorName) {
+                    actUpdates.title = act.title.replace(new RegExp(oldVendorName, 'gi'), vendor.name);
+                }
+                if (act.description && oldVendorName) {
+                    actUpdates.description = act.description.replace(new RegExp(oldVendorName, 'gi'), vendor.name);
+                }
+                if (Object.keys(actUpdates).length > 0) {
+                    finalWrites.push(
+                        supabaseAdmin
+                            .from('daily_activities')
+                            .update(actUpdates)
+                            .eq('id', act.id)
+                    );
+                }
+            }
+        }
+
+        // 2. Update/Cancel POs
+        if (poBlockIds.length > 0) {
+            await TourService.handlePOChangesForAssignmentUpdate(
+                supabaseAdmin,
+                tourId,
+                poBlockIds,
+                oldVendorName,
+                vendor.name,
+                newVendorId,
+                {
+                    name: vendor.name,
+                    address: vendor.address || vendor.city || '',
+                    phone: vendor.phone,
+                    email: vendor.email
+                },
+                'vendor'
+            );
+        }
+
+        // Update po_blocks name
         if (poBlockIds.length > 0) {
             finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${vendor.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds));
         }
@@ -1614,7 +1799,7 @@ export class TourService {
 
         // Parallel initial fetches
         const [providerResult, activitiesResult] = await Promise.all([
-            supabaseAdmin.from('transport_providers').select('id, name, address, transport_vehicles(id, vehicle_type, km_rate, day_rate, with_driver)').eq('id', newProviderId).single(),
+            supabaseAdmin.from('transport_providers').select('id, name, address, phone, email, transport_vehicles(id, vehicle_type, km_rate, day_rate, with_driver)').eq('id', newProviderId).single(),
             supabaseAdmin.from('daily_activities').select('id, itinerary_id').in('id', travelActivityIds)
         ]);
 
@@ -1639,6 +1824,19 @@ export class TourService {
         const itineraries: any[] = (itinerariesResult as any).data || [];
         const dayNumbers = itineraries.map((i: any) => Number(i.day_number)).filter(Boolean);
 
+        // Fetch old provider name
+        const { data: oldProviderAct } = await supabaseAdmin
+            .from('daily_activities')
+            .select('transport_id')
+            .in('id', travelActivityIds)
+            .limit(1)
+            .maybeSingle();
+        const oldProviderId = oldProviderAct?.transport_id;
+        const oldProviderResult = oldProviderId
+            ? await supabaseAdmin.from('transport_providers').select('name').eq('id', oldProviderId).maybeSingle()
+            : { data: null };
+        const oldProviderName = oldProviderResult.data?.name || "Old Transport Provider";
+
         // Fetch po_block junction + tours planner_data + latest draft in parallel
         const [junctionResult, tourRecord, latestDraftResult] = await Promise.all([
             supabaseAdmin.from('po_block_daily_activities').select('po_block_id').in('daily_activity_id', travelActivityIds),
@@ -1648,8 +1846,63 @@ export class TourService {
 
         const finalWrites: PromiseLike<any>[] = [];
 
-        // Update po_blocks name
         const poBlockIds = Array.from(new Set((junctionResult.data || []).map((r: any) => r.po_block_id).filter(Boolean)));
+
+        // 1. Fetch and update all mapped daily activities to replace provider name
+        let mappedActivityIds: string[] = [];
+        if (poBlockIds.length > 0) {
+            const { data: mappedActs } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', poBlockIds);
+            mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
+        }
+
+        if (mappedActivityIds.length > 0) {
+            const { data: actsToUpdate } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', mappedActivityIds);
+
+            for (const act of actsToUpdate || []) {
+                const actUpdates: any = {};
+                if (act.title && oldProviderName) {
+                    actUpdates.title = act.title.replace(new RegExp(oldProviderName, 'gi'), provider.name);
+                }
+                if (act.description && oldProviderName) {
+                    actUpdates.description = act.description.replace(new RegExp(oldProviderName, 'gi'), provider.name);
+                }
+                if (Object.keys(actUpdates).length > 0) {
+                    finalWrites.push(
+                        supabaseAdmin
+                            .from('daily_activities')
+                            .update(actUpdates)
+                            .eq('id', act.id)
+                    );
+                }
+            }
+        }
+
+        // 2. Update/Cancel POs
+        if (poBlockIds.length > 0) {
+            await TourService.handlePOChangesForAssignmentUpdate(
+                supabaseAdmin,
+                tourId,
+                poBlockIds,
+                oldProviderName,
+                provider.name,
+                newProviderId,
+                {
+                    name: provider.name,
+                    address: provider.address || '',
+                    phone: provider.phone,
+                    email: provider.email
+                },
+                'transport_provider'
+            );
+        }
+
+        // Update po_blocks name
         if (poBlockIds.length > 0) {
             finalWrites.push(supabaseAdmin.from('po_blocks').update({ name: `${provider.name} Block`, updated_at: new Date().toISOString() }).in('id', poBlockIds));
         }
@@ -1692,7 +1945,7 @@ export class TourService {
         // 1. Fetch new guide details
         const { data: newGuide, error: guideErr } = await supabaseAdmin
             .from('tour_guides')
-            .select('id, first_name, last_name')
+            .select('id, first_name, last_name, phone, email')
             .eq('id', newGuideId)
             .single();
         if (guideErr || !newGuide) throw new Error("New guide not found: " + guideErr?.message);
@@ -1717,21 +1970,95 @@ export class TourService {
         // 4. Update the po_blocks table name
         const oldBlockNamePattern = `% | ID: ${oldGuideId}`;
         const newBlockName = `Guide: ${newGuideName} | ID: ${newGuideId}`;
-        await supabaseAdmin
+        
+        const { data: guideBlocks } = await supabaseAdmin
             .from('po_blocks')
-            .update({ name: newBlockName, updated_at: new Date().toISOString() })
+            .select('id')
             .eq('tour_id', tourId)
             .eq('block_type', 'guide')
             .like('name', oldBlockNamePattern);
+        
+        const poBlockIds = (guideBlocks || []).map(b => b.id);
 
-        // 5. Update tours planner_data
+        if (poBlockIds.length > 0) {
+            await supabaseAdmin
+                .from('po_blocks')
+                .update({ name: newBlockName, updated_at: new Date().toISOString() })
+                .in('id', poBlockIds);
+        }
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        // 5. Fetch and update mapped activities
+        let mappedActivityIds: string[] = [];
+        if (poBlockIds.length > 0) {
+            const { data: mappedActs } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', poBlockIds);
+            mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
+        }
+
+        // Also include any daily activities that reference the oldGuideId directly
+        const { data: directActs } = await supabaseAdmin
+            .from('daily_activities')
+            .select('id')
+            .eq('tour_id', tourId)
+            .eq('guide_id', newGuideId); // guide_id has already been updated to newGuideId above!
+        
+        const allGuideActIds = Array.from(new Set([
+            ...mappedActivityIds,
+            ...(directActs || []).map(d => d.id)
+        ]));
+
+        if (allGuideActIds.length > 0) {
+            const { data: actsToUpdate } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', allGuideActIds);
+
+            for (const act of actsToUpdate || []) {
+                const actUpdates: any = {};
+                if (act.title && oldGuideName) {
+                    actUpdates.title = act.title.replace(new RegExp(oldGuideName, 'gi'), newGuideName);
+                }
+                if (act.description && oldGuideName) {
+                    actUpdates.description = act.description.replace(new RegExp(oldGuideName, 'gi'), newGuideName);
+                }
+                if (Object.keys(actUpdates).length > 0) {
+                    finalWrites.push(
+                        supabaseAdmin
+                            .from('daily_activities')
+                            .update(actUpdates)
+                            .eq('id', act.id)
+                    );
+                }
+            }
+        }
+
+        // 6. Update/Cancel POs
+        if (poBlockIds.length > 0) {
+            await TourService.handlePOChangesForAssignmentUpdate(
+                supabaseAdmin,
+                tourId,
+                poBlockIds,
+                oldGuideName,
+                newGuideName,
+                newGuideId,
+                {
+                    name: newGuideName,
+                    phone: newGuide.phone || ''
+                },
+                'tour_guide'
+            );
+        }
+
+        // 7. Update tours planner_data
         const { data: tourRecord } = await supabaseAdmin
             .from('tours')
             .select('planner_data')
             .eq('id', tourId)
             .single();
-
-        const finalWrites: PromiseLike<any>[] = [];
 
         if (tourRecord?.planner_data) {
             const pData = tourRecord.planner_data as any;
@@ -1755,7 +2082,7 @@ export class TourService {
             }
         }
 
-        // 6. Update latest draft
+        // 8. Update latest draft
         const { data: latestDraft } = await supabaseAdmin
             .from('draft_itinerary_versions')
             .select('id, itinerary_data')
@@ -1791,7 +2118,7 @@ export class TourService {
         // 1. Fetch new driver details
         const { data: newDriver, error: driverErr } = await supabaseAdmin
             .from('drivers')
-            .select('id, first_name, last_name')
+            .select('id, first_name, last_name, phone')
             .eq('id', newDriverId)
             .single();
         if (driverErr || !newDriver) throw new Error("New driver not found: " + driverErr?.message);
@@ -1816,21 +2143,95 @@ export class TourService {
         // 4. Update the po_blocks table name
         const oldBlockNamePattern = `% | ID: ${oldDriverId}`;
         const newBlockName = `Driver: ${newDriverName} | ID: ${newDriverId}`;
-        await supabaseAdmin
+        
+        const { data: driverBlocks } = await supabaseAdmin
             .from('po_blocks')
-            .update({ name: newBlockName, updated_at: new Date().toISOString() })
+            .select('id')
             .eq('tour_id', tourId)
             .eq('block_type', 'driver')
             .like('name', oldBlockNamePattern);
+        
+        const poBlockIds = (driverBlocks || []).map(b => b.id);
 
-        // 5. Update tours planner_data
+        if (poBlockIds.length > 0) {
+            await supabaseAdmin
+                .from('po_blocks')
+                .update({ name: newBlockName, updated_at: new Date().toISOString() })
+                .in('id', poBlockIds);
+        }
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        // 5. Fetch and update mapped activities
+        let mappedActivityIds: string[] = [];
+        if (poBlockIds.length > 0) {
+            const { data: mappedActs } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .select('daily_activity_id')
+                .in('po_block_id', poBlockIds);
+            mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
+        }
+
+        // Also include direct references
+        const { data: directActs } = await supabaseAdmin
+            .from('daily_activities')
+            .select('id')
+            .eq('tour_id', tourId)
+            .eq('driver_id', newDriverId);
+        
+        const allDriverActIds = Array.from(new Set([
+            ...mappedActivityIds,
+            ...(directActs || []).map(d => d.id)
+        ]));
+
+        if (allDriverActIds.length > 0) {
+            const { data: actsToUpdate } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', allDriverActIds);
+
+            for (const act of actsToUpdate || []) {
+                const actUpdates: any = {};
+                if (act.title && oldDriverName) {
+                    actUpdates.title = act.title.replace(new RegExp(oldDriverName, 'gi'), newDriverName);
+                }
+                if (act.description && oldDriverName) {
+                    actUpdates.description = act.description.replace(new RegExp(oldDriverName, 'gi'), newDriverName);
+                }
+                if (Object.keys(actUpdates).length > 0) {
+                    finalWrites.push(
+                        supabaseAdmin
+                            .from('daily_activities')
+                            .update(actUpdates)
+                            .eq('id', act.id)
+                    );
+                }
+            }
+        }
+
+        // 6. Update/Cancel POs
+        if (poBlockIds.length > 0) {
+            await TourService.handlePOChangesForAssignmentUpdate(
+                supabaseAdmin,
+                tourId,
+                poBlockIds,
+                oldDriverName,
+                newDriverName,
+                newDriverId,
+                {
+                    name: newDriverName,
+                    phone: newDriver.phone || ''
+                },
+                'driver'
+            );
+        }
+
+        // 7. Update tours planner_data
         const { data: tourRecord } = await supabaseAdmin
             .from('tours')
             .select('planner_data')
             .eq('id', tourId)
             .single();
-
-        const finalWrites: PromiseLike<any>[] = [];
 
         if (tourRecord?.planner_data) {
             const pData = tourRecord.planner_data as any;
@@ -1854,7 +2255,7 @@ export class TourService {
             }
         }
 
-        // 6. Update latest draft
+        // 8. Update latest draft
         const { data: latestDraft } = await supabaseAdmin
             .from('draft_itinerary_versions')
             .select('id, itinerary_data')
@@ -1879,4 +2280,413 @@ export class TourService {
 
         if (finalWrites.length > 0) await Promise.all(finalWrites);
     }
+
+    static async saveCustomHotelItem(
+        tourId: string,
+        poBlockId: string,
+        customItem: {
+            id?: string;
+            title: string;
+            description?: string;
+            locationName?: string;
+            distance?: string;
+            quantity: number;
+            contractedPrice: number;
+            chargedUnitPrice: number;
+            activityType?: string;
+            timeStart?: string;
+            timeEnd?: string;
+            dayNumber: number;
+        }
+    ) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Find all po_block_daily_activities records associate with poBlockId
+        const { data: mappings, error: mapErr } = await supabaseAdmin
+            .from('po_block_daily_activities')
+            .select('daily_activity_id')
+            .eq('po_block_id', poBlockId);
+        if (mapErr) throw mapErr;
+
+        const activityIds = (mappings || []).map((m: any) => m.daily_activity_id).filter(Boolean);
+        
+        // 2. Go to daily_activities and find the sleep record
+        let sleepActivity: any = null;
+        if (activityIds.length > 0) {
+            const { data: acts, error: actsErr } = await supabaseAdmin
+                .from('daily_activities')
+                .select('*')
+                .in('id', activityIds)
+                .eq('activity_type', 'sleep')
+                .limit(1);
+            if (actsErr) throw actsErr;
+            if (acts && acts.length > 0) {
+                sleepActivity = acts[0];
+            }
+        }
+
+        const hotelId = sleepActivity ? sleepActivity.hotel_id : null;
+        const itineraryId = sleepActivity ? sleepActivity.itinerary_id : null;
+        const serviceDate = sleepActivity ? sleepActivity.service_date : null;
+
+        const isEditing = !!customItem.id;
+        const activityId = customItem.id || crypto.randomUUID();
+
+        const actPayload: any = {
+            id: activityId,
+            tour_id: tourId,
+            itinerary_id: itineraryId,
+            service_date: serviceDate,
+            title: customItem.title,
+            activity_type: customItem.activityType || 'activity',
+            location_name: customItem.locationName || null,
+            distance: customItem.distance ? String(customItem.distance) : null,
+            description: customItem.description || '',
+            time_start: customItem.timeStart || null,
+            time_end: customItem.timeEnd || null,
+            hotel_id: hotelId,
+            quantity: customItem.quantity || 1,
+            contracted_price: customItem.contractedPrice || 0,
+            contracted_total_price: (customItem.contractedPrice || 0) * (customItem.quantity || 1),
+            charged_unit_price: customItem.chargedUnitPrice || 0,
+            charged_total_price: (customItem.chargedUnitPrice || 0) * (customItem.quantity || 1),
+            updated_at: new Date().toISOString()
+        };
+
+        if (isEditing) {
+            const { error: updateErr } = await supabaseAdmin
+                .from('daily_activities')
+                .update(actPayload)
+                .eq('id', activityId);
+            if (updateErr) throw updateErr;
+        } else {
+            const { error: insertErr } = await supabaseAdmin
+                .from('daily_activities')
+                .insert(actPayload);
+            if (insertErr) throw insertErr;
+
+            // Link to po_block_daily_activities
+            const { error: linkErr } = await supabaseAdmin
+                .from('po_block_daily_activities')
+                .insert({
+                    po_block_id: poBlockId,
+                    daily_activity_id: activityId
+                });
+            if (linkErr) throw linkErr;
+        }
+
+        // 3. Update tours planner_data and draft versions
+        const finalWrites: PromiseLike<any>[] = [];
+        
+        const plannerBlock = {
+            id: activityId,
+            dayNumber: customItem.dayNumber,
+            type: customItem.activityType || 'activity',
+            name: customItem.title,
+            hotelId: hotelId,
+            startTime: customItem.timeStart || '00:00',
+            endTime: customItem.timeEnd || '00:00',
+            bufferMins: 0,
+            durationHours: 2,
+            internalNotes: customItem.description || '',
+            confirmationStatus: 'Pending',
+            paymentStatus: 'Pending',
+            contractedPrice: customItem.contractedPrice,
+            agreedPrice: customItem.chargedUnitPrice,
+            quantity: customItem.quantity,
+            contractedTotalPrice: (customItem.contractedPrice || 0) * (customItem.quantity || 1),
+            locationName: customItem.locationName || '',
+            distance: customItem.distance || '',
+            isCustomPO: true
+        };
+
+        const { data: tourRecord } = await supabaseAdmin
+            .from('tours')
+            .select('planner_data')
+            .eq('id', tourId)
+            .single();
+
+        if (tourRecord?.planner_data) {
+            const pData = tourRecord.planner_data as any;
+            let changed = false;
+            if (Array.isArray(pData.itinerary)) {
+                if (isEditing) {
+                    pData.itinerary = pData.itinerary.map((b: any) => b.id === activityId ? { ...b, ...plannerBlock } : b);
+                } else {
+                    pData.itinerary.push(plannerBlock);
+                }
+                changed = true;
+            }
+            if (changed) {
+                finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId));
+            }
+        }
+
+        const { data: latestDraft } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('id, itinerary_data')
+            .eq('tour_id', tourId)
+            .order('version_number', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (latestDraft && Array.isArray((latestDraft as any).itinerary_data)) {
+            let updatedDraft = [...(latestDraft as any).itinerary_data];
+            if (isEditing) {
+                updatedDraft = updatedDraft.map((b: any) => b.id === activityId ? { ...b, ...plannerBlock } : b);
+            } else {
+                updatedDraft.push(plannerBlock);
+            }
+            finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraft as any).id));
+        }
+
+        if (finalWrites.length > 0) await Promise.all(finalWrites);
+        
+        return { id: activityId };
+    }
+
+    static async deleteDailyActivity(tourId: string, activityId: string) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Find any purchase_order_items for this activity to see their purchase_order_ids
+        const { data: poItems, error: poItemsErr } = await supabaseAdmin
+            .from('purchase_order_items')
+            .select('purchase_order_id')
+            .eq('daily_activity_id', activityId);
+        
+        if (poItemsErr) {
+            console.error("Error fetching purchase order items to delete:", poItemsErr);
+        }
+
+        const poIdsToInspect = Array.from(new Set((poItems || []).map(item => item.purchase_order_id)));
+
+        // 2. Delete purchase_order_items
+        if (poIdsToInspect.length > 0) {
+            const { error: delPoItemsErr } = await supabaseAdmin
+                .from('purchase_order_items')
+                .delete()
+                .eq('daily_activity_id', activityId);
+            if (delPoItemsErr) throw delPoItemsErr;
+
+            // Inspect POs to see if they have any items left. If not, delete them.
+            for (const poId of poIdsToInspect) {
+                const { data: remainingItems } = await supabaseAdmin
+                    .from('purchase_order_items')
+                    .select('id')
+                    .eq('purchase_order_id', poId);
+                if (!remainingItems || remainingItems.length === 0) {
+                    // Check if there are advance payments against this PO
+                    const { data: payments } = await supabaseAdmin
+                        .from('supplier_payments')
+                        .select('id')
+                        .eq('purchase_order_id', poId);
+                    if (!payments || payments.length === 0) {
+                        await supabaseAdmin.from('purchase_orders').delete().eq('id', poId);
+                    } else {
+                        // If it has payments, cancel it instead of deleting
+                        await supabaseAdmin.from('purchase_orders').update({ status: 'Cancelled', internal_notes: 'All items deleted.' }).eq('id', poId);
+                    }
+                }
+            }
+        }
+
+        // 3. Delete from po_block_daily_activities
+        await supabaseAdmin.from('po_block_daily_activities').delete().eq('daily_activity_id', activityId);
+
+        // 4. Delete from daily_activities
+        const { error: deleteActErr } = await supabaseAdmin
+            .from('daily_activities')
+            .delete()
+            .eq('id', activityId);
+        if (deleteActErr) throw deleteActErr;
+
+        // 5. Update tours planner_data
+        const { data: tourRecord } = await supabaseAdmin
+            .from('tours')
+            .select('planner_data')
+            .eq('id', tourId)
+            .single();
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        if (tourRecord?.planner_data) {
+            const pData = tourRecord.planner_data as any;
+            let changed = false;
+            if (Array.isArray(pData.itinerary)) {
+                const prevLength = pData.itinerary.length;
+                pData.itinerary = pData.itinerary.filter((b: any) => b.id !== activityId);
+                if (pData.itinerary.length !== prevLength) changed = true;
+            }
+            if (Array.isArray(pData.activities)) {
+                const prevLength = pData.activities.length;
+                pData.activities = pData.activities.filter((act: any) => act.id !== activityId);
+                if (pData.activities.length !== prevLength) changed = true;
+            }
+            if (changed) {
+                finalWrites.push(supabaseAdmin.from('tours').update({ planner_data: pData }).eq('id', tourId));
+            }
+        }
+
+        // 6. Update latest draft
+        const { data: latestDraft } = await supabaseAdmin
+            .from('draft_itinerary_versions')
+            .select('id, itinerary_data')
+            .eq('tour_id', tourId)
+            .order('version_number', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (latestDraft && Array.isArray((latestDraft as any).itinerary_data)) {
+            const prevLength = (latestDraft as any).itinerary_data.length;
+            const updatedDraft = (latestDraft as any).itinerary_data.filter((b: any) => b.id !== activityId);
+            if (updatedDraft.length !== prevLength) {
+                finalWrites.push(supabaseAdmin.from('draft_itinerary_versions').update({ itinerary_data: updatedDraft }).eq('id', (latestDraft as any).id));
+            }
+        }
+
+        if (finalWrites.length > 0) await Promise.all(finalWrites);
+    }
+
+    static async handlePOChangesForAssignmentUpdate(
+        supabaseAdmin: any,
+        tourId: string,
+        poBlockIds: string[],
+        oldName: string,
+        newName: string,
+        newVendorId: string,
+        newVendorDetails: {
+            name: string;
+            address?: string;
+            phone?: string;
+            email?: string;
+        },
+        vendorType: 'hotel' | 'restaurant' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver'
+    ) {
+        const { data: purchaseOrders } = await supabaseAdmin
+            .from('purchase_orders')
+            .select(`
+                *,
+                items:purchase_order_items(*),
+                advance_payments:supplier_payments(*)
+            `)
+            .eq('tour_id', tourId)
+            .in('po_block_id', poBlockIds)
+            .neq('status', 'Cancelled');
+
+        const finalWrites: PromiseLike<any>[] = [];
+
+        for (const po of purchaseOrders || []) {
+            const hasPayments = (po.advance_paid && po.advance_paid > 0) || 
+                                (po.advance_payments && po.advance_payments.length > 0);
+
+            if (hasPayments) {
+                // Cancel the PO
+                finalWrites.push(
+                    supabaseAdmin
+                        .from('purchase_orders')
+                        .update({
+                            status: 'Cancelled',
+                            internal_notes: `Cancelled due to change of ${vendorType} from ${oldName} to ${newName}. Advance paid: ${po.advance_paid || 0}.`,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', po.id)
+                );
+                // Unfinalize block so a new PO can be created
+                finalWrites.push(
+                    supabaseAdmin
+                        .from('po_blocks')
+                        .update({
+                            has_finalized: false,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', po.po_block_id)
+                );
+            } else {
+                // Update the PO directly
+                const poUpdates: any = {
+                    vendor_name: newName,
+                    vendor_address: newVendorDetails.address || po.vendor_address || '',
+                    vendor_phone: newVendorDetails.phone || po.vendor_phone || '',
+                    vendor_email: newVendorDetails.email || po.vendor_email || '',
+                    updated_at: new Date().toISOString()
+                };
+
+                if (vendorType === 'hotel') poUpdates.hotel_id = newVendorId;
+                else if (vendorType === 'restaurant') poUpdates.restaurant_id = newVendorId;
+                else if (vendorType === 'vendor') poUpdates.activity_vendor_id = newVendorId;
+                else if (vendorType === 'transport_provider') poUpdates.transport_provider_id = newVendorId;
+                else if (vendorType === 'tour_guide') poUpdates.guide_id = newVendorId;
+                else if (vendorType === 'driver') poUpdates.driver_id = newVendorId;
+
+                // Replace old name references in notes
+                if (po.vendor_notes && oldName) {
+                    poUpdates.vendor_notes = po.vendor_notes.replace(new RegExp(oldName, 'gi'), newName);
+                }
+                if (po.internal_notes) {
+                    if (oldName) {
+                        poUpdates.internal_notes = po.internal_notes.replace(new RegExp(oldName, 'gi'), newName);
+                    }
+                } else {
+                    poUpdates.internal_notes = `Changed ${vendorType} from ${oldName} to ${newName}.`;
+                }
+
+                // Update PO items
+                const poItems = po.items || [];
+                let newSubtotal = 0;
+                for (const item of poItems) {
+                    let updatedDesc = item.description || '';
+                    if (oldName) {
+                        updatedDesc = updatedDesc.replace(new RegExp(oldName, 'gi'), newName);
+                    }
+                    
+                    let itemUpdates: any = {
+                        description: updatedDesc
+                    };
+
+                    if (item.daily_activity_id) {
+                        const { data: updatedAct } = await supabaseAdmin
+                            .from('daily_activities')
+                            .select('contracted_price, contracted_total_price, quantity')
+                            .eq('id', item.daily_activity_id)
+                            .single();
+
+                        if (updatedAct) {
+                            itemUpdates.unit_price = updatedAct.contracted_price || 0;
+                            itemUpdates.total_price = updatedAct.contracted_total_price || 0;
+                            itemUpdates.quantity = updatedAct.quantity || 1;
+                            newSubtotal += itemUpdates.total_price;
+                        } else {
+                            newSubtotal += item.total_price || 0;
+                        }
+                    } else {
+                        newSubtotal += item.total_price || 0;
+                    }
+
+                    finalWrites.push(
+                        supabaseAdmin
+                            .from('purchase_order_items')
+                            .update(itemUpdates)
+                            .eq('id', item.id)
+                    );
+                }
+
+                poUpdates.subtotal = newSubtotal;
+                poUpdates.total_amount = newSubtotal + (po.tax || 0) - (po.discount || 0);
+                poUpdates.balance_payable = poUpdates.total_amount;
+
+                finalWrites.push(
+                    supabaseAdmin
+                        .from('purchase_orders')
+                        .update(poUpdates)
+                        .eq('id', po.id)
+                );
+            }
+        }
+
+        if (finalWrites.length > 0) {
+            await Promise.all(finalWrites);
+        }
+    }
 }
+
+

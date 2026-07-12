@@ -2474,3 +2474,52 @@ export async function deletePoBlockAction(blockId: string) {
         return { success: false, error: error.message || "Failed to delete block." };
     }
 }
+
+export async function deleteDailyActivityAction(tourId: string, activityId: string) {
+    try {
+        const clientSupabase = await createClient();
+        const { data: { user } } = await clientSupabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        await TourService.deleteDailyActivity(tourId, activityId);
+        revalidatePath("/admin-new");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in deleteDailyActivityAction:", error);
+        return { success: false, error: error.message || "Failed to delete activity." };
+    }
+}
+
+export async function saveCustomHotelItemAction(
+    tourId: string,
+    poBlockId: string,
+    customItem: {
+        id?: string;
+        title: string;
+        description?: string;
+        locationName?: string;
+        distance?: string;
+        quantity: number;
+        contractedPrice: number;
+        chargedUnitPrice: number;
+        activityType?: string;
+        timeStart?: string;
+        timeEnd?: string;
+        dayNumber: number;
+    }
+) {
+    try {
+        const clientSupabase = await createClient();
+        const { data: { user } } = await clientSupabase.auth.getUser();
+        if (!user) return { success: false, error: "Not authenticated" };
+
+        const result = await TourService.saveCustomHotelItem(tourId, poBlockId, customItem);
+        revalidatePath("/admin-new");
+        return { success: true, ...result };
+    } catch (error: any) {
+        console.error("Error in saveCustomHotelItemAction:", error);
+        return { success: false, error: error.message || "Failed to save custom item." };
+    }
+}
+
+

@@ -155,7 +155,9 @@ import {
   uploadPayslipAction,
   getPayslipSignedUrlAction,
   finalizeActivityPricesAction,
-  getTransportRfqTemplateAction
+  getTransportRfqTemplateAction,
+  deleteDailyActivityAction,
+  saveCustomHotelItemAction
 } from '@/actions/admin.actions';
 import {
   initializeDefaultBlocksAction,
@@ -569,6 +571,7 @@ function PlannerWizardWorkspace() {
   const [customHotelItemBaseHotel, setCustomHotelItemBaseHotel] = useState<any>(null);
   const [customHotelItemStays, setCustomHotelItemStays] = useState<any[]>([]);
   const [editingCustomHotelItem, setEditingCustomHotelItem] = useState<any>(null);
+  const [customHotelItemBlockId, setCustomHotelItemBlockId] = useState<string | null>(null);
 
   // Custom Hotel PO Item Form State
   const [customHotelItemType, setCustomHotelItemType] = useState<'meal' | 'activity' | 'travel'>('activity');
@@ -606,6 +609,46 @@ function PlannerWizardWorkspace() {
   const [changeHotelIsSearching, setChangeHotelIsSearching] = useState(false);
   const [changeHotelSearchResults, setChangeHotelSearchResults] = useState<any[] | null>(null);
   const [changeHotelStays, setChangeHotelStays] = useState<any[]>([]);
+
+  const handleDeleteCustomHotelItem = async (customPo: any) => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the custom item "${customPo.title || customPo.name || 'Custom Item'}"?`);
+    if (!confirmDelete) return;
+
+    try {
+      setIsHotelChanging(true);
+      const res = await deleteDailyActivityAction(tourId, customPo.id);
+      
+      if (res.success) {
+        setDbActivities(prev => prev.filter(item => item.id !== customPo.id));
+        setItinerary(prev => prev.filter(item => item.id !== customPo.id));
+        
+        setPoBlocks(prevBlocks => {
+          return prevBlocks.map(block => {
+            const exists = block.daily_activities?.some((a: any) => a.id === customPo.id);
+            if (exists) {
+              return {
+                ...block,
+                daily_activities: (block.daily_activities || []).filter((a: any) => a.id !== customPo.id)
+              };
+            }
+            return block;
+          });
+        });
+
+        const blocksRes = await getPOBlocksAction(tourId);
+        if (blocksRes.success && blocksRes.blocks) {
+          setPoBlocks(blocksRes.blocks);
+        }
+      } else {
+        alert("Failed to delete custom item: " + res.error);
+      }
+    } catch (err: any) {
+      console.error("Error deleting custom hotel item:", err);
+      alert("Error deleting custom hotel item: " + err.message);
+    } finally {
+      setIsHotelChanging(false);
+    }
+  };
 
   // 1. Wizard Track State
   const [track, setTrack] = useState<TrackType>('basic');
@@ -4403,6 +4446,16 @@ function PlannerWizardWorkspace() {
       const newHotelId = quote.vendor_id;
       if (!newHotelId) return;
 
+      const oldHotelId = block.daily_activities?.[0]?.hotel_id;
+      const activePOs = purchaseOrders.filter(po => 
+        po.status !== 'Cancelled' && 
+        (po.hotel_id === oldHotelId || po.po_block_id === block.id)
+      );
+      if (activePOs.length > 0) {
+        const proceed = window.confirm("There are some POs created and finalized against the hotel you are about to change to. Do you want to discard all that and change the hotel?");
+        if (!proceed) return;
+      }
+
       const res = await changeHotelDatabaseAction(tourId, stayIds, newHotelId, []);
       if (res.success) {
         setDbActivities(prev => prev.map(act => {
@@ -8165,6 +8218,7 @@ ${chauffeurHtml}
                                             type="button"
                                             onClick={() => {
                                               setEditingCustomHotelItem(null);
+                                              setCustomHotelItemBlockId(block.id);
                                               setCustomHotelItemBaseHotel(hotel);
                                               setCustomHotelItemStays(standardStays);
                                               setCustomHotelItemDayNum(standardStays[0]?.dayNumber || standardStays[0]?.day_number || 1);
@@ -8423,6 +8477,7 @@ ${chauffeurHtml}
                                               type="button"
                                               onClick={() => {
                                                 setEditingCustomHotelItem(customPo);
+                                                setCustomHotelItemBlockId(block.id);
                                                 setCustomHotelItemBaseHotel(hotel);
                                                 setCustomHotelItemStays(standardStays);
                                                 setCustomHotelItemDayNum(customPo.day_number || customPo.dayNumber || 1);
@@ -8442,6 +8497,14 @@ ${chauffeurHtml}
                                               title="Edit Details"
                                             >
                                               <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteCustomHotelItem(customPo)}
+                                              className="p-1.5 rounded-lg border border-neutral-200 hover:border-red-400 hover:bg-red-50 text-neutral-400 hover:text-red-500 transition-all shadow-sm shrink-0"
+                                              title="Delete Custom Item"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                           </div>
                                         </div>
@@ -15773,6 +15836,17 @@ ${chauffeurHtml}
                                                               });
 
                                                               // Sync to DB — show loading indicator while it runs
+                                                              const oldHotelId = currentStay?.hotel_id;
+                                                              const blockId = currentStay?.po_block_id || activeAssignment.blockId;
+                                                              const activePOs = purchaseOrders.filter(po => 
+                                                                po.status !== 'Cancelled' && 
+                                                                (po.hotel_id === oldHotelId || (blockId && po.po_block_id === blockId))
+                                                              );
+                                                              if (activePOs.length > 0) {
+                                                                const proceed = window.confirm("There are some POs created and finalized against the hotel you are about to change to. Do you want to discard all that and change the hotel?");
+                                                                if (!proceed) return;
+                                                              }
+
                                                               setIsHotelChanging(true);
                                                               changeHotelDatabaseAction(tourId, [activeAssignment.blockId], h.id, newSelected)
                                                                 .then(async (res) => {
@@ -15790,7 +15864,6 @@ ${chauffeurHtml}
                                                                   setIsHotelChanging(false);
                                                                 });
 
-                                                              const oldHotelId = currentStay?.hotel_id;
                                                               const dayNum = Number(currentStay?.day_number || currentStay?.dayNumber || activeBlock?.dayNumber || 0);
 
                                                               // 1. Update only this activity in dbActivities
@@ -17012,6 +17085,16 @@ ${chauffeurHtml}
                                                           }));
 
                                                           // Sync to Database — show loading indicator while it runs
+                                                          const blockId = changeHotelDrawerAct?.po_block_id;
+                                                          const activePOs = purchaseOrders.filter(po => 
+                                                            po.status !== 'Cancelled' && 
+                                                            (po.hotel_id === oldHotelId || (blockId && po.po_block_id === blockId))
+                                                          );
+                                                          if (activePOs.length > 0) {
+                                                            const proceed = window.confirm("There are some POs created and finalized against the hotel you are about to change to. Do you want to discard all that and change the hotel?");
+                                                            if (!proceed) return;
+                                                          }
+
                                                           setIsHotelChanging(true);
                                                           changeHotelDatabaseAction(tourId, stayIds, h.id, newSelected)
                                                             .then(async (res) => {
@@ -18586,114 +18669,118 @@ ${chauffeurHtml}
                       return;
                     }
                     
-                    const isEditing = !!editingCustomHotelItem;
-                    const newPOId = isEditing ? editingCustomHotelItem.id : generateUUID();
-                    const numDays = touristData?.preferences?.duration_days || 5;
-                    const calculatedDaysList = Array.from({ length: numDays }, (_, idx) => {
-                      const dayNum = idx + 1;
-                      let dateStr = '';
-                      if (touristData?.preferences?.arrival_date) {
-                        try {
-                          const d = new Date(touristData.preferences.arrival_date);
-                          d.setDate(d.getDate() + idx);
-                          dateStr = d.toISOString().split('T')[0];
-                        } catch (e) {}
+                    setIsHotelChanging(true);
+                    saveCustomHotelItemAction(
+                      tourId,
+                      customHotelItemBlockId || '',
+                      {
+                        id: editingCustomHotelItem?.id,
+                        title: customHotelItemTitle,
+                        description: customHotelItemDescription,
+                        locationName: customHotelItemLocation,
+                        distance: customHotelItemDistance,
+                        quantity: customHotelItemQuantity,
+                        contractedPrice: customHotelItemContractedPrice,
+                        chargedUnitPrice: customHotelItemChargedUnitPrice,
+                        activityType: customHotelItemType,
+                        timeStart: customHotelItemTimeStart,
+                        timeEnd: customHotelItemTimeEnd,
+                        dayNumber: customHotelItemDayNum
                       }
-                      return { dayNum, dateStr };
-                    });
-
-                    const targetDay = calculatedDaysList.find(d => d.dayNum === customHotelItemDayNum);
-                    const dateStr = targetDay?.dateStr || '';
-
-                    const newPO = {
-                      id: newPOId,
-                      tour_id: tourId,
-                      title: customHotelItemTitle,
-                      quantity: customHotelItemQuantity,
-                      contracted_price: customHotelItemContractedPrice,
-                      contracted_total_price: customHotelItemContractedPrice * customHotelItemQuantity,
-                      charged_unit_price: customHotelItemChargedUnitPrice,
-                      charged_total_price: customHotelItemChargedUnitPrice * customHotelItemQuantity,
-                      activity_type: customHotelItemType,
-                      hotel_id: customHotelItemBaseHotel.id,
-                      hotel_room_id: null,
-                      day_number: customHotelItemDayNum,
-                      dayNumber: customHotelItemDayNum,
-                      location_name: customHotelItemLocation || null,
-                      distance: customHotelItemDistance || null,
-                      description: customHotelItemDescription || '',
-                      time_start: customHotelItemTimeStart || null,
-                      time_end: customHotelItemTimeEnd || null,
-                      tour_itineraries: {
-                        day_number: customHotelItemDayNum,
-                        date: dateStr
-                      },
-                      isCustomPO: true
-                    };
-
-                    const newBlock: InternalItineraryBlock = {
-                      id: newPOId,
-                      dayNumber: customHotelItemDayNum,
-                      type: customHotelItemType,
-                      name: customHotelItemTitle,
-                      hotelId: customHotelItemBaseHotel.id,
-                      startTime: customHotelItemTimeStart || '00:00',
-                      endTime: customHotelItemTimeEnd || '00:00',
-                      bufferMins: 0,
-                      durationHours: 2,
-                      internalNotes: customHotelItemDescription || '',
-                      confirmationStatus: isEditing ? (editingCustomHotelItem.confirmationStatus || 'Pending') : 'Pending',
-                      paymentStatus: isEditing ? (editingCustomHotelItem.paymentStatus || 'Pending') : 'Pending',
-                      contractedPrice: customHotelItemContractedPrice,
-                      agreedPrice: customHotelItemChargedUnitPrice,
-                      quantity: customHotelItemQuantity,
-                      contractedTotalPrice: customHotelItemContractedPrice * customHotelItemQuantity,
-                      locationName: customHotelItemLocation || '',
-                      distance: customHotelItemDistance || '',
-                      isCustomPO: true
-                    };
-
-                    if (isEditing) {
-                      setDbActivities(prev => prev.map(item => item.id === newPOId ? { ...item, ...newPO } : item));
-                      setItinerary(prev => prev.map(item => item.id === newPOId ? { ...item, ...newBlock } : item));
-                    } else {
-                      setDbActivities(prev => [...prev, newPO]);
-                      setItinerary(prev => [...prev, newBlock]);
-                    }
-
-                    // Auto-map the new custom hotel item in the frontend poBlocks state
-                    setPoBlocks(prevBlocks => {
-                      return prevBlocks.map(block => {
-                        const standardStays = block.daily_activities?.filter((a: any) => a.activity_type === 'sleep');
-                        const hasMatchingHotel = standardStays?.some((a: any) => a.hotel_id === customHotelItemBaseHotel.id);
-                        
-                        if (hasMatchingHotel) {
-                          const exists = block.daily_activities?.some((a: any) => a.id === newPOId);
-                          let nextActs = block.daily_activities || [];
-                          const mappedActivity = {
-                            ...newPO,
-                            name: customHotelItemTitle,
-                            title: customHotelItemTitle,
-                            contractedPrice: customHotelItemContractedPrice,
-                            agreedPrice: customHotelItemChargedUnitPrice,
-                          };
-
-                          if (exists) {
-                            nextActs = nextActs.map((a: any) => a.id === newPOId ? { ...a, ...mappedActivity } : a);
-                          } else {
-                            nextActs = [...nextActs, mappedActivity];
+                    ).then(async (res) => {
+                      if (res.success && 'id' in res) {
+                        const isEditing = !!editingCustomHotelItem;
+                        const newPOId = isEditing ? editingCustomHotelItem.id : res.id;
+                        const numDays = touristData?.preferences?.duration_days || 5;
+                        const calculatedDaysList = Array.from({ length: numDays }, (_, idx) => {
+                          const dayNum = idx + 1;
+                          let dateStr = '';
+                          if (touristData?.preferences?.arrival_date) {
+                            try {
+                              const d = new Date(touristData.preferences.arrival_date);
+                              d.setDate(d.getDate() + idx);
+                              dateStr = d.toISOString().split('T')[0];
+                            } catch (e) {}
                           }
-                          return {
-                            ...block,
-                            daily_activities: nextActs
-                          };
+                          return { dayNum, dateStr };
+                        });
+
+                        const targetDay = calculatedDaysList.find(d => d.dayNum === customHotelItemDayNum);
+                        const dateStr = targetDay?.dateStr || '';
+
+                        const newPO = {
+                          id: newPOId,
+                          tour_id: tourId,
+                          title: customHotelItemTitle,
+                          quantity: customHotelItemQuantity,
+                          contracted_price: customHotelItemContractedPrice,
+                          contracted_total_price: customHotelItemContractedPrice * customHotelItemQuantity,
+                          charged_unit_price: customHotelItemChargedUnitPrice,
+                          charged_total_price: customHotelItemChargedUnitPrice * customHotelItemQuantity,
+                          activity_type: customHotelItemType,
+                          hotel_id: customHotelItemBaseHotel.id,
+                          hotel_room_id: null,
+                          day_number: customHotelItemDayNum,
+                          dayNumber: customHotelItemDayNum,
+                          location_name: customHotelItemLocation || null,
+                          distance: customHotelItemDistance || null,
+                          description: customHotelItemDescription || '',
+                          time_start: customHotelItemTimeStart || null,
+                          time_end: customHotelItemTimeEnd || null,
+                          tour_itineraries: {
+                            day_number: customHotelItemDayNum,
+                            date: dateStr
+                          },
+                          isCustomPO: true
+                        };
+
+                        const newBlock: InternalItineraryBlock = {
+                          id: newPOId,
+                          dayNumber: customHotelItemDayNum,
+                          type: customHotelItemType,
+                          name: customHotelItemTitle,
+                          hotelId: customHotelItemBaseHotel.id,
+                          startTime: customHotelItemTimeStart || '00:00',
+                          endTime: customHotelItemTimeEnd || '00:00',
+                          bufferMins: 0,
+                          durationHours: 2,
+                          internalNotes: customHotelItemDescription || '',
+                          confirmationStatus: isEditing ? (editingCustomHotelItem.confirmationStatus || 'Pending') : 'Pending',
+                          paymentStatus: isEditing ? (editingCustomHotelItem.paymentStatus || 'Pending') : 'Pending',
+                          contractedPrice: customHotelItemContractedPrice,
+                          agreedPrice: customHotelItemChargedUnitPrice,
+                          quantity: customHotelItemQuantity,
+                          contractedTotalPrice: customHotelItemContractedPrice * customHotelItemQuantity,
+                          locationName: customHotelItemLocation || '',
+                          distance: customHotelItemDistance || '',
+                          isCustomPO: true
+                        };
+
+                        if (isEditing) {
+                          setDbActivities(prev => prev.map(item => item.id === newPOId ? { ...item, ...newPO } : item));
+                          setItinerary(prev => prev.map(item => item.id === newPOId ? { ...item, ...newBlock } : item));
+                        } else {
+                          setDbActivities(prev => [...prev, newPO]);
+                          setItinerary(prev => [...prev, newBlock]);
                         }
-                        return block;
-                      });
+
+                        const blocksRes = await getPOBlocksAction(tourId);
+                        if (blocksRes.success && blocksRes.blocks) {
+                          setPoBlocks(blocksRes.blocks);
+                        }
+
+                        setEditingCustomHotelItem(null);
+                        setCustomHotelItemBlockId(null);
+                        setShowCustomHotelItemModal(false);
+                      } else {
+                        alert("Failed to save custom item: " + res.error);
+                      }
+                    }).catch(err => {
+                      console.error("Error saving custom hotel item:", err);
+                      alert("Error saving custom hotel item: " + err.message);
+                    }).finally(() => {
+                      setIsHotelChanging(false);
                     });
-                    
-                    setEditingCustomHotelItem(null);
-                    setShowCustomHotelItemModal(false);
                   }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-md active:scale-95"
                 >
