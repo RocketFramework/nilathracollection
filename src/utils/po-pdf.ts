@@ -891,13 +891,31 @@ export const generateTransportPoPdf = async (
         const to      = last.dropoff_location  || last.destination_location || last.location_name || 'Destination';
         const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
 
-        // Day rate from vehicle pricing
-        let dayRate = 0;
-        for (const rv of tpVehicles) {
-            dayRate += (Number(rv.vehicle?.day_rate) || 0) * (Number(rv.quantity) || 1);
-        }
+        // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
+        let dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
+        
+        // If no contracted total price is set, fall back to calculating from vehicle day rates + mileage surcharge
         if (dayRate === 0) {
-            dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
+            let baseRate = 0;
+            for (const rv of tpVehicles) {
+                const v = rv.vehicle || {};
+                baseRate += (Number(v.day_rate) || 0) * (Number(rv.quantity) || 1);
+            }
+
+            const maxMileage = tpVehicles.reduce((sum: number, trv: any) => {
+                const v = trv.vehicle;
+                return sum + ((Number(v?.max_km_per_day) || 80) * (Number(trv.quantity) || 1));
+            }, 0);
+
+            const extraKmRate = tpVehicles.reduce((sum: number, trv: any) => {
+                const v = trv.vehicle;
+                return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
+            }, 0);
+
+            const totalDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+            const excessDistance = Math.max(0, totalDistance - maxMileage);
+            const extraKmCost = excessDistance * extraKmRate;
+            dayRate = baseRate + extraKmCost;
         }
         tpSubtotal += dayRate;
 

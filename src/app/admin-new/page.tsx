@@ -4807,14 +4807,31 @@ function PlannerWizardWorkspace() {
           const to = last.dropoff_location || last.destination_location || last.location_name || 'Destination';
           const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
 
-          // Day rate from vehicle pricing
-          let dayRate = 0;
-          for (const rv of tpReqVehicles) {
-            const v = rv.vehicle || {};
-            dayRate += (Number(v.day_rate) || 0) * (Number(rv.quantity) || 1);
-          }
+          // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
+          let dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
+          
+          // If no contracted total price is set, fall back to calculating from vehicle day rates + mileage surcharge
           if (dayRate === 0) {
-            dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
+            let baseRate = 0;
+            for (const rv of tpReqVehicles) {
+              const v = rv.vehicle || {};
+              baseRate += (Number(v.day_rate) || 0) * (Number(rv.quantity) || 1);
+            }
+
+            const maxMileage = tpReqVehicles.reduce((sum: number, trv: any) => {
+              const v = trv.vehicle;
+              return sum + ((Number(v?.max_km_per_day) || 80) * (Number(trv.quantity) || 1));
+            }, 0);
+
+            const extraKmRate = tpReqVehicles.reduce((sum: number, trv: any) => {
+              const v = trv.vehicle;
+              return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
+            }, 0);
+
+            const totalDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+            const excessDistance = Math.max(0, totalDistance - maxMileage);
+            const extraKmCost = excessDistance * extraKmRate;
+            dayRate = baseRate + extraKmCost;
           }
           tpSubtotal += dayRate;
           const rateDisplay = dayRate > 0 ? `$${dayRate.toFixed(2)}` : 'As per quote';
@@ -9447,7 +9464,7 @@ ${chauffeurHtml}
                                         <span>{vendor ? 'Change Vendor' : 'Assign Vendor'}</span>
                                       </button>
                                       {vendor && (
-                                        <>\n                                          <button
+                                        <>                                          <button
                                             type="button"
                                             onClick={() => handleOpenRfqModal(vendor, actItems, block.id)}
                                             disabled={isLockedByOther}
@@ -18824,9 +18841,10 @@ ${chauffeurHtml}
         const isGlobal = isGlobalTransportReqEdit;
         const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
         const targetId = isGlobal ? null : selectedTransportBlock!.id;
+        const shouldCenter = currentStep?.id === 'transport-provider';
 
         let popoverStyle: React.CSSProperties = {};
-        if (modalTriggerRect) {
+        if (modalTriggerRect && !shouldCenter) {
           const popoverWidth = 440; // width of md max width
           const popoverHeight = 580; // approximate height
           
@@ -18849,10 +18867,10 @@ ${chauffeurHtml}
         }
 
         return (
-          <div className="fixed inset-0 z-[110] overflow-y-auto">
+          <div className={`fixed inset-0 z-[110] overflow-y-auto ${shouldCenter ? 'flex items-center justify-center p-4' : ''}`}>
             {/* Click-away backdrop overlay */}
             <div 
-              className="fixed inset-0 bg-transparent" 
+              className={`fixed inset-0 ${shouldCenter ? 'bg-neutral-900/60 backdrop-blur-sm' : 'bg-transparent'}`} 
               onClick={() => {
                 setShowTransportReqModal(false);
                 setIsGlobalTransportReqEdit(false);
@@ -18865,8 +18883,12 @@ ${chauffeurHtml}
             />
 
             <div 
-              style={popoverStyle}
-              className="bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 slide-in-from-top-2 duration-200 z-[120]"
+              style={shouldCenter ? {} : popoverStyle}
+              className={`bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-[120] ${
+                shouldCenter 
+                  ? 'w-full max-w-lg max-h-[90vh]' 
+                  : 'max-h-[85vh] slide-in-from-top-2'
+              }`}
             >
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">

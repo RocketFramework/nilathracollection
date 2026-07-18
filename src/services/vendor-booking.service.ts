@@ -158,8 +158,8 @@ export class VendorBookingService {
                         const itin = firstLeg.tour_itineraries;
                         const dayNum = itin?.day_number || firstLeg.day_number || null;
 
-                        // total_km_for_day = SUM of quantity (= km) across all legs on this day
-                        const totalKmForDay = legs.reduce((sum: number, a: any) => sum + (Number(a.quantity) || 0), 0);
+                        // Parse total distance correctly from distance strings (e.g. "120 km")
+                        const totalKmForDay = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
 
                         // Build description: "Day N Transport – <from> → <to>"
                         const fromLocation = firstLeg.pickup_location || firstLeg.location_name || firstLeg.title || 'Origin';
@@ -175,7 +175,6 @@ export class VendorBookingService {
                             ...new Set(legs.map((a: any) => a.transport_requirement_id).filter(Boolean))
                         ] as string[];
 
-                        let dayRate = 0;
                         let maxKmPerDay = 0;
                         let additionalKmRate = 0;
                         let snapshotDayRate = 0;
@@ -185,9 +184,6 @@ export class VendorBookingService {
                         for (const reqId of reqIdsForDay) {
                             const vehicles = vehiclePricingByReqId[reqId] || [];
                             for (const v of vehicles) {
-                                // Each vehicle type contributes (day_rate * quantity) to the day rate
-                                dayRate += v.day_rate * v.quantity;
-                                // For max_km and additional rate — use max across vehicles (or first)
                                 if (maxKmPerDay === 0) maxKmPerDay = v.max_km_per_day;
                                 if (additionalKmRate === 0) additionalKmRate = v.additional_km_rate;
                                 // Snapshot the first vehicle's base values (for junction row)
@@ -197,14 +193,22 @@ export class VendorBookingService {
                             }
                         }
 
-                        // If no vehicle pricing found, fall back to contracted values on activities
-                        if (dayRate === 0) {
-                            dayRate = legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price) || 0), 0);
-                        }
+                        // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
+                        let dayTotalPrice = legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price) || 0), 0);
 
-                        const extraKm = Math.max(0, totalKmForDay - maxKmPerDay);
-                        const extraKmCharge = extraKm * additionalKmRate;
-                        const dayTotalPrice = dayRate + extraKmCharge;
+                        // If no contracted total price is set, compute from vehicle pricing + mileage surcharge
+                        if (dayTotalPrice === 0) {
+                            let dayRate = 0;
+                            for (const reqId of reqIdsForDay) {
+                                const vehicles = vehiclePricingByReqId[reqId] || [];
+                                for (const v of vehicles) {
+                                    dayRate += v.day_rate * v.quantity;
+                                }
+                            }
+                            const extraKm = Math.max(0, totalKmForDay - maxKmPerDay);
+                            const extraKmCharge = extraKm * additionalKmRate;
+                            dayTotalPrice = dayRate + extraKmCharge;
+                        }
 
                         calculatedSubtotal += dayTotalPrice;
 
