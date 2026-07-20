@@ -307,7 +307,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       durationDays,
       flightsQuotedSeparately: false,
       flightsQuotedPrice: 0,
-      customServiceFee: undefined
+      customServiceFee: undefined,
+      dayCostOverrides: dayCostOverrides || {}
     });
 
     console.log("PDF calculation debug:", {
@@ -324,10 +325,13 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
     const grandTotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
 
-    // Calculate total price of hotel blocks in the skeleton itinerary
-    const hotelPriceTotal = itinerary
-      .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.agreedPrice !== undefined)
-      .reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
+    // Calculate total price of hotel blocks in the skeleton itinerary, considering overrides
+    const hotelPriceTotal = Array.from(new Set(itinerary.map(b => b.dayNumber))).reduce((sum, dayNum) => {
+      const override = dayCostOverrides?.[dayNum]?.hotel;
+      if (override !== undefined) return sum + override;
+      const daySleepBlocks = itinerary.filter(b => b.dayNumber === dayNum && b.type === ItineraryBlockTypes.SLEEP);
+      return sum + daySleepBlocks.reduce((s, b) => s + (Number(b.agreedPrice) || 0), 0);
+    }, 0);
 
     return (
       <div 
