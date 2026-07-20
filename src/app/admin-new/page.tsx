@@ -14479,7 +14479,7 @@ ${chauffeurHtml}
                                               renderedItems.push(
                                                 <tr key={`${item.id}-fee`} className="hover:bg-neutral-50/50 transition-colors">
                                                   <td className="px-4 py-3 leading-normal">
-                                                    Nilathra Collection Service Fee ({inv.service_fee_percentage !== undefined && inv.service_fee_percentage !== null ? inv.service_fee_percentage : (appSettings && appSettings[`${styleKey}_service_fee`] !== undefined ? appSettings[`${styleKey}_service_fee`] : 10)}%)
+                                                    Tax & Nilathra Collection Service Fee ({inv.service_fee_percentage !== undefined && inv.service_fee_percentage !== null ? inv.service_fee_percentage : (appSettings && appSettings[`${styleKey}_service_fee`] !== undefined ? appSettings[`${styleKey}_service_fee`] : 10)}%)
                                                   </td>
                                                   <td className="px-4 py-3 text-right font-mono font-bold">
                                                     ${Number(agencyFeePart).toLocaleString(undefined, { minimumFractionDigits: 2 })}

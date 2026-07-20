@@ -120,6 +120,8 @@ export class InvoiceCalculationService {
     const sleepBlocks = itinerary.filter(b => b.type === 'sleep');
     const nights = Math.min(sleepBlocks.length, Math.max(0, durationDays - 1));
 
+    let baseSubtotalTotal = 0;
+
     for (let d = 1; d <= durationDays; d++) {
       const overrides = dayCostOverrides[d] || {};
 
@@ -148,6 +150,7 @@ export class InvoiceCalculationService {
 
       // 5. Daily Agency Fee (applied only to hotel, meals, transport, concierge)
       const subtotalDaily = hotelCost + mealsCost + dayTransportCost + conciergeCost;
+      baseSubtotalTotal += subtotalDaily;
       const feePercent = overrides.agencyFeePercent !== undefined ? overrides.agencyFeePercent : serviceFeePercent;
       const dayAgencyFee = overrides.agencyFee !== undefined ? overrides.agencyFee : (subtotalDaily * (feePercent / 100));
       agencyFeeTotal += dayAgencyFee;
@@ -231,12 +234,20 @@ export class InvoiceCalculationService {
       ? customServiceFee 
       : agencyFeeTotal;
 
+    const effectiveFeePercent = baseSubtotalTotal > 0
+      ? parseFloat(((serviceFeeAmount / baseSubtotalTotal) * 100).toFixed(2))
+      : serviceFeePercent;
+
+    const effectiveFeePercentStr = (effectiveFeePercent % 1 === 0)
+      ? effectiveFeePercent.toFixed(0)
+      : effectiveFeePercent.toFixed(1);
+
     // Get concierge/guide/driver block IDs for linkage
     const curationTypes = ['guide', 'driver', 'buffer', 'wait'];
     const curationBlocks = itinerary.filter(b => curationTypes.includes(b.type || ''));
     
     invoiceItems.push({
-      description: `Nilathra Collection Service Fee (${serviceFeePercent}%)`,
+      description: `Tax & Nilathra Collection Service Fee (${effectiveFeePercentStr}%)`,
       amount: serviceFeeAmount,
       dailyActivityIds: curationBlocks.map(b => b.id).filter(Boolean) as string[]
     });
