@@ -394,11 +394,10 @@ export class TourService {
      * table rows for reporting / operations!
      */
     static async saveTour(tourId: string, tripData: TripData) {
-        const fs = require('fs');
         const logMsg = `[${new Date().toISOString()}] saveTour called for tourId: ${tourId}\n` +
                        `tripData itinerary length: ${tripData?.itinerary?.length}\n` +
                        `tripData accommodations length: ${tripData?.accommodations?.length}\n\n`;
-        fs.appendFileSync('save_tour_debug.log', logMsg);
+        console.log(logMsg);
 
         const supabaseAdmin = createAdminClient();
 

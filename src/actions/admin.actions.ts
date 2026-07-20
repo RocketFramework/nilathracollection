@@ -178,10 +178,9 @@ export async function getTourDataAction(tourId: string) {
 
 export async function saveTourAction(tourId: string, tripData: any) {
     try {
-        const fs = require('fs');
         const summary = tripData?.accommodations?.map((a: any) => ({ night: a.nightIndex, hotelId: a.hotelId, hotelName: a.hotelName })) || [];
         const itinSummary = tripData?.itinerary?.filter((b: any) => b.type === 'sleep').map((b: any) => ({ day: b.dayNumber, hotelId: b.hotelId, name: b.name })) || [];
-        fs.appendFileSync('save_tour_action.log', `[${new Date().toISOString()}] saveTourAction payload:\nAccommodations: ${JSON.stringify(summary)}\nItinerary: ${JSON.stringify(itinSummary)}\n\n`);
+        console.log(`[${new Date().toISOString()}] saveTourAction payload:\nAccommodations: ${JSON.stringify(summary)}\nItinerary: ${JSON.stringify(itinSummary)}\n\n`);
 
         await TourService.saveTour(tourId, tripData);
         // Force revalidation of any cached planner data views
@@ -1026,7 +1025,6 @@ export async function sendCustomEmailAction(formData: FormData) {
         return { success: true };
     } catch (error: any) {
         console.error("Error sending custom email:", error);
-        require('fs').writeFileSync('/home/nirosh/Code/NilathraCollection/public/email_error_log.txt', error.stack || error.message);
         return { success: false, error: error.message || "Failed to send email." };
     }
 }
