@@ -409,7 +409,10 @@ export class HotelService {
                 }
 
                 if (room_rates && room_rates.length > 0) {
-                    const ratesToInsert = room_rates.map(rate => {
+                    const ratesToUpdate: any[] = [];
+                    const ratesToCreate: any[] = [];
+
+                    room_rates.forEach(rate => {
                         const { id: _rateId, ...rateData } = rate;
                         const cleanRateData = _rateId ? { ...rateData, hotel_room_id: newRoom.id, id: _rateId } : { ...rateData, hotel_room_id: newRoom.id };
                         if (cleanRateData.start_date === "") cleanRateData.start_date = null as any;
@@ -420,12 +423,26 @@ export class HotelService {
                                 (cleanRateData as any)[key] = null;
                             }
                         }
-                        return cleanRateData;
+                        if (_rateId) {
+                            ratesToUpdate.push(cleanRateData);
+                        } else {
+                            ratesToCreate.push(cleanRateData);
+                        }
                     });
-                    const { error: ratesError } = await dbClient
-                        .from('room_rates')
-                        .upsert(ratesToInsert);
-                    if (ratesError) throw ratesError;
+
+                    if (ratesToUpdate.length > 0) {
+                        const { error: updateError } = await dbClient
+                            .from('room_rates')
+                            .upsert(ratesToUpdate);
+                        if (updateError) throw updateError;
+                    }
+
+                    if (ratesToCreate.length > 0) {
+                        const { error: createError } = await dbClient
+                            .from('room_rates')
+                            .insert(ratesToCreate);
+                        if (createError) throw createError;
+                    }
                 }
             }
         }
