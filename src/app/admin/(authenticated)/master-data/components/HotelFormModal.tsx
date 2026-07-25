@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { Hotel, HotelRoom, RoomRate, HotelService } from "@/services/hotel.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { refreshPlannerCacheAction, saveHotelAction, uploadHotelPhotoAction } from "@/actions/admin.actions";
+import { getHotelAction, refreshPlannerCacheAction, saveHotelAction, uploadHotelPhotoAction } from "@/actions/admin.actions";
 
 interface HotelFormModalProps {
     isOpen: boolean;
@@ -169,7 +169,8 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
         const updatedRooms = [...(formData.rooms || [])];
         if (updatedRooms[roomIndex].room_rates) {
             const newRates = [...updatedRooms[roomIndex].room_rates];
-            newRates[rateIndex] = { ...newRates[rateIndex], [field]: value };
+            const sanitizedValue = typeof value === 'number' && Number.isNaN(value) ? undefined : value;
+            newRates[rateIndex] = { ...newRates[rateIndex], [field]: sanitizedValue };
             updatedRooms[roomIndex].room_rates = newRates;
         }
         setFormData(prev => ({ ...prev, rooms: updatedRooms }));
@@ -249,11 +250,13 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                 const savedHotel = response.hotel!;
                 onSave();
 
-                // Re-fetch to get all nested IDs and full state
+                // Re-fetch using server action to get all nested IDs and full state with room rates
                 if (savedHotel.id) {
-                    const updated = await HotelService.getHotel(savedHotel.id);
-                    setFormData({ ...updated });
-                    setPhotoPreview(updated.photo_url || "");
+                    const res = await getHotelAction(savedHotel.id);
+                    if (res.success && res.hotel) {
+                        setFormData({ ...res.hotel });
+                        setPhotoPreview(res.hotel.photo_url || "");
+                    }
                 }
 
                 await refreshPlannerCacheAction();

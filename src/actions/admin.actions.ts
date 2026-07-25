@@ -312,6 +312,17 @@ export async function searchHotelsAction(city: string, name: string) {
     }
 }
 
+export async function getHotelsAction(options?: any) {
+    try {
+        const supabase = createAdminClient();
+        const { data: hotels, count } = await HotelService.getHotels({ ...options, client: supabase });
+        return { success: true, hotels, count };
+    } catch (error: any) {
+        console.error("Error fetching hotels:", error);
+        return { error: error.message || "Failed to load hotels." };
+    }
+}
+
 export async function getHotelAction(id: string) {
     try {
         const supabase = createAdminClient();

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, deleteHotelAction, getVendorsAction, getVendorAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, getVendorAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -138,9 +138,11 @@ export default function MasterDataPage() {
             };
 
             if (activeTab === 'hotels') {
-                const { data, count } = await HotelService.getHotels(options);
-                setHotels(data);
-                setTotalCount(count);
+                const res = await getHotelsAction(options);
+                if (res.success && res.hotels) {
+                    setHotels(res.hotels);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'activities') {
                 const result = await getActivitiesAction(options);
                 if (result.success && result.data) {
