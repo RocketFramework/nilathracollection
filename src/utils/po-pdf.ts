@@ -458,8 +458,8 @@ export const generateHotelPoPdf = async (
     if (guideRoomDisc && guideRoomDisc !== 'None') {
         agreedInclusions.push(`Guide Room Discount: ${guideRoomDisc}`);
     }
-    if (options.mealProvided) agreedInclusions.push("Meal Provided: Yes");
-    if (options.accommodationProvided) agreedInclusions.push("Accommodation Provided: Yes");
+    if (options.mealProvided) agreedInclusions.push("Driver Meal Provided: Yes");
+    if (options.accommodationProvided) agreedInclusions.push("Driver Accommodation Provided: Yes");
 
     if (agreedInclusions.length > 0) {
         if (topY + (agreedInclusions.length * 4.5) + 12 > 270) {

@@ -207,6 +207,48 @@ const generateUUID = () => {
   });
 };
 
+const computeHotelRateForBlock = (hotel: any, mealPlan: string = 'BB', roomName?: string): number => {
+  if (!hotel) return 0;
+  const rooms = hotel.hotel_rooms || hotel.rooms || [];
+
+  let targetRooms = rooms;
+  if (roomName && rooms.length > 0) {
+    const matched = rooms.filter((r: any) => r.room_name?.toLowerCase().includes(roomName.toLowerCase()) || roomName.toLowerCase().includes(r.room_name?.toLowerCase()));
+    if (matched.length > 0) targetRooms = matched;
+  }
+
+  const mp = (mealPlan || 'BB').toLowerCase();
+
+  for (const r of targetRooms) {
+    const rates = r.room_rates || [];
+    if (rates.length > 0) {
+      for (const rateObj of rates) {
+        const dblField = `dbl_${mp}_rate`;
+        const sglField = `sgl_${mp}_rate`;
+        const tplField = `tpl_${mp}_rate`;
+        const qudField = `qud_${mp}_rate`;
+
+        if (rateObj[dblField] && Number(rateObj[dblField]) > 0) return Number(rateObj[dblField]);
+        if (rateObj[sglField] && Number(rateObj[sglField]) > 0) return Number(rateObj[sglField]);
+        if (rateObj[tplField] && Number(rateObj[tplField]) > 0) return Number(rateObj[tplField]);
+        if (rateObj[qudField] && Number(rateObj[qudField]) > 0) return Number(rateObj[qudField]);
+        if (rateObj.rate && Number(rateObj.rate) > 0) return Number(rateObj.rate);
+
+        for (const key of ['dbl_bb_rate', 'sgl_bb_rate', 'tpl_bb_rate', 'qud_bb_rate', 'dbl_hb_rate', 'dbl_fb_rate', 'dbl_ai_rate']) {
+          if (rateObj[key] && Number(rateObj[key]) > 0) return Number(rateObj[key]);
+        }
+      }
+    }
+    if (r.base_rate && Number(r.base_rate) > 0) return Number(r.base_rate);
+  }
+
+  for (const r of rooms) {
+    if (r.base_rate && Number(r.base_rate) > 0) return Number(r.base_rate);
+  }
+
+  return Number(hotel.base_rate) || 0;
+};
+
 const MOCK_TOURIST_DATA: TouristDataDTO = {
   profile: {
     first_name: "John",
@@ -1096,6 +1138,8 @@ function PlannerWizardWorkspace() {
       if (hotel) {
         // Auto-populate cover image if available
         const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || block.imageUrl || '');
+        const computedRate = computeHotelRateForBlock(hotel, block.mealPlan || 'BB', block.roomName);
+        const baseRate = computedRate > 0 ? computedRate : (block.baseRoomRate || 0);
 
         const oldHotelId = block.hotelId;
 
@@ -1111,7 +1155,9 @@ function PlannerWizardWorkspace() {
             imageUrl: autoImageUrl,
             locationName: newLocationName,
             roomName: '',
-            mealPlan: 'BB'
+            mealPlan: 'BB',
+            baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
+            agreedPrice: baseRate > 0 ? baseRate : b.agreedPrice
           } : b));
 
           // 2. Update ONLY this activity in dbActivities
@@ -1151,7 +1197,7 @@ function PlannerWizardWorkspace() {
               roomId: undefined,
               roomName: '',
               roomStandard: '',
-              pricePerNight: 0,
+              pricePerNight: baseRate,
               selectedRooms: []
             } : a);
             setTripData({
@@ -1165,6 +1211,8 @@ function PlannerWizardWorkspace() {
             hotelId: value,
             hotelName: hotel.name,
             imageUrl: autoImageUrl,
+            baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
+            agreedPrice: baseRate > 0 ? baseRate : b.agreedPrice,
             // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
             ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
           } : b));
@@ -5068,10 +5116,10 @@ ${chauffeurHtml}
       // 1. Insert the parallel booking and PO record
       let finalNotes = poVendorNotes;
       if (poMealProvided) {
-        finalNotes = finalNotes ? `${finalNotes}\nMeal Provided: Yes` : 'Meal Provided: Yes';
+        finalNotes = finalNotes ? `${finalNotes}\nDriver Meal Provided: Yes` : 'Driver Meal Provided: Yes';
       }
       if (poAccommodationProvided) {
-        finalNotes = finalNotes ? `${finalNotes}\nAccommodation Provided: Yes` : 'Accommodation Provided: Yes';
+        finalNotes = finalNotes ? `${finalNotes}\nDriver Accommodation Provided: Yes` : 'Driver Accommodation Provided: Yes';
       }
 
       const resDb = await createVendorBookingAction({
@@ -15799,13 +15847,13 @@ ${chauffeurHtml}
                                                               mealPlan: currentMealPlan
                                                             });
 
-                                                            if (track === 'final') {
-                                                              const totalQty = newSelected.reduce((sum, r) => sum + r.quantity, 0);
-                                                              const totalContractedVal = newSelected.reduce((sum, r) => sum + (r.contractedPrice * r.quantity), 0);
-                                                              const avgContracted = totalQty > 0 ? totalContractedVal / totalQty : 0;
-                                                              const totalAgreedVal = newSelected.reduce((sum, r) => sum + (r.pricePerNight * r.quantity), 0);
-                                                              const avgCharged = totalQty > 0 ? totalAgreedVal / totalQty : 0;
+                                                            const totalQty = newSelected.reduce((sum, r) => sum + r.quantity, 0);
+                                                            const totalContractedVal = newSelected.reduce((sum, r) => sum + (r.contractedPrice * r.quantity), 0);
+                                                            const avgContracted = totalQty > 0 ? totalContractedVal / totalQty : 0;
+                                                            const totalAgreedVal = newSelected.reduce((sum, r) => sum + (r.pricePerNight * r.quantity), 0);
+                                                            const avgCharged = totalQty > 0 ? totalAgreedVal / totalQty : 0;
 
+                                                            if (track === 'final') {
                                                               const currentStay = dbActivities.find(act => act.id === activeAssignment.blockId);
                                                               const oldHotel = masterData.hotels?.find((x: any) => x.id === currentStay?.hotel_id);
                                                               const oldHotelName = oldHotel?.name || "Originally planned hotel";
@@ -15883,76 +15931,46 @@ ${chauffeurHtml}
                                                                 }
                                                                 return act;
                                                               }));
+                                                            }
 
-                                                              // 2. Update only this block in itinerary
-                                                              setItinerary(prev => prev.map(b => {
-                                                                if (b.id === activeAssignment.blockId) {
-                                                                  return {
-                                                                    ...b,
+                                                            // 2. Update only this block in itinerary (runs on all tracks including basic/ai-builder)
+                                                            setItinerary(prev => prev.map(b => {
+                                                              if (b.id === activeAssignment.blockId) {
+                                                                return {
+                                                                  ...b,
+                                                                  hotelId: h.id,
+                                                                  hotelName: h.name,
+                                                                  roomName: room.room_name,
+                                                                  mealPlan: currentMealPlan,
+                                                                  agreedPrice: totalAgreedVal > 0 ? Math.round(totalAgreedVal * 100) / 100 : b.agreedPrice,
+                                                                  baseRoomRate: avgContracted > 0 ? avgContracted : b.baseRoomRate,
+                                                                  contractedPrice: avgContracted > 0 ? avgContracted : b.contractedPrice,
+                                                                  priceFinalized: true,
+                                                                  locationName: h.location_address || h.closest_city || ''
+                                                                };
+                                                              }
+                                                              return b;
+                                                            }));
+
+                                                            // 3. Update only this accommodation in tripData
+                                                            if (tripData) {
+                                                              setTripData({
+                                                                ...tripData,
+                                                                accommodations: tripData.accommodations.map(a => {
+                                                                  const matches = Number(a.nightIndex) === Number(activeBlock?.dayNumber);
+                                                                  return matches ? {
+                                                                    ...a,
                                                                     hotelId: h.id,
                                                                     hotelName: h.name,
+                                                                    selectedRooms: newSelected,
+                                                                    roomId: room.id,
                                                                     roomName: room.room_name,
                                                                     mealPlan: currentMealPlan,
-                                                                    agreedPrice: totalAgreedVal,
-                                                                    contractedPrice: avgContracted,
-                                                                    description: `${oldHotelName} changed due to ${h.name} due to availability`,
-                                                                    locationName: h.location_address || h.closest_city || ''
-                                                                  };
-                                                                }
-                                                                const blockDay = Number(b.dayNumber);
-                                                                if (b.isCustomPO && b.hotelId === oldHotelId && blockDay === dayNum) {
-                                                                  return {
-                                                                    ...b,
-                                                                    hotelId: h.id,
-                                                                    hotelName: h.name,
-                                                                    locationName: h.location_address || h.closest_city || ''
-                                                                  };
-                                                                }
-                                                                return b;
-                                                              }));
-
-                                                              // 3. Update only this accommodation in tripData
-                                                              if (tripData) {
-                                                                setTripData({
-                                                                  ...tripData,
-                                                                  accommodations: tripData.accommodations.map(a => {
-                                                                    const matches = Number(a.nightIndex) === Number(activeBlock?.dayNumber);
-                                                                    return matches ? {
-                                                                      ...a,
-                                                                      hotelId: h.id,
-                                                                      hotelName: h.name,
-                                                                      selectedRooms: newSelected,
-                                                                      roomId: room.id,
-                                                                      roomName: room.room_name,
-                                                                      mealPlan: currentMealPlan,
-                                                                      pricePerNight: avgCharged,
-                                                                      address: h.location_address || h.closest_city || ''
-                                                                    } : a;
-                                                                  })
-                                                                });
-                                                              }
-                                                            } else {
-                                                              // Non-final track fallback
-                                                              updateBlock(activeAssignment.blockId, {
-                                                                roomName: room.room_name,
-                                                                mealPlan: currentMealPlan
+                                                                    pricePerNight: avgCharged,
+                                                                    address: h.location_address || h.closest_city || ''
+                                                                  } : a;
+                                                                })
                                                               });
-
-                                                              if (tripData) {
-                                                                setTripData({
-                                                                  ...tripData,
-                                                                  accommodations: tripData.accommodations.map(a => {
-                                                                    const matches = Number(a.nightIndex) === Number(activeBlock?.dayNumber);
-                                                                    return matches ? {
-                                                                      ...a,
-                                                                      selectedRooms: newSelected,
-                                                                      roomId: room.id,
-                                                                      roomName: room.room_name,
-                                                                      mealPlan: currentMealPlan
-                                                                    } : a;
-                                                                  })
-                                                                });
-                                                              }
                                                             }
                                                           }}
                                                           className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all bg-white ${isRoomSelectedHere ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
@@ -18062,8 +18080,8 @@ ${chauffeurHtml}
                             className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
                           />
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-neutral-805">Meal Provided</span>
-                            <span className="text-[9px] text-neutral-400 mt-0.5">Include meal details in PO PDF</span>
+                            <span className="text-xs font-bold text-neutral-805">Driver Meal Provided</span>
+                            <span className="text-[9px] text-neutral-400 mt-0.5">Include driver meal details in PO PDF</span>
                           </div>
                         </label>
                         <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
@@ -18074,8 +18092,8 @@ ${chauffeurHtml}
                             className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
                           />
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-neutral-805">Accommodation Provided</span>
-                            <span className="text-[9px] text-neutral-400 mt-0.5">Include accommodation details in PO PDF</span>
+                            <span className="text-xs font-bold text-neutral-805">Driver Accommodation Provided</span>
+                            <span className="text-[9px] text-neutral-400 mt-0.5">Include driver accommodation details in PO PDF</span>
                           </div>
                         </label>
                       </div>
@@ -19513,12 +19531,30 @@ function AIItineraryBuilder({
       if (hotel) {
         // Auto-populate cover image if available
         const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || block.imageUrl || '');
+        const computedRate = computeHotelRateForBlock(hotel, block.mealPlan || 'BB', block.roomName);
+        const baseRate = computedRate > 0 ? computedRate : (block.baseRoomRate || 0);
+
+        const singleRate = baseRate * 0.85;
+        const doubleRate = baseRate;
+        const tripleRate = baseRate * 1.4;
+        const familyRate = baseRate * 1.8;
+
+        let sleepPrice = (singleRoomsCount * singleRate) +
+          (doubleRoomsCount * doubleRate) +
+          (tripleRoomsCount * tripleRate) +
+          (familyRoomsCount * familyRate);
+        if (sleepPrice === 0) {
+          sleepPrice = baseRate;
+        }
+        const roundedPrice = Math.round(sleepPrice * 100) / 100;
 
         setItinerary(prev => prev.map(b => b.id === blockId ? {
           ...b,
           hotelId: value,
           hotelName: hotel.name,
           imageUrl: autoImageUrl,
+          baseRoomRate: baseRate > 0 ? baseRate : b.baseRoomRate,
+          agreedPrice: roundedPrice > 0 ? roundedPrice : b.agreedPrice,
           // reset room specific selections if switching to a different hotel (do NOT reset agreedPrice)
           ...(b.hotelId !== value ? { roomName: '', mealPlan: 'BB' } : {})
         } : b));
@@ -19837,13 +19873,34 @@ function AIItineraryBuilder({
   const tripleRoomsCount = hasTeam ? teamRooms.triple : manualTriple;
   const familyRoomsCount = hasTeam ? teamRooms.family : manualFamily;
 
-  // Dynamically recalculate and update hotel prices across all days when room configuration changes
+  // Dynamically recalculate and update hotel prices across all days when room configuration or bound hotel changes
   useEffect(() => {
     setItinerary(prevItinerary => {
       let changed = false;
       const updated = prevItinerary.map(block => {
         if (block.type === ItineraryBlockTypes.SLEEP) {
-          const baseRate = block.baseRoomRate || block.agreedPrice || 150;
+          let baseRate = block.baseRoomRate || 0;
+
+          // If hotel is bound, attempt to compute its exact rate from masterData
+          if (block.hotelId) {
+            const hotel = masterData.hotels?.find((h: any) => h.id === block.hotelId);
+            if (hotel) {
+              const computed = computeHotelRateForBlock(hotel, block.mealPlan || 'BB', block.roomName);
+              if (computed > 0) {
+                baseRate = computed;
+              }
+            }
+          }
+
+          if (!baseRate && block.agreedPrice) {
+            baseRate = block.agreedPrice;
+          }
+
+          // Priority to drawer assignment / agent custom pricing:
+          // If block has an agreedPrice set or priceFinalized, preserve it 100% without recalculating from global data
+          if (block.priceFinalized || (block.agreedPrice && block.agreedPrice > 0)) {
+            return block;
+          }
 
           const singleRate = baseRate * 0.85;
           const doubleRate = baseRate;
@@ -19873,7 +19930,7 @@ function AIItineraryBuilder({
       });
       return changed ? updated : prevItinerary;
     });
-  }, [singleRoomsCount, doubleRoomsCount, tripleRoomsCount, familyRoomsCount, setItinerary]);
+  }, [singleRoomsCount, doubleRoomsCount, tripleRoomsCount, familyRoomsCount, masterData.hotels, setItinerary]);
 
   // AI & Rules configuration state
   const [aiRules, setAiRules] = useState({ generic: '', specific: '' });
@@ -20219,18 +20276,30 @@ function AIItineraryBuilder({
           }
 
           let sleepPrice = event.rateUsd;
-          if (event.type === ItineraryBlockTypes.SLEEP && event.rateUsd) {
-            const singleRate = event.rateUsd * 0.85;
-            const doubleRate = event.rateUsd;
-            const tripleRate = event.rateUsd * 1.4;
-            const familyRate = event.rateUsd * 1.8;
+          let matchedHotelId: string | undefined = undefined;
+          if (event.type === ItineraryBlockTypes.SLEEP) {
+            const searchName = (event.hotelName || event.name || '').toLowerCase();
+            const h = masterData.hotels?.find((x: any) => x.id === (event as any).hotelId || (searchName && x.name?.toLowerCase().includes(searchName)));
+            if (h) {
+              matchedHotelId = h.id;
+              const computed = computeHotelRateForBlock(h, event.mealPlan || 'BB', event.roomCategory);
+              if (computed > 0) {
+                event.rateUsd = computed;
+              }
+            }
+
+            const baseRate = event.rateUsd || 0;
+            const singleRate = baseRate * 0.85;
+            const doubleRate = baseRate;
+            const tripleRate = baseRate * 1.4;
+            const familyRate = baseRate * 1.8;
 
             sleepPrice = (singleRoomsCount * singleRate) +
               (doubleRoomsCount * doubleRate) +
               (tripleRoomsCount * tripleRate) +
               (familyRoomsCount * familyRate);
             if (sleepPrice === 0) {
-              sleepPrice = event.rateUsd;
+              sleepPrice = baseRate;
             }
           }
 
@@ -20243,11 +20312,12 @@ function AIItineraryBuilder({
             endTime: event.endTime,
             bufferMins: 15,
             durationHours: event.duration,
+            hotelId: event.type === ItineraryBlockTypes.SLEEP ? ((event as any).hotelId || matchedHotelId) : undefined,
             hotelName: event.type === ItineraryBlockTypes.SLEEP ? (event.hotelName || event.name) : '',
             roomName: event.type === ItineraryBlockTypes.SLEEP ? (event.roomCategory || '') : '',
             mealPlan: event.type === ItineraryBlockTypes.SLEEP ? (event.mealPlan || 'BB') : '',
-            agreedPrice: event.type === ItineraryBlockTypes.SLEEP ? sleepPrice : undefined,
-            baseRoomRate: event.type === ItineraryBlockTypes.SLEEP ? event.rateUsd : undefined,
+            agreedPrice: event.type === ItineraryBlockTypes.SLEEP ? (sleepPrice && sleepPrice > 0 ? Math.round(sleepPrice * 100) / 100 : undefined) : undefined,
+            baseRoomRate: event.type === ItineraryBlockTypes.SLEEP ? (event.rateUsd || undefined) : undefined,
             imageUrl: '',
             confirmationStatus: 'Pending',
             paymentStatus: 'Pending',
@@ -20520,13 +20590,42 @@ function AIItineraryBuilder({
           if (updated.quantity === undefined) updated.quantity = defaultPax || 2;
           if (updated.headCount === undefined) updated.headCount = defaultPax || 2;
         }
-        if (b.type === ItineraryBlockTypes.SLEEP && field === 'agreedPrice' && value !== undefined) {
-          const factor = (singleRoomsCount * 0.85) +
-            (doubleRoomsCount * 1.0) +
-            (tripleRoomsCount * 1.4) +
-            (familyRoomsCount * 1.8);
-          const activeFactor = factor > 0 ? factor : 1.0;
-          updated.baseRoomRate = Math.round((Number(value) / activeFactor) * 100) / 100;
+        if (b.type === ItineraryBlockTypes.SLEEP) {
+          if (field === 'agreedPrice' && value !== undefined) {
+            const factor = (singleRoomsCount * 0.85) +
+              (doubleRoomsCount * 1.0) +
+              (tripleRoomsCount * 1.4) +
+              (familyRoomsCount * 1.8);
+            const activeFactor = factor > 0 ? factor : 1.0;
+            updated.baseRoomRate = Math.round((Number(value) / activeFactor) * 100) / 100;
+          } else if (field === 'hotelId' || field === 'hotelName' || field === 'mealPlan' || field === 'roomName') {
+            const hId = field === 'hotelId' ? value : b.hotelId;
+            const hName = field === 'hotelName' ? value : b.hotelName;
+            const mPlan = field === 'mealPlan' ? value : b.mealPlan;
+            const rName = field === 'roomName' ? value : b.roomName;
+            const hotel = masterData.hotels?.find((h: any) => h.id === hId || (hName && h.name?.toLowerCase() === String(hName).toLowerCase()));
+            if (hotel) {
+              if (!updated.hotelId) updated.hotelId = hotel.id;
+              if (!updated.hotelName) updated.hotelName = hotel.name;
+              const computed = computeHotelRateForBlock(hotel, mPlan || 'BB', rName);
+              if (computed > 0) {
+                updated.baseRoomRate = computed;
+                const singleRate = computed * 0.85;
+                const doubleRate = computed;
+                const tripleRate = computed * 1.4;
+                const familyRate = computed * 1.8;
+
+                let sleepPrice = (singleRoomsCount * singleRate) +
+                  (doubleRoomsCount * doubleRate) +
+                  (tripleRoomsCount * tripleRate) +
+                  (familyRoomsCount * familyRate);
+                if (sleepPrice === 0) {
+                  sleepPrice = computed;
+                }
+                updated.agreedPrice = Math.round(sleepPrice * 100) / 100;
+              }
+            }
+          }
         }
         return updated;
       }
