@@ -36,8 +36,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     tripStatus,
     dayCostOverrides
   }, ref) => {
-    
-    const clientName = touristData.profile 
+
+    const clientName = touristData.profile
       ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
       : 'Valued Guest';
 
@@ -80,9 +80,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         const resolvedActId = block.activityId;
         const v = block.vendorId ? masterData?.vendors?.find((x: any) => x.id === block.vendorId) : null;
         const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                   (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+          (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
         const activityDetail = masterData?.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
-        
+
         if (activityDetail) {
           const cat = activityDetail.category;
           const nameLower = (activityDetail.activity_name || '').toLowerCase();
@@ -243,8 +243,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           const v = masterData.vendors?.find((x: any) => x.id === block.vendorId);
           const resolvedActId = block.activityId;
           const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                     v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
-          
+            v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+
           const activityLabel = va?.activity_name || block.name || 'Activity';
           let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
           return {
@@ -334,19 +334,20 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     }, 0);
 
     return (
-      <div 
-        ref={ref} 
+      <div
+        ref={ref}
         className="bg-white mx-auto font-sans antialiased text-[#1F2937]"
-        style={{ 
-          WebkitPrintColorAdjust: "exact", 
-          printColorAdjust: "exact", 
-          width: "210mm", 
+        style={{
+          WebkitPrintColorAdjust: "exact",
+          printColorAdjust: "exact",
+          width: "210mm",
           minHeight: "297mm",
           backgroundColor: "#FFFFFF"
         }}
       >
         {/* Style sheet for printable overrides */}
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           @media print {
             body { 
               background: white !important; 
@@ -371,11 +372,11 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         `}} />
 
         {/* 1. COVER PAGE - Premium Emerald and Gold Theme */}
-        <div 
+        <div
           className="print-page-break flex flex-col items-center justify-between p-12 box-border relative overflow-hidden"
-          style={{ 
-            height: "297mm", 
-            backgroundColor: "#0A251D", 
+          style={{
+            height: "297mm",
+            backgroundColor: "#0A251D",
             color: "#FFFFFF",
             padding: "30mm 20mm"
           }}
@@ -383,18 +384,18 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           {/* Subtle gold frames */}
           <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/35 pointer-events-none"></div>
           <div className="absolute inset-[36px] border border-[#D4AF37]/10 pointer-events-none"></div>
-          
+
           {/* Header Area */}
           <div className="z-10 text-center flex flex-col items-center mt-8">
             <div className="mb-4">
-              <img 
-                src="/images/nilathra_logo-02.png" 
-                alt="Nilathra Collection" 
-                className="w-48 opacity-90 relative z-10 filter brightness-200" 
+              <img
+                src="/images/nilathra_logo-02.png"
+                alt="Nilathra Collection"
+                className="w-48 opacity-90 relative z-10 filter brightness-200"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                   e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-3xl font-serif text-white uppercase tracking-[0.35em] mb-2">NILATHRA</h1>');
-                }} 
+                }}
               />
             </div>
             <span className="text-[#D4AF37] text-[9px] tracking-[0.5em] uppercase font-light">
@@ -460,18 +461,18 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           <tbody className="table-row-group">
             <tr>
               <td>
-                
+
                 {/* 2. PROLOGUE / WELCOME PAGE */}
                 <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
                   <div className="text-center mb-16">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Prologue</span>
                     <div className="w-10 h-[1px] bg-[#D4AF37] mx-auto"></div>
                   </div>
-                  
+
                   <div className="prose prose-neutral max-w-none text-[#4B5563] leading-[2.2] font-serif text-justify text-base pl-8 relative">
                     {/* Gold vertical line accent */}
                     <div className="absolute left-0 top-1 bottom-1 w-[1.5px] bg-gradient-to-b from-[#D4AF37]/20 via-[#D4AF37] to-[#D4AF37]/20"></div>
-                    
+
                     <p className="mb-6 text-xl text-[#111827] font-normal tracking-wide">
                       Ayubowan, Dear {clientName},
                     </p>
@@ -484,7 +485,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     <p className="mb-10 font-light">
                       As your concierge hosts, we remain entirely at your disposal to refine these dates, hotels, or events to your perfect liking. We look forward to guiding you through this exquisite journey.
                     </p>
-                    
+
                     <div className="mt-16 pt-6">
                       <p className="text-[#111827] font-serif italic text-lg mb-1">Warmest Greetings,</p>
                       <p className="text-[#D4AF37] text-[10px] uppercase tracking-[0.25em] font-sans font-bold">The Nilathra Concierge Team</p>
@@ -501,7 +502,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                   <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 space-y-10">
                     <div className="grid grid-cols-2 gap-x-8 gap-y-10">
-                      
+
                       <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
                         <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Party Details</span>
                         <span className="font-serif text-lg text-neutral-800 font-medium">
@@ -533,7 +534,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
                         <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Services Included</span>
                         <span className="font-serif text-base text-neutral-700 font-medium">
-                          {guideNeeded ? '✓ National Tour Guide ' : ''} 
+                          {guideNeeded ? '✓ National Tour Guide ' : ''}
                           {chauffeurNeeded ? '✓ Chauffeur Driven Vehicle ' : ''}
                           {!guideNeeded && !chauffeurNeeded ? 'Standard Package' : ''}
                         </span>
@@ -616,7 +617,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                   <div className="space-y-10">
                     {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
-                      
+
                       // Filter blocks for active day, sorted by time
                       const timeToMins = (timeStr?: string, type?: string) => {
                         if (!timeStr || !timeStr.includes(':')) return type === ItineraryBlockTypes.SLEEP ? 1440 : -1;
@@ -642,7 +643,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                       return (
                         <div key={dayNum} className="print-avoid-break space-y-6">
-                          
+
                           {/* Centered Day Header with Day, Weather, and stay details */}
                           <div className="text-center flex flex-col items-center">
                             <div className="border border-[#E8DFD1] bg-[#FAF8F5] p-5 rounded-2xl max-w-xl w-full text-center shadow-sm">
@@ -671,11 +672,11 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 }
 
                                 const hotelDetail = masterData?.hotels
-                                  ? masterData.hotels.find((x: any) => 
-                                      (sleepBlock.hotelId && x.id === sleepBlock.hotelId) || 
-                                      (sleepBlock.hotelName && x.name.toLowerCase() === sleepBlock.hotelName.toLowerCase()) ||
-                                      (sleepBlock.name && x.name.toLowerCase() === sleepBlock.name.toLowerCase())
-                                    )
+                                  ? masterData.hotels.find((x: any) =>
+                                    (sleepBlock.hotelId && x.id === sleepBlock.hotelId) ||
+                                    (sleepBlock.hotelName && x.name.toLowerCase() === sleepBlock.hotelName.toLowerCase()) ||
+                                    (sleepBlock.name && x.name.toLowerCase() === sleepBlock.name.toLowerCase())
+                                  )
                                   : null;
                                 const starClass = hotelDetail?.hotel_class;
 
@@ -701,11 +702,11 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                           </div>
 
                           {/* Itinerary Events Flow - Full Width, Box-free */}
-                          <div className="space-y-4">
+                          <div className="space-y-2">
                             {dayBlocks.map((block) => {
                               return (
-                                <div key={block.id} className="print-avoid-break pb-2">
-                                  
+                                <div key={block.id} className="print-avoid-break pb-1">
+
                                   {/* Event Image (rendered above data) */}
                                   {(() => {
                                     let imgUrl = block.imageUrl;
@@ -728,7 +729,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       const resolvedActId = block.activityId;
                                       const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
                                       const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                                                 (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+                                        (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
                                       const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
                                       if (activityDetail) {
                                         imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
@@ -738,17 +739,17 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     if (!imgUrl) return null;
                                     return (
                                       <div className="w-full mb-3 overflow-hidden rounded-xl">
-                                        <img 
-                                          src={imgUrl} 
-                                          alt={block.name} 
-                                          className="w-full object-cover max-h-[60mm]" 
+                                        <img
+                                          src={imgUrl}
+                                          alt={block.name}
+                                          className="w-full object-cover max-h-[60mm]"
                                         />
                                       </div>
                                     );
                                   })()}
 
                                   {/* Row 1: Location, Description/Name, Time (from - to) */}
-                                  <div className="flex justify-between items-baseline py-1 text-sm border-b border-neutral-100">
+                                  <div className="flex justify-between items-baseline py-0.5 text-sm border-b border-neutral-100">
                                     {/* Location (Left) */}
                                     <div className="w-1/3 text-left text-[#D4AF37] font-serif italic tracking-wide text-[11.5px] font-semibold truncate">
                                       {block.locationName || 'TBD Location'}
@@ -768,7 +769,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     const bind = getResolvedBindingDisplay(block);
                                     if (!bind) return null;
                                     return (
-                                      <div className="mt-1.5 px-3 py-1.5 bg-[#FAF9F6] border border-[#EBE6DC] rounded-xl flex items-center justify-between text-[10.5px] text-neutral-700 font-sans">
+                                      <div className="mt-1 px-2.5 py-1 bg-[#FAF9F6] border border-[#EBE6DC] rounded-xl flex items-center justify-between text-[10.5px] text-neutral-700 font-sans">
                                         <div className="flex items-center gap-2">
                                           <span className="text-[7.5px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
                                             {bind.type.charAt(0).toUpperCase() + bind.type.slice(1)}
@@ -784,30 +785,39 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     );
                                   })()}
 
-                                  {/* Row 2: Other Data */}
-                                  <div className="py-1.5 text-xs text-neutral-500 flex flex-wrap gap-4 justify-between items-start leading-relaxed">
-                                    {/* Notes / Description */}
-                                    <div className="flex-1 min-w-[200px] text-left font-light text-[11px]">
-                                      {block.internalNotes || <span className="italic text-neutral-300">No additional details recorded.</span>}
-                                    </div>
-                                    
-                                    {/* Distance, sleep specific price, type badge */}
-                                    <div className="flex flex-col items-end shrink-0 space-y-0.5 text-[9.5px]">
-                                      <span className="text-[8px] uppercase tracking-wider font-bold text-neutral-400">
-                                        Type: {block.type}
-                                      </span>
-                                      {block.distance && (
-                                        <span className="font-semibold text-neutral-500">
-                                          Distance: {block.distance}
-                                        </span>
-                                      )}
-                                      {block.type === ItineraryBlockTypes.SLEEP && block.agreedPrice !== undefined && !block.hotelId && (
-                                        <span className="font-extrabold text-neutral-800">
-                                          Calculated Price: ${block.agreedPrice.toFixed(2)} USD
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
+                                  {/* Row 2: Notes / Additional Data (Only rendered when content exists) */}
+                                  {(() => {
+                                    const hasNotes = Boolean(block.internalNotes && block.internalNotes.trim());
+                                    const hasDistance = Boolean(block.distance);
+                                    const hasSleepPrice = block.type === ItineraryBlockTypes.SLEEP && block.agreedPrice !== undefined && !block.hotelId;
+
+                                    if (!hasNotes && !hasDistance && !hasSleepPrice) return null;
+
+                                    return (
+                                      <div className="py-0.5 text-xs text-neutral-500 flex flex-wrap gap-4 justify-between items-start leading-relaxed">
+                                        {/* Notes / Description */}
+                                        <div className="flex-1 min-w-[200px] text-left font-light text-[11px]">
+                                          {hasNotes ? block.internalNotes : null}
+                                        </div>
+
+                                        {/* Distance & sleep specific price */}
+                                        {(hasDistance || hasSleepPrice) && (
+                                          <div className="flex flex-col items-end shrink-0 space-y-0.5 text-[9.5px]">
+                                            {hasDistance && (
+                                              <span className="font-semibold text-neutral-500">
+                                                Distance: {block.distance}
+                                              </span>
+                                            )}
+                                            {hasSleepPrice && (
+                                              <span className="font-extrabold text-neutral-800">
+                                                Calculated Price: ${Number(block.agreedPrice ?? 0).toFixed(2)} USD
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Agent Comments */}
                                   {block.comments && block.comments.length > 0 && (
@@ -850,9 +860,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   const allPolicies = isDraft
                     ? parsePolicyLines(appSettings?.[Settings.Policy_Draft] || '')
                     : [
-                        ...parsePolicyLines(genericPolicyText),
-                        ...parsePolicyLines(tierPolicyText)
-                      ];
+                      ...parsePolicyLines(genericPolicyText),
+                      ...parsePolicyLines(tierPolicyText)
+                    ];
 
                   if (allPolicies.length === 0) return null;
 

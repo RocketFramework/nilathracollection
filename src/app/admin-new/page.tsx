@@ -3,29 +3,29 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { 
-  Users, 
-  Compass, 
-  BrainCircuit, 
-  Coins, 
-  Share2, 
-  CheckSquare, 
-  BedDouble, 
-  Award, 
-  Utensils, 
-  Car, 
-  Shield, 
-  UserCheck, 
-  User, 
+import {
+  Users,
+  Compass,
+  BrainCircuit,
+  Coins,
+  Share2,
+  CheckSquare,
+  BedDouble,
+  Award,
+  Utensils,
+  Car,
+  Shield,
+  UserCheck,
+  User,
   Mail,
-  Phone, 
-  MailQuestion, 
-  Send, 
-  Type, 
-  Code, 
-  Paperclip, 
-  Receipt, 
-  CircleDollarSign, 
+  Phone,
+  MailQuestion,
+  Send,
+  Type,
+  Code,
+  Paperclip,
+  Receipt,
+  CircleDollarSign,
   Sparkles,
   Info,
   TrendingUp,
@@ -82,21 +82,21 @@ import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gend
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
-import { 
-  getTouristDataAction, 
-  saveTouristDataAction, 
-  getActivitiesAction, 
-  getAppMarkupsAction, 
-  getTourDataAction, 
+import {
+  getTouristDataAction,
+  saveTouristDataAction,
+  getActivitiesAction,
+  getAppMarkupsAction,
+  getTourDataAction,
   getDailyActivitiesAction,
-  saveTourAction, 
+  saveTourAction,
   changeHotelDatabaseAction,
   changeRestaurantAction,
   changeVendorAction,
   changeTransportProviderAction,
   changeGuideAction,
   changeDriverAction,
-  getAIRulesAction, 
+  getAIRulesAction,
   saveAIRuleAction,
   getDraftVersionsAction,
   getDraftVersionAction,
@@ -333,14 +333,14 @@ const uploadItineraryImage = async (file: File): Promise<string> => {
 const parseTimeToMinutes = (timeStr: string): number => {
   if (!timeStr) return 9999;
   const cleanStr = timeStr.trim().toUpperCase();
-  
+
   // Try to parse AM/PM format first (e.g., "10:30 AM", "09:00 PM")
   const ampmMatch = cleanStr.match(/^(\d+):(\d+)\s*(AM|PM)$/);
   if (ampmMatch) {
     let hours = parseInt(ampmMatch[1], 10);
     const minutes = parseInt(ampmMatch[2], 10);
     const period = ampmMatch[3];
-    
+
     if (period === 'PM' && hours < 12) {
       hours += 12;
     } else if (period === 'AM' && hours === 12) {
@@ -348,7 +348,7 @@ const parseTimeToMinutes = (timeStr: string): number => {
     }
     return hours * 60 + minutes;
   }
-  
+
   // Try to parse standard 24-hour format "HH:MM"
   const standardMatch = cleanStr.match(/^(\d+):(\d+)$/);
   if (standardMatch) {
@@ -356,13 +356,13 @@ const parseTimeToMinutes = (timeStr: string): number => {
     const minutes = parseInt(standardMatch[2], 10);
     return hours * 60 + minutes;
   }
-  
+
   // Fallback: if it's just a number, treat as hour
   const hourOnly = parseInt(cleanStr, 10);
   if (!isNaN(hourOnly)) {
     return hourOnly * 60;
   }
-  
+
   return 9999; // Empty/unparseable times go to the end of the day
 };
 
@@ -531,8 +531,8 @@ function PlannerWizardWorkspace() {
     ];
     if (triggerStatuses.includes(editRfqStatus)) {
       const poStatusMap: Record<string, POStatus> = {
-        [VENDOR_EMAIL_STATUSES.DECLINED]:  'Rejected',
-        [VENDOR_EMAIL_STATUSES.SELECTED]:  'Accepted',
+        [VENDOR_EMAIL_STATUSES.DECLINED]: 'Rejected',
+        [VENDOR_EMAIL_STATUSES.SELECTED]: 'Accepted',
         [VENDOR_EMAIL_STATUSES.CONFIRMED]: 'Accepted',
       };
       setPoOutcomeStatus(poStatusMap[editRfqStatus] ?? 'Accepted');
@@ -617,11 +617,11 @@ function PlannerWizardWorkspace() {
     try {
       setIsHotelChanging(true);
       const res = await deleteDailyActivityAction(tourId, customPo.id);
-      
+
       if (res.success) {
         setDbActivities(prev => prev.filter(item => item.id !== customPo.id));
         setItinerary(prev => prev.filter(item => item.id !== customPo.id));
-        
+
         setPoBlocks(prevBlocks => {
           return prevBlocks.map(block => {
             const exists = block.daily_activities?.some((a: any) => a.id === customPo.id);
@@ -808,26 +808,26 @@ function PlannerWizardWorkspace() {
     try {
       const guideRates = guideRatesState[guideId];
       if (!guideRates) return;
-      
+
       const arrivalDate = touristData?.preferences?.arrival_date || '';
       const numDays = touristData?.preferences?.duration_days || 5;
-      
+
       const activitiesToSave = [];
-      
+
       for (let idx = 0; idx < numDays; idx++) {
         const dayNum = idx + 1;
         const rateData = guideRates[dayNum];
         if (!rateData) continue;
-        
+
         let dateStr = '';
         if (arrivalDate) {
           try {
             const d = new Date(arrivalDate);
             d.setDate(d.getDate() + idx);
             dateStr = d.toISOString().split('T')[0];
-          } catch (e) {}
+          } catch (e) { }
         }
-        
+
         activitiesToSave.push({
           day_number: dayNum,
           service_date: dateStr || null,
@@ -839,7 +839,7 @@ function PlannerWizardWorkspace() {
           description: rateData.note || `Rate Type: ${rateData.rateType}`
         });
       }
-      
+
       const res = await saveGuideDailyActivitiesAction(tourId, guideId, activitiesToSave);
       if (res.success) {
         const reloadRes = await getGuideDailyActivitiesAction(tourId);
@@ -870,26 +870,26 @@ function PlannerWizardWorkspace() {
     try {
       const driverRates = driverRatesState[driverId];
       if (!driverRates) return;
-      
+
       const arrivalDate = touristData?.preferences?.arrival_date || '';
       const numDays = touristData?.preferences?.duration_days || 5;
-      
+
       const activitiesToSave = [];
-      
+
       for (let idx = 0; idx < numDays; idx++) {
         const dayNum = idx + 1;
         const rateData = driverRates[dayNum];
         if (!rateData) continue;
-        
+
         let dateStr = '';
         if (arrivalDate) {
           try {
             const d = new Date(arrivalDate);
             d.setDate(d.getDate() + idx);
             dateStr = d.toISOString().split('T')[0];
-          } catch (e) {}
+          } catch (e) { }
         }
-        
+
         activitiesToSave.push({
           day_number: dayNum,
           service_date: dateStr || null,
@@ -901,7 +901,7 @@ function PlannerWizardWorkspace() {
           description: rateData.note || `Rate Type: ${rateData.rateType}`
         });
       }
-      
+
       const res = await saveDriverDailyActivitiesAction(tourId, driverId, activitiesToSave);
       if (res.success) {
         const reloadRes = await getDriverDailyActivitiesAction(tourId);
@@ -1096,7 +1096,7 @@ function PlannerWizardWorkspace() {
       if (hotel) {
         // Auto-populate cover image if available
         const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || block.imageUrl || '');
-        
+
         const oldHotelId = block.hotelId;
 
         if (track === 'final' && oldHotelId) {
@@ -1223,9 +1223,9 @@ function PlannerWizardWorkspace() {
         const contractedPrice = restaurant.lunch_rate_per_head || 25;
         const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
         const agreedPrice = contractedPrice * (1 + markupPercent / 100);
-        
-        setItinerary(prev => prev.map(b => b.id === blockId ? { 
-          ...b, 
+
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
           restaurantId: value,
           contractedPrice: b.contractedPrice ?? contractedPrice,
           agreedPrice: b.agreedPrice ?? agreedPrice
@@ -1275,11 +1275,11 @@ function PlannerWizardWorkspace() {
         })();
 
         const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(blockActivityId));
-        
+
         // Auto-populate cover image if available
         const activityDetail = masterData.activities.find((a: any) => Number(a.id) === Number(blockActivityId));
-        const autoImageUrl = (activityDetail?.images && activityDetail.images.length > 0) 
-          ? activityDetail.images[0] 
+        const autoImageUrl = (activityDetail?.images && activityDetail.images.length > 0)
+          ? activityDetail.images[0]
           : (block.imageUrl || '');
 
         if (va) {
@@ -1393,7 +1393,7 @@ function PlannerWizardWorkspace() {
         return maxOverlap > 0 ? bestMatch?.id : undefined;
       })();
       const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                 v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
+        v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
 
       if (v) {
         const activityLabel = va?.activity_name || block.name || 'Activity';
@@ -1465,11 +1465,11 @@ function PlannerWizardWorkspace() {
 
     let checkInStr = "<check_in_date>";
     let checkOutStr = "<check_out_date>";
-    
+
     if (touristData?.preferences?.arrival_date) {
       const checkInDate = new Date(touristData.preferences.arrival_date);
       checkInDate.setDate(checkInDate.getDate() + (block.dayNumber - 1));
-      
+
       const checkOutDate = new Date(checkInDate);
       checkOutDate.setDate(checkOutDate.getDate() + 1);
 
@@ -1484,7 +1484,7 @@ function PlannerWizardWorkspace() {
     const children = touristData?.preferences?.children || 0;
 
     const prompt = `Could you please provide the rate for a stay at ${hotelName} in ${hotelLocation} for ${adults} adults and ${children} children, from ${checkInStr} to ${checkOutStr}, on a ${mealPlan} basis?`;
-    
+
     navigator.clipboard.writeText(prompt);
     window.alert("Rate prompt copied to clipboard:\n\n" + prompt);
   };
@@ -1551,68 +1551,68 @@ function PlannerWizardWorkspace() {
               double_room_count = totalRooms;
             }
 
-             const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
-             const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
+            const unitPrice = totalRooms > 0 ? totalAgreedPrice / totalRooms : 0;
+            const newRoomId = acc.roomId || (acc.selectedRooms?.[0]?.roomId) || null;
 
-             let finalContractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
-             let finalContractedPrice = totalContractedPrice;
-             if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
-               finalContractedUnitPrice = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice ? acc.customContractedTotalPrice / (totalRooms || 1) : 0);
-               finalContractedPrice = acc.customContractedTotalPrice ?? (finalContractedUnitPrice * totalRooms);
-             }
+            let finalContractedUnitPrice = totalRooms > 0 ? totalContractedPrice / totalRooms : 0;
+            let finalContractedPrice = totalContractedPrice;
+            if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
+              finalContractedUnitPrice = acc.customContractedUnitPrice ?? (acc.customContractedTotalPrice ? acc.customContractedTotalPrice / (totalRooms || 1) : 0);
+              finalContractedPrice = acc.customContractedTotalPrice ?? (finalContractedUnitPrice * totalRooms);
+            }
 
-             const expectedDescription = acc.customRateNote || null;
- 
-             const hotel = masterData.hotels?.find((h: any) => h.id === acc.hotelId);
-             const newLocationName = hotel ? (hotel.closest_city || hotel.location_address || '') : '';
- 
-             if (
-               act.hotel_id !== acc.hotelId ||
-               act.hotel_room_id !== newRoomId ||
-               act.quantity !== totalRooms ||
-               act.meal_plan !== mealPlan ||
-               act.charged_unit_price !== unitPrice ||
-               act.charged_total_price !== totalAgreedPrice ||
-               act.contracted_price !== finalContractedUnitPrice ||
-               act.contracted_total_price !== finalContractedPrice ||
-               act.location_name !== newLocationName ||
-               act.description !== expectedDescription ||
-               act.single_room_id !== single_room_id ||
-               act.single_room_count !== single_room_count ||
-               act.double_room_id !== double_room_id ||
-               act.double_room_count !== double_room_count ||
-               act.twin_room_id !== twin_room_id ||
-               act.twin_room_count !== twin_room_count ||
-               act.triple_room_id !== triple_room_id ||
-               act.triple_room_count !== triple_room_count ||
-               act.family_room_id !== family_room_id ||
-               act.family_room_count !== family_room_count
-             ) {
-               changed = true;
-               return {
-                 ...act,
-                 hotel_id: acc.hotelId || null,
-                 hotel_room_id: newRoomId,
-                 quantity: totalRooms,
-                 meal_plan: mealPlan,
-                 charged_unit_price: unitPrice,
-                 charged_total_price: totalAgreedPrice,
-                 contracted_price: finalContractedUnitPrice,
-                 contracted_total_price: finalContractedPrice,
-                 location_name: newLocationName,
-                 description: expectedDescription,
-                 single_room_id,
-                 single_room_count,
-                 double_room_id,
-                 double_room_count,
-                 twin_room_id,
-                 twin_room_count,
-                 triple_room_id,
-                 triple_room_count,
-                 family_room_id,
-                 family_room_count
-               };
-             }
+            const expectedDescription = acc.customRateNote || null;
+
+            const hotel = masterData.hotels?.find((h: any) => h.id === acc.hotelId);
+            const newLocationName = hotel ? (hotel.closest_city || hotel.location_address || '') : '';
+
+            if (
+              act.hotel_id !== acc.hotelId ||
+              act.hotel_room_id !== newRoomId ||
+              act.quantity !== totalRooms ||
+              act.meal_plan !== mealPlan ||
+              act.charged_unit_price !== unitPrice ||
+              act.charged_total_price !== totalAgreedPrice ||
+              act.contracted_price !== finalContractedUnitPrice ||
+              act.contracted_total_price !== finalContractedPrice ||
+              act.location_name !== newLocationName ||
+              act.description !== expectedDescription ||
+              act.single_room_id !== single_room_id ||
+              act.single_room_count !== single_room_count ||
+              act.double_room_id !== double_room_id ||
+              act.double_room_count !== double_room_count ||
+              act.twin_room_id !== twin_room_id ||
+              act.twin_room_count !== twin_room_count ||
+              act.triple_room_id !== triple_room_id ||
+              act.triple_room_count !== triple_room_count ||
+              act.family_room_id !== family_room_id ||
+              act.family_room_count !== family_room_count
+            ) {
+              changed = true;
+              return {
+                ...act,
+                hotel_id: acc.hotelId || null,
+                hotel_room_id: newRoomId,
+                quantity: totalRooms,
+                meal_plan: mealPlan,
+                charged_unit_price: unitPrice,
+                charged_total_price: totalAgreedPrice,
+                contracted_price: finalContractedUnitPrice,
+                contracted_total_price: finalContractedPrice,
+                location_name: newLocationName,
+                description: expectedDescription,
+                single_room_id,
+                single_room_count,
+                double_room_id,
+                double_room_count,
+                twin_room_id,
+                twin_room_count,
+                triple_room_id,
+                triple_room_count,
+                family_room_id,
+                family_room_count
+              };
+            }
           } else {
             // No accommodation bound for this night! Clear hotel-related fields.
             if (
@@ -1687,7 +1687,7 @@ function PlannerWizardWorkspace() {
   const handleApplyCustomRateOverride = () => {
     if (!editingCustomRateAct || !tripData) return;
     const dayNum = editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || editingCustomRateAct.dayNumber || 0;
-    
+
     const parsedUnit = parseFloat(customRateUnit);
     const parsedTotal = parseFloat(customRateTotal);
     const unitPrice = isNaN(parsedUnit) ? undefined : parsedUnit;
@@ -1697,19 +1697,19 @@ function PlannerWizardWorkspace() {
     setIsApplyingRateOverride(true);
 
     const actId = editingCustomRateAct.id;
-    const parentBlock = poBlocks.find(block => 
+    const parentBlock = poBlocks.find(block =>
       (block.daily_activities || []).some((act: any) => act.id === actId)
     );
     const applyToAll = customRateApplyToAllInBlock && !!parentBlock;
 
-    const targetActIds = applyToAll 
-      ? (parentBlock?.daily_activities || []).map((act: any) => act.id) 
+    const targetActIds = applyToAll
+      ? (parentBlock?.daily_activities || []).map((act: any) => act.id)
       : [actId];
 
     const targetDayNums = applyToAll
-      ? (parentBlock?.daily_activities || []).map((act: any) => 
-          Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0)
-        ).filter(Boolean)
+      ? (parentBlock?.daily_activities || []).map((act: any) =>
+        Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0)
+      ).filter(Boolean)
       : [Number(dayNum)];
 
     setTripData({
@@ -1883,7 +1883,7 @@ function PlannerWizardWorkspace() {
   const handleOpenCustomRateModal = (act: any) => {
     const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
     const acc = tripData?.accommodations?.find(a => Number(a.nightIndex) === Number(dayNum));
-    
+
     setEditingCustomRateAct(act);
     setCustomRateDriverMeal(act.driver_meal_included || false);
     setCustomRateDriverAcc(act.driver_acc_included || false);
@@ -1938,7 +1938,7 @@ function PlannerWizardWorkspace() {
     setChangeHotelDrawerAct(act);
     setChangeHotelStays(stays);
     setChangeHotelSelectedHotelId(act.hotel_id || null);
-    
+
     // Initialize search city with act's location if available
     const hotel = masterData.hotels?.find((h: any) => h.id === act.hotel_id);
     setChangeHotelSearchCity(hotel?.closest_city || act.location_name || '');
@@ -2068,7 +2068,7 @@ function PlannerWizardWorkspace() {
     return activitiesList.filter(act => {
       const matchesCategory = activityCategoryFilter === 'All' || act.category === activityCategoryFilter;
       if (!activitySearchTerm) return matchesCategory;
-      
+
       const term = activitySearchTerm.toLowerCase();
       return matchesCategory && (
         act.activity_name.toLowerCase().includes(term) ||
@@ -2149,8 +2149,8 @@ function PlannerWizardWorkspace() {
       const cleanItinerary = JSON.parse(JSON.stringify(syncedItinerary));
 
       if (tripData) {
-        const updatedTripData = { 
-          ...tripData, 
+        const updatedTripData = {
+          ...tripData,
           clientName: `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || tripData.clientName,
           clientEmail: touristData.profile.email || tripData.clientEmail,
           clientPhone: touristData.profile.phone || tripData.clientPhone,
@@ -2266,7 +2266,7 @@ function PlannerWizardWorkspace() {
               }
             });
           }
-          
+
           // Restore guest counts and room counts from the selected version!
           if (res.version.adults !== undefined && res.version.adults !== null) {
             handlePreferenceChange('adults', res.version.adults);
@@ -2327,29 +2327,29 @@ function PlannerWizardWorkspace() {
   };
   // Define the ordered steps for Basic Track
   const basicSteps: StepItem[] = useMemo(() => [
-    { 
-      id: 'tourist-data', 
-      label: 'Tourist Data', 
-      description: 'Capture tourist personal details, budget constraints, travel styles, and group size.', 
-      icon: Users 
+    {
+      id: 'tourist-data',
+      label: 'Tourist Data',
+      description: 'Capture tourist personal details, budget constraints, travel styles, and group size.',
+      icon: Users
     },
-    { 
-      id: 'activity-selection', 
-      label: 'Activity Selection', 
-      description: 'Browse, select, and prioritize high-level tourist activities and experiences.', 
-      icon: Compass 
+    {
+      id: 'activity-selection',
+      label: 'Activity Selection',
+      description: 'Browse, select, and prioritize high-level tourist activities and experiences.',
+      icon: Compass
     },
-    { 
-      id: 'ai-builder', 
-      label: 'AI Itinerary Builder', 
-      description: 'Generate a smart AI-powered skeleton draft itinerary optimized for routing.', 
+    {
+      id: 'ai-builder',
+      label: 'AI Itinerary Builder',
+      description: 'Generate a smart AI-powered skeleton draft itinerary optimized for routing.',
       icon: BrainCircuit,
       isSubStep: true
     },
-    { 
-      id: 'share-tourist', 
-      label: 'Share with Tourist', 
-      description: 'Export and share the draft basic itinerary link with the tourist for initial feedback.', 
+    {
+      id: 'share-tourist',
+      label: 'Share with Tourist',
+      description: 'Export and share the draft basic itinerary link with the tourist for initial feedback.',
       icon: Share2,
       isSubStep: true
     },
@@ -2358,11 +2358,11 @@ function PlannerWizardWorkspace() {
   // Dynamically compute the active steps for Final Track based on element selections
   const finalSteps: StepItem[] = useMemo(() => {
     const list: StepItem[] = [
-      { 
-        id: 'element-selection', 
-        label: 'Itinerary Element Selection', 
-        description: 'Choose which operational resources are needed for this custom tour package.', 
-        icon: CheckSquare 
+      {
+        id: 'element-selection',
+        label: 'Itinerary Element Selection',
+        description: 'Choose which operational resources are needed for this custom tour package.',
+        icon: CheckSquare
       },
       {
         id: 'po-creation',
@@ -2374,82 +2374,82 @@ function PlannerWizardWorkspace() {
 
     // Dynamic resource selection steps
     if (elements.hotel) {
-      list.push({ 
-        id: 'hotel-selection', 
-        label: 'Hotel Selection', 
-        description: 'Filter hotels, select specific room categories, and agree rates.', 
-        icon: BedDouble 
+      list.push({
+        id: 'hotel-selection',
+        label: 'Hotel Selection',
+        description: 'Filter hotels, select specific room categories, and agree rates.',
+        icon: BedDouble
       });
     }
     if (elements.activity) {
-      list.push({ 
-        id: 'activity-provider', 
-        label: 'Activity Provider Selection', 
-        description: 'Book specific vendors and entrance passes for all selected experiences.', 
-        icon: Award 
+      list.push({
+        id: 'activity-provider',
+        label: 'Activity Provider Selection',
+        description: 'Book specific vendors and entrance passes for all selected experiences.',
+        icon: Award
       });
     }
     if (elements.restaurant) {
-      list.push({ 
-        id: 'restaurant-selection', 
-        label: 'Restaurant Selection', 
-        description: 'Reserve dining setups and select specific meal plans or menus.', 
-        icon: Utensils 
+      list.push({
+        id: 'restaurant-selection',
+        label: 'Restaurant Selection',
+        description: 'Reserve dining setups and select specific meal plans or menus.',
+        icon: Utensils
       });
     }
     if (elements.transport) {
-      list.push({ 
-        id: 'transport-provider', 
-        label: 'Transport Provider Selection', 
-        description: 'Select transport fleet operator, vehicle tier, and negotiate base transfer rates.', 
-        icon: Car 
+      list.push({
+        id: 'transport-provider',
+        label: 'Transport Provider Selection',
+        description: 'Select transport fleet operator, vehicle tier, and negotiate base transfer rates.',
+        icon: Car
       });
     }
     if (elements.security) {
-      list.push({ 
-        id: 'security-service', 
-        label: 'Security Service Selection', 
-        description: 'Deploy VIP security escorts, armored vehicles, or route protection guards.', 
-        icon: Shield 
+      list.push({
+        id: 'security-service',
+        label: 'Security Service Selection',
+        description: 'Deploy VIP security escorts, armored vehicles, or route protection guards.',
+        icon: Shield
       });
     }
     if (elements.guide) {
-      list.push({ 
-        id: 'guide-selection', 
-        label: 'Guide Selection', 
-        description: 'Assign expert national guides, language specialists, or site coordinators.', 
-        icon: UserCheck 
+      list.push({
+        id: 'guide-selection',
+        label: 'Guide Selection',
+        description: 'Assign expert national guides, language specialists, or site coordinators.',
+        icon: UserCheck
       });
     }
     if (elements.driver) {
-      list.push({ 
-        id: 'driver-selection', 
-        label: 'Driver Selection', 
-        description: 'Assign certified chauffeurs, safety-vetted drivers, and coordinate allowances.', 
-        icon: User 
+      list.push({
+        id: 'driver-selection',
+        label: 'Driver Selection',
+        description: 'Assign certified chauffeurs, safety-vetted drivers, and coordinate allowances.',
+        icon: User
       });
     }
 
     // Core operational flow steps
     list.push(
 
-      { 
-        id: 'payment-receive', 
-        label: 'Collect Tourist Payment', 
-        description: 'Record client deposit receipts and configure installment schedules.', 
-        icon: CircleDollarSign 
+      {
+        id: 'payment-receive',
+        label: 'Collect Tourist Payment',
+        description: 'Record client deposit receipts and configure installment schedules.',
+        icon: CircleDollarSign
       },
-      { 
-        id: 'finance-controlling', 
-        label: 'Finance Controlling', 
-        description: 'Perform hotel invoice reconciliation, match line-items, and handle supplier disbursements.', 
-        icon: Receipt 
+      {
+        id: 'finance-controlling',
+        label: 'Finance Controlling',
+        description: 'Perform hotel invoice reconciliation, match line-items, and handle supplier disbursements.',
+        icon: Receipt
       },
-      { 
-        id: 'profit-loss', 
-        label: 'Profit & Loss Analysis', 
-        description: 'Perform real-time yield audits, analyze actual margins, and close tour accounting.', 
-        icon: TrendingUp 
+      {
+        id: 'profit-loss',
+        label: 'Profit & Loss Analysis',
+        description: 'Perform real-time yield audits, analyze actual margins, and close tour accounting.',
+        icon: TrendingUp
       }
     );
 
@@ -2481,7 +2481,7 @@ function PlannerWizardWorkspace() {
             const template = res.templates.find((t: any) => t.name === 'Draft Itinerary Share');
             if (template) {
               setShareEmailSubject(template.subject || 'Your Journey to Sri Lanka — A First Look');
-              
+
               if (template.from_email) {
                 setShareEmailFrom(template.from_email);
               } else {
@@ -2493,11 +2493,11 @@ function PlannerWizardWorkspace() {
               }
 
               let bodyHtml = template.body_html || '';
-              
-              const guestName = touristData?.profile 
-                ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest' 
+
+              const guestName = touristData?.profile
+                ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
                 : 'Valued Guest';
-              
+
               let agentName = 'Your Concierge Team';
               const supabase = createClient();
               const { data: { user } } = await supabase.auth.getUser();
@@ -2557,17 +2557,17 @@ function PlannerWizardWorkspace() {
       const guideBlocks = poBlocks.filter((b: any) => b.block_type === 'guide');
       const arrivalDate = touristData?.preferences?.arrival_date || '';
       const numDays = touristData?.preferences?.duration_days || 5;
-      
+
       const initialRates: typeof guideRatesState = {};
-      
+
       guideBlocks.forEach((block: any) => {
         const guideId = block.name.split(' | ID: ')[1];
         if (!guideId) return;
-        
+
         initialRates[guideId] = {};
-        
+
         const guideActsForThisGuide = guideActivities.filter((act: any) => act.guide_id === guideId);
-        
+
         for (let idx = 0; idx < numDays; idx++) {
           const dayNum = idx + 1;
           let dateStr = '';
@@ -2576,18 +2576,18 @@ function PlannerWizardWorkspace() {
               const d = new Date(arrivalDate);
               d.setDate(d.getDate() + idx);
               dateStr = d.toISOString().split('T')[0];
-            } catch (e) {}
+            } catch (e) { }
           }
-          
+
           const existingAct = guideActsForThisGuide.find((act: any) => {
             const actDate = act.service_date?.split('T')[0];
             return actDate === dateStr;
           });
-          
+
           if (existingAct) {
             initialRates[guideId][dayNum] = {
-              rateType: existingAct.description?.startsWith('Rate Type: ') 
-                ? existingAct.description.substring(11).split(' - ')[0] 
+              rateType: existingAct.description?.startsWith('Rate Type: ')
+                ? existingAct.description.substring(11).split(' - ')[0]
                 : 'Custom',
               contractedPrice: existingAct.contracted_price || 0,
               chargedPrice: existingAct.charged_unit_price || 0,
@@ -2596,10 +2596,10 @@ function PlannerWizardWorkspace() {
           } else {
             const guide = masterData.guides?.find((g: any) => g.id === guideId);
             const defaultRate = guide?.daily_rate || 20;
-            
+
             let defaultRateType = 'Guide Default';
             let initialContracted = defaultRate;
-            
+
             const styleKey = (TravelStyleSettingKeys as Record<string, string>)[touristData?.preferences?.travel_style || 'Luxury'] || 'luxury';
             let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
             if (touristData?.preferences?.travel_style === TRAVEL_STYLES.REGULAR) {
@@ -2612,14 +2612,14 @@ function PlannerWizardWorkspace() {
               guideDayRateKey = GUIDE_RATE_KEYS.NATIONAL;
               defaultRateType = 'National Rate';
             }
-            
+
             if (appSettings && appSettings[guideDayRateKey] !== undefined) {
               initialContracted = Number(appSettings[guideDayRateKey]) || defaultRate;
             }
-            
+
             const markupPercent = Number(appSettings?.[Settings.Tour_Guide_Markup]) || 0;
             const initialCharged = initialContracted * (1 + markupPercent / 100);
-            
+
             initialRates[guideId][dayNum] = {
               rateType: defaultRateType,
               contractedPrice: initialContracted,
@@ -2629,7 +2629,7 @@ function PlannerWizardWorkspace() {
           }
         }
       });
-      
+
       setGuideRatesState(initialRates);
     }
   }, [currentStep?.id, guideActivities, poBlocks, touristData, appSettings, masterData.guides]);
@@ -2642,17 +2642,17 @@ function PlannerWizardWorkspace() {
       const driverBlocks = poBlocks.filter((b: any) => b.block_type === 'driver');
       const arrivalDate = touristData?.preferences?.arrival_date || '';
       const numDays = touristData?.preferences?.duration_days || 5;
-      
+
       const initialRates: typeof driverRatesState = {};
-      
+
       driverBlocks.forEach((block: any) => {
         const driverId = block.name.split(' | ID: ')[1];
         if (!driverId) return;
-        
+
         initialRates[driverId] = {};
-        
+
         const driverActsForThisDriver = driverActivities.filter((act: any) => act.driver_id === driverId);
-        
+
         for (let idx = 0; idx < numDays; idx++) {
           const dayNum = idx + 1;
           let dateStr = '';
@@ -2661,18 +2661,18 @@ function PlannerWizardWorkspace() {
               const d = new Date(arrivalDate);
               d.setDate(d.getDate() + idx);
               dateStr = d.toISOString().split('T')[0];
-            } catch (e) {}
+            } catch (e) { }
           }
-          
+
           const existingAct = driverActsForThisDriver.find((act: any) => {
             const actDate = act.service_date?.split('T')[0];
             return actDate === dateStr;
           });
-          
+
           if (existingAct) {
             initialRates[driverId][dayNum] = {
-              rateType: existingAct.description?.startsWith('Rate Type: ') 
-                ? existingAct.description.substring(11).split(' - ')[0] 
+              rateType: existingAct.description?.startsWith('Rate Type: ')
+                ? existingAct.description.substring(11).split(' - ')[0]
                 : 'Custom',
               contractedPrice: existingAct.contracted_price || 0,
               chargedPrice: existingAct.charged_unit_price || 0,
@@ -2681,10 +2681,10 @@ function PlannerWizardWorkspace() {
           } else {
             const driver = masterData.drivers?.find((d: any) => d.id === driverId);
             const defaultRate = driver?.per_day_rate || 15;
-            
+
             let driverDayRateKey: string = Settings.Luxury_Chauffeur_Day_Rate;
             let defaultRateType = 'Chauffeur Default';
-            
+
             const style = touristData?.preferences?.travel_style || 'Luxury';
             if (style === TRAVEL_STYLES.REGULAR) {
               driverDayRateKey = Settings.Regular_Chauffeur_Day_Rate;
@@ -2702,17 +2702,17 @@ function PlannerWizardWorkspace() {
               driverDayRateKey = Settings.Regular_Chauffeur_Day_Rate;
               defaultRateType = 'Regular Chauffeur Rate';
             }
-            
+
             let initialContracted = defaultRate;
             if (appSettings && appSettings[driverDayRateKey] !== undefined) {
               initialContracted = Number(appSettings[driverDayRateKey]) || defaultRate;
             }
-            
-            const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined 
-              ? Number(appSettings[Settings.Diver_Markup]) 
+
+            const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined
+              ? Number(appSettings[Settings.Diver_Markup])
               : (Number(appSettings?.[Settings.Driver_Markup]) || 0);
             const initialCharged = initialContracted * (1 + markupPercent / 100);
-            
+
             initialRates[driverId][dayNum] = {
               rateType: defaultRateType,
               contractedPrice: initialContracted,
@@ -2722,7 +2722,7 @@ function PlannerWizardWorkspace() {
           }
         }
       });
-      
+
       setDriverRatesState(initialRates);
     }
   }, [currentStep?.id, driverActivities, poBlocks, touristData, appSettings, masterData.drivers]);
@@ -2861,7 +2861,7 @@ function PlannerWizardWorkspace() {
           }
 
           let activitiesList = daRes.success && daRes.activities ? daRes.activities : [];
-          
+
           if (tourRes.success && tourRes.data && activitiesList.length === 0) {
             const fullTripData = tourRes.data.tripData as TripData;
             if (fullTripData && fullTripData.itinerary && fullTripData.itinerary.length > 0) {
@@ -3068,7 +3068,7 @@ function PlannerWizardWorkspace() {
             isCustomPO: (a.hotel_id && a.activity_type !== 'sleep') ? true : a.isCustomPO
           }));
         setDbActivities(mapped);
-        
+
         // Restore custom POs to the itinerary state if they exist in daily activities but not in itinerary yet
         const customPOs = res.activities.filter((a: any) => {
           if (!a.hotel_id || a.hotel_room_id) return false;
@@ -3308,7 +3308,7 @@ function PlannerWizardWorkspace() {
   const [enteringQuoteId, setEnteringQuoteId] = useState<string | null>(null);
   const [inputQuotePrice, setInputQuotePrice] = useState<string>('');
   const [inputQuoteNotes, setInputQuoteNotes] = useState<string>('');
-  
+
   // Invoice input states
   const [enteringInvoicePoId, setEnteringInvoicePoId] = useState<string | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
@@ -3356,7 +3356,7 @@ function PlannerWizardWorkspace() {
   const [invoiceBillingEmail, setInvoiceBillingEmail] = useState<string>('');
   const [invoiceBillingPhone, setInvoiceBillingPhone] = useState<string>('');
   const [invoiceBillingAddress, setInvoiceBillingAddress] = useState<string>('');
-  
+
   // Client payment state
   const [customerPaymentInvoiceId, setCustomerPaymentInvoiceId] = useState<string | null>(null);
   const [customerPaymentAmount, setCustomerPaymentAmount] = useState<string>('');
@@ -3650,7 +3650,7 @@ function PlannerWizardWorkspace() {
 
     const totalSupplierAgreed = supplierPLItems.reduce((sum, item) => sum + item.contractedTotal, 0);
     const totalSupplierInvoiced = supplierPLItems.reduce((sum, item) => sum + item.invoicedTotal, 0);
-    
+
     // Total Supplier Payments (Disbursed) aggregated at the PO/Invoice level
     const totalSupplierPaid = purchaseOrders
       .filter(po => po.status !== 'Cancelled')
@@ -3746,7 +3746,7 @@ function PlannerWizardWorkspace() {
     // guide_id / driver_id are set on ALL daily_activities for the tour (the guide/driver
     // accompanies everything), so we must not use those fields alone to decide type.
     const isExplicitTravelBlock = poBlock?.block_type === 'travel' || block?.type === 'travel';
-    const isGuide  = !isExplicitTravelBlock && (block?.type === 'guide'  || poBlock?.block_type === 'guide'  || stays.some(s => s.activity_type === 'travel' && s.guide_id  && !s.transport_id));
+    const isGuide = !isExplicitTravelBlock && (block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id && !s.transport_id));
     const isDriver = !isExplicitTravelBlock && ((block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id && !s.transport_id));
     const isTransport = isExplicitTravelBlock || (!isGuide && !isDriver && stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id));
 
@@ -3772,7 +3772,7 @@ function PlannerWizardWorkspace() {
     setShowRfqHtml(false);
     setRfqAttachPdf(!isTransport && !isGuide && !isDriver);
     setShowRfqModal(true);
-    
+
     try {
       let res;
       if (isTransport) {
@@ -3788,53 +3788,53 @@ function PlannerWizardWorkspace() {
       }
       if (res.success && res.template) {
         const template = res.template;
-        
+
         const sortedStays = [...stays].sort((a, b) => {
-            const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
-            const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
-            return dayA - dayB;
+          const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+          const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
+          return dayA - dayB;
         });
- 
+
         const standardStaysOnly = sortedStays.filter(s => !s.isCustomPO);
         const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays[0]?.tour_itineraries?.date || '';
         const nightsCount = standardStaysOnly.length;
         let checkOutDate = '';
         if (checkInDate && nightsCount > 0) {
-            const d = new Date(checkInDate);
-            d.setDate(d.getDate() + nightsCount);
-            checkOutDate = d.toISOString().split('T')[0];
+          const d = new Date(checkInDate);
+          d.setDate(d.getDate() + nightsCount);
+          checkOutDate = d.toISOString().split('T')[0];
         }
- 
+
         const formatDate = (dateStr: string) => {
-            if (!dateStr) return '-';
-            try {
-                const d = new Date(dateStr);
-                if (isNaN(d.getTime())) return dateStr;
-                return d.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-            } catch (e) {
-                return dateStr;
-            }
+          if (!dateStr) return '-';
+          try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            });
+          } catch (e) {
+            return dateStr;
+          }
         };
- 
+
         const checkInDateFormatted = formatDate(checkInDate);
         const checkOutDateFormatted = formatDate(checkOutDate);
-        
+
         const uniqueMealPlans = Array.from(new Set(sortedStays.map(act => act.meal_plan || act.mealPlan).filter(Boolean))).join(' / ');
         const mealDetailsList = sortedStays.map(act => {
           const mealPart = act.meal_plan || act.mealPlan || 'Meal';
           const titlePart = act.title || act.name || '';
-          
+
           let timePart = '';
           const startTime = act.time_start || act.startTime || '';
           const endTime = act.time_end || act.endTime || '';
-          
+
           const cleanStart = startTime.split(':').slice(0, 2).join(':');
           const cleanEnd = endTime.split(':').slice(0, 2).join(':');
-          
+
           if (cleanStart) {
             timePart = cleanEnd ? `${cleanStart} – ${cleanEnd}` : `${cleanStart}`;
           }
@@ -3855,21 +3855,21 @@ function PlannerWizardWorkspace() {
           return detail;
         });
         const mealTypesText = mealDetailsList.filter(Boolean).join(' / ');
- 
+
         const adults = touristData?.preferences?.adults || 2;
         const children = touristData?.preferences?.children || 0;
         const infants = touristData?.preferences?.infants || 0;
         let occupancyStr = `${adults} Adults`;
         if (children > 0) occupancyStr += ` / ${children} Children`;
         if (infants > 0) occupancyStr += ` / ${infants} Infants`;
- 
+
         let agentName = 'Your Concierge Team';
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-            agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+          agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
         }
- 
+
         let subject = template.subject || '';
         let bodyHtml = template.body_html || '';
 
@@ -3954,7 +3954,7 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         } else if (isGuide) {
           const guideName = `${hotel.first_name || ''} ${hotel.last_name || ''}`.trim();
-          const tourTitle = touristData?.profile 
+          const tourTitle = touristData?.profile
             ? `Custom Tour Package for ${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim()
             : (tripData?.clientName ? `Custom Tour for ${tripData.clientName}` : 'Custom Tour Package');
 
@@ -3963,7 +3963,7 @@ function PlannerWizardWorkspace() {
 
           const checkInDateFormatted = formatDate(checkInDate);
           const checkOutDateFormatted = formatDate(checkOutDate);
-          const durationDays = guideRfqDetails?.request?.duration_nights 
+          const durationDays = guideRfqDetails?.request?.duration_nights
             ? (guideRfqDetails.request.duration_nights + 1)
             : (guideRfqDetails?.request?.duration_days || sortedStays.length);
 
@@ -3976,10 +3976,10 @@ function PlannerWizardWorkspace() {
           const activeSleepStays = (guideRfqDetails?.sleepStays && guideRfqDetails.sleepStays.length > 0)
             ? guideRfqDetails.sleepStays
             : sortedStays.map((act: any) => ({
-                day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
-                date: act.service_date || act.tour_itineraries?.date || '',
-                location_name: act.location_name || act.locationName || 'TBD'
-              }));
+              day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
+              date: act.service_date || act.tour_itineraries?.date || '',
+              location_name: act.location_name || act.locationName || 'TBD'
+            }));
 
           const rows = activeSleepStays.map((stay: any) => {
             const displayDate = stay.date ? formatDate(stay.date) : `Day ${stay.day_number}`;
@@ -4017,7 +4017,7 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         } else if (isDriver) {
           const driverName = `${hotel.first_name || ''} ${hotel.last_name || ''}`.trim();
-          const tourTitle = touristData?.profile 
+          const tourTitle = touristData?.profile
             ? `Custom Tour Package for ${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim()
             : (tripData?.clientName ? `Custom Tour for ${tripData.clientName}` : 'Custom Tour Package');
 
@@ -4026,7 +4026,7 @@ function PlannerWizardWorkspace() {
 
           const checkInDateFormatted = formatDate(checkInDate);
           const checkOutDateFormatted = formatDate(checkOutDate);
-          const durationDays = guideRfqDetails?.request?.duration_nights 
+          const durationDays = guideRfqDetails?.request?.duration_nights
             ? (guideRfqDetails.request.duration_nights + 1)
             : (guideRfqDetails?.request?.duration_days || sortedStays.length);
 
@@ -4039,10 +4039,10 @@ function PlannerWizardWorkspace() {
           const activeSleepStays = (guideRfqDetails?.sleepStays && guideRfqDetails.sleepStays.length > 0)
             ? guideRfqDetails.sleepStays
             : sortedStays.map((act: any) => ({
-                day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
-                date: act.service_date || act.tour_itineraries?.date || '',
-                location_name: act.location_name || act.locationName || 'TBD'
-              }));
+              day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
+              date: act.service_date || act.tour_itineraries?.date || '',
+              location_name: act.location_name || act.locationName || 'TBD'
+            }));
 
           const rows = activeSleepStays.map((stay: any) => {
             const displayDate = stay.date ? formatDate(stay.date) : `Day ${stay.day_number}`;
@@ -4089,59 +4089,59 @@ function PlannerWizardWorkspace() {
           const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
 
           const roomsByDate = sleepStays.map(act => {
-              const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-              const dateVal = act.tour_itineraries?.date;
-              const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
-   
-              let reqStr = '';
-              const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-              const activeRooms = sizes.map(size => {
-                  const count = (act as any)[`${size}_count`] || 0;
-                  const label = size.split('_')[0];
-                  const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-                  return { type: displayType, count };
-              }).filter(r => r.count > 0);
+            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+            const dateVal = act.tour_itineraries?.date;
+            const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-              if (activeRooms.length === 0) {
-                  const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
-                  reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
-              } else {
-                  reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
-              }
-              if (act.description) {
-                  reqStr += ` (${act.description})`;
-              }
-   
-              return { displayDate, reqStr };
+            let reqStr = '';
+            const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+            const activeRooms = sizes.map(size => {
+              const count = (act as any)[`${size}_count`] || 0;
+              const label = size.split('_')[0];
+              const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+              return { type: displayType, count };
+            }).filter(r => r.count > 0);
+
+            if (activeRooms.length === 0) {
+              const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
+              reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
+            } else {
+              reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+            }
+            if (act.description) {
+              reqStr += ` (${act.description})`;
+            }
+
+            return { displayDate, reqStr };
           });
-   
+
           let roomsRequiredText = '';
           if (roomsByDate.length === 0) {
-              roomsRequiredText = 'No overnight accommodations requested.';
+            roomsRequiredText = 'No overnight accommodations requested.';
           } else if (roomsByDate.length === 1) {
-              roomsRequiredText = `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
+            roomsRequiredText = `${roomsByDate[0].displayDate} (${roomsByDate[0].reqStr})`;
           } else {
-              roomsRequiredText = roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
+            roomsRequiredText = roomsByDate.map(item => `<br />• ${item.displayDate}: ${item.reqStr}`).join('');
           }
 
           let customServicesText = '';
           if (customStays.length > 0) {
-              const rows = customStays.map(act => {
-                  const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-                  const dateVal = act.tour_itineraries?.date;
-                  const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
-                  const title = act.title || act.name || 'Additional Service';
-                  const desc = act.description ? ` (${act.description})` : '';
-                  const qty = act.quantity || 1;
-                  
-                  return `<tr>
+            const rows = customStays.map(act => {
+              const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+              const dateVal = act.tour_itineraries?.date;
+              const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
+              const title = act.title || act.name || 'Additional Service';
+              const desc = act.description ? ` (${act.description})` : '';
+              const qty = act.quantity || 1;
+
+              return `<tr>
                       <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${displayDate}</td>
                       <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${title}${desc}</td>
                       <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: center;">${qty}</td>
                   </tr>`;
-              }).join('');
+            }).join('');
 
-              customServicesText = `
+            customServicesText = `
 <div style="margin-top: 15px; background-color: #FBFBFA; border: 1px solid #E6E4E0; padding: 12px; border-radius: 12px;">
   <strong style="color: #1B3A2D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Additional Services & Activities Requested</strong>
   <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: #333;">
@@ -4174,17 +4174,17 @@ function PlannerWizardWorkspace() {
               );
             }
           }
-  
+
           bodyHtml = bodyHtml.replace(/{{Hotel Name}}/g, hotel?.name || '');
           bodyHtml = bodyHtml.replace(/{{from-Dates}}/g, checkInDateFormatted);
           bodyHtml = bodyHtml.replace(/{{to-Date}}/g, checkOutDateFormatted);
-          
+
           let occurrence = 0;
           bodyHtml = bodyHtml.replace(/{{DD MMM YYYY}}/g, () => {
-              occurrence++;
-              return occurrence === 1 ? checkInDateFormatted : checkOutDateFormatted;
+            occurrence++;
+            return occurrence === 1 ? checkInDateFormatted : checkOutDateFormatted;
           });
-   
+
           bodyHtml = bodyHtml.replace(/{{X}}/g, String(nightsCount));
           bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, roomsRequiredText + (customServicesText ? '<br />' + customServicesText : ''));
           bodyHtml = bodyHtml.replace(/{{e.g., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
@@ -4192,7 +4192,7 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/g, uniqueMealPlans || 'BB');
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         }
- 
+
         setRfqEmailBodyOriginal(bodyHtml);
         const initialProcessed = getProcessedEmailBody(bodyHtml, {
           adjacentRooms: false,
@@ -4204,7 +4204,7 @@ function PlannerWizardWorkspace() {
           guideRoomDiscount: guideRoomDiscVal && guideRoomDiscVal !== 'None' ? guideRoomDiscVal : null
         });
         setRfqEmailBody(initialProcessed);
- 
+
         // Sync editor HTML after DOM mounts
         setTimeout(() => {
           if (rfqEditorRef.current) {
@@ -4301,7 +4301,7 @@ function PlannerWizardWorkspace() {
           guideRoomDiscount: rfqGuideRoomDiscount
         }
       );
-      
+
       if (doc) {
         doc.save(`RFQ_${hotel.name.replace(/\s+/g, '_')}.pdf`);
       }
@@ -4442,13 +4442,13 @@ function PlannerWizardWorkspace() {
     try {
       const stayIds = block.daily_activities?.map((a: any) => a.id) || [];
       if (stayIds.length === 0) return;
-      
+
       const newHotelId = quote.vendor_id;
       if (!newHotelId) return;
 
       const oldHotelId = block.daily_activities?.[0]?.hotel_id;
-      const activePOs = purchaseOrders.filter(po => 
-        po.status !== 'Cancelled' && 
+      const activePOs = purchaseOrders.filter(po =>
+        po.status !== 'Cancelled' &&
         (po.hotel_id === oldHotelId || po.po_block_id === block.id)
       );
       if (activePOs.length > 0) {
@@ -4484,9 +4484,9 @@ function PlannerWizardWorkspace() {
   };
 
   const handleOpenPoModal = async (
-    hotel: any, 
-    stays: any[], 
-    blockId?: string, 
+    hotel: any,
+    stays: any[],
+    blockId?: string,
     vendorType?: 'hotel' | 'vendor' | 'transport_provider' | 'tour_guide' | 'driver' | 'restaurant'
   ) => {
     const vType = vendorType || 'hotel';
@@ -4509,44 +4509,44 @@ function PlannerWizardWorkspace() {
     setShowPoModal(true);
 
     const sortedStays = [...stays].sort((a, b) => {
-        const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
-        const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
-        return dayA - dayB;
+      const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+      const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
+      return dayA - dayB;
     });
 
     const formatDate = (dateStr: string) => {
-        if (!dateStr) return '-';
-        try {
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return dateStr;
-            return d.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            });
-        } catch (e) {
-            return dateStr;
-        }
+      if (!dateStr) return '-';
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      } catch (e) {
+        return dateStr;
+      }
     };
 
     const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
     let checkInDate = '';
     let nightsCount = 0;
     if (standardStaysOnly.length > 0) {
-        checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || '';
-        nightsCount = standardStaysOnly.length;
+      checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || '';
+      nightsCount = standardStaysOnly.length;
     } else {
-        const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
-        if (serviceDates.length > 0) {
-            checkInDate = serviceDates[0];
-            nightsCount = serviceDates.length;
-        }
+      const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
+      if (serviceDates.length > 0) {
+        checkInDate = serviceDates[0];
+        nightsCount = serviceDates.length;
+      }
     }
     let checkOutDate = '';
     if (checkInDate && nightsCount > 0) {
-        const d = new Date(checkInDate);
-        d.setDate(d.getDate() + nightsCount);
-        checkOutDate = d.toISOString().split('T')[0];
+      const d = new Date(checkInDate);
+      d.setDate(d.getDate() + nightsCount);
+      checkOutDate = d.toISOString().split('T')[0];
     }
 
     const checkInDateFormatted = checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
@@ -4559,64 +4559,64 @@ function PlannerWizardWorkspace() {
     // Calculate total price
     let calculatedSubtotal = 0;
     const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-    
+
     const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
     const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
 
     const roomsText = sleepStays.length === 0 ? 'No overnight accommodations requested.' : sleepStays.map(act => {
-        const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-        const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-        const activeRooms = sizes.map(size => {
-            const count = (act as any)[`${size}_count`] || 0;
-            const label = size.split('_')[0];
-            const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-            return { type: displayType, count };
-        }).filter(r => r.count > 0);
+      const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+      const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
+      const activeRooms = sizes.map(size => {
+        const count = (act as any)[`${size}_count`] || 0;
+        const label = size.split('_')[0];
+        const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+        return { type: displayType, count };
+      }).filter(r => r.count > 0);
 
-        let reqStr = '';
-        let totalQty = 0;
-        if (activeRooms.length === 0) {
-            reqStr = room?.room_name || act.title || act.name || 'Room';
-            totalQty = act.quantity || 1;
-        } else {
-            reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
-            totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
-        }
+      let reqStr = '';
+      let totalQty = 0;
+      if (activeRooms.length === 0) {
+        reqStr = room?.room_name || act.title || act.name || 'Room';
+        totalQty = act.quantity || 1;
+      } else {
+        reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+        totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+      }
 
-        if (act.description) {
-            reqStr += ` (${act.description})`;
-        }
+      if (act.description) {
+        reqStr += ` (${act.description})`;
+      }
 
-        const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
-        const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
-        calculatedSubtotal += totalCost;
+      const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+      const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
+      calculatedSubtotal += totalCost;
 
-        return `• Day ${dayNum}: ${reqStr} (${act.meal_plan || 'BB'}) - Qty: ${totalQty} @ $${unitCost.toFixed(2)} (Total: $${totalCost.toFixed(2)})`;
+      return `• Day ${dayNum}: ${reqStr} (${act.meal_plan || 'BB'}) - Qty: ${totalQty} @ $${unitCost.toFixed(2)} (Total: $${totalCost.toFixed(2)})`;
     }).join('<br />');
 
     let customServicesText = '';
     if (customStays.length > 0) {
-        const rows = customStays.map(act => {
-            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-            const dateVal = act.service_date || act.tour_itineraries?.date;
-            const displayDate = dateVal ? formatDate(dateVal) : (dayNum > 0 ? `Day ${dayNum}` : 'TBD');
-            const title = act.title || act.name || 'Additional Service';
-            const desc = act.description ? ` (${act.description})` : '';
-            const qty = act.quantity || 1;
-            const unitPrice = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
-            const totalCost = Number(act.contracted_total_price ?? (qty * unitPrice));
-            calculatedSubtotal += totalCost;
-            
-            return `<tr>
+      const rows = customStays.map(act => {
+        const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
+        const dateVal = act.service_date || act.tour_itineraries?.date;
+        const displayDate = dateVal ? formatDate(dateVal) : (dayNum > 0 ? `Day ${dayNum}` : 'TBD');
+        const title = act.title || act.name || 'Additional Service';
+        const desc = act.description ? ` (${act.description})` : '';
+        const qty = act.quantity || 1;
+        const unitPrice = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+        const totalCost = Number(act.contracted_total_price ?? (qty * unitPrice));
+        calculatedSubtotal += totalCost;
+
+        return `<tr>
                 <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${displayDate}</td>
                 <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: left;">${title}${desc}</td>
                 <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: center;">${qty}</td>
                 <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: right;">$${unitPrice.toFixed(2)}</td>
                 <td style="border: 1px solid #E6E4E0; padding: 6px; text-align: right;">$${totalCost.toFixed(2)}</td>
             </tr>`;
-        }).join('');
+      }).join('');
 
-        customServicesText = `
+      customServicesText = `
 <div style="margin-top: 15px; background-color: #FBFBFA; border: 1px solid #E6E4E0; padding: 12px; border-radius: 12px;">
   <strong style="color: #1B3A2D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Additional Services & Activities Requested</strong>
   <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: #333;">
@@ -4647,11 +4647,11 @@ function PlannerWizardWorkspace() {
     if (hasDriverAcc) inclusionList.push('<li><strong>Driver Accommodation:</strong> Provided FOC</li>');
     if (hasParking) inclusionList.push('<li><strong>On-Site Parking:</strong> Included</li>');
     if (guideRoomDisc && guideRoomDisc !== 'None') {
-        inclusionList.push(`<li><strong>Guide Room Discount:</strong> ${guideRoomDisc}</li>`);
+      inclusionList.push(`<li><strong>Guide Room Discount:</strong> ${guideRoomDisc}</li>`);
     }
 
     if (inclusionList.length > 0) {
-        agreedInclusionsHtml = `
+      agreedInclusionsHtml = `
 <div style="margin-top: 15px; background-color: #FBFBFA; border: 1px solid #E6E4E0; padding: 12px; border-radius: 12px;">
   <strong style="color: #1B3A2D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">Agreed Special Inclusions / Services</strong>
   <ul style="margin: 0; padding-left: 18px; font-size: 11px; color: #333; line-height: 1.5;">
@@ -4664,7 +4664,7 @@ function PlannerWizardWorkspace() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-        agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+      agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
     }
 
     // Build email body — use a restaurant-specific template for meal blocks
@@ -4742,17 +4742,17 @@ function PlannerWizardWorkspace() {
       // Build vehicle specs row if available
       const vehicleSpecRows = tpReqVehicles.length > 0
         ? tpReqVehicles.map((rv: any) => {
-            const v = rv.vehicle || {};
-            const label = [v.make_and_model || v.make || tpReq.vehicle_make || 'Vehicle', v.vehicle_type ? `(${v.vehicle_type})` : ''].filter(Boolean).join(' ');
-            const qty = rv.quantity || 1;
-            const dayRate = Number(v.day_rate) || 0;
-            return `<tr>
+          const v = rv.vehicle || {};
+          const label = [v.make_and_model || v.make || tpReq.vehicle_make || 'Vehicle', v.vehicle_type ? `(${v.vehicle_type})` : ''].filter(Boolean).join(' ');
+          const qty = rv.quantity || 1;
+          const dayRate = Number(v.day_rate) || 0;
+          return `<tr>
               <td style="border:1px solid #E6E4E0;padding:6px 10px;">${label}</td>
               <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">${qty}</td>
               <td style="border:1px solid #E6E4E0;padding:6px 10px;">${formatModelYear(tpReq.vehicle_model_year || '')}</td>
               <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">${dayRate > 0 ? `$${dayRate.toFixed(2)} / day` : 'As quoted'}</td>
             </tr>`;
-          }).join('')
+        }).join('')
         : `<tr><td colspan="4" style="border:1px solid #E6E4E0;padding:6px 10px;color:#888;">As per quotation</td></tr>`;
 
       const vehicleSpecsHtml = `
@@ -4809,7 +4809,7 @@ function PlannerWizardWorkspace() {
 
           // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
           let dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
-          
+
           // If no contracted total price is set, fall back to calculating from vehicle day rates + mileage surcharge
           if (dayRate === 0) {
             let baseRate = 0;
@@ -5011,7 +5011,7 @@ ${chauffeurHtml}
           }
         );
       }
-      
+
       if (doc) {
         doc.save(`${poNum}_${hotel.name.replace(/\s+/g, '_')}.pdf`);
       }
@@ -5029,9 +5029,9 @@ ${chauffeurHtml}
     setIsSendingPo(true);
     try {
       const sortedStays = [...selectedPoStays].sort((a, b) => {
-          const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
-          const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
-          return dayA - dayB;
+        const dayA = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 0;
+        const dayB = b.tour_itineraries?.day_number || b.day_number || b.dayNumber || 0;
+        return dayA - dayB;
       });
 
       // For transport, pass 0 — the createBookingRequest service groups by day
@@ -5045,16 +5045,16 @@ ${chauffeurHtml}
         sortedStays.forEach(act => {
           let totalQty = 0;
           if (act.isCustomPO) {
-              totalQty = act.quantity || 1;
+            totalQty = act.quantity || 1;
           } else {
-              const activeRooms = sizes.map(size => ({
-                  count: (act as any)[`${size}_count`] || 0
-              })).filter(r => r.count > 0);
-              if (activeRooms.length === 0) {
-                  totalQty = act.quantity || 1;
-              } else {
-                  totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
-              }
+            const activeRooms = sizes.map(size => ({
+              count: (act as any)[`${size}_count`] || 0
+            })).filter(r => r.count > 0);
+            if (activeRooms.length === 0) {
+              totalQty = act.quantity || 1;
+            } else {
+              totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+            }
           }
           const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
           calculatedSubtotal += (totalQty * unitCost);
@@ -5368,7 +5368,7 @@ ${chauffeurHtml}
 
       // Reload all relevant data
       await loadProcurementData(tourId);
-      
+
       const [blocksRes, daRes] = await Promise.all([
         getPOBlocksAction(tourId),
         getDailyActivitiesAction(tourId)
@@ -5377,7 +5377,7 @@ ${chauffeurHtml}
       if (blocksRes.success && blocksRes.blocks) {
         setPoBlocks(blocksRes.blocks);
       }
-      
+
       if (daRes.success && daRes.activities) {
         const mapped = daRes.activities
           .filter((act: any) => {
@@ -5662,7 +5662,7 @@ ${chauffeurHtml}
       // Get already paid advance payments
       const existingPaid = (currentPO.advance_payments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
       const totalPaidWithNew = existingPaid + amount;
-      
+
       // If total advance payments settle or exceed the PO
       if (totalPaidWithNew >= poTotal) {
         const proceed = window.confirm(
@@ -5827,20 +5827,20 @@ ${chauffeurHtml}
     const defaultEmail = touristData?.profile?.email || '';
     const defaultPhone = touristData?.profile?.phone || '';
     const defaultAddress = touristData?.profile?.address || '';
-    
+
     setInvoiceBillingName(defaultName);
     setInvoiceBillingEmail(defaultEmail);
     setInvoiceBillingPhone(defaultPhone);
     setInvoiceBillingAddress(defaultAddress);
-    
+
     // Default 14 days due date
     const d = new Date();
     d.setDate(d.getDate() + 14);
     setInvoiceDueDate(d.toISOString().split('T')[0]);
-    
+
     setInvoiceDiscountAmount('0.00');
     setInvoiceTaxAmount('0.00');
-    
+
     // Resolve appropriate bank details based on currency
     const tourCurrency = tripData?.profile?.currency || 'USD';
     let defaultNote = '';
@@ -5854,7 +5854,7 @@ ${chauffeurHtml}
     setInvoiceFlightsQuotedSeparately(false);
     setInvoiceFlightsQuotedPrice('0.00');
     setCustomerInvoicePreviewItems([]);
-    
+
     setShowCreateCustomerInvoiceModal(true);
   };
 
@@ -5882,7 +5882,7 @@ ${chauffeurHtml}
   const handleGenerateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tourId) return;
-    
+
     setIsGeneratingCustomerInvoice(true);
     try {
       const res = await generateCustomerInvoiceAction({
@@ -5934,7 +5934,7 @@ ${chauffeurHtml}
   const handleRecordCustomerPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tourId) return;
-    
+
     // Either invoice payment or advance payment
     const isAdvance = !customerPaymentInvoiceId;
     if (isAdvance && !showRecordAdvancePayment) return;
@@ -6050,7 +6050,7 @@ ${chauffeurHtml}
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: `Auto-save useEffect hook triggered. isStateRestored: ${isStateRestored}, tourId: ${tourId}, tripData: ${!!tripData}` })
-    }).catch(() => {});
+    }).catch(() => { });
 
     if (!isStateRestored || !tourId || tourId === 'draft-tour' || !tripData) return;
 
@@ -6107,7 +6107,7 @@ ${chauffeurHtml}
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: `Executing saveTourAction. accommodations: ${JSON.stringify(updatedTripData.accommodations?.map(a => ({ night: a.nightIndex, hotelId: a.hotelId, name: a.hotelName })))}` })
-        }).catch(() => {});
+        }).catch(() => { });
 
         const res = await saveTourAction(tourId, updatedTripData);
         if (res.success) {
@@ -6115,14 +6115,14 @@ ${chauffeurHtml}
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: `saveTourAction success!` })
-          }).catch(() => {});
+          }).catch(() => { });
           console.log("Successfully auto-persisted itinerary updates to database.");
         } else {
           fetch('/api/debug-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: `saveTourAction failed: ${res.error}` })
-          }).catch(() => {});
+          }).catch(() => { });
           console.error("Auto-persist itinerary failed:", res.error);
         }
       } catch (err: any) {
@@ -6130,7 +6130,7 @@ ${chauffeurHtml}
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: `saveTourAction exception: ${err.message}` })
-        }).catch(() => {});
+        }).catch(() => { });
         console.error("Auto-persist itinerary caught exception:", err);
       }
     }, 1500);
@@ -6213,7 +6213,7 @@ ${chauffeurHtml}
       const currentStepObj = activeStepsList[activeIdx];
 
       if (track === 'basic' && currentStepObj?.id === 'ai-builder' && tourId && tourId !== 'draft-tour' && !isLockedByOther) {
-        releaseItineraryLockAction(tourId).catch(() => {});
+        releaseItineraryLockAction(tourId).catch(() => { });
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -6322,7 +6322,7 @@ ${chauffeurHtml}
       const result = await sendCustomEmailAction(formData);
       if (result.success) {
         setShareEmailFeedback({ type: 'success', text: 'Draft itinerary shared with client successfully!' });
-        
+
         // Log shared email details to DB
         const attachmentNames = shareEmailAttachments.map(f => f.name);
         try {
@@ -6334,7 +6334,7 @@ ${chauffeurHtml}
             shareEmailBody,
             attachmentNames
           );
-          
+
           // Re-fetch shared emails list
           const refreshRes = await getSharedEmailsAction(tourId);
           if (refreshRes.success && refreshRes.emails) {
@@ -6377,7 +6377,7 @@ ${chauffeurHtml}
   const handlePreferenceChange = (key: keyof TravelPreferencesDTO, value: string | number) => {
     setTouristData(prev => {
       const nextPrefs = { ...prev.preferences, [key]: value };
-      
+
       // Auto duration recalculation if dates are edited
       if (key === 'arrival_date' || key === 'departure_date') {
         const arr = nextPrefs.arrival_date ? new Date(nextPrefs.arrival_date) : null;
@@ -6462,8 +6462,8 @@ ${chauffeurHtml}
       {/* 1. Header Toolbar */}
       <header className="bg-white border-b border-neutral-200 px-6 py-4 flex flex-wrap items-center justify-between shadow-sm shrink-0 z-10">
         <div className="flex items-center gap-4">
-          <Link 
-            href="/admin" 
+          <Link
+            href="/admin"
             className="flex items-center gap-2 text-xs font-bold text-neutral-500 hover:text-emerald-800 hover:bg-neutral-50 px-3 py-2 rounded-xl transition-all border border-neutral-200 shadow-sm mr-2 group"
           >
             <ArrowLeft className="w-4 h-4 text-neutral-400 group-hover:text-emerald-800 transition-colors" />
@@ -6540,8 +6540,8 @@ ${chauffeurHtml}
                 setTrack('basic');
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide
-                ${track === 'basic' 
-                  ? 'bg-white text-emerald-800 shadow-sm' 
+                ${track === 'basic'
+                  ? 'bg-white text-emerald-800 shadow-sm'
                   : 'text-neutral-500 hover:text-neutral-800'
                 }`}
             >
@@ -6553,8 +6553,8 @@ ${chauffeurHtml}
                 setTrack('final');
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide relative
-                ${track === 'final' 
-                  ? 'bg-white text-emerald-800 shadow-sm' 
+                ${track === 'final'
+                  ? 'bg-white text-emerald-800 shadow-sm'
                   : 'text-neutral-500 hover:text-neutral-800'
                 }`}
             >
@@ -6594,22 +6594,22 @@ ${chauffeurHtml}
 
         const label = isSaving ? 'Saving itinerary changes…'
           : isHotelChanging ? 'Saving hotel change…'
-          : isRestaurantChanging ? 'Saving restaurant change…'
-          : isVendorChanging ? 'Saving vendor change…'
-          : isTransportChanging ? 'Saving transport provider…'
-          : isGuideChanging ? 'Changing guide…'
-          : isSavingGuideRates !== null ? 'Saving guide rates…'
-          : isLoadingGuideRates ? 'Loading guide rates…'
-          : isSavingDriverRates !== null ? 'Saving driver rates…'
-          : isLoadingDriverRates ? 'Loading driver rates…'
-          : isApplyingRateOverride ? 'Applying rate override…'
-          : loadingBlocks ? 'Loading blocks…'
-          : isLoadingDbActivities ? 'Syncing itinerary data…'
-          : isLoadingProcurement ? 'Loading procurement data…'
-          : isSubmittingRfq ? 'Sending RFQ email…'
-          : isUploadingPayslip ? 'Uploading payslip…'
-          : isGeneratingCustomerInvoice ? 'Generating invoice…'
-          : '';
+            : isRestaurantChanging ? 'Saving restaurant change…'
+              : isVendorChanging ? 'Saving vendor change…'
+                : isTransportChanging ? 'Saving transport provider…'
+                  : isGuideChanging ? 'Changing guide…'
+                    : isSavingGuideRates !== null ? 'Saving guide rates…'
+                      : isLoadingGuideRates ? 'Loading guide rates…'
+                        : isSavingDriverRates !== null ? 'Saving driver rates…'
+                          : isLoadingDriverRates ? 'Loading driver rates…'
+                            : isApplyingRateOverride ? 'Applying rate override…'
+                              : loadingBlocks ? 'Loading blocks…'
+                                : isLoadingDbActivities ? 'Syncing itinerary data…'
+                                  : isLoadingProcurement ? 'Loading procurement data…'
+                                    : isSubmittingRfq ? 'Sending RFQ email…'
+                                      : isUploadingPayslip ? 'Uploading payslip…'
+                                        : isGeneratingCustomerInvoice ? 'Generating invoice…'
+                                          : '';
 
         return (
           <div
@@ -6636,7 +6636,7 @@ ${chauffeurHtml}
 
       {/* 2. Main Workspace Layout */}
       <div className="flex flex-1 overflow-hidden">
-        
+
         {/* Sidebar Step Tracker */}
         <aside className="w-80 bg-white border-r border-neutral-200 flex flex-col shrink-0 overflow-y-auto">
           {/* Active Track Status Indicator */}
@@ -6659,14 +6659,12 @@ ${chauffeurHtml}
             </div>
             {/* Progress Bar */}
             <div className="mt-4 bg-neutral-200 h-1.5 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${
-                  track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'
-                } ${
-                  (currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection' || isLoadingGuideRates || isLoadingDriverRates) 
-                    ? 'animate-pulse bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600' 
+              <div
+                className={`h-full transition-all duration-300 ${track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'
+                  } ${(currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection' || isLoadingGuideRates || isLoadingDriverRates)
+                    ? 'animate-pulse bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600'
                     : ''
-                }`}
+                  }`}
                 style={{ width: `${((activeIndex + 1) / activeSteps.length) * 100}%` }}
               />
             </div>
@@ -6688,15 +6686,15 @@ ${chauffeurHtml}
                   key={step.id}
                   onClick={() => handleStepClick(idx)}
                   className={`w-full flex items-start gap-3 p-3 rounded-xl transition-all text-left group
-                    ${isActive 
-                      ? 'bg-neutral-50 border border-neutral-200 shadow-sm' 
+                    ${isActive
+                      ? 'bg-neutral-50 border border-neutral-200 shadow-sm'
                       : 'hover:bg-neutral-50 border border-transparent'
                     }`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all mt-0.5
-                    ${isActive 
-                      ? 'bg-emerald-800 border-emerald-800 text-white shadow-md scale-105' 
-                      : isPast 
+                    ${isActive
+                      ? 'bg-emerald-800 border-emerald-800 text-white shadow-md scale-105'
+                      : isPast
                         ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
                         : 'bg-neutral-50 border-neutral-200 text-neutral-400 group-hover:text-neutral-700'
                     }`}
@@ -6705,10 +6703,10 @@ ${chauffeurHtml}
                   </div>
                   <div className="overflow-hidden">
                     <span className={`text-xs font-bold block transition-colors leading-tight
-                       ${isActive 
-                         ? 'text-emerald-800' 
-                         : 'text-neutral-600 group-hover:text-neutral-800'
-                       }`}
+                       ${isActive
+                        ? 'text-emerald-800'
+                        : 'text-neutral-600 group-hover:text-neutral-800'
+                      }`}
                     >
                       {step.label}
                     </span>
@@ -6724,11 +6722,11 @@ ${chauffeurHtml}
 
         {/* Main Workspace Area Wrapper */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          
+
           {/* Main Panel Content (Step Panel) */}
           <main id="main-scroll-container" className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col pb-24">
             <div className="w-full flex-1 flex flex-col justify-between">
-              
+
               {/* Step Panel Details */}
               <div className="space-y-6">
                 <div className="flex items-center gap-3">
@@ -6746,7 +6744,7 @@ ${chauffeurHtml}
                 {/* 1. Tourist Data Workspace Form (Basic Track Step 1) */}
                 {track === 'basic' && currentStep.id === 'tourist-data' ? (
                   <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-300">
-                    
+
                     {/* Tab Navigation */}
                     <div className="flex flex-wrap border-b border-neutral-100 bg-neutral-50/50 p-3 gap-2">
                       <button
@@ -6786,7 +6784,7 @@ ${chauffeurHtml}
 
                     {/* Tab Content Panels */}
                     <div className="p-8">
-                      
+
                       {/* TAB 1: Profile & Inquiry Lead */}
                       {activeFormTab === 'profile' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
@@ -6805,11 +6803,11 @@ ${chauffeurHtml}
                               </span>
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">First Name</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.profile.first_name}
                                 onChange={(e) => handleProfileChange('first_name', e.target.value)}
@@ -6817,10 +6815,10 @@ ${chauffeurHtml}
                                 placeholder="Enter first name"
                               />
                             </div>
-                            
+
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Last Name</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.profile.last_name}
                                 onChange={(e) => handleProfileChange('last_name', e.target.value)}
@@ -6831,7 +6829,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Email Address</label>
-                              <input 
+                              <input
                                 type="email"
                                 value={touristData.profile.email}
                                 onChange={(e) => handleProfileChange('email', e.target.value)}
@@ -6842,7 +6840,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Phone Number</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.profile.phone}
                                 onChange={(e) => handleProfileChange('phone', e.target.value)}
@@ -6853,7 +6851,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Country of Residence</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.profile.country}
                                 onChange={(e) => handleProfileChange('country', e.target.value)}
@@ -6864,7 +6862,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Passport Number</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.profile.passport_number}
                                 onChange={(e) => handleProfileChange('passport_number', e.target.value)}
@@ -6875,7 +6873,7 @@ ${chauffeurHtml}
 
                             <div className="md:col-span-2">
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Street Address</label>
-                              <textarea 
+                              <textarea
                                 rows={3}
                                 value={touristData.profile.address}
                                 onChange={(e) => handleProfileChange('address', e.target.value)}
@@ -6898,7 +6896,7 @@ ${chauffeurHtml}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Travel Style</label>
-                              <select 
+                              <select
                                 value={touristData.preferences.travel_style}
                                 onChange={(e) => handlePreferenceChange('travel_style', e.target.value as TravelStyle)}
                                 className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 transition-all text-sm bg-white font-medium"
@@ -6915,7 +6913,7 @@ ${chauffeurHtml}
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Total Budget ($)</label>
                               <div className="relative">
                                 <span className="absolute left-4 top-3.5 text-neutral-400 text-sm font-semibold">$</span>
-                                <input 
+                                <input
                                   type="number"
                                   value={touristData.preferences.budget_total}
                                   onChange={(e) => handlePreferenceChange('budget_total', Number(e.target.value))}
@@ -6929,7 +6927,7 @@ ${chauffeurHtml}
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Budget Per Person ($)</label>
                               <div className="relative">
                                 <span className="absolute left-4 top-3.5 text-neutral-400 text-sm font-semibold">$</span>
-                                <input 
+                                <input
                                   type="number"
                                   disabled
                                   value={touristData.preferences.budget_per_person}
@@ -6941,7 +6939,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Arrival Date</label>
-                              <input 
+                              <input
                                 type="date"
                                 value={touristData.preferences.arrival_date}
                                 onChange={(e) => handlePreferenceChange('arrival_date', e.target.value)}
@@ -6951,7 +6949,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Departure Date</label>
-                              <input 
+                              <input
                                 type="date"
                                 value={touristData.preferences.departure_date}
                                 onChange={(e) => handlePreferenceChange('departure_date', e.target.value)}
@@ -6961,7 +6959,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Duration (Days)</label>
-                              <input 
+                              <input
                                 type="number"
                                 value={touristData.preferences.duration_days}
                                 onChange={(e) => handlePreferenceChange('duration_days', Number(e.target.value))}
@@ -6972,7 +6970,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Adults Count</label>
-                              <input 
+                              <input
                                 type="number"
                                 value={touristData.preferences.adults}
                                 onChange={(e) => handlePreferenceChange('adults', Number(e.target.value))}
@@ -6983,7 +6981,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Children Count</label>
-                              <input 
+                              <input
                                 type="number"
                                 value={touristData.preferences.children}
                                 onChange={(e) => handlePreferenceChange('children', Number(e.target.value))}
@@ -6994,7 +6992,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Infants Count</label>
-                              <input 
+                              <input
                                 type="number"
                                 value={touristData.preferences.infants}
                                 onChange={(e) => handlePreferenceChange('infants', Number(e.target.value))}
@@ -7005,7 +7003,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Departure Country</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.preferences.departure_country}
                                 onChange={(e) => handlePreferenceChange('departure_country', e.target.value)}
@@ -7016,7 +7014,7 @@ ${chauffeurHtml}
 
                             <div>
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Language Preference</label>
-                              <input 
+                              <input
                                 type="text"
                                 value={touristData.preferences.language_preference}
                                 onChange={(e) => handlePreferenceChange('language_preference', e.target.value)}
@@ -7027,7 +7025,7 @@ ${chauffeurHtml}
 
                             <div className="md:col-span-3">
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Dietary Requirements</label>
-                              <textarea 
+                              <textarea
                                 rows={2}
                                 value={touristData.preferences.dietary_requirements}
                                 onChange={(e) => handlePreferenceChange('dietary_requirements', e.target.value)}
@@ -7038,7 +7036,7 @@ ${chauffeurHtml}
 
                             <div className="md:col-span-3">
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Medical Conditions</label>
-                              <textarea 
+                              <textarea
                                 rows={2}
                                 value={touristData.preferences.medical_conditions}
                                 onChange={(e) => handlePreferenceChange('medical_conditions', e.target.value)}
@@ -7049,7 +7047,7 @@ ${chauffeurHtml}
 
                             <div className="md:col-span-3">
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Accessibility Requirements</label>
-                              <textarea 
+                              <textarea
                                 rows={2}
                                 value={touristData.preferences.accessibility_requirements}
                                 onChange={(e) => handlePreferenceChange('accessibility_requirements', e.target.value)}
@@ -7060,7 +7058,7 @@ ${chauffeurHtml}
 
                             <div className="md:col-span-3">
                               <label className="text-xs font-bold text-neutral-500 block mb-1.5 uppercase tracking-wide">Special Notes</label>
-                              <textarea 
+                              <textarea
                                 rows={3}
                                 value={touristData.preferences.special_notes}
                                 onChange={(e) => handlePreferenceChange('special_notes', e.target.value)}
@@ -7097,11 +7095,11 @@ ${chauffeurHtml}
                               <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-2">
                                 <UserPlus className="w-4 h-4 text-emerald-800" /> Enter Companion Details
                               </h4>
-                              
+
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="md:col-span-2">
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Full Name *</label>
-                                  <input 
+                                  <input
                                     type="text"
                                     value={newMember.full_name}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, full_name: e.target.value }))}
@@ -7112,7 +7110,7 @@ ${chauffeurHtml}
 
                                 <div>
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Gender</label>
-                                  <select 
+                                  <select
                                     value={newMember.gender}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, gender: e.target.value as Gender }))}
                                     className="w-full px-3 py-2 text-xs rounded-lg border border-neutral-200 bg-white"
@@ -7125,7 +7123,7 @@ ${chauffeurHtml}
 
                                 <div>
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Nationality</label>
-                                  <input 
+                                  <input
                                     type="text"
                                     value={newMember.nationality}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, nationality: e.target.value }))}
@@ -7136,7 +7134,7 @@ ${chauffeurHtml}
 
                                 <div>
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Passport Number</label>
-                                  <input 
+                                  <input
                                     type="text"
                                     value={newMember.passport_number}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, passport_number: e.target.value }))}
@@ -7147,7 +7145,7 @@ ${chauffeurHtml}
 
                                 <div>
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Date of Birth</label>
-                                  <input 
+                                  <input
                                     type="date"
                                     value={newMember.date_of_birth}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, date_of_birth: e.target.value }))}
@@ -7157,7 +7155,7 @@ ${chauffeurHtml}
 
                                 <div>
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Room Preference</label>
-                                  <input 
+                                  <input
                                     type="text"
                                     value={newMember.room_preference}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, room_preference: e.target.value }))}
@@ -7168,7 +7166,7 @@ ${chauffeurHtml}
 
                                 <div>
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Meal Preference</label>
-                                  <input 
+                                  <input
                                     type="text"
                                     value={newMember.meal_preference}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, meal_preference: e.target.value }))}
@@ -7179,7 +7177,7 @@ ${chauffeurHtml}
 
                                 <div className="md:col-span-3">
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Dietary Preferences</label>
-                                  <input 
+                                  <input
                                     type="text"
                                     value={newMember.dietary_preferences}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, dietary_preferences: e.target.value }))}
@@ -7190,7 +7188,7 @@ ${chauffeurHtml}
 
                                 <div className="md:col-span-3">
                                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wide block mb-1">Medical / Special Notes</label>
-                                  <textarea 
+                                  <textarea
                                     rows={2}
                                     value={newMember.medical_notes}
                                     onChange={(e) => setNewMember(prev => ({ ...prev, medical_notes: e.target.value }))}
@@ -7222,8 +7220,8 @@ ${chauffeurHtml}
                           {/* Companion List Grid */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {touristData.team.map((member) => (
-                              <div 
-                                key={member.id} 
+                              <div
+                                key={member.id}
                                 className="border border-neutral-200/70 hover:border-neutral-300 rounded-2xl p-5 bg-white relative group transition-all hover:shadow-sm"
                               >
                                 <button
@@ -7287,15 +7285,15 @@ ${chauffeurHtml}
                   </div>
                 ) : track === 'basic' && currentStep.id === 'activity-selection' ? (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in fade-in slide-in-from-bottom-3 duration-300">
-                    
+
                     {/* Left Column: Activity List & Search */}
                     <div className="lg:col-span-6 xl:col-span-6 space-y-6">
-                      
+
                       {/* Search & Filters */}
                       <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md space-y-4">
                         <div className="relative">
                           <Search className="absolute left-4 top-3.5 text-neutral-400 w-5 h-5" />
-                          <input 
+                          <input
                             type="text"
                             value={activitySearchTerm}
                             onChange={(e) => setActivitySearchTerm(e.target.value)}
@@ -7303,7 +7301,7 @@ ${chauffeurHtml}
                             className="w-full pl-12 pr-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 text-sm bg-neutral-50/30 font-medium"
                           />
                         </div>
-                        
+
                         <div className="flex flex-wrap gap-2 pt-1">
                           {['All', 'Adventure', 'Beach', 'Cultural & Heritage', 'Nature', 'Casino', 'Food & Drink', 'Urban', 'Nature & Wildlife', 'Cultural', 'Wildlife', 'Wellness', 'Food', 'Water Sports'].map((cat) => (
                             <button
@@ -7326,20 +7324,20 @@ ${chauffeurHtml}
                         {filteredActivities.map((act) => {
                           const isSelected = selectedActivityIds.includes(act.id);
                           return (
-                            <div 
+                            <div
                               key={act.id}
                               className={`bg-white rounded-3xl p-6 border transition-all flex flex-col md:flex-row gap-6 hover:shadow-md
-                                ${isSelected 
-                                  ? 'border-emerald-800/30 ring-1 ring-emerald-800/20 bg-emerald-50/5' 
+                                ${isSelected
+                                  ? 'border-emerald-800/30 ring-1 ring-emerald-800/20 bg-emerald-50/5'
                                   : 'border-neutral-200'
                                 }`}
                             >
                               {/* Left side: Thumbnail */}
                               <div className="w-full md:w-48 h-36 shrink-0 rounded-2xl overflow-hidden bg-neutral-100 border border-neutral-200 relative">
                                 {act.images && act.images.length > 0 ? (
-                                  <img 
-                                    src={act.images[0]} 
-                                    alt={act.activity_name} 
+                                  <img
+                                    src={act.images[0]}
+                                    alt={act.activity_name}
                                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                                   />
                                 ) : (
@@ -7386,8 +7384,8 @@ ${chauffeurHtml}
                                     </span>
                                   )}
                                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-xl border
-                                    ${act.time_flexible 
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50' 
+                                    ${act.time_flexible
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
                                       : 'bg-amber-50 text-amber-600 border-amber-200/50'
                                     }`}
                                   >
@@ -7432,10 +7430,10 @@ ${chauffeurHtml}
 
                     {/* Right Column: Selected Activities Sidebar */}
                     <div className="lg:col-span-6 xl:col-span-6 sticky top-6 space-y-6">
-                      
+
                       {/* Sidebar Container */}
                       <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-6">
-                        
+
                         {/* Header */}
                         <div className="border-b border-neutral-100 pb-4 mb-4">
                           <h3 className="text-md font-serif font-bold text-neutral-800">Selected Activities</h3>
@@ -7444,7 +7442,7 @@ ${chauffeurHtml}
 
                         {/* Summary Stats / Trip Duration Budget */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                          
+
                           {/* Trip Duration */}
                           <div className="bg-blue-50/40 border border-blue-100/50 rounded-2xl p-3 flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0">
@@ -7490,16 +7488,14 @@ ${chauffeurHtml}
                           </div>
 
                           {/* Remaining Time */}
-                          <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${
-                            activityBudgetStats.remainingHours < 0 
-                              ? 'bg-red-50/40 border-red-100 text-red-900' 
+                          <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${activityBudgetStats.remainingHours < 0
+                              ? 'bg-red-50/40 border-red-100 text-red-900'
                               : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
-                          }`}>
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                              activityBudgetStats.remainingHours < 0 
-                                ? 'bg-red-500/10 text-red-600 animate-pulse' 
-                                : 'bg-neutral-500/10 text-neutral-600'
                             }`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activityBudgetStats.remainingHours < 0
+                                ? 'bg-red-500/10 text-red-600 animate-pulse'
+                                : 'bg-neutral-500/10 text-neutral-600'
+                              }`}>
                               <Clock className="w-5 h-5" />
                             </div>
                             <div className="min-w-0">
@@ -7509,16 +7505,14 @@ ${chauffeurHtml}
                           </div>
 
                           {/* Remaining Days */}
-                          <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${
-                            activityBudgetStats.remainingDays < 0 
-                              ? 'bg-red-50/40 border-red-100 text-red-900' 
+                          <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${activityBudgetStats.remainingDays < 0
+                              ? 'bg-red-50/40 border-red-100 text-red-900'
                               : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
-                          }`}>
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                              activityBudgetStats.remainingDays < 0 
-                                ? 'bg-red-500/10 text-red-600 animate-pulse' 
-                                : 'bg-neutral-500/10 text-neutral-600'
                             }`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activityBudgetStats.remainingDays < 0
+                                ? 'bg-red-500/10 text-red-600 animate-pulse'
+                                : 'bg-neutral-500/10 text-neutral-600'
+                              }`}>
                               <CalendarDays className="w-5 h-5" />
                             </div>
                             <div className="min-w-0">
@@ -7532,8 +7526,8 @@ ${chauffeurHtml}
                         {/* Selected List */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
                           {selectedActivities.map((act, index) => (
-                            <div 
-                              key={act.id} 
+                            <div
+                              key={act.id}
                               className="flex items-center gap-3 p-3 rounded-2xl border border-neutral-200/80 bg-white hover:border-neutral-300 transition-all relative group"
                             >
                               {/* Order Badge */}
@@ -7593,9 +7587,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Manage bookings & night indices</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.hotel} 
+                        <input
+                          type="checkbox"
+                          checked={elements.hotel}
                           onChange={() => toggleElement('hotel')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7612,9 +7606,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Ticket booking & operator setup</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.activity} 
+                        <input
+                          type="checkbox"
+                          checked={elements.activity}
                           onChange={() => toggleElement('activity')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7631,9 +7625,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Configure restaurant options</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.restaurant} 
+                        <input
+                          type="checkbox"
+                          checked={elements.restaurant}
                           onChange={() => toggleElement('restaurant')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7650,9 +7644,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Select fleet & transfer settings</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.transport} 
+                        <input
+                          type="checkbox"
+                          checked={elements.transport}
                           onChange={() => toggleElement('transport')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7669,9 +7663,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Route protection & armored units</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.security} 
+                        <input
+                          type="checkbox"
+                          checked={elements.security}
                           onChange={() => toggleElement('security')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7688,9 +7682,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Assign expert local guides</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.guide} 
+                        <input
+                          type="checkbox"
+                          checked={elements.guide}
                           onChange={() => toggleElement('guide')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7707,9 +7701,9 @@ ${chauffeurHtml}
                             <span className="text-[10px] text-neutral-400 block">Coordinate allowances</span>
                           </div>
                         </div>
-                        <input 
-                          type="checkbox" 
-                          checked={elements.driver} 
+                        <input
+                          type="checkbox"
+                          checked={elements.driver}
                           onChange={() => toggleElement('driver')}
                           className="w-4 h-4 accent-emerald-800 cursor-pointer"
                         />
@@ -7855,14 +7849,13 @@ ${chauffeurHtml}
                                   <div key={block.id} className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-all space-y-3">
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="flex items-center gap-2 flex-grow">
-                                        <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                          (block.block_type === 'accommodation' || block.block_type === 'sleep') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                                          block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                                          (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                                          block.block_type === 'guide' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
-                                          block.block_type === 'driver' ? 'bg-violet-50 text-violet-700 border border-violet-100' :
-                                          'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                        }`}>
+                                        <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${(block.block_type === 'accommodation' || block.block_type === 'sleep') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                                            block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                              (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                                block.block_type === 'guide' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
+                                                  block.block_type === 'driver' ? 'bg-violet-50 text-violet-700 border border-violet-100' :
+                                                    'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                          }`}>
                                           {block.block_type.toUpperCase()}
                                         </span>
                                         {isEditing ? (
@@ -7975,7 +7968,7 @@ ${chauffeurHtml}
                           {poSelectedActivityIds.length > 0 && (
                             <div className="p-4 rounded-2xl bg-emerald-805/5 border border-emerald-805/10 space-y-4 animate-in zoom-in-95 duration-200">
                               <span className="text-xs font-bold text-emerald-805 block">Procurement Actions</span>
-                              
+
                               {/* Option A: Group into new block */}
                               <div className="space-y-3 p-3 bg-white rounded-xl border border-neutral-200">
                                 <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider block">Option 1: Package into New Block</span>
@@ -8083,7 +8076,7 @@ ${chauffeurHtml}
                               })
                               .map((act: any) => {
                                 const isChecked = poSelectedActivityIds.includes(act.id);
-                                const assignedBlock = poBlocks.find((b: any) => 
+                                const assignedBlock = poBlocks.find((b: any) =>
                                   b.daily_activities?.some((a: any) => a.id === act.id)
                                 );
 
@@ -8093,7 +8086,7 @@ ${chauffeurHtml}
                                       type="checkbox"
                                       checked={isChecked}
                                       onChange={() => {
-                                        setPoSelectedActivityIds(prev => 
+                                        setPoSelectedActivityIds(prev =>
                                           prev.includes(act.id)
                                             ? prev.filter(id => id !== act.id)
                                             : [...prev, act.id]
@@ -8184,13 +8177,13 @@ ${chauffeurHtml}
                           const blockActivities = block.daily_activities || [];
                           const standardStays = blockActivities.filter((a: any) => a.activity_type === 'sleep');
                           const customPOs = blockActivities.filter((a: any) => a.activity_type !== 'sleep');
-                          
+
                           const selectedHotelId = blockActivities.find((a: any) => a.hotel_id)?.hotel_id;
                           const hotel = selectedHotelId ? masterData.hotels?.find((h: any) => h.id === selectedHotelId) : null;
 
                           // Find quotes/candidates for this block
-                          const blockQuotes = quotationRequests.filter(q => 
-                            q.quotation?.po_block_id === block.id || 
+                          const blockQuotes = quotationRequests.filter(q =>
+                            q.quotation?.po_block_id === block.id ||
                             blockActivities.some((a: any) => a.id === q.daily_activity_id)
                           );
 
@@ -8370,7 +8363,7 @@ ${chauffeurHtml}
                                                   const displayType = label.charAt(0).toUpperCase() + label.slice(1);
                                                   return { type: displayType, count };
                                                 }).filter(r => r.count > 0);
-                                                
+
                                                 if (activeRooms.length === 0) {
                                                   return room?.room_standard ? (
                                                     <span className="px-2 py-0.5 bg-amber-50 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
@@ -8378,7 +8371,7 @@ ${chauffeurHtml}
                                                     </span>
                                                   ) : null;
                                                 }
-                                                
+
                                                 return activeRooms.map(r => (
                                                   <span key={r.type} className="px-2 py-0.5 bg-amber-50 border border-amber-150 text-amber-700 font-bold rounded text-[9px] uppercase tracking-wider">
                                                     {r.count} x {r.type}
@@ -8404,7 +8397,7 @@ ${chauffeurHtml}
                                             </div>
                                           </div>
                                         </div>
-                                        
+
                                         <div className="flex items-center justify-between sm:justify-end gap-6 text-xs text-neutral-600 font-semibold self-stretch sm:self-auto">
                                           <div className="flex items-center gap-1.5 bg-white border border-neutral-200 px-2 py-1 rounded-lg text-[10px] shadow-sm">
                                             <span className="text-neutral-400">Qty:</span>
@@ -8426,11 +8419,10 @@ ${chauffeurHtml}
                                             type="button"
                                             onClick={() => handleOpenCustomRateModal(stay)}
                                             disabled={isLockedByOther}
-                                            className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${
-                                              hasCustomRate 
-                                                ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50" 
+                                            className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${hasCustomRate
+                                                ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50"
                                                 : "border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805"
-                                            }`}
+                                              }`}
                                             title="Override Contracted Rates"
                                           >
                                             <CircleDollarSign className="w-3.5 h-3.5" />
@@ -8556,11 +8548,10 @@ ${chauffeurHtml}
                                           <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                  emailLog.logType === 'RFQ' 
-                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
+                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                                     : 'bg-amber-50 text-amber-800 border border-amber-100'
-                                                }`}>
+                                                  }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
                                                 <span className="text-[9px] font-mono text-neutral-400">
@@ -8571,13 +8562,12 @@ ${chauffeurHtml}
                                                     · Updated: {new Date(emailLog.updated_at).toLocaleString()}
                                                   </span>
                                                 )}
-                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                  emailLog.status === 'Selected'
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected'
                                                     ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
                                                     : emailLog.status === 'Declined'
-                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                                                }`}>
+                                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                      : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                  }`}>
                                                   {emailLog.status || 'Sent'}
                                                 </span>
                                                 {emailLog.selected_vendor && (
@@ -8636,7 +8626,7 @@ ${chauffeurHtml}
                                                   <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
                                                     Edit Proposal / Bid Details
                                                   </h6>
-                                                  
+
                                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {/* Quoted Price */}
                                                     <div>
@@ -8691,7 +8681,7 @@ ${chauffeurHtml}
                                                         }}
                                                         className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600"
                                                       />
-                                                      <label 
+                                                      <label
                                                         htmlFor={`select-vendor-${emailId}`}
                                                         className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none"
                                                       >
@@ -8735,61 +8725,61 @@ ${chauffeurHtml}
                                                   </div>
                                                 </div>
 
-                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
-                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
-                                                VENDOR_EMAIL_STATUSES.DECLINED,
-                                                VENDOR_EMAIL_STATUSES.SELECTED,
-                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
-                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
-                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
-                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Receipt className="w-3.5 h-3.5" />
-                                                    Update Purchase Order Record
-                                                  </h6>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
-                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
-                                                        <option value="Accepted">Accepted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Completed">Completed</option>
-                                                        <option value="Cancelled">Cancelled</option>
-                                                      </select>
+                                                {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                                {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                  VENDOR_EMAIL_STATUSES.DECLINED,
+                                                  VENDOR_EMAIL_STATUSES.SELECTED,
+                                                  VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                                ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                    <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                      <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <Receipt className="w-3.5 h-3.5" />
+                                                        Update Purchase Order Record
+                                                      </h6>
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                          <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                            <option value="Accepted">Accepted</option>
+                                                            <option value="Rejected">Rejected</option>
+                                                            <option value="Sent">Sent</option>
+                                                            <option value="Completed">Completed</option>
+                                                            <option value="Cancelled">Cancelled</option>
+                                                          </select>
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                          <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                          <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                          <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                        </div>
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                          <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                        </div>
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                          <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                        <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                          {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                        </button>
+                                                      </div>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
-                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
-                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
-                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
-                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
-                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
-                                                    </div>
-                                                  </div>
-                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
+                                                  )}
 
                                                 {/* Sent Email Body */}
                                                 <div className="space-y-1">
                                                   <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
-                                                  <div 
+                                                  <div
                                                     className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none"
                                                     dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
                                                   />
@@ -8864,8 +8854,8 @@ ${chauffeurHtml}
                           const allRestaurants: any[] = masterData.restaurants || [];
                           const filteredRestaurants = restaurantPickerSearch.trim()
                             ? allRestaurants.filter((r: any) =>
-                                [r.name, r.city, r.district, r.cuisine_type].some(f => f?.toLowerCase().includes(restaurantPickerSearch.toLowerCase()))
-                              )
+                              [r.name, r.city, r.district, r.cuisine_type].some(f => f?.toLowerCase().includes(restaurantPickerSearch.toLowerCase()))
+                            )
                             : allRestaurants;
 
                           const blockRfqEmails = rfqEmails.filter((e: any) => e.po_block_id === block.id);
@@ -9048,11 +9038,10 @@ ${chauffeurHtml}
                                               .catch(err => console.error("changeRestaurantAction error:", err))
                                               .finally(() => setIsRestaurantChanging(false));
                                           }}
-                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
-                                            isCurrent
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
                                               ? 'border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800/10'
                                               : 'border-neutral-200 bg-white hover:border-emerald-800/50 hover:bg-emerald-50/10'
-                                          }`}
+                                            }`}
                                         >
                                           <div className="min-w-0">
                                             <p className="text-xs font-bold text-neutral-800 truncate">{r.name}</p>
@@ -9087,8 +9076,8 @@ ${chauffeurHtml}
                                     const mealBadgeClass = mealTypeLower.includes('breakfast')
                                       ? 'bg-amber-50 border-amber-100 text-amber-700'
                                       : mealTypeLower.includes('dinner')
-                                      ? 'bg-indigo-50 border-indigo-100 text-indigo-700'
-                                      : 'bg-rose-50 border-rose-100 text-rose-700';
+                                        ? 'bg-indigo-50 border-indigo-100 text-indigo-700'
+                                        : 'bg-rose-50 border-rose-100 text-rose-700';
 
                                     return (
                                       <div key={meal.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
@@ -9164,21 +9153,19 @@ ${chauffeurHtml}
                                         <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                emailLog.logType === 'RFQ'
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
                                                   ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                                   : 'bg-amber-50 text-amber-800 border border-amber-100'
-                                              }`}>
+                                                }`}>
                                                 {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                               </span>
                                               <span className="text-[9px] font-mono text-neutral-400">
                                                 Sent: {new Date(emailLog.sent_at).toLocaleString()}
                                               </span>
-                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
                                                   : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                                              }`}>
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                }`}>
                                                 {emailLog.status || 'Sent'}
                                               </span>
                                             </div>
@@ -9256,37 +9243,37 @@ ${chauffeurHtml}
                                                   <div className="col-span-1 sm:col-span-2 flex items-center gap-2 py-1">
                                                     <input type="checkbox" id={`rst-select-vendor-${emailId}`} checked={editRfqSelected} onChange={e => { const c = e.target.checked; setEditRfqSelected(c); if (c) setEditRfqStatus('Selected'); else if (editRfqStatus === 'Selected') setEditRfqStatus('Replied'); }} className="w-3.5 h-3.5 text-emerald-800 border-neutral-350 rounded focus:ring-emerald-600" />
                                                     <label htmlFor={`rst-select-vendor-${emailId}`} className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none">Mark as Selected / Winning Proposal for this restaurant</label>
-                                                   </div>
-                                                   {/* Restaurant response fields — shown for meal-type emails */}
-                                                   {block.block_type === 'meal' && (<>
-                                                     <div className="col-span-1 sm:col-span-2">
-                                                       <p className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider mb-2 pt-1 border-t border-neutral-100">Restaurant Response Details <span className="font-normal text-neutral-400 normal-case">(optional)</span></p>
-                                                     </div>
-                                                     <div>
-                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Servicing Hours</label>
-                                                       <input type="text" value={rfqServicingHours} onChange={e => setRfqServicingHours(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. 12:00 – 22:00" />
-                                                     </div>
-                                                     <div>
-                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Dining Options</label>
-                                                       <input type="text" value={rfqDiningOptions} onChange={e => setRfqDiningOptions(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. À la carte, set menu" />
-                                                     </div>
-                                                     <div>
-                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cuisine Availability</label>
-                                                       <input type="text" value={rfqCuisineAvailability} onChange={e => setRfqCuisineAvailability(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. Sri Lankan, European, Chinese" />
-                                                     </div>
-                                                     <div>
-                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Room Booking</label>
-                                                       <input type="text" value={rfqRoomBooking} onChange={e => setRfqRoomBooking(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. Private room available for 10+ pax" />
-                                                     </div>
-                                                     <div>
-                                                       <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Exclusive Booking</label>
-                                                       <input type="text" value={rfqExclusiveBooking} onChange={e => setRfqExclusiveBooking(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. USD 5,000 for full venue exclusivity" />
-                                                     </div>
-                                                   </>)}
-                                                   <div className="col-span-1 sm:col-span-2">
-                                                     <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">General Notes</label>
-                                                     <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
-                                                   </div>
+                                                  </div>
+                                                  {/* Restaurant response fields — shown for meal-type emails */}
+                                                  {block.block_type === 'meal' && (<>
+                                                    <div className="col-span-1 sm:col-span-2">
+                                                      <p className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider mb-2 pt-1 border-t border-neutral-100">Restaurant Response Details <span className="font-normal text-neutral-400 normal-case">(optional)</span></p>
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Servicing Hours</label>
+                                                      <input type="text" value={rfqServicingHours} onChange={e => setRfqServicingHours(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. 12:00 – 22:00" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Dining Options</label>
+                                                      <input type="text" value={rfqDiningOptions} onChange={e => setRfqDiningOptions(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. À la carte, set menu" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Cuisine Availability</label>
+                                                      <input type="text" value={rfqCuisineAvailability} onChange={e => setRfqCuisineAvailability(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. Sri Lankan, European, Chinese" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Room Booking</label>
+                                                      <input type="text" value={rfqRoomBooking} onChange={e => setRfqRoomBooking(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. Private room available for 10+ pax" />
+                                                    </div>
+                                                    <div>
+                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Exclusive Booking</label>
+                                                      <input type="text" value={rfqExclusiveBooking} onChange={e => setRfqExclusiveBooking(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 transition-all font-medium" placeholder="e.g. USD 5,000 for full venue exclusivity" />
+                                                    </div>
+                                                  </>)}
+                                                  <div className="col-span-1 sm:col-span-2">
+                                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">General Notes</label>
+                                                    <textarea placeholder="Add discounts, availability info, or comments here..." value={editRfqNotes} onChange={e => setEditRfqNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-neutral-50/50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-all font-medium h-12 resize-none" />
+                                                  </div>
                                                 </div>
                                                 <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
                                                   <button type="button" onClick={() => { setExpandedEmailId(null); setEditingRfq(null); }} className="px-3 py-1.5 rounded-lg hover:bg-neutral-100 text-[10px] font-bold text-neutral-500 transition-colors">Cancel</button>
@@ -9302,50 +9289,50 @@ ${chauffeurHtml}
                                                 VENDOR_EMAIL_STATUSES.SELECTED,
                                                 VENDOR_EMAIL_STATUSES.CONFIRMED,
                                               ] as VendorEmailStatus[]).includes(editRfqStatus) && (
-                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
-                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Receipt className="w-3.5 h-3.5" />
-                                                    Update Purchase Order Record
-                                                  </h6>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
-                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
-                                                        <option value="Accepted">Accepted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Completed">Completed</option>
-                                                        <option value="Cancelled">Cancelled</option>
-                                                      </select>
+                                                  <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                    <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                      <Receipt className="w-3.5 h-3.5" />
+                                                      Update Purchase Order Record
+                                                    </h6>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                        <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                          <option value="Accepted">Accepted</option>
+                                                          <option value="Rejected">Rejected</option>
+                                                          <option value="Sent">Sent</option>
+                                                          <option value="Completed">Completed</option>
+                                                          <option value="Cancelled">Cancelled</option>
+                                                        </select>
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                        <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                        <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                        <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                      </div>
+                                                      <div className="col-span-1 sm:col-span-2">
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                        <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                      </div>
+                                                      <div className="col-span-1 sm:col-span-2">
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                        <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                      </div>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
-                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
-                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
-                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
-                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
-                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                      <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                        {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                      </button>
                                                     </div>
                                                   </div>
-                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
+                                                )}
 
                                               <div className="space-y-1">
                                                 <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
@@ -9421,8 +9408,8 @@ ${chauffeurHtml}
                           );
                           const filteredVendors = vendorPickerSearch.trim()
                             ? allVendors.filter((v: any) =>
-                                [v.name, v.city, v.category].some((f: any) => f?.toLowerCase().includes(vendorPickerSearch.toLowerCase()))
-                              )
+                              [v.name, v.city, v.category].some((f: any) => f?.toLowerCase().includes(vendorPickerSearch.toLowerCase()))
+                            )
                             : allVendors;
 
                           const blockRfqEmails = rfqEmails.filter((e: any) => e.po_block_id === block.id);
@@ -9465,15 +9452,15 @@ ${chauffeurHtml}
                                       </button>
                                       {vendor && (
                                         <>                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenRfqModal(vendor, actItems, block.id)}
-                                            disabled={isLockedByOther}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
-                                            title="Request Quote"
-                                          >
-                                            <Mail className="w-3.5 h-3.5 text-emerald-800" />
-                                            <span>Request Quote</span>
-                                          </button>
+                                          type="button"
+                                          onClick={() => handleOpenRfqModal(vendor, actItems, block.id)}
+                                          disabled={isLockedByOther}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                          title="Request Quote"
+                                        >
+                                          <Mail className="w-3.5 h-3.5 text-emerald-800" />
+                                          <span>Request Quote</span>
+                                        </button>
                                           <button
                                             type="button"
                                             onClick={() => handleOpenPoModal(vendor, actItems, block.id, 'vendor')}
@@ -9604,11 +9591,10 @@ ${chauffeurHtml}
                                               .catch(err => console.error('changeVendorAction error:', err))
                                               .finally(() => setIsVendorChanging(false));
                                           }}
-                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
-                                            isCurrent
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
                                               ? 'border-indigo-700 bg-indigo-50/30 ring-1 ring-indigo-700/10'
                                               : 'border-neutral-200 bg-white hover:border-indigo-700/50 hover:bg-indigo-50/10'
-                                          }`}
+                                            }`}
                                         >
                                           <div className="min-w-0">
                                             <p className="text-xs font-bold text-neutral-800 truncate">{v.name}</p>
@@ -9719,11 +9705,10 @@ ${chauffeurHtml}
                                         <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                emailLog.logType === 'RFQ'
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
                                                   ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                                   : 'bg-amber-50 text-amber-800 border border-amber-100'
-                                              }`}>
+                                                }`}>
                                                 {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                               </span>
                                               <span className="text-[9px] font-mono text-neutral-400">
@@ -9734,11 +9719,10 @@ ${chauffeurHtml}
                                                   · Updated: {new Date(emailLog.updated_at).toLocaleString()}
                                                 </span>
                                               )}
-                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
                                                   : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                                              }`}>
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                }`}>
                                                 {emailLog.status || 'Sent'}
                                               </span>
                                               {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
@@ -9825,50 +9809,50 @@ ${chauffeurHtml}
                                                 VENDOR_EMAIL_STATUSES.SELECTED,
                                                 VENDOR_EMAIL_STATUSES.CONFIRMED,
                                               ] as VendorEmailStatus[]).includes(editRfqStatus) && (
-                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
-                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Receipt className="w-3.5 h-3.5" />
-                                                    Update Purchase Order Record
-                                                  </h6>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
-                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
-                                                        <option value="Accepted">Accepted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Completed">Completed</option>
-                                                        <option value="Cancelled">Cancelled</option>
-                                                      </select>
+                                                  <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                    <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                      <Receipt className="w-3.5 h-3.5" />
+                                                      Update Purchase Order Record
+                                                    </h6>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                        <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                          <option value="Accepted">Accepted</option>
+                                                          <option value="Rejected">Rejected</option>
+                                                          <option value="Sent">Sent</option>
+                                                          <option value="Completed">Completed</option>
+                                                          <option value="Cancelled">Cancelled</option>
+                                                        </select>
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                        <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                        <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                        <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                      </div>
+                                                      <div className="col-span-1 sm:col-span-2">
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                        <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                      </div>
+                                                      <div className="col-span-1 sm:col-span-2">
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                        <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                      </div>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
-                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
-                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
-                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
-                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
-                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                      <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                        {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                      </button>
                                                     </div>
                                                   </div>
-                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
+                                                )}
 
                                               <div className="space-y-1">
                                                 <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
@@ -9942,8 +9926,8 @@ ${chauffeurHtml}
                           const allProviders: any[] = masterData.transportProviders || [];
                           const filteredProviders = transportPickerSearch.trim()
                             ? allProviders.filter((p: any) =>
-                                [p.name, p.address, p.phone].some((f: any) => f?.toLowerCase().includes(transportPickerSearch.toLowerCase()))
-                              )
+                              [p.name, p.address, p.phone].some((f: any) => f?.toLowerCase().includes(transportPickerSearch.toLowerCase()))
+                            )
                             : allProviders;
 
                           const blockRfqEmails = rfqEmails.filter((e: any) => e.po_block_id === block.id);
@@ -10005,11 +9989,10 @@ ${chauffeurHtml}
                                           }
                                         }}
                                         disabled={isLockedByOther}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed text-[9px] font-extrabold transition-all shadow-sm disabled:opacity-40 ${
-                                          block.transport_requirement
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed text-[9px] font-extrabold transition-all shadow-sm disabled:opacity-40 ${block.transport_requirement
                                             ? 'border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-emerald-800'
                                             : 'border-neutral-300 hover:bg-neutral-50/20 text-neutral-600'
-                                        }`}
+                                          }`}
                                         title="Transport Specs"
                                       >
                                         <Sliders className="w-3.5 h-3.5 text-neutral-400" />
@@ -10256,11 +10239,10 @@ ${chauffeurHtml}
                                               .catch(err => console.error('changeTransportProviderAction error:', err))
                                               .finally(() => setIsTransportChanging(false));
                                           }}
-                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
-                                            isCurrent
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
                                               ? 'border-amber-600 bg-amber-50/30 ring-1 ring-amber-600/10'
                                               : 'border-neutral-200 bg-white hover:border-amber-600/50 hover:bg-amber-50/10'
-                                          }`}
+                                            }`}
                                         >
                                           <div className="min-w-0">
                                             <p className="text-xs font-bold text-neutral-800 truncate">{p.name}</p>
@@ -10273,7 +10255,7 @@ ${chauffeurHtml}
                                               ))}
                                               {vehicles.length > 3 && (
                                                 <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-500 text-[8px] font-bold rounded">
-                                              {vehicles.length - 3} more
+                                                  {vehicles.length - 3} more
                                                 </span>
                                               )}
                                             </div>
@@ -10298,7 +10280,7 @@ ${chauffeurHtml}
                                       AI Builder Defined
                                     </span>
                                   </div>
-                                  
+
                                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-xs">
                                     {block.transport_requirement.vehicle_make && (
                                       <div className="space-y-0.5">
@@ -10465,10 +10447,10 @@ ${chauffeurHtml}
                                       const firstLeg = legs[0];
                                       const dayNum = firstLeg.tour_itineraries?.day_number || firstLeg.day_number || 0;
                                       const dateVal = firstLeg.tour_itineraries?.date || firstLeg.service_date;
-                                      
+
                                       const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
                                       const totalDayPrice = legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.charged_total_price) || 0), 0);
-                                      
+
                                       const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
                                       let baseDayRate = 0;
                                       let maxMileageLimit = 0;
@@ -10534,11 +10516,10 @@ ${chauffeurHtml}
                                           </div>
 
                                           <div className="flex items-center justify-end gap-3 flex-shrink-0 ml-auto">
-                                            <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${
-                                              isHighMileage
+                                            <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${isHighMileage
                                                 ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10'
                                                 : 'bg-white border-neutral-200 text-neutral-700'
-                                            }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance'}>
+                                              }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance'}>
                                               <span>KM:</span>
                                               <span className="font-extrabold text-xs">{totalDayDistance}</span>
                                             </div>
@@ -10648,11 +10629,10 @@ ${chauffeurHtml}
                                         <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                emailLog.logType === 'RFQ'
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
                                                   ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                                   : 'bg-amber-50 text-amber-800 border border-amber-100'
-                                              }`}>
+                                                }`}>
                                                 {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                               </span>
                                               <span className="text-[9px] font-mono text-neutral-400">
@@ -10663,11 +10643,10 @@ ${chauffeurHtml}
                                                   · Updated: {new Date(emailLog.updated_at).toLocaleString()}
                                                 </span>
                                               )}
-                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                              <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
                                                   : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                                              }`}>
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                }`}>
                                                 {emailLog.status || 'Sent'}
                                               </span>
                                               {emailLog.quoted_price !== undefined && emailLog.quoted_price !== null && (
@@ -10754,50 +10733,50 @@ ${chauffeurHtml}
                                                 VENDOR_EMAIL_STATUSES.SELECTED,
                                                 VENDOR_EMAIL_STATUSES.CONFIRMED,
                                               ] as VendorEmailStatus[]).includes(editRfqStatus) && (
-                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
-                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Receipt className="w-3.5 h-3.5" />
-                                                    Update Purchase Order Record
-                                                  </h6>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
-                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
-                                                        <option value="Accepted">Accepted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Completed">Completed</option>
-                                                        <option value="Cancelled">Cancelled</option>
-                                                      </select>
+                                                  <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                    <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                      <Receipt className="w-3.5 h-3.5" />
+                                                      Update Purchase Order Record
+                                                    </h6>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                        <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                          <option value="Accepted">Accepted</option>
+                                                          <option value="Rejected">Rejected</option>
+                                                          <option value="Sent">Sent</option>
+                                                          <option value="Completed">Completed</option>
+                                                          <option value="Cancelled">Cancelled</option>
+                                                        </select>
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                        <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                        <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                        <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                      </div>
+                                                      <div className="col-span-1 sm:col-span-2">
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                        <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                      </div>
+                                                      <div className="col-span-1 sm:col-span-2">
+                                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                        <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                      </div>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
-                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
-                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
-                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
-                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
-                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                    <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                      <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                        {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                      </button>
                                                     </div>
                                                   </div>
-                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
+                                                )}
 
                                               <div className="space-y-1">
                                                 <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
@@ -10908,7 +10887,7 @@ ${chauffeurHtml}
                               const d = new Date(arrivalDate);
                               d.setDate(d.getDate() + idx);
                               dateStr = d.toISOString().split('T')[0];
-                            } catch (e) {}
+                            } catch (e) { }
                           }
                           return { dayNum, dateStr };
                         });
@@ -10930,7 +10909,7 @@ ${chauffeurHtml}
                           const guide = masterData.guides?.find((g: any) => g.id === guideId);
                           const cleanBlockName = block.name.split(' | ')[0];
                           const rates = guideRatesState[guideId] || {};
-                          
+
                           // Calculate block totals
                           let totalContracted = 0;
                           let totalCharged = 0;
@@ -11097,7 +11076,7 @@ ${chauffeurHtml}
                                             if (isCurrent) return;
                                             const oldGuideId = guideId;
                                             const newGuideId = g.id;
-                                            
+
                                             // Optimistic update
                                             setGuideActivities(prev => prev.map(act =>
                                               act.guide_id === oldGuideId ? { ...act, guide_id: newGuideId } : act
@@ -11109,10 +11088,10 @@ ${chauffeurHtml}
                                                 name: `Guide: ${g.first_name || ''} ${g.last_name || ''} | ID: ${g.id}`,
                                               };
                                             }));
-                                            
+
                                             setGuidePickerOpenBlockId(null);
                                             setIsGuideChanging(true);
-                                            
+
                                             changeGuideAction(tourId, oldGuideId, newGuideId)
                                               .then(async res => {
                                                 if (res.success) {
@@ -11126,11 +11105,10 @@ ${chauffeurHtml}
                                               .catch(err => console.error('changeGuideAction error:', err))
                                               .finally(() => setIsGuideChanging(false));
                                           }}
-                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
-                                            isCurrent
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
                                               ? 'border-teal-700 bg-teal-50/30 ring-1 ring-teal-700/10'
                                               : 'border-neutral-200 bg-white hover:border-teal-700/50 hover:bg-teal-50/10'
-                                          }`}
+                                            }`}
                                         >
                                           <div className="min-w-0">
                                             <p className="text-xs font-bold text-neutral-800 truncate">
@@ -11168,7 +11146,7 @@ ${chauffeurHtml}
                                     {tourDays.map((day) => {
                                       const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, chargedPrice: 0, note: '' };
                                       const guideDefaultRate = guide?.daily_rate || 20;
-                                      
+
                                       const markupPercent = Number(appSettings?.[Settings.Tour_Guide_Markup]) || 0;
 
                                       return (
@@ -11187,7 +11165,7 @@ ${chauffeurHtml}
                                               onChange={(e) => {
                                                 const type = e.target.value;
                                                 let contracted = dayRate.contractedPrice;
-                                                
+
                                                 if (type === 'National Rate') {
                                                   contracted = Number(appSettings?.guide_national_day_rate) || 0;
                                                 } else if (type === 'Regular Rate') {
@@ -11197,9 +11175,9 @@ ${chauffeurHtml}
                                                 } else if (type === 'Guide Default') {
                                                   contracted = guideDefaultRate;
                                                 }
-                                                
+
                                                 const charged = contracted * (1 + markupPercent / 100);
-                                                
+
                                                 setGuideRatesState(prev => ({
                                                   ...prev,
                                                   [guideId]: {
@@ -11320,11 +11298,10 @@ ${chauffeurHtml}
                                           <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                  emailLog.logType === 'RFQ' 
-                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
+                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                                     : 'bg-amber-50 text-amber-800 border border-amber-100'
-                                                }`}>
+                                                  }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
                                                 <span className="text-[9px] font-mono text-neutral-400">
@@ -11335,13 +11312,12 @@ ${chauffeurHtml}
                                                     · Updated: {new Date(emailLog.updated_at).toLocaleString()}
                                                   </span>
                                                 )}
-                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                  emailLog.status === 'Selected'
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected'
                                                     ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
                                                     : emailLog.status === 'Declined'
-                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                                                }`}>
+                                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                      : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                  }`}>
                                                   {emailLog.status || 'Sent'}
                                                 </span>
                                                 {emailLog.selected_vendor && (
@@ -11400,7 +11376,7 @@ ${chauffeurHtml}
                                                   <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
                                                     Edit Proposal / Bid Details
                                                   </h6>
-                                                  
+
                                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {/* Quoted Price */}
                                                     <div>
@@ -11455,7 +11431,7 @@ ${chauffeurHtml}
                                                         }}
                                                         className="w-3.5 h-3.5 text-emerald-800 border-neutral-355 rounded focus:ring-emerald-600"
                                                       />
-                                                      <label 
+                                                      <label
                                                         htmlFor={`select-vendor-${emailId}`}
                                                         className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none"
                                                       >
@@ -11499,61 +11475,61 @@ ${chauffeurHtml}
                                                   </div>
                                                 </div>
 
-                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
-                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
-                                                VENDOR_EMAIL_STATUSES.DECLINED,
-                                                VENDOR_EMAIL_STATUSES.SELECTED,
-                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
-                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
-                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
-                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Receipt className="w-3.5 h-3.5" />
-                                                    Update Purchase Order Record
-                                                  </h6>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
-                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
-                                                        <option value="Accepted">Accepted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Completed">Completed</option>
-                                                        <option value="Cancelled">Cancelled</option>
-                                                      </select>
+                                                {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                                {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                  VENDOR_EMAIL_STATUSES.DECLINED,
+                                                  VENDOR_EMAIL_STATUSES.SELECTED,
+                                                  VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                                ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                    <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                      <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <Receipt className="w-3.5 h-3.5" />
+                                                        Update Purchase Order Record
+                                                      </h6>
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                          <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                            <option value="Accepted">Accepted</option>
+                                                            <option value="Rejected">Rejected</option>
+                                                            <option value="Sent">Sent</option>
+                                                            <option value="Completed">Completed</option>
+                                                            <option value="Cancelled">Cancelled</option>
+                                                          </select>
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                          <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                          <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                          <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                        </div>
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                          <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                        </div>
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                          <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                        <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                          {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                        </button>
+                                                      </div>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
-                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
-                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
-                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
-                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
-                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
-                                                    </div>
-                                                  </div>
-                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
+                                                  )}
 
                                                 {/* Sent Email Body */}
                                                 <div className="space-y-1">
                                                   <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
-                                                  <div 
+                                                  <div
                                                     className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none"
                                                     dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
                                                   />
@@ -11664,7 +11640,7 @@ ${chauffeurHtml}
                               const d = new Date(arrivalDate);
                               d.setDate(d.getDate() + idx);
                               dateStr = d.toISOString().split('T')[0];
-                            } catch (e) {}
+                            } catch (e) { }
                           }
                           return { dayNum, dateStr };
                         });
@@ -11686,7 +11662,7 @@ ${chauffeurHtml}
                           const driver = masterData.drivers?.find((d: any) => d.id === driverId);
                           const cleanBlockName = block.name.split(' | ')[0];
                           const rates = driverRatesState[driverId] || {};
-                          
+
                           // Calculate block totals
                           let totalContracted = 0;
                           let totalCharged = 0;
@@ -11706,207 +11682,206 @@ ${chauffeurHtml}
                           return (
                             <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
                               {/* Header */}
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
-                                      <div className="space-y-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
-                                            Driver Block
-                                          </span>
-                                          <h4 className="text-base font-bold text-neutral-800 font-serif">
-                                            {driver ? `${driver.first_name || ''} ${driver.last_name || ''}` : 'Unassigned Driver'}
-                                          </h4>
-                                        </div>
-                                        <p className="text-xs text-neutral-500">
-                                          {driver ? `Phone: ${driver.phone || 'N/A'} | License: ${driver.license_number || 'N/A'}` : 'Assign a driver in the itinerary.'}
-                                        </p>
-                                      </div>
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                      Driver Block
+                                    </span>
+                                    <h4 className="text-base font-bold text-neutral-800 font-serif">
+                                      {driver ? `${driver.first_name || ''} ${driver.last_name || ''}` : 'Unassigned Driver'}
+                                    </h4>
+                                  </div>
+                                  <p className="text-xs text-neutral-500">
+                                    {driver ? `Phone: ${driver.phone || 'N/A'} | License: ${driver.license_number || 'N/A'}` : 'Assign a driver in the itinerary.'}
+                                  </p>
+                                </div>
 
-                                      <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDriverPickerOpenBlockId(isPickerOpen ? null : block.id);
+                                      setDriverPickerSearch('');
+                                    }}
+                                    disabled={isLockedByOther}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-violet-650/50 hover:bg-violet-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-violet-750 transition-all shadow-sm disabled:opacity-40"
+                                    title={driver ? 'Change Provider' : 'Assign Provider'}
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5 text-neutral-400" />
+                                    <span>{driver ? 'Change Provider' : 'Assign Provider'}</span>
+                                  </button>
+
+                                  {driver && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                        handleOpenRfqModal(driver, driverStays, block.id);
+                                      }}
+                                      disabled={isLockedByOther}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
+                                      title="Request Quote"
+                                    >
+                                      <Mail className="w-3.5 h-3.5 text-neutral-400" />
+                                      <span>Request Quotes</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => saveDriverRates(driverId)}
+                                    disabled={isSavingDriverRates === driverId || isLockedByOther}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                  >
+                                    {isSavingDriverRates === driverId ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Saving...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Save className="w-3.5 h-3.5" />
+                                        <span>Save Driver PO & Rates</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {driver && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                        if (driverStays.length === 0) {
+                                          alert("Please save driver rates first before generating a Purchase Order.");
+                                          return;
+                                        }
+                                        const vendorObj = {
+                                          ...driver,
+                                          name: `${driver.first_name || ''} ${driver.last_name || ''}`,
+                                          reservation_email: ''
+                                        };
+                                        handleOpenPoModal(vendorObj, driverStays, block.id, 'driver');
+                                      }}
+                                      disabled={isLockedByOther}
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" />
+                                      <span>Create PO</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    disabled={isLockedByOther}
+                                    title="Delete Block"
+                                    onClick={async () => {
+                                      if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.")) {
+                                        const res = await deletePOBlockAction(block.id);
+                                        if (res.success) {
+                                          setPoBlocks(prev => prev.filter(b => b.id !== block.id));
+                                        } else {
+                                          alert(res.error || "Failed to delete block.");
+                                        }
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Inline Driver Picker */}
+                              {isPickerOpen && (
+                                <div className="border border-violet-200 rounded-2xl bg-violet-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-violet-800 uppercase tracking-wider">
+                                      {driver ? 'Change Driver' : 'Select a Driver'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDriverPickerOpenBlockId(null)}
+                                      className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
+                                    >
+                                      Close ×
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    placeholder="Search by name, license, phone…"
+                                    value={driverPickerSearch}
+                                    onChange={e => setDriverPickerSearch(e.target.value)}
+                                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600 transition-all"
+                                    autoFocus
+                                  />
+                                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                                    {filteredDrivers.length === 0 ? (
+                                      <p className="text-[10px] text-neutral-400 text-center py-4">No drivers found. Try a different search.</p>
+                                    ) : filteredDrivers.map((d: any) => {
+                                      const isCurrent = d.id === driverId;
+                                      return (
                                         <button
+                                          key={d.id}
                                           type="button"
                                           onClick={() => {
-                                            setDriverPickerOpenBlockId(isPickerOpen ? null : block.id);
-                                            setDriverPickerSearch('');
-                                          }}
-                                          disabled={isLockedByOther}
-                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-neutral-300 hover:border-violet-650/50 hover:bg-violet-50/20 text-[9px] font-extrabold text-neutral-600 hover:text-violet-750 transition-all shadow-sm disabled:opacity-40"
-                                          title={driver ? 'Change Provider' : 'Assign Provider'}
-                                        >
-                                          <UserCheck className="w-3.5 h-3.5 text-neutral-400" />
-                                          <span>{driver ? 'Change Provider' : 'Assign Provider'}</span>
-                                        </button>
+                                            if (isCurrent) return;
+                                            const oldDriverId = driverId;
+                                            const newDriverId = d.id;
 
-                                        {driver && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
-                                              handleOpenRfqModal(driver, driverStays, block.id);
-                                            }}
-                                            disabled={isLockedByOther}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-[9px] font-extrabold text-emerald-800 transition-all shadow-sm disabled:opacity-40"
-                                            title="Request Quote"
-                                          >
-                                            <Mail className="w-3.5 h-3.5 text-neutral-400" />
-                                            <span>Request Quotes</span>
-                                          </button>
-                                        )}
-
-                                        <button
-                                          type="button"
-                                          onClick={() => saveDriverRates(driverId)}
-                                          disabled={isSavingDriverRates === driverId || isLockedByOther}
-                                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
-                                        >
-                                          {isSavingDriverRates === driverId ? (
-                                            <>
-                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                              <span>Saving...</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Save className="w-3.5 h-3.5" />
-                                              <span>Save Driver PO & Rates</span>
-                                            </>
-                                          )}
-                                        </button>
-
-                                        {driver && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
-                                              if (driverStays.length === 0) {
-                                                alert("Please save driver rates first before generating a Purchase Order.");
-                                                return;
-                                              }
-                                              const vendorObj = {
-                                                ...driver,
-                                                name: `${driver.first_name || ''} ${driver.last_name || ''}`,
-                                                reservation_email: ''
+                                            // Optimistic update
+                                            setDriverActivities(prev => prev.map(act =>
+                                              act.driver_id === oldDriverId ? { ...act, driver_id: newDriverId } : act
+                                            ));
+                                            setPoBlocks(prev => prev.map(pb => {
+                                              if (pb.id !== block.id) return pb;
+                                              return {
+                                                ...pb,
+                                                name: `Driver: ${d.first_name || ''} ${d.last_name || ''} | ID: ${d.id}`,
                                               };
-                                              handleOpenPoModal(vendorObj, driverStays, block.id, 'driver');
-                                            }}
-                                            disabled={isLockedByOther}
-                                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
-                                          >
-                                            <FileText className="w-3.5 h-3.5" />
-                                            <span>Create PO</span>
-                                          </button>
-                                        )}
+                                            }));
 
-                                        <button
-                                          type="button"
-                                          disabled={isLockedByOther}
-                                          title="Delete Block"
-                                          onClick={async () => {
-                                            if (confirm("Delete this block? This will also remove all associated RFQ/RFP emails and Purchase Orders. This cannot be undone.")) {
-                                              const res = await deletePOBlockAction(block.id);
-                                              if (res.success) {
-                                                setPoBlocks(prev => prev.filter(b => b.id !== block.id));
-                                              } else {
-                                                alert(res.error || "Failed to delete block.");
-                                              }
-                                            }
+                                            setDriverPickerOpenBlockId(null);
+                                            setIsDriverChanging(true);
+
+                                            changeDriverAction(tourId, oldDriverId, newDriverId)
+                                              .then(async res => {
+                                                if (res.success) {
+                                                  const blocksRes = await getPOBlocksAction(tourId);
+                                                  if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
+                                                } else {
+                                                  console.error('Driver change failed:', res.error);
+                                                  alert(res.error || 'Failed to change driver.');
+                                                }
+                                              })
+                                              .catch(err => console.error('changeDriverAction error:', err))
+                                              .finally(() => setIsDriverChanging(false));
                                           }}
-                                          className="p-1.5 rounded-xl border border-rose-200 text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all shadow-sm disabled:opacity-40"
+                                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
+                                              ? 'border-violet-700 bg-violet-50/30 ring-1 ring-violet-700/10'
+                                              : 'border-neutral-200 bg-white hover:border-violet-700/50 hover:bg-violet-50/10'
+                                            }`}
                                         >
-                                          <Trash2 className="w-3.5 h-3.5" />
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-neutral-800 truncate">
+                                              {d.first_name || ''} {d.last_name || ''}
+                                            </p>
+                                            <p className="text-[10px] text-neutral-400 mt-0.5">
+                                              Phone: {d.phone || 'N/A'} · License: {d.license_number || 'N/A'}
+                                            </p>
+                                          </div>
+                                          <div className="text-right shrink-0">
+                                            <span className="text-xs font-extrabold text-violet-850 font-mono">
+                                              ${d.per_day_rate || '—'}
+                                            </span>
+                                            <span className="text-[8px] text-neutral-400 block font-mono">/ day</span>
+                                          </div>
                                         </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Inline Driver Picker */}
-                                    {isPickerOpen && (
-                                      <div className="border border-violet-200 rounded-2xl bg-violet-50/20 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[10px] font-black text-violet-800 uppercase tracking-wider">
-                                            {driver ? 'Change Driver' : 'Select a Driver'}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() => setDriverPickerOpenBlockId(null)}
-                                            className="text-neutral-400 hover:text-neutral-600 text-[10px] font-bold"
-                                          >
-                                            Close ×
-                                          </button>
-                                        </div>
-                                        <input
-                                          type="text"
-                                          placeholder="Search by name, license, phone…"
-                                          value={driverPickerSearch}
-                                          onChange={e => setDriverPickerSearch(e.target.value)}
-                                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600 transition-all"
-                                          autoFocus
-                                        />
-                                        <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                                          {filteredDrivers.length === 0 ? (
-                                            <p className="text-[10px] text-neutral-400 text-center py-4">No drivers found. Try a different search.</p>
-                                          ) : filteredDrivers.map((d: any) => {
-                                            const isCurrent = d.id === driverId;
-                                            return (
-                                              <button
-                                                key={d.id}
-                                                type="button"
-                                                onClick={() => {
-                                                  if (isCurrent) return;
-                                                  const oldDriverId = driverId;
-                                                  const newDriverId = d.id;
-                                                  
-                                                  // Optimistic update
-                                                  setDriverActivities(prev => prev.map(act =>
-                                                    act.driver_id === oldDriverId ? { ...act, driver_id: newDriverId } : act
-                                                  ));
-                                                  setPoBlocks(prev => prev.map(pb => {
-                                                    if (pb.id !== block.id) return pb;
-                                                    return {
-                                                      ...pb,
-                                                      name: `Driver: ${d.first_name || ''} ${d.last_name || ''} | ID: ${d.id}`,
-                                                    };
-                                                  }));
-                                                  
-                                                  setDriverPickerOpenBlockId(null);
-                                                  setIsDriverChanging(true);
-                                                  
-                                                  changeDriverAction(tourId, oldDriverId, newDriverId)
-                                                    .then(async res => {
-                                                      if (res.success) {
-                                                        const blocksRes = await getPOBlocksAction(tourId);
-                                                        if (blocksRes.success && blocksRes.blocks) setPoBlocks(blocksRes.blocks);
-                                                      } else {
-                                                        console.error('Driver change failed:', res.error);
-                                                        alert(res.error || 'Failed to change driver.');
-                                                      }
-                                                    })
-                                                    .catch(err => console.error('changeDriverAction error:', err))
-                                                    .finally(() => setIsDriverChanging(false));
-                                                }}
-                                                className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
-                                                  isCurrent
-                                                    ? 'border-violet-700 bg-violet-50/30 ring-1 ring-violet-700/10'
-                                                    : 'border-neutral-200 bg-white hover:border-violet-700/50 hover:bg-violet-50/10'
-                                                }`}
-                                              >
-                                                <div className="min-w-0">
-                                                  <p className="text-xs font-bold text-neutral-800 truncate">
-                                                    {d.first_name || ''} {d.last_name || ''}
-                                                  </p>
-                                                  <p className="text-[10px] text-neutral-400 mt-0.5">
-                                                    Phone: {d.phone || 'N/A'} · License: {d.license_number || 'N/A'}
-                                                  </p>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                  <span className="text-xs font-extrabold text-violet-850 font-mono">
-                                                    ${d.per_day_rate || '—'}
-                                                  </span>
-                                                  <span className="text-[8px] text-neutral-400 block font-mono">/ day</span>
-                                                </div>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Rates Table */}
                               <div className="overflow-x-auto border border-neutral-200/60 rounded-2xl bg-white">
@@ -11924,9 +11899,9 @@ ${chauffeurHtml}
                                     {tourDays.map((day) => {
                                       const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, chargedPrice: 0, note: '' };
                                       const driverDefaultRate = driver?.per_day_rate || 15;
-                                      
-                                      const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined 
-                                        ? Number(appSettings[Settings.Diver_Markup]) 
+
+                                      const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined
+                                        ? Number(appSettings[Settings.Diver_Markup])
                                         : (Number(appSettings?.[Settings.Driver_Markup]) || 0);
 
                                       return (
@@ -11945,7 +11920,7 @@ ${chauffeurHtml}
                                               onChange={(e) => {
                                                 const type = e.target.value;
                                                 let contracted = dayRate.contractedPrice;
-                                                
+
                                                 if (type === 'Regular Chauffeur Rate') {
                                                   contracted = Number(appSettings?.regular_chauffeur_day_rate) || 0;
                                                 } else if (type === 'Premium Chauffeur Rate') {
@@ -11957,9 +11932,9 @@ ${chauffeurHtml}
                                                 } else if (type === 'Chauffeur Default') {
                                                   contracted = driverDefaultRate;
                                                 }
-                                                
+
                                                 const charged = contracted * (1 + markupPercent / 100);
-                                                
+
                                                 setDriverRatesState(prev => ({
                                                   ...prev,
                                                   [driverId]: {
@@ -12104,11 +12079,10 @@ ${chauffeurHtml}
                                           <div key={emailId} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 shadow-sm space-y-2">
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                  emailLog.logType === 'RFQ' 
-                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
+                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
                                                     : 'bg-amber-50 text-amber-800 border border-amber-105'
-                                                }`}>
+                                                  }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
                                                 <span className="text-[9px] font-mono text-neutral-400">
@@ -12119,13 +12093,12 @@ ${chauffeurHtml}
                                                     · Updated: {new Date(emailLog.updated_at).toLocaleString()}
                                                   </span>
                                                 )}
-                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${
-                                                  emailLog.status === 'Selected'
+                                                <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected'
                                                     ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
                                                     : emailLog.status === 'Declined'
-                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-205'
-                                                }`}>
+                                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                      : 'bg-neutral-100 text-neutral-600 border border-neutral-205'
+                                                  }`}>
                                                   {emailLog.status || 'Sent'}
                                                 </span>
                                                 {emailLog.selected_vendor && (
@@ -12184,7 +12157,7 @@ ${chauffeurHtml}
                                                   <h6 className="text-[11px] font-bold text-neutral-700 uppercase tracking-wider block">
                                                     Edit Proposal / Bid Details
                                                   </h6>
-                                                  
+
                                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {/* Quoted Price */}
                                                     <div>
@@ -12239,7 +12212,7 @@ ${chauffeurHtml}
                                                         }}
                                                         className="w-3.5 h-3.5 text-emerald-800 border-neutral-355 rounded focus:ring-emerald-600"
                                                       />
-                                                      <label 
+                                                      <label
                                                         htmlFor={`select-vendor-${emailId}`}
                                                         className="text-[10px] font-bold text-neutral-600 cursor-pointer select-none"
                                                       >
@@ -12283,61 +12256,61 @@ ${chauffeurHtml}
                                                   </div>
                                                 </div>
 
-                                              {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
-                                              {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
-                                                VENDOR_EMAIL_STATUSES.DECLINED,
-                                                VENDOR_EMAIL_STATUSES.SELECTED,
-                                                VENDOR_EMAIL_STATUSES.CONFIRMED,
-                                              ] as VendorEmailStatus[]).includes(editRfqStatus) && (
-                                                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
-                                                  <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                                                    <Receipt className="w-3.5 h-3.5" />
-                                                    Update Purchase Order Record
-                                                  </h6>
-                                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
-                                                      <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
-                                                        <option value="Accepted">Accepted</option>
-                                                        <option value="Rejected">Rejected</option>
-                                                        <option value="Sent">Sent</option>
-                                                        <option value="Completed">Completed</option>
-                                                        <option value="Cancelled">Cancelled</option>
-                                                      </select>
+                                                {/* PO Outcome Panel — shown for RFP emails when status is Declined, Selected or Confirmed */}
+                                                {emailLog.logType === 'RFP' && emailLog.purchase_order_id && ([
+                                                  VENDOR_EMAIL_STATUSES.DECLINED,
+                                                  VENDOR_EMAIL_STATUSES.SELECTED,
+                                                  VENDOR_EMAIL_STATUSES.CONFIRMED,
+                                                ] as VendorEmailStatus[]).includes(editRfqStatus) && (
+                                                    <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-3">
+                                                      <h6 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <Receipt className="w-3.5 h-3.5" />
+                                                        Update Purchase Order Record
+                                                      </h6>
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">PO Status</label>
+                                                          <select value={poOutcomeStatus} onChange={e => setPoOutcomeStatus(e.target.value as POStatus)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium">
+                                                            <option value="Accepted">Accepted</option>
+                                                            <option value="Rejected">Rejected</option>
+                                                            <option value="Sent">Sent</option>
+                                                            <option value="Completed">Completed</option>
+                                                            <option value="Cancelled">Cancelled</option>
+                                                          </select>
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
+                                                          <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
+                                                          <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
+                                                        </div>
+                                                        <div>
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
+                                                          <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
+                                                        </div>
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
+                                                          <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
+                                                        </div>
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
+                                                          <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex justify-end pt-2 border-t border-amber-200">
+                                                        <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
+                                                          {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
+                                                        </button>
+                                                      </div>
                                                     </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Payment Terms</label>
-                                                      <input type="text" value={poOutcomePaymentTerms} onChange={e => setPoOutcomePaymentTerms(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="e.g. 30% advance, balance on arrival" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed By (Name)</label>
-                                                      <input type="text" value={poOutcomeInformedByName} onChange={e => setPoOutcomeInformedByName(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" placeholder="Contact person name" />
-                                                    </div>
-                                                    <div>
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Informed Date</label>
-                                                      <input type="date" value={poOutcomeInformedDate} onChange={e => setPoOutcomeInformedDate(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium" />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Internal Notes</label>
-                                                      <textarea value={poOutcomeInternalNotes} onChange={e => setPoOutcomeInternalNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Internal team notes..." />
-                                                    </div>
-                                                    <div className="col-span-1 sm:col-span-2">
-                                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Vendor Notes</label>
-                                                      <textarea value={poOutcomeVendorNotes} onChange={e => setPoOutcomeVendorNotes(e.target.value)} className="w-full text-xs border border-neutral-200 rounded-lg px-2.5 py-1.5 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium h-12 resize-none" placeholder="Notes from the vendor / supplier..." />
-                                                    </div>
-                                                  </div>
-                                                  <div className="flex justify-end pt-2 border-t border-amber-200">
-                                                    <button type="button" onClick={() => handleSavePoOutcome(emailLog)} disabled={isSavingPoOutcome} className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-[10px] font-bold transition-all shadow-sm flex items-center gap-1 disabled:opacity-50">
-                                                      {isSavingPoOutcome ? 'Saving...' : 'Save PO Outcome'}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              )}
+                                                  )}
 
                                                 {/* Sent Email Body */}
                                                 <div className="space-y-1">
                                                   <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Sent Email Body:</span>
-                                                  <div 
+                                                  <div
                                                     className="text-[10px] text-neutral-700 bg-white p-2.5 rounded-xl border border-neutral-150 overflow-x-auto max-h-[150px] font-sans prose prose-sm max-w-none"
                                                     dangerouslySetInnerHTML={{ __html: emailLog.body_html }}
                                                   />
@@ -12391,7 +12364,7 @@ ${chauffeurHtml}
                                       : act.location_name || act.locationName || 'Location not specified'}
                                   </p>
                                 </div>
-                                
+
                                 {activeQuote && (
                                   <span className="px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-bold flex items-center gap-1">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
@@ -12411,17 +12384,15 @@ ${chauffeurHtml}
                                       const isSelected = quote.selected_vendor;
 
                                       return (
-                                        <div key={quote.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                                          isSelected ? 'bg-green-50/30 border-green-200 shadow-sm' : 'bg-white border-neutral-200'
-                                        }`}>
+                                        <div key={quote.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${isSelected ? 'bg-green-50/30 border-green-200 shadow-sm' : 'bg-white border-neutral-200'
+                                          }`}>
                                           <div>
                                             <div className="flex items-center gap-2">
                                               <span className="text-xs font-bold text-neutral-800">{quote.vendor_name}</span>
-                                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                                quote.status === 'Selected' ? 'bg-green-150 text-green-800' :
-                                                quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
-                                                'bg-neutral-100 text-neutral-600'
-                                              }`}>
+                                              <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${quote.status === 'Selected' ? 'bg-green-150 text-green-800' :
+                                                  quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
+                                                    'bg-neutral-100 text-neutral-600'
+                                                }`}>
                                                 {quote.status}
                                               </span>
                                             </div>
@@ -12523,7 +12494,7 @@ ${chauffeurHtml}
                                         </select>
                                       )}
                                     </div>
-                                    
+
                                     <div className="flex items-end gap-2">
                                       <button
                                         onClick={() => {
@@ -12591,9 +12562,9 @@ ${chauffeurHtml}
                         .map(act => {
                           const actQuotes = quotationRequests.filter(q => q.daily_activity_id === act.id);
                           const winningQuote = actQuotes.find(q => q.quotation?.selected_vendor)?.quotation;
-                          
+
                           const booking = vendorBookings.find(b => b.daily_activity_ids?.includes(act.id));
-                          const po = booking?.purchase_order_id 
+                          const po = booking?.purchase_order_id
                             ? purchaseOrders.find(p => p.id === booking.purchase_order_id)
                             : purchaseOrders.find(p => p.items?.some((item: any) => item.daily_activity_id === act.id || item.tour_itinerary_id === act.id));
 
@@ -12611,14 +12582,13 @@ ${chauffeurHtml}
                                       : act.location_name || act.locationName || 'Location not specified'}
                                   </p>
                                 </div>
-                                
+
                                 {booking && (
-                                  <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
-                                    booking.status === 'Went Ahead' ? 'bg-green-100 border border-green-200 text-green-700' :
-                                    booking.status === 'Confirmed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
-                                    booking.status === 'Cancelled' ? 'bg-red-50 border border-red-200 text-red-700' :
-                                    'bg-neutral-50 border border-neutral-200 text-neutral-600'
-                                  }`}>
+                                  <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${booking.status === 'Went Ahead' ? 'bg-green-100 border border-green-200 text-green-700' :
+                                      booking.status === 'Confirmed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
+                                        booking.status === 'Cancelled' ? 'bg-red-50 border border-red-200 text-red-700' :
+                                          'bg-neutral-50 border border-neutral-200 text-neutral-600'
+                                    }`}>
                                     Booking: {booking.status}
                                   </span>
                                 )}
@@ -12656,12 +12626,11 @@ ${chauffeurHtml}
                                         <div>
                                           <div className="flex items-center gap-2">
                                             <span className="text-xs font-bold text-neutral-850 font-mono">{po.po_number}</span>
-                                            <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                              po.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                              po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
-                                              po.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                                              'bg-neutral-100 text-neutral-600'
-                                            }`}>
+                                            <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${po.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                                po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
+                                                  po.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                                                    'bg-neutral-100 text-neutral-600'
+                                              }`}>
                                               PO: {po.status}
                                             </span>
                                           </div>
@@ -12752,7 +12721,7 @@ ${chauffeurHtml}
 
                             // Invoiced total in document currency and LKR
                             const totalInvoicedVal = invoices.reduce((sum: number, inv: any) => sum + Number(inv.amount), 0);
-                            
+
                             // Payments total
                             const totalPaidLkr = allPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) * Number(p.exchange_rate || 1.0)), 0);
 
@@ -12769,12 +12738,11 @@ ${chauffeurHtml}
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm font-bold text-neutral-855 font-mono">{po.po_number}</span>
                                       <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
-                                      <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                        po.status === 'Completed' ? 'bg-green-105 text-green-800' :
-                                        po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
-                                        po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
-                                        'bg-neutral-105 text-neutral-600'
-                                      }`}>
+                                      <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${po.status === 'Completed' ? 'bg-green-105 text-green-800' :
+                                          po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
+                                            po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
+                                              'bg-neutral-105 text-neutral-600'
+                                        }`}>
                                         PO: {po.status}
                                       </span>
                                       {po.status !== 'Cancelled' && po.status !== 'Completed' && (
@@ -12987,7 +12955,7 @@ ${chauffeurHtml}
                                               {isUploadingPayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
                                             </label>
                                           </div>
-                                          
+
                                           {advancePaymentPayslipUrl && (
                                             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
                                               <Check className="w-3.5 h-3.5" />
@@ -13039,7 +13007,7 @@ ${chauffeurHtml}
                                                 <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {pOnPo.payment_reference}</span>
                                               )}
                                               {pOnPo.attachment_url && (
-                                                <button 
+                                                <button
                                                   type="button"
                                                   onClick={async () => {
                                                     try {
@@ -13334,12 +13302,11 @@ ${chauffeurHtml}
                                           const isMatched = Math.abs(diff) < 0.01;
 
                                           return (
-                                            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 font-medium ${
-                                              isMatched ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
-                                            }`}>
+                                            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 font-medium ${isMatched ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
+                                              }`}>
                                               <span className={`w-2 h-2 rounded-full ${isMatched ? 'bg-green-500' : 'bg-red-500'}`} />
-                                              {isMatched 
-                                                ? "Tally Result: MATCHED (0.00 discrepancy)" 
+                                              {isMatched
+                                                ? "Tally Result: MATCHED (0.00 discrepancy)"
                                                 : `Tally Result: MISMATCH (Discrepancy of ${po.currency === invoiceCurrency ? invoiceCurrency : 'LKR'} ${diff.toFixed(2)})`}
                                             </div>
                                           );
@@ -13370,7 +13337,7 @@ ${chauffeurHtml}
                                         const isMatched = Math.abs(diff) < 0.01;
                                         const invPayments = inv.payments || [];
                                         const totalPaidInv = invPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-                                        
+
                                         // Deduct advance payments that belong to this PO
                                         const totalAdvApplied = advPayments.reduce((sum: number, p: any) => {
                                           if (p.currency === inv.currency) {
@@ -13392,11 +13359,10 @@ ${chauffeurHtml}
                                               <div>
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-xs font-bold text-neutral-805">#{inv.invoice_number}</span>
-                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${
-                                                    inv.status === 'Confirmed' ? 'bg-blue-100 border border-blue-200 text-blue-800' :
-                                                    inv.status === 'Paid' ? 'bg-green-105 border border-green-200 text-green-800' :
-                                                    'bg-amber-105 border border-amber-200 text-amber-800'
-                                                  }`}>
+                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${inv.status === 'Confirmed' ? 'bg-blue-100 border border-blue-200 text-blue-800' :
+                                                      inv.status === 'Paid' ? 'bg-green-105 border border-green-200 text-green-800' :
+                                                        'bg-amber-105 border border-amber-200 text-amber-800'
+                                                    }`}>
                                                     {inv.status}
                                                   </span>
                                                   <button
@@ -13445,44 +13411,44 @@ ${chauffeurHtml}
                                                     <div key={item.id} className="flex justify-between items-center py-1 text-xs border-b border-neutral-100 last:border-b-0">
                                                       <div>
                                                         <span className="font-semibold text-neutral-750 flex flex-wrap items-center gap-1.5">
-                                                           <span>{item.description}</span>
-                                                           {poItem?.service_date && (
-                                                             <span className="text-[9px] text-neutral-500 font-normal bg-neutral-200/70 px-1.5 py-0.5 rounded font-mono shrink-0">
-                                                               {new Date(poItem.service_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                             </span>
-                                                           )}
-                                                           {poItem && (
-                                                            (poItem.service_details?.room_type || poItem.room_type) || 
-                                                            (poItem.service_details?.meal_plan || poItem.meal_plan) || 
+                                                          <span>{item.description}</span>
+                                                          {poItem?.service_date && (
+                                                            <span className="text-[9px] text-neutral-500 font-normal bg-neutral-200/70 px-1.5 py-0.5 rounded font-mono shrink-0">
+                                                              {new Date(poItem.service_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                            </span>
+                                                          )}
+                                                          {poItem && (
+                                                            (poItem.service_details?.room_type || poItem.room_type) ||
+                                                            (poItem.service_details?.meal_plan || poItem.meal_plan) ||
                                                             (poItem.service_details?.check_in_date || poItem.check_in_date)
                                                           ) && (
-                                                            <div className="flex flex-wrap gap-1 mt-0.5 mb-0.5">
-                                                              {(poItem.service_details?.room_type || poItem.room_type) && (
-                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold uppercase">
-                                                                  {poItem.service_details?.room_type || poItem.room_type}
-                                                                </span>
-                                                              )}
-                                                              {(poItem.service_details?.meal_plan || poItem.meal_plan) && (
-                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold">
-                                                                  {poItem.service_details?.meal_plan || poItem.meal_plan}
-                                                                </span>
-                                                              )}
-                                                              {(poItem.service_details?.number_of_nights || poItem.number_of_nights) && (
-                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
-                                                                  {poItem.service_details?.number_of_nights || poItem.number_of_nights} Nights
-                                                                </span>
-                                                              )}
-                                                              {(poItem.service_details?.check_in_date || poItem.check_in_date) && (
-                                                                <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
-                                                                  {new Date(poItem.service_details?.check_in_date || poItem.check_in_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                                                  {(poItem.service_details?.check_out_date || poItem.check_out_date) && ` - ${new Date(poItem.service_details?.check_out_date || poItem.check_out_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
-                                                                </span>
-                                                              )}
-                                                            </div>
-                                                          )}
-                                                         </span>
+                                                              <div className="flex flex-wrap gap-1 mt-0.5 mb-0.5">
+                                                                {(poItem.service_details?.room_type || poItem.room_type) && (
+                                                                  <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold uppercase">
+                                                                    {poItem.service_details?.room_type || poItem.room_type}
+                                                                  </span>
+                                                                )}
+                                                                {(poItem.service_details?.meal_plan || poItem.meal_plan) && (
+                                                                  <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold">
+                                                                    {poItem.service_details?.meal_plan || poItem.meal_plan}
+                                                                  </span>
+                                                                )}
+                                                                {(poItem.service_details?.number_of_nights || poItem.number_of_nights) && (
+                                                                  <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
+                                                                    {poItem.service_details?.number_of_nights || poItem.number_of_nights} Nights
+                                                                  </span>
+                                                                )}
+                                                                {(poItem.service_details?.check_in_date || poItem.check_in_date) && (
+                                                                  <span className="text-[8px] bg-neutral-200/60 text-neutral-500 px-1 py-0.2 rounded font-bold font-mono">
+                                                                    {new Date(poItem.service_details?.check_in_date || poItem.check_in_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                                                    {(poItem.service_details?.check_out_date || poItem.check_out_date) && ` - ${new Date(poItem.service_details?.check_out_date || poItem.check_out_date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+                                                                  </span>
+                                                                )}
+                                                              </div>
+                                                            )}
+                                                        </span>
                                                         <p className="text-[9px] text-neutral-450 mt-0.5">
-                                                          {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)} 
+                                                          {item.quantity} Qty @ {inv.currency || 'USD'} {item.unit_price.toFixed(2)}
                                                           {poItem && (item.quantity !== poItem.quantity || item.unit_price !== poItem.unit_price) && (
                                                             <span className="text-red-500 ml-1">
                                                               (PO: {poItem.quantity} @ {poItem.unit_price.toFixed(2)})
@@ -13660,7 +13626,7 @@ ${chauffeurHtml}
                                                           {isUploadingInvoicePayslip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
                                                         </label>
                                                       </div>
-                                                      
+
                                                       {invoicePaymentPayslipUrl && (
                                                         <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
                                                           <Check className="w-3.5 h-3.5" />
@@ -13705,7 +13671,7 @@ ${chauffeurHtml}
                                                           <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {p.payment_reference}</span>
                                                         )}
                                                         {p.attachment_url && (
-                                                          <button 
+                                                          <button
                                                             type="button"
                                                             onClick={async () => {
                                                               try {
@@ -13934,7 +13900,7 @@ ${chauffeurHtml}
                                   {isUploadingCustomerPaymentSlip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
                                 </label>
                               </div>
-                              
+
                               {customerPaymentSlipUrl && (
                                 <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
                                   <Check className="w-3.5 h-3.5" />
@@ -14093,7 +14059,7 @@ ${chauffeurHtml}
                           const isExpanded = expandedInvoiceId === inv.id;
                           const totalPaid = (inv.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
                           const remainingBalance = Math.max(0, inv.amount - totalPaid);
-                          
+
                           return (
                             <div key={inv.id} className="border border-neutral-200 rounded-2xl bg-white shadow-sm overflow-hidden transition-all hover:shadow-md">
                               {/* Invoice Header */}
@@ -14117,13 +14083,12 @@ ${chauffeurHtml}
                                   </div>
 
                                   <div className="flex items-center gap-2">
-                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                      inv.status === 'Paid'
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${inv.status === 'Paid'
                                         ? 'bg-green-50 text-green-700 border border-green-100'
                                         : inv.status === 'Cancelled'
-                                        ? 'bg-red-50 text-red-700 border border-red-100'
-                                        : 'bg-amber-50 text-amber-700 border border-amber-100'
-                                    }`}>
+                                          ? 'bg-red-50 text-red-700 border border-red-100'
+                                          : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                      }`}>
                                       {inv.status}
                                     </span>
                                     <button
@@ -14172,20 +14137,20 @@ ${chauffeurHtml}
                                       {inv.service_fee_percentage !== undefined && inv.service_fee_percentage !== null
                                         ? `${inv.service_fee_percentage}%`
                                         : (() => {
-                                            const travelStyle = touristData?.preferences?.travel_style || 'Luxury';
-                                            const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
-                                            const serviceFeeKey = `${styleKey}_service_fee`;
-                                            if (appSettings && appSettings[serviceFeeKey] !== undefined) {
-                                              return `${Number(appSettings[serviceFeeKey])}% (Default)`;
-                                            }
-                                            const hardcodedDefaults: Record<string, string> = {
-                                              regular: '5%',
-                                              premium: '8%',
-                                              luxury: '10%',
-                                              ultra_vip: '15%'
-                                            };
-                                            return `${hardcodedDefaults[styleKey] || '10%'} (Default)`;
-                                          })()}
+                                          const travelStyle = touristData?.preferences?.travel_style || 'Luxury';
+                                          const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
+                                          const serviceFeeKey = `${styleKey}_service_fee`;
+                                          if (appSettings && appSettings[serviceFeeKey] !== undefined) {
+                                            return `${Number(appSettings[serviceFeeKey])}% (Default)`;
+                                          }
+                                          const hardcodedDefaults: Record<string, string> = {
+                                            regular: '5%',
+                                            premium: '8%',
+                                            luxury: '10%',
+                                            ultra_vip: '15%'
+                                          };
+                                          return `${hardcodedDefaults[styleKey] || '10%'} (Default)`;
+                                        })()}
                                     </span>
                                   </div>
                                   {inv.agency_note && (
@@ -14384,7 +14349,7 @@ ${chauffeurHtml}
                                             {isUploadingCustomerPaymentSlip ? 'Uploading & Converting to WebP...' : 'Choose File (Slip/Receipt)'}
                                           </label>
                                         </div>
-                                        
+
                                         {customerPaymentSlipUrl && (
                                           <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-semibold">
                                             <Check className="w-3.5 h-3.5" />
@@ -14455,14 +14420,14 @@ ${chauffeurHtml}
                                               const travelStyle = touristData?.preferences?.travel_style || 'Luxury';
                                               const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
                                               const conciergeCostKey = `${styleKey}_concierge_cost`;
-                                              const conciergeCostPerHead = appSettings && appSettings[conciergeCostKey] !== undefined 
-                                                ? Number(appSettings[conciergeCostKey]) 
+                                              const conciergeCostPerHead = appSettings && appSettings[conciergeCostKey] !== undefined
+                                                ? Number(appSettings[conciergeCostKey])
                                                 : 40;
                                               const adults = touristData?.preferences?.adults ?? 2;
                                               const children = touristData?.preferences?.children ?? 0;
                                               const pax = adults + children;
                                               const durationDays = touristData?.preferences?.duration_days ?? 5;
-                                              
+
                                               const conciergeTotal = pax * conciergeCostPerHead * durationDays;
                                               const agencyFeePart = Math.max(0, item.amount - conciergeTotal);
 
@@ -14499,7 +14464,7 @@ ${chauffeurHtml}
                                           });
                                           return renderedItems;
                                         })()}
-                                        
+
                                         {/* Summary math inside items table */}
                                         <tr className="bg-neutral-50/50 font-bold border-t-2 border-neutral-250">
                                           <td className="px-4 py-2 text-right text-[10px] text-neutral-500 uppercase">Subtotal</td>
@@ -14665,8 +14630,8 @@ ${chauffeurHtml}
                           <span className="flex justify-between">
                             <span>Yield Rate (Actual):</span>
                             <span className="font-mono font-bold text-blue-700">
-                              {profitLossReport.plSummary.totalCustomerPaid > 0 
-                                ? ((profitLossReport.plSummary.netActualProfit / profitLossReport.plSummary.totalCustomerPaid) * 100).toFixed(1) + '%' 
+                              {profitLossReport.plSummary.totalCustomerPaid > 0
+                                ? ((profitLossReport.plSummary.netActualProfit / profitLossReport.plSummary.totalCustomerPaid) * 100).toFixed(1) + '%'
                                 : '0.0%'}
                             </span>
                           </span>
@@ -14717,7 +14682,7 @@ ${chauffeurHtml}
                       </div>
 
                       {(() => {
-                        const itemsToRender = profitLossShowOnlyDiscrepancies 
+                        const itemsToRender = profitLossShowOnlyDiscrepancies
                           ? profitLossReport.supplierPLItems.filter(item => item.hasDiscrepancy)
                           : profitLossReport.supplierPLItems;
 
@@ -14756,8 +14721,8 @@ ${chauffeurHtml}
                                   const nextItem = itemsToRender[idx + 1];
                                   const isLastItemOfDay = nextItem && nextItem.dayNumber !== item.dayNumber;
                                   return (
-                                    <tr 
-                                      key={item.dailyActivityId} 
+                                    <tr
+                                      key={item.dailyActivityId}
                                       className={`hover:bg-neutral-50/50 transition-colors ${isLastItemOfDay ? 'border-b-2 border-neutral-300' : ''}`}
                                     >
                                       <td className="px-4 py-2">
@@ -14774,29 +14739,29 @@ ${chauffeurHtml}
                                         {item.supplierInvoiceNumber && (
                                           <span className="text-[10px] text-neutral-450 font-mono block">Inv: {item.supplierInvoiceNumber} ({item.supplierInvoiceCurrency} @ {item.supplierInvoiceRate})</span>
                                         )}
-                                        
+
                                         {/* Compact Contact details (single line) */}
                                         {(() => {
                                           const parts: string[] = [];
                                           const rContact = item.reservationContactPhone || item.reservationContactEmail;
                                           const sContact = item.salesContactPhone || item.salesContactEmail;
-                                          
+
                                           if (rContact) {
                                             parts.push(`R: ${rContact}`);
                                           }
                                           if (sContact) {
                                             parts.push(`S: ${sContact}`);
                                           }
-                                          
+
                                           if (parts.length === 0 && (item.vendorPhone || item.vendorEmail)) {
                                             parts.push(`C: ${item.vendorPhone || item.vendorEmail}`);
                                           }
-                                          
+
                                           if (parts.length === 0) return null;
-                                          
+
                                           return (
-                                            <span 
-                                              className="block text-[9px] text-neutral-500 font-mono mt-0.5 whitespace-nowrap truncate max-w-[200px]" 
+                                            <span
+                                              className="block text-[9px] text-neutral-500 font-mono mt-0.5 whitespace-nowrap truncate max-w-[200px]"
                                               title={parts.join(' | ')}
                                             >
                                               {parts.join(' | ')}
@@ -14863,7 +14828,7 @@ ${chauffeurHtml}
                       </div>
 
                       {(() => {
-                        const itemsToRender = profitLossShowOnlyDiscrepancies 
+                        const itemsToRender = profitLossShowOnlyDiscrepancies
                           ? profitLossReport.customerPLItems.filter(item => item.hasDiscrepancy)
                           : profitLossReport.customerPLItems;
 
@@ -15143,11 +15108,10 @@ ${chauffeurHtml}
                     </div>
 
                     {shareEmailFeedback && (
-                      <div className={`p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${
-                        shareEmailFeedback.type === 'success' 
-                          ? 'bg-green-50 text-green-700 border border-green-100' 
+                      <div className={`p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${shareEmailFeedback.type === 'success'
+                          ? 'bg-green-50 text-green-700 border border-green-100'
                           : 'bg-red-50 text-red-700 border border-red-100'
-                      }`}>
+                        }`}>
                         {shareEmailFeedback.type === 'success' ? (
                           <CheckCircle2 className="w-5 h-5 text-green-600" />
                         ) : (
@@ -15165,18 +15129,18 @@ ${chauffeurHtml}
                           <p className="text-xs text-neutral-500 leading-relaxed">
                             Guests can use this secure link to view their interactive draft itinerary, provide daily feedback, and view their summary details.
                           </p>
-                          
+
                           <div className="bg-white border border-neutral-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-sm">
                             <span className="text-xs font-mono truncate text-neutral-600 select-all">
-                              {typeof window !== 'undefined' 
-                                ? `${window.location.origin}/tourist/tour/${tourId}` 
+                              {typeof window !== 'undefined'
+                                ? `${window.location.origin}/tourist/tour/${tourId}`
                                 : `/tourist/tour/${tourId}`}
                             </span>
                             <button
                               type="button"
                               onClick={() => {
-                                const shareLink = typeof window !== 'undefined' 
-                                  ? `${window.location.origin}/tourist/tour/${tourId}` 
+                                const shareLink = typeof window !== 'undefined'
+                                  ? `${window.location.origin}/tourist/tour/${tourId}`
                                   : `/tourist/tour/${tourId}`;
                                 navigator.clipboard.writeText(shareLink);
                                 alert("Link copied to clipboard!");
@@ -15195,8 +15159,8 @@ ${chauffeurHtml}
                             <div>
                               <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Client Name</span>
                               <span className="text-xs text-neutral-700 font-medium">
-                                {touristData?.profile 
-                                  ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest' 
+                                {touristData?.profile
+                                  ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
                                   : 'Valued Guest'}
                               </span>
                             </div>
@@ -15209,8 +15173,8 @@ ${chauffeurHtml}
                             <div>
                               <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider block">Duration</span>
                               <span className="text-xs text-neutral-700 font-medium">
-                                {touristData?.preferences?.duration_days 
-                                  ? `${touristData.preferences.duration_days} Days` 
+                                {touristData?.preferences?.duration_days
+                                  ? `${touristData.preferences.duration_days} Days`
                                   : 'Not Specified'}
                               </span>
                             </div>
@@ -15304,7 +15268,7 @@ ${chauffeurHtml}
                               <Code className="w-3 h-3" /> {showShareHtml ? "View Formatted" : "View HTML Source"}
                             </button>
                           </div>
-                          
+
                           {showShareHtml ? (
                             <textarea
                               required
@@ -15354,9 +15318,9 @@ ${chauffeurHtml}
                                 {shareEmailAttachments.map((file, idx) => (
                                   <li key={idx} className="flex items-center justify-between bg-neutral-50 p-2 px-4 rounded-xl border border-neutral-200 text-xs shadow-sm">
                                     <span className="truncate text-neutral-700 font-medium">{file.name}</span>
-                                    <button 
-                                      type="button" 
-                                      onClick={() => removeShareAttachment(idx)} 
+                                    <button
+                                      type="button"
+                                      onClick={() => removeShareAttachment(idx)}
                                       className="text-red-500 hover:text-red-700 transition-colors p-1"
                                     >
                                       <X className="w-4 h-4" />
@@ -15372,11 +15336,10 @@ ${chauffeurHtml}
                           <button
                             type="submit"
                             disabled={isSendingShareEmail}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold tracking-wider transition-all text-xs uppercase ${
-                              isSendingShareEmail 
-                                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed' 
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold tracking-wider transition-all text-xs uppercase ${isSendingShareEmail
+                                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
                                 : 'bg-emerald-800 text-white hover:bg-emerald-950 shadow-md hover:shadow-lg'
-                            }`}
+                              }`}
                           >
                             {isSendingShareEmail ? (
                               <>
@@ -15398,18 +15361,18 @@ ${chauffeurHtml}
                   /* Premium Placeholder Panel for Empty Steps */
                   <div className="bg-white rounded-3xl p-10 border border-neutral-200 shadow-md relative overflow-hidden flex flex-col items-center justify-center min-h-[350px] text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-neutral-50 rounded-full translate-x-12 -translate-y-12 opacity-50" />
-                    
+
                     <div className="w-16 h-16 bg-neutral-50 text-neutral-300 rounded-2xl flex items-center justify-center mb-6 border border-neutral-100">
                       <currentStep.icon className="w-8 h-8 text-neutral-400" />
                     </div>
-                    
+
                     <h3 className="text-lg font-serif font-bold text-neutral-800 mb-2">
                       {currentStep.label} Panel
                     </h3>
                     <p className="text-xs text-neutral-500 max-w-md mb-6 leading-relaxed">
                       {currentStep.description}
                     </p>
-                    
+
                     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-[10px] font-mono text-neutral-400 font-bold uppercase tracking-wider">
                       <Play className="w-2.5 h-2.5 text-neutral-400" /> Page Content Placeholder
                     </div>
@@ -15484,9 +15447,9 @@ ${chauffeurHtml}
                 const bHasDates = b.start_date ? 1 : 0;
                 return bHasDates - aHasDates;
               });
-              
+
               const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
-              
+
               if (ratesToSearch.length > 0) {
                 let prefix = 'dbl';
                 if (roomType === 'Single') prefix = 'sgl';
@@ -15496,7 +15459,7 @@ ${chauffeurHtml}
 
                 const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
                 const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
-                
+
                 if (matrixRateObj) {
                   baseRate = matrixRateObj[fieldName];
                   seasonLabel = matrixRateObj.season_label || "Seasonal";
@@ -15520,7 +15483,7 @@ ${chauffeurHtml}
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-end bg-neutral-900/40 backdrop-blur-sm animate-in fade-in duration-200">
               <div className="w-full max-w-md h-screen bg-white shadow-2xl animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
-                
+
                 {/* Header */}
                 <div className="p-6 border-b border-neutral-105 flex flex-col justify-between">
                   <div className="flex items-center justify-between">
@@ -15528,8 +15491,8 @@ ${chauffeurHtml}
                       <h4 className="text-lg font-serif font-black text-emerald-900 uppercase tracking-wide">Assign Specialist</h4>
                       <p className="text-[10px] font-bold text-neutral-400 mt-0.5 uppercase tracking-wider">Provider Database for {activeAssignment.type.toUpperCase()} segments</p>
                     </div>
-                    <button 
-                      onClick={() => { setActiveAssignment(null); setSearchTerm(""); }} 
+                    <button
+                      onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
                       className="p-2 hover:bg-neutral-50 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
                     >
                       <X className="w-5 h-5" />
@@ -15545,7 +15508,7 @@ ${chauffeurHtml}
 
                 {/* Scrollable Content */}
                 <div className="p-6 flex-1 overflow-y-auto space-y-5">
-                  
+
                   {/* Search / Filter Block */}
                   {activeAssignment.type !== ItineraryBlockTypes.SLEEP && activeAssignment.type !== ItineraryBlockTypes.MEAL && (
                     <div className="bg-neutral-50/50 p-4 rounded-2xl border border-neutral-200 shadow-sm">
@@ -15628,9 +15591,9 @@ ${chauffeurHtml}
                   {/* Hotels List */}
                   {activeAssignment.type === ItineraryBlockTypes.SLEEP && (() => {
                     const assignedHotelId = activeBlock.hotelId;
-                    
+
                     let dataToRender = hotelSearchResults !== null ? [...hotelSearchResults] : [];
-                    
+
                     // Also display hotels currently in masterData as initial options/suggestions
                     const initialSuggestions = (masterData.hotels || []).filter((h: any) => h.id !== assignedHotelId);
                     if (dataToRender.length === 0 && hotelSearchResults === null) {
@@ -15658,7 +15621,7 @@ ${chauffeurHtml}
 
                           return (
                             <div key={h.id} className={`rounded-2xl border transition-all overflow-hidden bg-white shadow-sm ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => bindProvider(activeAssignment.blockId, 'hotelId', h.id)}
                                 className="w-full p-4 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-3"
@@ -15699,10 +15662,10 @@ ${chauffeurHtml}
                                           const stateKey = `${activeBlock?.id}-${reqId}`;
                                           const assignedRoom = selectedRooms.find((sr: any) => sr.reqId === reqId);
                                           const isReqMet = !!assignedRoom;
-                                          
+
                                           const pendingState = pendingRoomState[stateKey] || {};
                                           const currentMealPlan = assignedRoom?.mealPlan || pendingState.mealPlan || 'BB';
-                                          
+
                                           // Calculate a default suggestion based on travelers if not currently assigned
                                           let defaultCount = 0;
                                           if (!isReqMet) {
@@ -15722,9 +15685,9 @@ ${chauffeurHtml}
                                               <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center gap-4">
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-[10px] font-bold text-neutral-600 uppercase whitespace-nowrap">{rType} Rooms</span>
-                                                  <input 
-                                                    type="number" 
-                                                    min="0" 
+                                                  <input
+                                                    type="number"
+                                                    min="0"
                                                     value={displayCount}
                                                     onChange={(e) => {
                                                       const newQty = parseInt(e.target.value) || 0;
@@ -15835,7 +15798,7 @@ ${chauffeurHtml}
                                                               pricePerNight: agreedUnitPrice,
                                                               mealPlan: currentMealPlan
                                                             });
-                                                            
+
                                                             if (track === 'final') {
                                                               const totalQty = newSelected.reduce((sum, r) => sum + r.quantity, 0);
                                                               const totalContractedVal = newSelected.reduce((sum, r) => sum + (r.contractedPrice * r.quantity), 0);
@@ -15855,8 +15818,8 @@ ${chauffeurHtml}
                                                               // Sync to DB — show loading indicator while it runs
                                                               const oldHotelId = currentStay?.hotel_id;
                                                               const blockId = currentStay?.po_block_id || activeAssignment.blockId;
-                                                              const activePOs = purchaseOrders.filter(po => 
-                                                                po.status !== 'Cancelled' && 
+                                                              const activePOs = purchaseOrders.filter(po =>
+                                                                po.status !== 'Cancelled' &&
                                                                 (po.hotel_id === oldHotelId || (blockId && po.po_block_id === blockId))
                                                               );
                                                               if (activePOs.length > 0) {
@@ -16063,7 +16026,7 @@ ${chauffeurHtml}
 
                             return (
                               <div key={v.id} className={`border rounded-2xl bg-white shadow-sm overflow-hidden transition-all ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
-                                <button 
+                                <button
                                   type="button"
                                   onClick={() => bindProvider(activeAssignment.blockId, 'vendorId', v.id)}
                                   className="w-full p-4 text-left hover:bg-emerald-50/5 transition-all flex flex-col gap-2.5"
@@ -16073,7 +16036,7 @@ ${chauffeurHtml}
                                       <p className="font-bold text-xs text-neutral-800 truncate">{v.name}</p>
                                       <p className="text-[10px] text-neutral-400 font-medium truncate mt-0.5">{v.address || 'Address not specified'}</p>
                                     </div>
-                                    
+
                                     {va && (
                                       <div className="text-right">
                                         <span className="text-[8px] font-black text-amber-600 uppercase block tracking-tighter">Starting From</span>
@@ -16104,7 +16067,7 @@ ${chauffeurHtml}
 
                     return (
                       <div className="space-y-6">
-                        
+
                         {/* Providers section */}
                         <div className="space-y-3">
                           <h5 className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Fleet Providers</h5>
@@ -16197,9 +16160,9 @@ ${chauffeurHtml}
                   {/* Restaurant List */}
                   {activeAssignment.type === ItineraryBlockTypes.MEAL && (() => {
                     const assignedRestaurantId = activeBlock.restaurantId;
-                    
+
                     let dataToRender = restaurantSearchResults !== null ? [...restaurantSearchResults] : [];
-                    
+
                     // Also display restaurants currently in masterData as initial options/suggestions
                     const initialSuggestions = (masterData.restaurants || []).filter((r: any) => r.id !== assignedRestaurantId);
                     if (dataToRender.length === 0 && restaurantSearchResults === null) {
@@ -16223,7 +16186,7 @@ ${chauffeurHtml}
                           const isSelected = assignedRestaurantId === r.id;
                           return (
                             <div key={r.id} className={`rounded-2xl border transition-all overflow-hidden bg-white shadow-sm ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => bindProvider(activeAssignment.blockId, 'restaurantId', r.id)}
                                 className="w-full p-4 hover:bg-emerald-50/5 text-left transition-all flex flex-col gap-2.5"
@@ -16251,15 +16214,15 @@ ${chauffeurHtml}
                                 <div className="p-4 border-t border-neutral-100 bg-neutral-50/50 space-y-4">
                                   <div className="flex items-center justify-between gap-4">
                                     <span className="text-[10px] font-bold text-neutral-600 uppercase">Covers/Quantity</span>
-                                    <input 
-                                      type="number" 
+                                    <input
+                                      type="number"
                                       min="1"
                                       value={activeBlock.restaurantQuantity || adults || 1}
                                       onChange={(e) => updateBlock(activeAssignment.blockId, { restaurantQuantity: parseInt(e.target.value) || 1 })}
                                       className="w-20 text-xs font-bold text-center py-1.5 px-3 border border-neutral-350 rounded-xl focus:border-emerald-805 outline-none bg-white text-neutral-808"
                                     />
                                   </div>
-                                  
+
                                   <div className="space-y-2">
                                     <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">Meal Selection</span>
                                     <div className="grid grid-cols-3 gap-2">
@@ -16384,7 +16347,7 @@ ${chauffeurHtml}
                   >
                     <Link2Off size={14} /> Clear Assignment
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => { setActiveAssignment(null); setSearchTerm(""); }}
                     className="flex-1 py-3 bg-emerald-800 hover:bg-emerald-950 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
@@ -16437,7 +16400,7 @@ ${chauffeurHtml}
                       <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
                         <User className="w-4 h-4 text-emerald-800" /> Client Billing Information
                       </h4>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Client Name</label>
@@ -16727,9 +16690,9 @@ ${chauffeurHtml}
                 const bHasDates = b.start_date ? 1 : 0;
                 return bHasDates - aHasDates;
               });
-              
+
               const ratesToSearch = applicableRates.length > 0 ? applicableRates : room.room_rates;
-              
+
               if (ratesToSearch.length > 0) {
                 let prefix = 'dbl';
                 if (roomType === 'Single') prefix = 'sgl';
@@ -16739,7 +16702,7 @@ ${chauffeurHtml}
 
                 const fieldName = `${prefix}_${mealPlan.toLowerCase()}_rate`;
                 const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
-                
+
                 if (matrixRateObj) {
                   baseRate = matrixRateObj[fieldName];
                   seasonLabel = matrixRateObj.season_label || "Seasonal";
@@ -16756,7 +16719,7 @@ ${chauffeurHtml}
           };
 
           let dataToRender = changeHotelSearchResults !== null ? [...changeHotelSearchResults] : [];
-          
+
           const initialSuggestions = (masterData.hotels || []).filter((h: any) => h.id !== changeHotelSelectedHotelId);
           if (dataToRender.length === 0 && changeHotelSearchResults === null) {
             dataToRender = initialSuggestions;
@@ -16771,7 +16734,7 @@ ${chauffeurHtml}
 
           return (
             <div className="fixed inset-0 z-[80] overflow-hidden flex justify-end">
-              <div 
+              <div
                 className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
                 onClick={() => { setIsChangeHotelDrawerOpen(false); }}
               />
@@ -16784,8 +16747,8 @@ ${chauffeurHtml}
                       Configure Stay for {stayDate ? formatDate(stayDate) : `Day ${dayNumber}`}
                     </p>
                   </div>
-                  <button 
-                    onClick={() => { setIsChangeHotelDrawerOpen(false); }} 
+                  <button
+                    onClick={() => { setIsChangeHotelDrawerOpen(false); }}
                     className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
                   >
                     <X className="w-5 h-5" />
@@ -16838,7 +16801,7 @@ ${chauffeurHtml}
 
                         return (
                           <div key={h.id} className={`rounded-2xl border transition-all overflow-hidden bg-white shadow-sm ${isSelected ? 'border-emerald-800 ring-1 ring-emerald-800/10' : 'border-neutral-200'}`}>
-                            <button 
+                            <button
                               type="button"
                               onClick={() => {
                                 setChangeHotelSelectedHotelId(h.id);
@@ -16961,10 +16924,10 @@ ${chauffeurHtml}
                                         const stateKey = `${changeHotelDrawerAct.id}-${reqId}`;
                                         const assignedRoom = changeHotelSelectedRooms.find((sr: any) => sr.reqId === reqId);
                                         const isReqMet = !!assignedRoom;
-                                        
+
                                         const pendingState = changeHotelPendingRoomState[stateKey] || {};
                                         const currentMealPlan = assignedRoom?.mealPlan || pendingState.mealPlan || 'BB';
-                                        
+
                                         const displayCount = assignedRoom?.quantity ?? pendingState.count ?? 0;
 
                                         return (
@@ -16972,9 +16935,9 @@ ${chauffeurHtml}
                                             <div className="bg-neutral-100/80 px-3 py-2 border-b border-neutral-200 flex justify-between items-center gap-4">
                                               <div className="flex items-center gap-2">
                                                 <span className="text-[10px] font-bold text-neutral-600 uppercase whitespace-nowrap">{rType} Rooms</span>
-                                                <input 
-                                                  type="number" 
-                                                  min="0" 
+                                                <input
+                                                  type="number"
+                                                  min="0"
                                                   value={displayCount}
                                                   onChange={(e) => {
                                                     const newQty = parseInt(e.target.value) || 0;
@@ -16986,7 +16949,7 @@ ${chauffeurHtml}
                                                         updatedSelected = changeHotelSelectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, quantity: newQty } : sr);
                                                       }
                                                       setChangeHotelSelectedRooms(updatedSelected);
-                                                      
+
                                                       if (tripData) {
                                                         const stayDays = new Set(changeHotelStays.map(s => Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0)));
                                                         setTripData({
@@ -17026,7 +16989,7 @@ ${chauffeurHtml}
                                                         if (assignedRoom) {
                                                           const updatedSelected = changeHotelSelectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
                                                           setChangeHotelSelectedRooms(updatedSelected);
-                                                          
+
                                                           if (tripData) {
                                                             const stayDays = new Set(changeHotelStays.map(s => Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0)));
                                                             setTripData({
@@ -17064,7 +17027,7 @@ ${chauffeurHtml}
                                                         onClick={(e) => {
                                                           e.preventDefault();
                                                           e.stopPropagation();
-                                                          
+
                                                           const newSelected = [...changeHotelSelectedRooms.filter((sr: any) => sr.reqId !== reqId)];
                                                           const roomData = {
                                                             reqId: reqId,
@@ -17103,8 +17066,8 @@ ${chauffeurHtml}
 
                                                           // Sync to Database — show loading indicator while it runs
                                                           const blockId = changeHotelDrawerAct?.po_block_id;
-                                                          const activePOs = purchaseOrders.filter(po => 
-                                                            po.status !== 'Cancelled' && 
+                                                          const activePOs = purchaseOrders.filter(po =>
+                                                            po.status !== 'Cancelled' &&
                                                             (po.hotel_id === oldHotelId || (blockId && po.po_block_id === blockId))
                                                           );
                                                           if (activePOs.length > 0) {
@@ -17259,7 +17222,7 @@ ${chauffeurHtml}
                 </div>
 
                 <div className="p-6 border-t border-neutral-150 bg-neutral-50 flex items-center justify-end gap-3 shrink-0">
-                  <button 
+                  <button
                     onClick={() => { setIsChangeHotelDrawerOpen(false); }}
                     className="px-5 py-2.5 bg-neutral-800 hover:bg-neutral-900 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95"
                   >
@@ -17275,7 +17238,7 @@ ${chauffeurHtml}
         {editingCustomRateAct && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
@@ -17292,7 +17255,7 @@ ${chauffeurHtml}
                         if (!isNaN(d.getTime())) {
                           return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} stay`;
                         }
-                      } catch (e) {}
+                      } catch (e) { }
                       return `${dateVal} stay`;
                     })()}
                   </p>
@@ -17356,11 +17319,11 @@ ${chauffeurHtml}
 
                 {(() => {
                   if (editingCustomRateAct.activity_type !== 'travel') return null;
-                  const block = poBlocks.find((pb: any) => 
+                  const block = poBlocks.find((pb: any) =>
                     (pb.daily_activities || []).some((da: any) => da.id === editingCustomRateAct.id)
                   );
                   if (!block) return null;
-                  
+
                   const blockActivities = block.daily_activities || [];
                   const travelItems = blockActivities.filter((a: any) => a.activity_type === 'travel');
 
@@ -17378,7 +17341,7 @@ ${chauffeurHtml}
 
                   const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
                   const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
-                  
+
                   let baseDayRate = 0;
                   let maxMileageLimit = 0;
                   let excessDistance = 0;
@@ -17569,7 +17532,7 @@ ${chauffeurHtml}
         {showRfqModal && selectedRfqHotel && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
@@ -17600,7 +17563,7 @@ ${chauffeurHtml}
 
               {/* Modal Workspace */}
               <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
+
                 {/* Left Column: Form Controls */}
                 <div className="lg:col-span-5 space-y-4">
                   <div className="space-y-3">
@@ -17641,7 +17604,7 @@ ${chauffeurHtml}
                       <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
                         Special Requests & Services
                       </span>
-                      
+
                       {/* Checkbox 1 */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17667,7 +17630,7 @@ ${chauffeurHtml}
                           <span className="text-[10px] text-neutral-400 mt-0.5">Request adjacent accommodation placement</span>
                         </div>
                       </label>
-   
+
                       {/* Checkbox 2 */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17693,7 +17656,7 @@ ${chauffeurHtml}
                           <span className="text-[10px] text-neutral-400 mt-0.5">Request electric buggy transport availability</span>
                         </div>
                       </label>
-   
+
                       {/* Checkbox 3 */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17719,7 +17682,7 @@ ${chauffeurHtml}
                           <span className="text-[10px] text-neutral-400 mt-0.5">Inquire landing coordinates & permissions</span>
                         </div>
                       </label>
-  
+
                       {/* Checkbox 4: Driver Meals */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17745,7 +17708,7 @@ ${chauffeurHtml}
                           <span className="text-[10px] text-neutral-400 mt-0.5">Request driver meal inclusion in package</span>
                         </div>
                       </label>
-  
+
                       {/* Checkbox 5: Driver Accommodation */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17771,7 +17734,7 @@ ${chauffeurHtml}
                           <span className="text-[10px] text-neutral-400 mt-0.5">Request driver lodging on-site</span>
                         </div>
                       </label>
-  
+
                       {/* Checkbox 6: Parking Included */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17797,7 +17760,7 @@ ${chauffeurHtml}
                           <span className="text-[10px] text-neutral-400 mt-0.5">Request complimentary parking on property</span>
                         </div>
                       </label>
-  
+
                       {/* Checkbox 7: Guide Room Discount */}
                       <label className="flex items-start gap-3 p-3.5 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
                         <input
@@ -17960,7 +17923,7 @@ ${chauffeurHtml}
         {showPoModal && selectedPoHotel && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
@@ -17981,7 +17944,7 @@ ${chauffeurHtml}
 
               {/* Modal Workspace */}
               <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
+
                 {/* Left Column: Form Controls */}
                 <div className="lg:col-span-5 space-y-4">
                   <div className="space-y-3">
@@ -18086,37 +18049,37 @@ ${chauffeurHtml}
 
                   {/* Agreed Inclusions — only relevant for hotel / guide / driver POs, not restaurants */}
                   {poVendorType !== 'restaurant' && (
-                  <div className="space-y-2 pt-2 border-t border-neutral-100">
-                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
-                      Agreed Inclusions
-                    </span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
-                        <input
-                          type="checkbox"
-                          checked={poMealProvided}
-                          onChange={(e) => setPoMealProvided(e.target.checked)}
-                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-neutral-805">Meal Provided</span>
-                          <span className="text-[9px] text-neutral-400 mt-0.5">Include meal details in PO PDF</span>
-                        </div>
-                      </label>
-                      <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
-                        <input
-                          type="checkbox"
-                          checked={poAccommodationProvided}
-                          onChange={(e) => setPoAccommodationProvided(e.target.checked)}
-                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-neutral-805">Accommodation Provided</span>
-                          <span className="text-[9px] text-neutral-400 mt-0.5">Include accommodation details in PO PDF</span>
-                        </div>
-                      </label>
+                    <div className="space-y-2 pt-2 border-t border-neutral-100">
+                      <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                        Agreed Inclusions
+                      </span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                          <input
+                            type="checkbox"
+                            checked={poMealProvided}
+                            onChange={(e) => setPoMealProvided(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-neutral-805">Meal Provided</span>
+                            <span className="text-[9px] text-neutral-400 mt-0.5">Include meal details in PO PDF</span>
+                          </div>
+                        </label>
+                        <label className="flex items-start gap-3 p-3 bg-neutral-50/50 hover:bg-neutral-50 border border-neutral-150 rounded-2xl cursor-pointer transition-all hover:shadow-sm">
+                          <input
+                            type="checkbox"
+                            checked={poAccommodationProvided}
+                            onChange={(e) => setPoAccommodationProvided(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20 cursor-pointer mt-0.5"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-neutral-805">Accommodation Provided</span>
+                            <span className="text-[9px] text-neutral-400 mt-0.5">Include accommodation details in PO PDF</span>
+                          </div>
+                        </label>
+                      </div>
                     </div>
-                  </div>
                   )}
 
                   <div className="space-y-2 pt-2 border-t border-neutral-100">
@@ -18160,7 +18123,7 @@ ${chauffeurHtml}
                         <span className="text-[9px] font-bold text-neutral-450 uppercase tracking-wider block">
                           Signature Placement Preview
                         </span>
-                        
+
                         <div className="bg-white border border-dashed border-neutral-350 rounded-xl p-3 flex flex-col items-center justify-center min-h-[80px] relative group overflow-hidden">
                           {poSignatureImage ? (
                             <img
@@ -18305,7 +18268,7 @@ ${chauffeurHtml}
         {showEditPoModal && editingPo && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
@@ -18465,7 +18428,7 @@ ${chauffeurHtml}
         {showEditRfqModal && editingRfq && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
@@ -18575,7 +18538,7 @@ ${chauffeurHtml}
         {showCustomHotelItemModal && customHotelItemBaseHotel && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
             <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-neutral-100 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="space-y-1">
@@ -18685,7 +18648,7 @@ ${chauffeurHtml}
                       alert("Please enter a title for the custom item.");
                       return;
                     }
-                    
+
                     setIsHotelChanging(true);
                     saveCustomHotelItemAction(
                       tourId,
@@ -18717,7 +18680,7 @@ ${chauffeurHtml}
                               const d = new Date(touristData.preferences.arrival_date);
                               d.setDate(d.getDate() + idx);
                               dateStr = d.toISOString().split('T')[0];
-                            } catch (e) {}
+                            } catch (e) { }
                           }
                           return { dayNum, dateStr };
                         });
@@ -18809,561 +18772,560 @@ ${chauffeurHtml}
           </div>
         )}
 
-      {/* Global hotel-change saving toast — always visible while DB sync runs */}
-      {isHotelChanging && (
-        <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-emerald-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
-          <div className="relative flex-shrink-0">
-            <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
-            <div className="absolute -inset-1 rounded-full bg-emerald-50 animate-ping opacity-40" />
+        {/* Global hotel-change saving toast — always visible while DB sync runs */}
+        {isHotelChanging && (
+          <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-emerald-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
+            <div className="relative flex-shrink-0">
+              <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+              <div className="absolute -inset-1 rounded-full bg-emerald-50 animate-ping opacity-40" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-neutral-800">Saving hotel change…</p>
+              <p className="text-[10px] text-neutral-400">Updating rates, itinerary &amp; blocks in the background</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-neutral-800">Saving hotel change…</p>
-            <p className="text-[10px] text-neutral-400">Updating rates, itinerary &amp; blocks in the background</p>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Global restaurant-change saving toast */}
-      {isRestaurantChanging && (
-        <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-rose-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
-          <div className="relative flex-shrink-0">
-            <Loader2 className="w-4 h-4 text-rose-600 animate-spin" />
-            <div className="absolute -inset-1 rounded-full bg-rose-50 animate-ping opacity-40" />
+        {/* Global restaurant-change saving toast */}
+        {isRestaurantChanging && (
+          <div className="fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3.5 bg-white border border-rose-200 rounded-2xl shadow-2xl" style={{ animation: 'fadeSlideUp 0.2s ease-out' }}>
+            <div className="relative flex-shrink-0">
+              <Loader2 className="w-4 h-4 text-rose-600 animate-spin" />
+              <div className="absolute -inset-1 rounded-full bg-rose-50 animate-ping opacity-40" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-neutral-800">Saving restaurant change…</p>
+              <p className="text-[10px] text-neutral-400">Updating meal rates &amp; blocks in the background</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-neutral-800">Saving restaurant change…</p>
-            <p className="text-[10px] text-neutral-400">Updating meal rates &amp; blocks in the background</p>
-          </div>
-        </div>
-      )}
+        )}
 
-      {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && (() => {
-        const isGlobal = isGlobalTransportReqEdit;
-        const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
-        const targetId = isGlobal ? null : selectedTransportBlock!.id;
-        const shouldCenter = currentStep?.id === 'transport-provider';
+        {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && (() => {
+          const isGlobal = isGlobalTransportReqEdit;
+          const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
+          const targetId = isGlobal ? null : selectedTransportBlock!.id;
+          const shouldCenter = currentStep?.id === 'transport-provider';
 
-        let popoverStyle: React.CSSProperties = {};
-        if (modalTriggerRect && !shouldCenter) {
-          const popoverWidth = 440; // width of md max width
-          const popoverHeight = 580; // approximate height
-          
-          let left = modalTriggerRect.left;
-          if (left + popoverWidth > window.innerWidth) {
-            left = Math.max(16, window.innerWidth - popoverWidth - 16);
+          let popoverStyle: React.CSSProperties = {};
+          if (modalTriggerRect && !shouldCenter) {
+            const popoverWidth = 440; // width of md max width
+            const popoverHeight = 580; // approximate height
+
+            let left = modalTriggerRect.left;
+            if (left + popoverWidth > window.innerWidth) {
+              left = Math.max(16, window.innerWidth - popoverWidth - 16);
+            }
+
+            let top = modalTriggerRect.top + modalTriggerRect.height + 8;
+            if (top + popoverHeight > window.innerHeight) {
+              top = Math.max(16, modalTriggerRect.top - popoverHeight - 8);
+            }
+
+            popoverStyle = {
+              position: 'fixed',
+              left: `${left}px`,
+              top: `${top}px`,
+              width: `${popoverWidth}px`
+            };
           }
-          
-          let top = modalTriggerRect.top + modalTriggerRect.height + 8;
-          if (top + popoverHeight > window.innerHeight) {
-            top = Math.max(16, modalTriggerRect.top - popoverHeight - 8);
-          }
-          
-          popoverStyle = {
-            position: 'fixed',
-            left: `${left}px`,
-            top: `${top}px`,
-            width: `${popoverWidth}px`
-          };
-        }
 
-        return (
-          <div className={`fixed inset-0 z-[110] overflow-y-auto ${shouldCenter ? 'flex items-center justify-center p-4' : ''}`}>
-            {/* Click-away backdrop overlay */}
-            <div 
-              className={`fixed inset-0 ${shouldCenter ? 'bg-neutral-900/60 backdrop-blur-sm' : 'bg-transparent'}`} 
-              onClick={() => {
-                setShowTransportReqModal(false);
-                setIsGlobalTransportReqEdit(false);
-                setSelectedTransportBlock(null);
-                setGlobalTransportReq(null);
-                setModalTriggerRect(null);
-                setReqShowVehiclePicker(false);
-                setReqVehiclesLoading(false);
-              }}
-            />
+          return (
+            <div className={`fixed inset-0 z-[110] overflow-y-auto ${shouldCenter ? 'flex items-center justify-center p-4' : ''}`}>
+              {/* Click-away backdrop overlay */}
+              <div
+                className={`fixed inset-0 ${shouldCenter ? 'bg-neutral-900/60 backdrop-blur-sm' : 'bg-transparent'}`}
+                onClick={() => {
+                  setShowTransportReqModal(false);
+                  setIsGlobalTransportReqEdit(false);
+                  setSelectedTransportBlock(null);
+                  setGlobalTransportReq(null);
+                  setModalTriggerRect(null);
+                  setReqShowVehiclePicker(false);
+                  setReqVehiclesLoading(false);
+                }}
+              />
 
-            <div 
-              style={shouldCenter ? {} : popoverStyle}
-              className={`bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-[120] ${
-                shouldCenter 
-                  ? 'w-full max-w-lg max-h-[90vh]' 
-                  : 'max-h-[85vh] slide-in-from-top-2'
-              }`}
-            >
-              {/* Modal Header */}
-              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-                <div className="space-y-1">
-                  <h3 className="text-base font-serif font-bold text-neutral-850">
-                    {isGlobal ? 'Global Itinerary Transport Specifications' : 'Transport Specifications & Requirements'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                    {isGlobal ? 'Applied to all travel blocks for this tour' : `Block: ${selectedTransportBlock?.name || 'Travel'}`}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTransportReqModal(false);
-                    setIsGlobalTransportReqEdit(false);
-                    setSelectedTransportBlock(null);
-                    setGlobalTransportReq(null);
-                    setModalTriggerRect(null);
-                    setReqShowVehiclePicker(false);
-                    setReqVehiclesLoading(false);
-                  }}
-                  className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-450 hover:text-neutral-705"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6 space-y-5 overflow-y-auto text-xs text-neutral-700">
-                {/* Form Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
-                  {/* Vehicle Make Dropdown */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Make</label>
-                    <select
-                      value={reqObj.vehicle_make || ''}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_make', e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                    >
-                      <option value="">Select Make...</option>
-                      <option value="Toyota">Toyota</option>
-                      <option value="Nissan">Nissan</option>
-                      <option value="Mercedes-Benz">Mercedes-Benz</option>
-                      <option value="BMW">BMW</option>
-                      <option value="Audi">Audi</option>
-                      <option value="Hyundai">Hyundai</option>
-                      <option value="Kia">Kia</option>
-                      <option value="Mitsubishi">Mitsubishi</option>
-                      <option value="Honda">Honda</option>
-                      <option value="Other">Other / Custom</option>
-                    </select>
-                    {(reqObj.vehicle_make === 'Other') && (
-                      <input
-                        type="text"
-                        placeholder="Type custom make..."
-                        value={reqObj.custom_vehicle_make || ''}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'custom_vehicle_make', e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 mt-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                      />
-                    )}
+              <div
+                style={shouldCenter ? {} : popoverStyle}
+                className={`bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-[120] ${shouldCenter
+                    ? 'w-full max-w-lg max-h-[90vh]'
+                    : 'max-h-[85vh] slide-in-from-top-2'
+                  }`}
+              >
+                {/* Modal Header */}
+                <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-serif font-bold text-neutral-850">
+                      {isGlobal ? 'Global Itinerary Transport Specifications' : 'Transport Specifications & Requirements'}
+                    </h3>
+                    <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                      {isGlobal ? 'Applied to all travel blocks for this tour' : `Block: ${selectedTransportBlock?.name || 'Travel'}`}
+                    </p>
                   </div>
-
-                  {/* Model Year Date Picker */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Model Year / Manufacture Date</label>
-                    <input
-                      type="number"
-                      min={1980}
-                      max={new Date().getFullYear() + 1}
-                      placeholder={`e.g. ${new Date().getFullYear()}`}
-                      value={reqObj.vehicle_model_year || ''}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_model_year', e.target.value ? parseInt(e.target.value) : '')}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                    />
-                  </div>
-
-                  {/* Vehicle Duration (int) */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Duration (Days)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      placeholder="e.g. 5"
-                      value={reqObj.vehicle_duration || ''}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_duration', e.target.value ? parseInt(e.target.value) : '')}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                    />
-                  </div>
-
-                  {/* Number of Vehicles (int) */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Number of Vehicles</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={reqObj.number_of_vehicles || 1}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'number_of_vehicles', e.target.value ? parseInt(e.target.value) : 1)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                    />
-                  </div>
-
-                  {/* Vehicle Color */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Color</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Black, White"
-                      value={reqObj.vehicle_color || ''}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_color', e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                    />
-                  </div>
-
-                  {/* Chauffeur other languages */}
-                  <div>
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Chauffeur Other Languages</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. French, German"
-                      value={reqObj.chauffeur_other_languages || ''}
-                      onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_other_languages', e.target.value)}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                    />
-                  </div>
-
-                </div>
-
-                {/* Optional specifications */}
-                <div className="border-t border-neutral-100 pt-4 mt-2">
-                  <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-3">Optional Requirements & Drivers details</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
-                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
-                      <input
-                        type="checkbox"
-                        checked={reqObj.leather_seats || false}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'leather_seats', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
-                      />
-                      <span className="font-bold text-neutral-700">Requires Leather Seats</span>
-                    </label>
-
-                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
-                      <input
-                        type="checkbox"
-                        checked={reqObj.vehicle_is_mint_condition || false}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_is_mint_condition', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
-                      />
-                      <span className="font-bold text-neutral-700">Vehicle in Mint Condition</span>
-                    </label>
-
-                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
-                      <input
-                        type="checkbox"
-                        checked={reqObj.chauffeur_required !== false}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_required', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
-                      />
-                      <span className="font-bold text-neutral-700">Chauffeur Required</span>
-                    </label>
-
-                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
-                      <input
-                        type="checkbox"
-                        checked={reqObj.chauffeur_speak_english !== false}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_speak_english', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
-                      />
-                      <span className="font-bold text-neutral-700">Chauffeur Speaks English</span>
-                    </label>
-
-                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
-                      <input
-                        type="checkbox"
-                        checked={reqObj.chauffeur_accommodation_needed || false}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_accommodation_needed', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
-                      />
-                      <span className="font-bold text-neutral-700">Chauffeur Accommodation Needed</span>
-                    </label>
-
-                    <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
-                      <input
-                        type="checkbox"
-                        checked={reqObj.chauffeur_meal_needed || false}
-                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_meal_needed', e.target.checked)}
-                        className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
-                      />
-                      <span className="font-bold text-neutral-700">Chauffeur Meals Needed</span>
-                    </label>
-
-                  </div>
-                </div>
-
-              </div>
-
-              {/* ── Specific Vehicle Assignments ─────────────────────────────── */}
-              <div className="border-t border-neutral-100 pt-4 px-6 pb-2">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
-                    Specific Vehicle Assignments
-                    {reqVehiclesLoading && (
-                      <span className="ml-2 text-[9px] font-bold text-emerald-600 normal-case tracking-normal animate-pulse">Loading assigned vehicles...</span>
-                    )}
-                  </span>
                   <button
                     type="button"
-                    onClick={() => setReqShowVehiclePicker(p => !p)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                    onClick={() => {
+                      setShowTransportReqModal(false);
+                      setIsGlobalTransportReqEdit(false);
+                      setSelectedTransportBlock(null);
+                      setGlobalTransportReq(null);
+                      setModalTriggerRect(null);
+                      setReqShowVehiclePicker(false);
+                      setReqVehiclesLoading(false);
+                    }}
+                    className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-450 hover:text-neutral-705"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                    {reqShowVehiclePicker ? 'Close Picker' : 'Search & Pick Vehicles'}
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                {reqShowVehiclePicker && (() => {
-                  const allVehicles: Array<{ vehicle: any; provider: any }> = (masterData.transportProviders || []).flatMap(
-                    (p: any) => (p.transport_vehicles || []).map((v: any) => ({ vehicle: v, provider: p }))
-                  );
-                  const filtered = allVehicles.filter(({ vehicle }) => {
-                    const makeMatch = !reqVehicleSearchMake ||
-                      (vehicle.make || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase()) ||
-                      (vehicle.make_and_model || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase());
-                    const yearMatch = !reqVehicleSearchMinYear ||
-                      !vehicle.year_of_manufacture ||
-                      vehicle.year_of_manufacture >= Number(reqVehicleSearchMinYear);
-                    return makeMatch && yearMatch;
-                  });
-                  return (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Filter by Make</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Toyota"
-                            value={reqVehicleSearchMake}
-                            onChange={e => setReqVehicleSearchMake(e.target.value)}
-                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Min Year (≥)</label>
-                          <input
-                            type="number"
-                            min={1980}
-                            max={new Date().getFullYear() + 1}
-                            placeholder="e.g. 2018"
-                            value={reqVehicleSearchMinYear}
-                            onChange={e => setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value) : '')}
-                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
-                          />
-                        </div>
-                      </div>
+                {/* Modal Body */}
+                <div className="p-6 space-y-5 overflow-y-auto text-xs text-neutral-700">
+                  {/* Form Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                      <div className="max-h-52 overflow-y-auto border border-neutral-200 rounded-2xl divide-y divide-neutral-100">
-                        {filtered.length === 0 ? (
-                          <p className="text-center text-[10px] text-neutral-400 py-6">No vehicles match the filters above.</p>
-                        ) : filtered.map(({ vehicle, provider }) => {
-                          const alreadyPicked = reqPickedVehicles.find(pv => pv.vehicleId === vehicle.id);
-                          const vehicleName = [[vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model || '', vehicle.vehicle_type].filter(Boolean).join(' \u2013 ');
-                          return (
-                            <div key={vehicle.id} className={`px-3 py-2.5 transition-colors ${alreadyPicked ? 'bg-emerald-50' : 'hover:bg-neutral-50'}`}>
-                              <div className="flex items-start gap-2.5">
-                                <input
-                                  type="checkbox"
-                                  id={`vpick-${vehicle.id}`}
-                                  checked={!!alreadyPicked}
-                                  onChange={e => {
-                                    if (e.target.checked) {
-                                      setReqPickedVehicles(prev => [...prev, { vehicleId: vehicle.id, vehicleName, providerName: provider.name, quantity: 1, notes: '' }]);
-                                    } else {
-                                      setReqPickedVehicles(prev => prev.filter(pv => pv.vehicleId !== vehicle.id));
-                                    }
-                                  }}
-                                  className="mt-0.5 w-3.5 h-3.5 rounded text-emerald-800 border-neutral-300 flex-shrink-0"
-                                />
-                                <label htmlFor={`vpick-${vehicle.id}`} className="flex-1 cursor-pointer min-w-0">
-                                  <p className="text-[11px] font-bold text-neutral-800 leading-tight">{vehicleName}</p>
-                                  <p className="text-[10px] text-neutral-400">{provider.name}{vehicle.vehicle_number ? ` \u00b7 ${vehicle.vehicle_number}` : ''}{vehicle.year_of_manufacture ? ` \u00b7 ${vehicle.year_of_manufacture}` : ''}</p>
-                                </label>
-                              </div>
-                              {alreadyPicked && (
-                                <div className="mt-2 ml-6 grid grid-cols-2 gap-2">
-                                  <div>
-                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Qty</label>
-                                    <input
-                                      type="number" min={1}
-                                      value={alreadyPicked.quantity}
-                                      onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, quantity: parseInt(e.target.value) || 1 } : pv))}
-                                      className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Note</label>
-                                    <input
-                                      type="text" placeholder="Optional note..."
-                                      value={alreadyPicked.notes}
-                                      onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, notes: e.target.value } : pv))}
-                                      className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                    {/* Vehicle Make Dropdown */}
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Make</label>
+                      <select
+                        value={reqObj.vehicle_make || ''}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_make', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      >
+                        <option value="">Select Make...</option>
+                        <option value="Toyota">Toyota</option>
+                        <option value="Nissan">Nissan</option>
+                        <option value="Mercedes-Benz">Mercedes-Benz</option>
+                        <option value="BMW">BMW</option>
+                        <option value="Audi">Audi</option>
+                        <option value="Hyundai">Hyundai</option>
+                        <option value="Kia">Kia</option>
+                        <option value="Mitsubishi">Mitsubishi</option>
+                        <option value="Honda">Honda</option>
+                        <option value="Other">Other / Custom</option>
+                      </select>
+                      {(reqObj.vehicle_make === 'Other') && (
+                        <input
+                          type="text"
+                          placeholder="Type custom make..."
+                          value={reqObj.custom_vehicle_make || ''}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'custom_vehicle_make', e.target.value)}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 mt-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                        />
+                      )}
                     </div>
-                  );
-                })()}
 
-                {reqPickedVehicles.length > 0 && (
-                  <div className="mt-3 space-y-1.5">
-                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">{reqPickedVehicles.length} Vehicle{reqPickedVehicles.length > 1 ? 's' : ''} Selected</span>
-                    {reqPickedVehicles.map(pv => (
-                      <div key={pv.vehicleId} className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-bold text-emerald-900 truncate">{pv.vehicleName}</p>
-                          <p className="text-[10px] text-emerald-600">{pv.providerName} · Qty: {pv.quantity}{pv.notes ? ` · ${pv.notes}` : ''}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setReqPickedVehicles(prev => prev.filter(x => x.vehicleId !== pv.vehicleId))}
-                          className="ml-2 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                      </div>
-                    ))}
+                    {/* Model Year Date Picker */}
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Model Year / Manufacture Date</label>
+                      <input
+                        type="number"
+                        min={1980}
+                        max={new Date().getFullYear() + 1}
+                        placeholder={`e.g. ${new Date().getFullYear()}`}
+                        value={reqObj.vehicle_model_year || ''}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_model_year', e.target.value ? parseInt(e.target.value) : '')}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      />
+                    </div>
+
+                    {/* Vehicle Duration (int) */}
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Duration (Days)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="e.g. 5"
+                        value={reqObj.vehicle_duration || ''}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_duration', e.target.value ? parseInt(e.target.value) : '')}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      />
+                    </div>
+
+                    {/* Number of Vehicles (int) */}
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Number of Vehicles</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={reqObj.number_of_vehicles || 1}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'number_of_vehicles', e.target.value ? parseInt(e.target.value) : 1)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      />
+                    </div>
+
+                    {/* Vehicle Color */}
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Vehicle Color</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Black, White"
+                        value={reqObj.vehicle_color || ''}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_color', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      />
+                    </div>
+
+                    {/* Chauffeur other languages */}
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Chauffeur Other Languages</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. French, German"
+                        value={reqObj.chauffeur_other_languages || ''}
+                        onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_other_languages', e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                      />
+                    </div>
+
                   </div>
-                )}
-              </div>
 
-              {/* Modal Footer */}
-              <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTransportReqModal(false);
-                    setIsGlobalTransportReqEdit(false);
-                    setSelectedTransportBlock(null);
-                    setGlobalTransportReq(null);
-                    setModalTriggerRect(null);
-                    setReqShowVehiclePicker(false);
-                    setReqVehiclesLoading(false);
-                  }}
-                  className="px-4 py-2 rounded-xl hover:bg-neutral-100 text-[11px] font-bold text-neutral-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const reqData = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
-                    const finalMake = reqData.vehicle_make === 'Other' ? reqData.custom_vehicle_make : reqData.vehicle_make;
-                    
-                    let requirementId = '';
-                    if (isGlobal) {
-                      const existingBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id);
-                      requirementId = existingBlock?.transport_requirement_id || crypto.randomUUID();
-                    } else {
-                      requirementId = selectedTransportBlock?.transport_requirement_id || 
-                                      selectedTransportBlock?.daily_activities?.find((da: any) => da.transport_requirement_id)?.transport_requirement_id || 
-                                      crypto.randomUUID();
-                    }
-                    
-                    const { success, requirement, error } = await upsertTransportRequirementAction(tourId, requirementId, {
-                      vehicle_duration: reqData.vehicle_duration || null,
-                      number_of_vehicles: reqData.number_of_vehicles || 1,
-                      vehicle_make: finalMake || null,
-                      vehicle_model_year: reqData.vehicle_model_year || null,
-                      leather_seats: !!reqData.leather_seats,
-                      vehicle_color: reqData.vehicle_color || null,
-                      vehicle_is_mint_condition: !!reqData.vehicle_is_mint_condition,
-                      chauffeur_required: reqData.chauffeur_required !== false,
-                      chauffeur_speak_english: reqData.chauffeur_speak_english !== false,
-                      chauffeur_other_languages: reqData.chauffeur_other_languages || null,
-                      chauffeur_accommodation_needed: !!reqData.chauffeur_accommodation_needed,
-                      chauffeur_meal_needed: !!reqData.chauffeur_meal_needed
-                    });
+                  {/* Optional specifications */}
+                  <div className="border-t border-neutral-100 pt-4 mt-2">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block mb-3">Optional Requirements & Drivers details</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-                    if (success && requirement) {
-                      if (isGlobal) {
-                        setItinerary(prev => prev.map(b => {
-                          if (b.type === ItineraryBlockTypes.TRAVEL) {
-                            return {
-                              ...b,
-                              transport_requirement_id: requirementId,
-                              transport_requirement: requirement
-                            };
-                          }
-                          return b;
-                        }));
-                      } else {
-                        const activityIds = selectedTransportBlock.daily_activities 
-                          ? selectedTransportBlock.daily_activities.map((a: any) => a.id)
-                          : [selectedTransportBlock.id];
+                      <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.leather_seats || false}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'leather_seats', e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                        />
+                        <span className="font-bold text-neutral-700">Requires Leather Seats</span>
+                      </label>
 
-                        setItinerary(prev => prev.map(b => {
-                          if (activityIds.includes(b.id)) {
-                            return {
-                              ...b,
-                              transport_requirement_id: requirementId,
-                              transport_requirement: requirement
-                            };
-                          }
-                          return b;
-                        }));
+                      <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.vehicle_is_mint_condition || false}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'vehicle_is_mint_condition', e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                        />
+                        <span className="font-bold text-neutral-700">Vehicle in Mint Condition</span>
+                      </label>
 
-                        setPoBlocks(prev => prev.map(pb => {
-                          const matchesPOBlock = pb.id === selectedTransportBlock.id;
-                          const matchesActivity = pb.daily_activities?.some((da: any) => da.id === selectedTransportBlock.id);
-                          
-                          if (matchesPOBlock || matchesActivity) {
-                            return {
-                              ...pb,
-                              transport_requirement: requirement,
-                              daily_activities: (pb.daily_activities || []).map((da: any) => {
-                                if (matchesPOBlock || da.id === selectedTransportBlock.id) {
-                                  return {
-                                    ...da,
-                                    transport_requirement_id: requirementId,
-                                    transport_requirement: requirement
-                                  };
-                                }
-                                return da;
-                              })
-                            };
-                          }
-                          return pb;
-                        }));
-                      }
-                    } else {
-                      alert('Failed to save specifications: ' + (error || 'Unknown error'));
-                    }
+                      <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.chauffeur_required !== false}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_required', e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                        />
+                        <span className="font-bold text-neutral-700">Chauffeur Required</span>
+                      </label>
 
-                    const vehicleSaveRes = await saveTransportRequirementVehiclesAction(
-                      requirementId,
-                      reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
+                      <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.chauffeur_speak_english !== false}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_speak_english', e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                        />
+                        <span className="font-bold text-neutral-700">Chauffeur Speaks English</span>
+                      </label>
+
+                      <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.chauffeur_accommodation_needed || false}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_accommodation_needed', e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                        />
+                        <span className="font-bold text-neutral-700">Chauffeur Accommodation Needed</span>
+                      </label>
+
+                      <label className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-neutral-50 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.chauffeur_meal_needed || false}
+                          onChange={(e) => handleUpdateTransportReqField(targetId, 'chauffeur_meal_needed', e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800/20"
+                        />
+                        <span className="font-bold text-neutral-700">Chauffeur Meals Needed</span>
+                      </label>
+
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* ── Specific Vehicle Assignments ─────────────────────────────── */}
+                <div className="border-t border-neutral-100 pt-4 px-6 pb-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">
+                      Specific Vehicle Assignments
+                      {reqVehiclesLoading && (
+                        <span className="ml-2 text-[9px] font-bold text-emerald-600 normal-case tracking-normal animate-pulse">Loading assigned vehicles...</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setReqShowVehiclePicker(p => !p)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold hover:bg-emerald-100 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      {reqShowVehiclePicker ? 'Close Picker' : 'Search & Pick Vehicles'}
+                    </button>
+                  </div>
+
+                  {reqShowVehiclePicker && (() => {
+                    const allVehicles: Array<{ vehicle: any; provider: any }> = (masterData.transportProviders || []).flatMap(
+                      (p: any) => (p.transport_vehicles || []).map((v: any) => ({ vehicle: v, provider: p }))
                     );
-                    if (!vehicleSaveRes.success) {
-                      console.error('[TransportSpecs] Vehicle save failed:', vehicleSaveRes.error);
-                      alert('Transport specs saved but vehicle assignments failed: ' + (vehicleSaveRes.error || 'Unknown error'));
-                    } else {
-                      const blocksRes = await getPOBlocksAction(tourId);
-                      if (blocksRes.success && blocksRes.blocks) {
-                        setPoBlocks(blocksRes.blocks);
+                    const filtered = allVehicles.filter(({ vehicle }) => {
+                      const makeMatch = !reqVehicleSearchMake ||
+                        (vehicle.make || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase()) ||
+                        (vehicle.make_and_model || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase());
+                      const yearMatch = !reqVehicleSearchMinYear ||
+                        !vehicle.year_of_manufacture ||
+                        vehicle.year_of_manufacture >= Number(reqVehicleSearchMinYear);
+                      return makeMatch && yearMatch;
+                    });
+                    return (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Filter by Make</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Toyota"
+                              value={reqVehicleSearchMake}
+                              onChange={e => setReqVehicleSearchMake(e.target.value)}
+                              className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Min Year (≥)</label>
+                            <input
+                              type="number"
+                              min={1980}
+                              max={new Date().getFullYear() + 1}
+                              placeholder="e.g. 2018"
+                              value={reqVehicleSearchMinYear}
+                              onChange={e => setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value) : '')}
+                              className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="max-h-52 overflow-y-auto border border-neutral-200 rounded-2xl divide-y divide-neutral-100">
+                          {filtered.length === 0 ? (
+                            <p className="text-center text-[10px] text-neutral-400 py-6">No vehicles match the filters above.</p>
+                          ) : filtered.map(({ vehicle, provider }) => {
+                            const alreadyPicked = reqPickedVehicles.find(pv => pv.vehicleId === vehicle.id);
+                            const vehicleName = [[vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model || '', vehicle.vehicle_type].filter(Boolean).join(' \u2013 ');
+                            return (
+                              <div key={vehicle.id} className={`px-3 py-2.5 transition-colors ${alreadyPicked ? 'bg-emerald-50' : 'hover:bg-neutral-50'}`}>
+                                <div className="flex items-start gap-2.5">
+                                  <input
+                                    type="checkbox"
+                                    id={`vpick-${vehicle.id}`}
+                                    checked={!!alreadyPicked}
+                                    onChange={e => {
+                                      if (e.target.checked) {
+                                        setReqPickedVehicles(prev => [...prev, { vehicleId: vehicle.id, vehicleName, providerName: provider.name, quantity: 1, notes: '' }]);
+                                      } else {
+                                        setReqPickedVehicles(prev => prev.filter(pv => pv.vehicleId !== vehicle.id));
+                                      }
+                                    }}
+                                    className="mt-0.5 w-3.5 h-3.5 rounded text-emerald-800 border-neutral-300 flex-shrink-0"
+                                  />
+                                  <label htmlFor={`vpick-${vehicle.id}`} className="flex-1 cursor-pointer min-w-0">
+                                    <p className="text-[11px] font-bold text-neutral-800 leading-tight">{vehicleName}</p>
+                                    <p className="text-[10px] text-neutral-400">{provider.name}{vehicle.vehicle_number ? ` \u00b7 ${vehicle.vehicle_number}` : ''}{vehicle.year_of_manufacture ? ` \u00b7 ${vehicle.year_of_manufacture}` : ''}</p>
+                                  </label>
+                                </div>
+                                {alreadyPicked && (
+                                  <div className="mt-2 ml-6 grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Qty</label>
+                                      <input
+                                        type="number" min={1}
+                                        value={alreadyPicked.quantity}
+                                        onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, quantity: parseInt(e.target.value) || 1 } : pv))}
+                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Note</label>
+                                      <input
+                                        type="text" placeholder="Optional note..."
+                                        value={alreadyPicked.notes}
+                                        onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, notes: e.target.value } : pv))}
+                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {reqPickedVehicles.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">{reqPickedVehicles.length} Vehicle{reqPickedVehicles.length > 1 ? 's' : ''} Selected</span>
+                      {reqPickedVehicles.map(pv => (
+                        <div key={pv.vehicleId} className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-bold text-emerald-900 truncate">{pv.vehicleName}</p>
+                            <p className="text-[10px] text-emerald-600">{pv.providerName} · Qty: {pv.quantity}{pv.notes ? ` · ${pv.notes}` : ''}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setReqPickedVehicles(prev => prev.filter(x => x.vehicleId !== pv.vehicleId))}
+                            className="ml-2 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50/50 flex justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTransportReqModal(false);
+                      setIsGlobalTransportReqEdit(false);
+                      setSelectedTransportBlock(null);
+                      setGlobalTransportReq(null);
+                      setModalTriggerRect(null);
+                      setReqShowVehiclePicker(false);
+                      setReqVehiclesLoading(false);
+                    }}
+                    className="px-4 py-2 rounded-xl hover:bg-neutral-100 text-[11px] font-bold text-neutral-500 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const reqData = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
+                      const finalMake = reqData.vehicle_make === 'Other' ? reqData.custom_vehicle_make : reqData.vehicle_make;
+
+                      let requirementId = '';
+                      if (isGlobal) {
+                        const existingBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id);
+                        requirementId = existingBlock?.transport_requirement_id || crypto.randomUUID();
+                      } else {
+                        requirementId = selectedTransportBlock?.transport_requirement_id ||
+                          selectedTransportBlock?.daily_activities?.find((da: any) => da.transport_requirement_id)?.transport_requirement_id ||
+                          crypto.randomUUID();
                       }
-                    }
 
-                    setShowTransportReqModal(false);
-                    setIsGlobalTransportReqEdit(false);
-                    setSelectedTransportBlock(null);
-                    setGlobalTransportReq(null);
-                    setModalTriggerRect(null);
-                    // Reset picker state
-                    setReqPickedVehicles([]);
-                    setReqShowVehiclePicker(false);
-                    setReqVehicleSearchMake('');
-                    setReqVehicleSearchMinYear('');
-                  }}
-                  className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold transition-all shadow-sm"
-                >
-                  Save Specs
-                </button>
+                      const { success, requirement, error } = await upsertTransportRequirementAction(tourId, requirementId, {
+                        vehicle_duration: reqData.vehicle_duration || null,
+                        number_of_vehicles: reqData.number_of_vehicles || 1,
+                        vehicle_make: finalMake || null,
+                        vehicle_model_year: reqData.vehicle_model_year || null,
+                        leather_seats: !!reqData.leather_seats,
+                        vehicle_color: reqData.vehicle_color || null,
+                        vehicle_is_mint_condition: !!reqData.vehicle_is_mint_condition,
+                        chauffeur_required: reqData.chauffeur_required !== false,
+                        chauffeur_speak_english: reqData.chauffeur_speak_english !== false,
+                        chauffeur_other_languages: reqData.chauffeur_other_languages || null,
+                        chauffeur_accommodation_needed: !!reqData.chauffeur_accommodation_needed,
+                        chauffeur_meal_needed: !!reqData.chauffeur_meal_needed
+                      });
+
+                      if (success && requirement) {
+                        if (isGlobal) {
+                          setItinerary(prev => prev.map(b => {
+                            if (b.type === ItineraryBlockTypes.TRAVEL) {
+                              return {
+                                ...b,
+                                transport_requirement_id: requirementId,
+                                transport_requirement: requirement
+                              };
+                            }
+                            return b;
+                          }));
+                        } else {
+                          const activityIds = selectedTransportBlock.daily_activities
+                            ? selectedTransportBlock.daily_activities.map((a: any) => a.id)
+                            : [selectedTransportBlock.id];
+
+                          setItinerary(prev => prev.map(b => {
+                            if (activityIds.includes(b.id)) {
+                              return {
+                                ...b,
+                                transport_requirement_id: requirementId,
+                                transport_requirement: requirement
+                              };
+                            }
+                            return b;
+                          }));
+
+                          setPoBlocks(prev => prev.map(pb => {
+                            const matchesPOBlock = pb.id === selectedTransportBlock.id;
+                            const matchesActivity = pb.daily_activities?.some((da: any) => da.id === selectedTransportBlock.id);
+
+                            if (matchesPOBlock || matchesActivity) {
+                              return {
+                                ...pb,
+                                transport_requirement: requirement,
+                                daily_activities: (pb.daily_activities || []).map((da: any) => {
+                                  if (matchesPOBlock || da.id === selectedTransportBlock.id) {
+                                    return {
+                                      ...da,
+                                      transport_requirement_id: requirementId,
+                                      transport_requirement: requirement
+                                    };
+                                  }
+                                  return da;
+                                })
+                              };
+                            }
+                            return pb;
+                          }));
+                        }
+                      } else {
+                        alert('Failed to save specifications: ' + (error || 'Unknown error'));
+                      }
+
+                      const vehicleSaveRes = await saveTransportRequirementVehiclesAction(
+                        requirementId,
+                        reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
+                      );
+                      if (!vehicleSaveRes.success) {
+                        console.error('[TransportSpecs] Vehicle save failed:', vehicleSaveRes.error);
+                        alert('Transport specs saved but vehicle assignments failed: ' + (vehicleSaveRes.error || 'Unknown error'));
+                      } else {
+                        const blocksRes = await getPOBlocksAction(tourId);
+                        if (blocksRes.success && blocksRes.blocks) {
+                          setPoBlocks(blocksRes.blocks);
+                        }
+                      }
+
+                      setShowTransportReqModal(false);
+                      setIsGlobalTransportReqEdit(false);
+                      setSelectedTransportBlock(null);
+                      setGlobalTransportReq(null);
+                      setModalTriggerRect(null);
+                      // Reset picker state
+                      setReqPickedVehicles([]);
+                      setReqShowVehiclePicker(false);
+                      setReqVehicleSearchMake('');
+                      setReqVehicleSearchMinYear('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold transition-all shadow-sm"
+                  >
+                    Save Specs
+                  </button>
+                </div>
+
               </div>
-
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       </div>
     </div>
@@ -19551,7 +19513,7 @@ function AIItineraryBuilder({
       if (hotel) {
         // Auto-populate cover image if available
         const autoImageUrl = (hotel.images && hotel.images.length > 0) ? hotel.images[0] : (hotel.photo_url || block.imageUrl || '');
-        
+
         setItinerary(prev => prev.map(b => b.id === blockId ? {
           ...b,
           hotelId: value,
@@ -19614,9 +19576,9 @@ function AIItineraryBuilder({
         const contractedRate = restaurant.lunch_rate_per_head || 25;
         const markupPercent = 10;
         const agreedPrice = contractedRate * (1 + markupPercent / 100);
-        
-        setItinerary(prev => prev.map(b => b.id === blockId ? { 
-          ...b, 
+
+        setItinerary(prev => prev.map(b => b.id === blockId ? {
+          ...b,
           restaurantId: value,
           contractedPrice: b.contractedPrice ?? contractedRate,
           agreedPrice: b.agreedPrice ?? agreedPrice
@@ -19666,11 +19628,11 @@ function AIItineraryBuilder({
         })();
 
         const va = vendor.vendor_activities?.find((a: any) => Number(a.activity_id) === Number(blockActivityId));
-        
+
         // Auto-populate cover image if available
         const activityDetail = masterData.activities.find((a: any) => Number(a.id) === Number(blockActivityId));
-        const autoImageUrl = (activityDetail?.images && activityDetail.images.length > 0) 
-          ? activityDetail.images[0] 
+        const autoImageUrl = (activityDetail?.images && activityDetail.images.length > 0)
+          ? activityDetail.images[0]
           : (block.imageUrl || '');
 
         if (va) {
@@ -19776,7 +19738,7 @@ function AIItineraryBuilder({
 
   const printRef = React.useRef<HTMLDivElement>(null);
 
-  const clientName = touristData.profile 
+  const clientName = touristData.profile
     ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
     : 'Valued Guest';
 
@@ -19811,7 +19773,7 @@ function AIItineraryBuilder({
           </html>
         `);
         doc.close();
-        
+
         // Wait for styles/images to render before printing
         iframe.contentWindow?.focus();
         setTimeout(() => {
@@ -19882,16 +19844,16 @@ function AIItineraryBuilder({
       const updated = prevItinerary.map(block => {
         if (block.type === ItineraryBlockTypes.SLEEP) {
           const baseRate = block.baseRoomRate || block.agreedPrice || 150;
-          
+
           const singleRate = baseRate * 0.85;
           const doubleRate = baseRate;
           const tripleRate = baseRate * 1.4;
           const familyRate = baseRate * 1.8;
 
-          let sleepPrice = (singleRoomsCount * singleRate) + 
-                           (doubleRoomsCount * doubleRate) + 
-                           (tripleRoomsCount * tripleRate) + 
-                           (familyRoomsCount * familyRate);
+          let sleepPrice = (singleRoomsCount * singleRate) +
+            (doubleRoomsCount * doubleRate) +
+            (tripleRoomsCount * tripleRate) +
+            (familyRoomsCount * familyRate);
           if (sleepPrice === 0) {
             sleepPrice = baseRate;
           }
@@ -19985,13 +19947,13 @@ function AIItineraryBuilder({
   const calculateDayTotal = (dayNum: number) => {
     const overrides = tripData?.dayCostOverrides?.[dayNum] || {};
     const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
-    
+
     // 1. Hotel Cost
-    const hotel = overrides.hotel !== undefined 
-      ? overrides.hotel 
+    const hotel = overrides.hotel !== undefined
+      ? overrides.hotel
       : blocksForDay
-          .filter(b => b.type === ItineraryBlockTypes.SLEEP)
-          .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+        .filter(b => b.type === ItineraryBlockTypes.SLEEP)
+        .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
     // 2. Pax Count
     const pax = (adults || 0) + (children || 0);
@@ -20006,8 +19968,8 @@ function AIItineraryBuilder({
 
     // 3. Meal Cost (Lunch cost per tourist * pax)
     const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
-    const meals = overrides.meals !== undefined 
-      ? overrides.meals 
+    const meals = overrides.meals !== undefined
+      ? overrides.meals
       : pax * lunchCostPerHead;
 
     // 4. Transport Cost
@@ -20015,7 +19977,7 @@ function AIItineraryBuilder({
 
     if (appSettings && (chauffeurNeeded || guideNeeded)) {
       const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
-      
+
       // Calculate Vehicle & Chauffeur if chauffeurNeeded is true
       if (chauffeurNeeded) {
         // Vehicle Cost
@@ -20028,8 +19990,8 @@ function AIItineraryBuilder({
         // Chauffeur Cost
         const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
         const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
-        const driverMarkupPercent = appSettings[Settings.Diver_Markup] !== undefined 
-          ? Number(appSettings[Settings.Diver_Markup]) 
+        const driverMarkupPercent = appSettings[Settings.Diver_Markup] !== undefined
+          ? Number(appSettings[Settings.Diver_Markup])
           : (Number(appSettings[Settings.Driver_Markup]) || 0);
         const driverMarkup = driverMarkupPercent / 100;
         const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
@@ -20063,21 +20025,21 @@ function AIItineraryBuilder({
       return isNaN(parsed) ? 0 : parsed;
     };
     const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
-    const transport = overrides.transport !== undefined 
-      ? overrides.transport 
+    const transport = overrides.transport !== undefined
+      ? overrides.transport
       : dailyTransportCost;
 
     // 5. Concierge Cost (ticket, refreshment, seamless concierge)
     const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
-    const concierge = overrides.concierge !== undefined 
-      ? overrides.concierge 
+    const concierge = overrides.concierge !== undefined
+      ? overrides.concierge
       : pax * conciergeCostPerHead;
 
     // 6. Agency Fee & Tax
     const agencyFeePercent = overrides.agencyFeePercent !== undefined
       ? overrides.agencyFeePercent
       : getTierValue(TierSettingDefinitions.SERVICE_FEE);
-      
+
     const subtotal = hotel + meals + transport + concierge;
     const agencyFee = overrides.agencyFee !== undefined
       ? overrides.agencyFee
@@ -20101,30 +20063,30 @@ function AIItineraryBuilder({
 
   const handleSaveDayCostOverride = (dayNum: number, field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee', valStr: string) => {
     const val = parseFloat(valStr);
-    
+
     setTripData(prev => {
       if (!prev) return prev;
       const dayCostOverrides = { ...(prev.dayCostOverrides || {}) };
       const dayOverrides = { ...(dayCostOverrides[dayNum] || {}) };
-      
+
       if (isNaN(val)) {
         delete dayOverrides[field];
       } else {
         dayOverrides[field] = val;
       }
-      
+
       if (Object.keys(dayOverrides).length === 0) {
         delete dayCostOverrides[dayNum];
       } else {
         dayCostOverrides[dayNum] = dayOverrides;
       }
-      
+
       return {
         ...prev,
         dayCostOverrides
       };
     });
-    
+
     setEditingDayField(null);
   };
 
@@ -20244,8 +20206,8 @@ function AIItineraryBuilder({
           let matchedActId: number | undefined = undefined;
 
           if (event.type === ItineraryBlockTypes.ACTIVITY) {
-            const act = chosenActivities.find(a => 
-              String(a.id) === String(event.activityId) || 
+            const act = chosenActivities.find(a =>
+              String(a.id) === String(event.activityId) ||
               a.activity_name.toLowerCase() === event.name.toLowerCase()
             );
             if (act) {
@@ -20263,10 +20225,10 @@ function AIItineraryBuilder({
             const tripleRate = event.rateUsd * 1.4;
             const familyRate = event.rateUsd * 1.8;
 
-            sleepPrice = (singleRoomsCount * singleRate) + 
-                         (doubleRoomsCount * doubleRate) + 
-                         (tripleRoomsCount * tripleRate) + 
-                         (familyRoomsCount * familyRate);
+            sleepPrice = (singleRoomsCount * singleRate) +
+              (doubleRoomsCount * doubleRate) +
+              (tripleRoomsCount * tripleRate) +
+              (familyRoomsCount * familyRate);
             if (sleepPrice === 0) {
               sleepPrice = event.rateUsd;
             }
@@ -20309,7 +20271,7 @@ function AIItineraryBuilder({
       const postProcessedBlocks: InternalItineraryBlock[] = [];
       const nonDropped = generatedBlocks.filter(b => b.dayNumber > 0);
       const dropped = generatedBlocks.filter(b => b.dayNumber === 0);
-      
+
       const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
         const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -20559,10 +20521,10 @@ function AIItineraryBuilder({
           if (updated.headCount === undefined) updated.headCount = defaultPax || 2;
         }
         if (b.type === ItineraryBlockTypes.SLEEP && field === 'agreedPrice' && value !== undefined) {
-          const factor = (singleRoomsCount * 0.85) + 
-                         (doubleRoomsCount * 1.0) + 
-                         (tripleRoomsCount * 1.4) + 
-                         (familyRoomsCount * 1.8);
+          const factor = (singleRoomsCount * 0.85) +
+            (doubleRoomsCount * 1.0) +
+            (tripleRoomsCount * 1.4) +
+            (familyRoomsCount * 1.8);
           const activeFactor = factor > 0 ? factor : 1.0;
           updated.baseRoomRate = Math.round((Number(value) / activeFactor) * 100) / 100;
         }
@@ -20580,13 +20542,13 @@ function AIItineraryBuilder({
     if (direction === 'up' && index > 0) {
       const swapped = [...dayBlocksList];
       [swapped[index], swapped[index - 1]] = [swapped[index - 1], swapped[index]];
-      
+
       const otherBlocks = itinerary.filter(b => b.dayNumber !== activeDay);
       setItinerary([...otherBlocks, ...swapped]);
     } else if (direction === 'down' && index < dayBlocksList.length - 1) {
       const swapped = [...dayBlocksList];
       [swapped[index], swapped[index + 1]] = [swapped[index + 1], swapped[index]];
-      
+
       const otherBlocks = itinerary.filter(b => b.dayNumber !== activeDay);
       setItinerary([...otherBlocks, ...swapped]);
     }
@@ -20748,7 +20710,7 @@ function AIItineraryBuilder({
     { value: ItineraryBlockTypes.CUSTOM, label: 'Custom Item' }
   ];
 
-  const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI'];  return (
+  const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI']; return (
     <div className="relative overflow-hidden bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-neutral-200/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
       {/* Decorative Glowing Blobs */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-full filter blur-3xl -translate-y-12 translate-x-12 pointer-events-none" />
@@ -20769,7 +20731,7 @@ function AIItineraryBuilder({
           <div>
             <span className="font-serif font-black text-sm text-rose-950 block">Cooperative Editing Lock Active</span>
             <span className="text-xs text-rose-700 leading-relaxed block mt-1">
-              This itinerary is currently being edited by <strong className="font-black text-rose-900">{lockOwnerName || 'another planner'}</strong>. 
+              This itinerary is currently being edited by <strong className="font-black text-rose-900">{lockOwnerName || 'another planner'}</strong>.
               Editing controls have been temporarily disabled to prevent conflicting changes. You can still view the itinerary and load older draft versions.
             </span>
           </div>
@@ -20860,11 +20822,10 @@ function AIItineraryBuilder({
                 }
               }}
               disabled={isLockedByOther}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${
-                itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
                   ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
                   : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-855'
-              }`}
+                }`}
             >
               <Sliders className="w-3.5 h-3.5" />
               <span>
@@ -20949,11 +20910,10 @@ function AIItineraryBuilder({
           {/* Rules toggle */}
           <button
             onClick={() => setShowRulesConfig(!showRulesConfig)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border ${
-              showRulesConfig
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border ${showRulesConfig
                 ? 'bg-neutral-100 border-neutral-300/80 text-neutral-800 shadow-inner'
                 : 'bg-white hover:bg-neutral-50 border-neutral-200/80 text-neutral-700 hover:text-neutral-900'
-            }`}
+              }`}
           >
             <SettingsIcon className="w-4 h-4 text-neutral-500" /> AI Rules Config
           </button>
@@ -21074,11 +21034,10 @@ function AIItineraryBuilder({
                 value={singleRoomsCount}
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualSingle(Math.max(0, parseInt(e.target.value) || 0))}
-                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${
-                  (hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${(hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
                     : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
-                }`}
+                  }`}
               />
             </div>
             {/* Double Rooms */}
@@ -21090,11 +21049,10 @@ function AIItineraryBuilder({
                 value={doubleRoomsCount}
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualDouble(Math.max(0, parseInt(e.target.value) || 0))}
-                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${
-                  (hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${(hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
                     : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
-                }`}
+                  }`}
               />
             </div>
             {/* Triple Rooms */}
@@ -21106,11 +21064,10 @@ function AIItineraryBuilder({
                 value={tripleRoomsCount}
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualTriple(Math.max(0, parseInt(e.target.value) || 0))}
-                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-805 transition-all ${
-                  (hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-805 transition-all ${(hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
                     : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
-                }`}
+                  }`}
               />
             </div>
             {/* Family Rooms */}
@@ -21122,11 +21079,10 @@ function AIItineraryBuilder({
                 value={familyRoomsCount}
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualFamily(Math.max(0, parseInt(e.target.value) || 0))}
-                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${
-                  (hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200' 
+                className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${(hasTeam || isLockedByOther)
+                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
                     : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
-                }`}
+                  }`}
               />
             </div>
           </div>
@@ -21238,17 +21194,16 @@ function AIItineraryBuilder({
               <button
                 key={day}
                 onClick={() => setActiveDay(day)}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 shrink-0 ${
-                  activeDay === day
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 shrink-0 ${activeDay === day
                     ? 'bg-white text-emerald-900 border border-neutral-200/60 shadow-sm'
                     : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40'
-                }`}
+                  }`}
               >
                 Day {day}
               </button>
             ))}
           </div>
-          
+
           {/* Append Day Button */}
           <button
             onClick={handleAddDay}
@@ -21354,7 +21309,7 @@ function AIItineraryBuilder({
                 </span>
               </div>
             </div>
-            
+
             {(() => {
               const renderCostCard = (
                 label: string,
@@ -21435,16 +21390,16 @@ function AIItineraryBuilder({
                   {renderCostCard('Hotel Cost', 'hotel', dayTotalObj.hotel, <BedDouble className="w-4 h-4 text-amber-605 shrink-0" />)}
                   {renderCostCard('Meals', 'meals', dayTotalObj.meals, <Utensils className="w-4 h-4 text-rose-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
                   {renderCostCard(
-                    'Transport', 
-                    'transport', 
-                    dayTotalObj.transport, 
-                    <Car className="w-4 h-4 text-sky-600 shrink-0" />, 
-                    chauffeurNeeded && guideNeeded 
-                      ? '(Vehicle, Chauffeur & Guide)' 
-                      : chauffeurNeeded 
-                        ? '(Vehicle & Chauffeur)' 
-                        : guideNeeded 
-                          ? '(Guide Only)' 
+                    'Transport',
+                    'transport',
+                    dayTotalObj.transport,
+                    <Car className="w-4 h-4 text-sky-600 shrink-0" />,
+                    chauffeurNeeded && guideNeeded
+                      ? '(Vehicle, Chauffeur & Guide)'
+                      : chauffeurNeeded
+                        ? '(Vehicle & Chauffeur)'
+                        : guideNeeded
+                          ? '(Guide Only)'
                           : '(Not Enabled)'
                   )}
                   {renderCostCard('Concierge', 'concierge', dayTotalObj.concierge, <Receipt className="w-4 h-4 text-indigo-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
@@ -21742,7 +21697,7 @@ function AIItineraryBuilder({
 
                   {/* Image display & Image Uploading & Discussion controls */}
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-dashed border-neutral-200">
-                    
+
                     {/* Left side: Upload Button & Image thumbnail AND Bind Provider */}
                     <div className="flex items-center gap-3 flex-wrap">
                       {(() => {
@@ -21766,7 +21721,7 @@ function AIItineraryBuilder({
                             const resolvedActId = block.activityId;
                             const v = block.vendorId ? masterData.vendors?.find((x: any) => x.id === block.vendorId) : null;
                             const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-                                       (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+                              (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
                             const activityDetail = masterData.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
                             if (activityDetail) {
                               imgUrl = (activityDetail.images && activityDetail.images.length > 0) ? activityDetail.images[0] : '';
@@ -21778,9 +21733,9 @@ function AIItineraryBuilder({
                           return (
                             <div className="relative group/img w-16 h-12 rounded-xl border border-neutral-200/80 overflow-hidden shadow-sm transition-all duration-300 hover:scale-105">
                               <img
-                                 src={imgUrl}
-                                 alt="Itinerary item"
-                                 className="w-full h-full object-cover"
+                                src={imgUrl}
+                                alt="Itinerary item"
+                                className="w-full h-full object-cover"
                               />
                               <button
                                 onClick={() => handleUpdateBlockField(block.id, 'imageUrl', 'none')}
@@ -21909,9 +21864,8 @@ function AIItineraryBuilder({
                                 setSearchTerm("");
                               }}
                               disabled={isLockedByOther || (block.type === ItineraryBlockTypes.ACTIVITY && !!block.hotelId)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200/80 text-[10px] font-extrabold text-neutral-700 transition-all shadow-sm max-w-[200px] truncate disabled:opacity-75 ${
-                                block.type === ItineraryBlockTypes.ACTIVITY && block.hotelId ? 'cursor-default' : 'hover:bg-neutral-100'
-                              }`}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200/80 text-[10px] font-extrabold text-neutral-700 transition-all shadow-sm max-w-[200px] truncate disabled:opacity-75 ${block.type === ItineraryBlockTypes.ACTIVITY && block.hotelId ? 'cursor-default' : 'hover:bg-neutral-100'
+                                }`}
                               title={block.type === ItineraryBlockTypes.ACTIVITY && block.hotelId ? "Bound to sleep hotel" : "Edit binding"}
                             >
                               {binding.icon}
@@ -21955,11 +21909,10 @@ function AIItineraryBuilder({
                             }
                           }}
                           disabled={isLockedByOther}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${
-                            block.transport_requirement
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${block.transport_requirement
                               ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
                               : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
-                          }`}
+                            }`}
                         >
                           <Sliders className="w-3.5 h-3.5" />
                           <span>{block.transport_requirement ? 'Edit Transport Specs' : 'Add Transport Specs'}</span>
@@ -21970,11 +21923,10 @@ function AIItineraryBuilder({
                     {/* Right side: Comments button */}
                     <button
                       onClick={() => setOpenCommentsBlockId(isCommentsOpen ? null : block.id)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${
-                        isCommentsOpen
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${isCommentsOpen
                           ? 'bg-neutral-100 border-neutral-300 text-neutral-850 shadow-inner'
                           : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
-                      }`}
+                        }`}
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-neutral-400" />
                       <span>
@@ -22003,11 +21955,10 @@ function AIItineraryBuilder({
                           const isAgent = c.role === 'agent';
                           return (
                             <div key={c.id} className={`flex flex-col ${isAgent ? 'items-end' : 'items-start'}`}>
-                              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm leading-relaxed ${
-                                isAgent
+                              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm leading-relaxed ${isAgent
                                   ? 'bg-emerald-800 text-white rounded-tr-none'
                                   : 'bg-white text-neutral-800 border border-neutral-200/80 rounded-tl-none'
-                              }`}>
+                                }`}>
                                 <p>{c.text}</p>
                               </div>
                               <span className="text-[9px] text-neutral-400 mt-1 font-bold">

@@ -19,21 +19,21 @@ export default function Hero() {
             />
             <div className="absolute inset-0 cinematic-overlay" />
 
-            <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6 pt-28 md:pt-0">
-                <span className="section-subtitle text-white/90 hero-animate-subtitle">
+            <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6 pt-24 md:pt-28 pb-12 md:pb-16">
+                <span className="section-subtitle text-white/90 hero-animate-subtitle mb-2">
                     {t.hero.subtitle}
                 </span>
 
-                <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif text-white mb-6 md:mb-8 max-w-5xl leading-tight hero-animate-title">
+                <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-serif text-white mb-4 md:mb-6 max-w-5xl leading-tight hero-animate-title">
                     {t.hero.title_part1} <br />
                     <span className="text-gold-gradient italic">{t.hero.title_part2}</span>
                 </h1>
 
-                <p className="text-white/80 text-lg md:text-xl max-w-2xl mb-12 font-light tracking-wide hero-animate-desc">
+                <p className="text-white/80 text-base md:text-lg max-w-2xl mb-8 md:mb-10 font-light tracking-wide hero-animate-desc">
                     {t.hero.description}
                 </p>
 
-                <div className="flex flex-col md:flex-row gap-6 -translate-x-[25px] hero-animate-cta">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 hero-animate-cta">
                     <Link href="/custom-plan" className="luxury-button border border-white/20 rounded-full">
                         {t.hero.btn_design}
                     </Link>
@@ -44,9 +44,9 @@ export default function Hero() {
             </div>
 
             {/* Scroll Indicator */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 hero-animate-scroll">
+            <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 hero-animate-scroll">
                 <span className="text-white/50 text-[10px] uppercase tracking-[0.3em]">{t.hero.scroll}</span>
-                <div className="w-[1px] h-12 bg-gradient-to-b from-brand-gold to-transparent" />
+                <div className="w-[1px] h-8 md:h-12 bg-gradient-to-b from-brand-gold to-transparent" />
             </div>
         </section>
     );

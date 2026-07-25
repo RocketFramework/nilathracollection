@@ -135,6 +135,24 @@
   animation: fade-in 1s ease-out 1.2s forwards;
 }
 
+/* Responsive adjustment for laptops and devices with smaller screen height */
+@media (max-height: 750px) {
+  .hero-animate-title {
+    font-size: clamp(1.75rem, 5vh + 0.5rem, 3.5rem) !important;
+    margin-bottom: 0.75rem !important;
+  }
+  .hero-animate-desc {
+    font-size: 0.9rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+  .hero-animate-subtitle {
+    margin-bottom: 0.25rem !important;
+  }
+  .hero-animate-scroll {
+    bottom: 0.5rem !important;
+  }
+}
+
 @utility animate-marquee {
   animation: marquee 60s linear infinite;
 }
