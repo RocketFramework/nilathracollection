@@ -653,6 +653,22 @@ export interface ProfitLossSummary {
     netActualProfit: number;
 }
 
+export interface TourDailyDriver {
+    id?: string;
+    tour_id?: string;
+    tour_itinerary_id?: string;
+    day_number: number;
+    driver_id: string;
+    per_day_rate: number;
+    accommodation_cost: number;
+    meal_cost: number;
+    other_allowance: number;
+    notes?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+
 
 
 

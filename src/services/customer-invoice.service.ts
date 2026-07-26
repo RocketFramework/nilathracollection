@@ -86,6 +86,20 @@ export class CustomerInvoiceService {
         const travelStyle = touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
         const durationDays = itineraries?.length || tour?.planner_data?.profile?.durationDays || 5;
 
+        // 6.5 Fetch tour daily drivers
+        const { data: driverRows } = await supabaseAdmin
+            .from('tour_itinerary_drivers')
+            .select('*, tour_itineraries!inner(day_number)')
+            .eq('tour_id', tourId);
+
+        const dailyDriverAssignments: Record<number, any> = {};
+        (driverRows || []).forEach((d: any) => {
+            const dayNum = d.tour_itineraries?.day_number;
+            if (dayNum) {
+                dailyDriverAssignments[dayNum] = d;
+            }
+        });
+
         // 7. Map daily activities to InvoiceCalculationService format
         const simplifiedItinerary = (activities || []).map(act => ({
             id: act.id,
@@ -108,7 +122,8 @@ export class CustomerInvoiceService {
             flightsQuotedSeparately: options.flightsQuotedSeparately,
             flightsQuotedPrice: options.flightsQuotedPrice,
             customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined,
-            dayCostOverrides: tour?.planner_data?.dayCostOverrides || {}
+            dayCostOverrides: tour?.planner_data?.dayCostOverrides || {},
+            dailyDriverAssignments
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])

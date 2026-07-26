@@ -32,6 +32,8 @@ import { enforcePermission } from "@/utils/auth-enforcer";
 import { AppSettingsService } from "@/services/app-settings.service";
 import { CustomerInvoiceService } from "@/services/customer-invoice.service";
 import { Settings } from "@/types/types";
+import { TourDailyDriverService } from "@/services/tour-daily-driver.service";
+import { TourDailyDriverDTO } from "@/dtos/tour-daily-driver.dto";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -2528,6 +2530,28 @@ export async function saveCustomHotelItemAction(
     } catch (error: any) {
         console.error("Error in saveCustomHotelItemAction:", error);
         return { success: false, error: error.message || "Failed to save custom item." };
+    }
+}
+
+export async function getTourDailyDriversAction(tourId: string) {
+    try {
+        const supabase = createAdminClient();
+        const drivers = await TourDailyDriverService.getDailyDriversByTourId(tourId, supabase);
+        return { success: true, drivers };
+    } catch (error: any) {
+        console.error("Error fetching tour daily drivers:", error);
+        return { success: false, error: error.message || "Failed to load tour daily drivers." };
+    }
+}
+
+export async function saveTourDailyDriversAction(tourId: string, assignments: TourDailyDriverDTO[]) {
+    try {
+        const supabase = createAdminClient();
+        const saved = await TourDailyDriverService.bulkUpsertDailyDrivers(tourId, assignments, supabase);
+        return { success: true, saved };
+    } catch (error: any) {
+        console.error("Error saving tour daily drivers:", error);
+        return { success: false, error: error.message || "Failed to save tour daily drivers." };
     }
 }
 

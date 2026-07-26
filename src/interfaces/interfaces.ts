@@ -22,3 +22,29 @@ export interface POBlockDailyActivity {
     created_at?: string;
     updated_at?: string;
 }
+
+export interface TourDailyDriver {
+    id?: string;
+    tour_id?: string;
+    tour_itinerary_id?: string;
+    day_number: number;
+    driver_id: string;
+    per_day_rate: number;
+    accommodation_cost: number;
+    meal_cost: number;
+    other_allowance: number;
+
+    contracted_per_day_rate?: number;
+    contracted_accommodation_cost?: number;
+    contracted_meal_cost?: number;
+    contracted_other_allowance?: number;
+
+    charged_per_day_rate?: number;
+    charged_accommodation_cost?: number;
+    charged_meal_cost?: number;
+    charged_other_allowance?: number;
+
+    notes?: string;
+    created_at?: string;
+    updated_at?: string;
+}

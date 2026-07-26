@@ -16,6 +16,7 @@ import {
   Car,
   Shield,
   UserCheck,
+  UserCircle,
   User,
   Mail,
   Phone,
@@ -82,9 +83,12 @@ import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gend
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
 import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
+import { TourDailyDriverDTO } from '../../dtos/tour-daily-driver.dto';
 import {
   getTouristDataAction,
   saveTouristDataAction,
+  getTourDailyDriversAction,
+  saveTourDailyDriversAction,
   getActivitiesAction,
   getAppMarkupsAction,
   getTourDataAction,
@@ -751,6 +755,134 @@ function PlannerWizardWorkspace() {
   // Next-Gen Itinerary States
   const [tripData, setTripData] = useState<TripData | null>(null);
   const [itinerary, setItinerary] = useState<InternalItineraryBlock[]>([]);
+  const [defaultDriverId, setDefaultDriverId] = useState<string>('');
+  const [dailyDriverAssignments, setDailyDriverAssignments] = useState<Record<number, TourDailyDriverDTO>>({});
+
+  const handleAssignDefaultDriverToAllDays = (driverId: string) => {
+    if (!driverId) return;
+    const driver = masterData.drivers?.find((d: any) => d.id === driverId);
+    const baseRate = driver?.per_day_rate ? Number(driver.per_day_rate) : 15;
+    const totalDays = touristData?.preferences?.duration_days || tripData?.profile?.durationDays || 5;
+
+    const driverMarkupPercent = appSettings?.diver_markup !== undefined 
+      ? Number(appSettings.diver_markup) 
+      : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
+    const markupFactor = 1 + (driverMarkupPercent / 100);
+
+    setDailyDriverAssignments(prev => {
+      const nextAssignments: Record<number, TourDailyDriverDTO> = { ...prev };
+      for (let day = 1; day <= totalDays; day++) {
+        const existing = prev[day] || {};
+        const cRate = existing.contracted_per_day_rate !== undefined ? existing.contracted_per_day_rate : (existing.per_day_rate !== undefined ? existing.per_day_rate : baseRate);
+        const cAcc = existing.contracted_accommodation_cost !== undefined ? existing.contracted_accommodation_cost : (existing.accommodation_cost || 0);
+        const cMeal = existing.contracted_meal_cost !== undefined ? existing.contracted_meal_cost : (existing.meal_cost || 0);
+        const cOther = existing.contracted_other_allowance !== undefined ? existing.contracted_other_allowance : (existing.other_allowance || 0);
+
+        nextAssignments[day] = {
+          ...existing,
+          day_number: day,
+          driver_id: driverId,
+          per_day_rate: cRate,
+          accommodation_cost: cAcc,
+          meal_cost: cMeal,
+          other_allowance: cOther,
+          contracted_per_day_rate: cRate,
+          contracted_accommodation_cost: cAcc,
+          contracted_meal_cost: cMeal,
+          contracted_other_allowance: cOther,
+
+          charged_per_day_rate: Math.round(cRate * markupFactor * 100) / 100,
+          charged_accommodation_cost: Math.round(cAcc * markupFactor * 100) / 100,
+          charged_meal_cost: Math.round(cMeal * markupFactor * 100) / 100,
+          charged_other_allowance: Math.round(cOther * markupFactor * 100) / 100,
+          notes: existing.notes || ''
+        };
+      }
+      return nextAssignments;
+    });
+
+    setItinerary(prevItin => prevItin.map(block => {
+      if (block.type === ItineraryBlockTypes.TRAVEL) {
+        return { ...block, driverId };
+      }
+      return block;
+    }));
+  };
+
+  const handleUpdateDailyDriverField = (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => {
+    const driverMarkupPercent = appSettings?.diver_markup !== undefined 
+      ? Number(appSettings.diver_markup) 
+      : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
+    const markupFactor = 1 + (driverMarkupPercent / 100);
+
+    setDailyDriverAssignments(prev => {
+      const existing = prev[dayNum] || {
+        day_number: dayNum,
+        driver_id: '',
+        per_day_rate: 15,
+        accommodation_cost: 0,
+        meal_cost: 0,
+        other_allowance: 0,
+        contracted_per_day_rate: 15,
+        contracted_accommodation_cost: 0,
+        contracted_meal_cost: 0,
+        contracted_other_allowance: 0,
+        charged_per_day_rate: Math.round(15 * markupFactor * 100) / 100,
+        charged_accommodation_cost: 0,
+        charged_meal_cost: 0,
+        charged_other_allowance: 0,
+        notes: ''
+      };
+
+      let updated = { ...existing, [field]: value };
+
+      if (field === 'driver_id' && value) {
+        const driver = masterData.drivers?.find((d: any) => d.id === value);
+        if (driver && driver.per_day_rate !== undefined) {
+          const rate = Number(driver.per_day_rate);
+          updated.per_day_rate = rate;
+          updated.contracted_per_day_rate = rate;
+          updated.charged_per_day_rate = Math.round(rate * markupFactor * 100) / 100;
+        }
+      }
+
+      if (field === 'contracted_per_day_rate' || field === 'per_day_rate') {
+        const val = Number(value) || 0;
+        updated.per_day_rate = val;
+        updated.contracted_per_day_rate = val;
+        updated.charged_per_day_rate = Math.round(val * markupFactor * 100) / 100;
+      } else if (field === 'contracted_accommodation_cost' || field === 'accommodation_cost') {
+        const val = Number(value) || 0;
+        updated.accommodation_cost = val;
+        updated.contracted_accommodation_cost = val;
+        updated.charged_accommodation_cost = Math.round(val * markupFactor * 100) / 100;
+      } else if (field === 'contracted_meal_cost' || field === 'meal_cost') {
+        const val = Number(value) || 0;
+        updated.meal_cost = val;
+        updated.contracted_meal_cost = val;
+        updated.charged_meal_cost = Math.round(val * markupFactor * 100) / 100;
+      } else if (field === 'contracted_other_allowance' || field === 'other_allowance') {
+        const val = Number(value) || 0;
+        updated.other_allowance = val;
+        updated.contracted_other_allowance = val;
+        updated.charged_other_allowance = Math.round(val * markupFactor * 100) / 100;
+      }
+
+      return {
+        ...prev,
+        [dayNum]: updated
+      };
+    });
+
+    if (field === 'driver_id') {
+      setItinerary(prevItin => prevItin.map(block => {
+        if (block.type === ItineraryBlockTypes.TRAVEL && Number(block.dayNumber) === Number(dayNum)) {
+          return { ...block, driverId: value || undefined };
+        }
+        return block;
+      }));
+    }
+  };
   const [selectedTransportBlock, setSelectedTransportBlock] = useState<any>(null);
   const [showTransportReqModal, setShowTransportReqModal] = useState(false);
   const [isGlobalTransportReqEdit, setIsGlobalTransportReqEdit] = useState(false);
@@ -2249,6 +2381,15 @@ function PlannerWizardWorkspace() {
         }
       }
 
+      // Save daily driver assignments to database
+      const driverPayloads = Object.values(dailyDriverAssignments);
+      if (driverPayloads.length > 0) {
+        const driverSaveRes = await saveTourDailyDriversAction(tourId, driverPayloads);
+        if (!driverSaveRes.success) {
+          console.error("Warning: Failed to save tour daily drivers:", driverSaveRes.error);
+        }
+      }
+
       // Automatically create a draft version snapshot when saving progress
       if (track === 'basic' && currentStepObj?.id === 'ai-builder') {
         const autoLabel = `Auto-saved on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -2819,7 +2960,8 @@ function PlannerWizardWorkspace() {
             rfqEmailsRes,
             rfpEmailsRes,
             blocksRes,
-            rebuildStatusRes
+            rebuildStatusRes,
+            dailyDriversRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -2832,8 +2974,23 @@ function PlannerWizardWorkspace() {
             getRfqEmailsForTourAction(activeTourId),
             getRfpEmailsForTourAction(activeTourId),
             getPOBlocksAction(activeTourId),
-            getTourPORebuildStatusAction(activeTourId)
+            getTourPORebuildStatusAction(activeTourId),
+            getTourDailyDriversAction(activeTourId)
           ]);
+
+          if (dailyDriversRes?.success && dailyDriversRes.drivers) {
+            const driverMap: Record<number, TourDailyDriverDTO> = {};
+            dailyDriversRes.drivers.forEach((d: TourDailyDriverDTO) => {
+              if (d.day_number) {
+                driverMap[d.day_number] = d;
+              }
+            });
+            setDailyDriverAssignments(driverMap);
+            const firstDriver = dailyDriversRes.drivers[0]?.driver_id;
+            if (firstDriver && dailyDriversRes.drivers.every((d: TourDailyDriverDTO) => d.driver_id === firstDriver)) {
+              setDefaultDriverId(firstDriver);
+            }
+          }
 
           if (touristRes.success && touristRes.data) {
             setTouristData(touristRes.data);
@@ -15071,6 +15228,12 @@ ${chauffeurHtml}
                     modalTriggerRect={modalTriggerRect}
                     setModalTriggerRect={setModalTriggerRect}
                     handleUpdateTransportReqField={handleUpdateTransportReqField}
+                    defaultDriverId={defaultDriverId}
+                    setDefaultDriverId={setDefaultDriverId}
+                    dailyDriverAssignments={dailyDriverAssignments}
+                    setDailyDriverAssignments={setDailyDriverAssignments}
+                    handleAssignDefaultDriverToAllDays={handleAssignDefaultDriverToAllDays}
+                    handleUpdateDailyDriverField={handleUpdateDailyDriverField}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
                   <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -19413,6 +19576,12 @@ interface AIItineraryBuilderProps {
   setReqPickedVehicles: React.Dispatch<React.SetStateAction<Array<{ vehicleId: string; vehicleName: string; providerName: string; quantity: number; notes: string }>>>;
   setReqShowVehiclePicker: React.Dispatch<React.SetStateAction<boolean>>;
   setReqVehiclesLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  defaultDriverId: string;
+  setDefaultDriverId: React.Dispatch<React.SetStateAction<string>>;
+  dailyDriverAssignments: Record<number, TourDailyDriverDTO>;
+  setDailyDriverAssignments: React.Dispatch<React.SetStateAction<Record<number, TourDailyDriverDTO>>>;
+  handleAssignDefaultDriverToAllDays: (driverId: string) => void;
+  handleUpdateDailyDriverField: (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => void;
 }
 
 function AIItineraryBuilder({
@@ -19473,7 +19642,13 @@ function AIItineraryBuilder({
   handleUpdateTransportReqField,
   setReqPickedVehicles,
   setReqShowVehiclePicker,
-  setReqVehiclesLoading
+  setReqVehiclesLoading,
+  defaultDriverId,
+  setDefaultDriverId,
+  dailyDriverAssignments,
+  setDailyDriverAssignments,
+  handleAssignDefaultDriverToAllDays,
+  handleUpdateDailyDriverField
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
@@ -19931,6 +20106,40 @@ function AIItineraryBuilder({
       return changed ? updated : prevItinerary;
     });
   }, [singleRoomsCount, doubleRoomsCount, tripleRoomsCount, familyRoomsCount, masterData.hotels, setItinerary]);
+
+  // Auto-set default note for MEAL blocks when hotel room is booked on BB basis (not FB or HB), no vendor is bound, and no description/note is present
+  useEffect(() => {
+    const defaultNote = "this meal cost is not included in our invoice - guest is expected to pay for this";
+    setItinerary(prevItinerary => {
+      let changed = false;
+      const updated = prevItinerary.map(block => {
+        if (block.type === ItineraryBlockTypes.MEAL) {
+          const sleepBlock = prevItinerary.find(b => Number(b.dayNumber) === Number(block.dayNumber) && b.type === ItineraryBlockTypes.SLEEP);
+          const acc = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === Number(block.dayNumber));
+          const sleepMealPlan = (sleepBlock?.mealPlan || acc?.mealPlan || acc?.selectedRooms?.[0]?.mealPlan || 'BB').toUpperCase();
+          const isBBBasis = sleepMealPlan === 'BB';
+          const hasNoVendor = !block.restaurantId;
+          const hasNoNote = !block.internalNotes || block.internalNotes.trim() === '';
+
+          if (hasNoVendor && isBBBasis && hasNoNote) {
+            changed = true;
+            return {
+              ...block,
+              internalNotes: defaultNote
+            };
+          } else if ((!hasNoVendor || !isBBBasis) && block.internalNotes === defaultNote) {
+            changed = true;
+            return {
+              ...block,
+              internalNotes: ''
+            };
+          }
+        }
+        return block;
+      });
+      return changed ? updated : prevItinerary;
+    });
+  }, [tripData, setItinerary]);
 
   // AI & Rules configuration state
   const [aiRules, setAiRules] = useState({ generic: '', specific: '' });
@@ -21285,6 +21494,53 @@ function AIItineraryBuilder({
         </div>
       )}
 
+      {/* Trip Chauffeur / Driver Bulk Assignment Banner */}
+      <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-emerald-900 text-white rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4 border border-emerald-800/40">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-xs border border-white/20 shrink-0">
+            <UserCircle className="w-6 h-6 text-emerald-200" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider text-emerald-100 flex items-center gap-2">
+              <span>Trip Chauffeur & Driver Assignment</span>
+            </h4>
+            <p className="text-[11px] text-emerald-200/80">Select a default driver for the entire trip or manage rates and allowances per day</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <select
+            value={defaultDriverId}
+            disabled={isLockedByOther}
+            onChange={(e) => {
+              setDefaultDriverId(e.target.value);
+              if (e.target.value) {
+                handleAssignDefaultDriverToAllDays(e.target.value);
+              }
+            }}
+            className="text-xs border border-white/30 rounded-xl px-3.5 py-2 bg-white/10 text-white font-bold backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer disabled:opacity-50"
+          >
+            <option value="" className="text-neutral-800">Select Trip Default Driver...</option>
+            {masterData.drivers?.map((d: any) => (
+              <option key={d.id} value={d.id} className="text-neutral-800">
+                {d.first_name} {d.last_name || ''} (${Number(d.per_day_rate || 15).toFixed(2)}/day)
+              </option>
+            ))}
+          </select>
+
+          {defaultDriverId && (
+            <button
+              onClick={() => handleAssignDefaultDriverToAllDays(defaultDriverId)}
+              disabled={isLockedByOther}
+              className="px-4 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-black text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>Assign to All Days</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Days Tabs and Management */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-100">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -21380,6 +21636,175 @@ function AIItineraryBuilder({
               </span>
             )}
           </h4>
+        </div>
+
+        {/* Daily Driver Management Card */}
+        <div className="bg-white rounded-2xl border border-neutral-200/60 p-4.5 shadow-sm space-y-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+            <div className="flex items-center gap-2">
+              <UserCircle className="w-4.5 h-4.5 text-emerald-800 shrink-0" />
+              <span className="text-xs font-black text-neutral-800 uppercase tracking-wider">Day {activeDay} Chauffeur / Driver Details</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Contracted Cost:</span>
+                <span className="text-xs font-extrabold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-lg">
+                  ${(
+                    Number(dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 0) +
+                    Number(dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0) +
+                    Number(dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0) +
+                    Number(dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0)
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-emerald-800/60 uppercase tracking-wider">Charged Price:</span>
+                <span className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl shadow-2xs">
+                  ${(
+                    Number(dailyDriverAssignments[activeDay]?.charged_per_day_rate ?? dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 0) +
+                    Number(dailyDriverAssignments[activeDay]?.charged_accommodation_cost ?? dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0) +
+                    Number(dailyDriverAssignments[activeDay]?.charged_meal_cost ?? dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0) +
+                    Number(dailyDriverAssignments[activeDay]?.charged_other_allowance ?? dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0)
+                  ).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-1">
+            <div className="w-full">
+              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Assigned Driver (Day {activeDay})</label>
+              <select
+                value={dailyDriverAssignments[activeDay]?.driver_id || ''}
+                disabled={isLockedByOther}
+                onChange={(e) => handleUpdateDailyDriverField(activeDay, 'driver_id', e.target.value)}
+                className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <option value="">No Driver Assigned for Day {activeDay}</option>
+                {masterData.drivers?.map((d: any) => (
+                  <option key={d.id} value={d.id}>
+                    {d.first_name} {d.last_name || ''} (${Number(d.per_day_rate || 15).toFixed(2)}/day)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Contracted Cost Section (Buying Price) */}
+            <div className="bg-neutral-50/80 rounded-xl p-3 border border-neutral-200/50 space-y-2">
+              <span className="text-[10px] font-extrabold text-neutral-600 uppercase tracking-wider block">1. Contracted Cost (Supplier / Driver Buying Price)</span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Contracted Rate ($)</label>
+                  <input
+                    type="number"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 15}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : 0;
+                      handleUpdateDailyDriverField(activeDay, 'contracted_per_day_rate', val);
+                      handleUpdateDailyDriverField(activeDay, 'per_day_rate', val);
+                    }}
+                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Accommodation ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : 0;
+                      handleUpdateDailyDriverField(activeDay, 'contracted_accommodation_cost', val);
+                      handleUpdateDailyDriverField(activeDay, 'accommodation_cost', val);
+                    }}
+                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meal Cost ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : 0;
+                      handleUpdateDailyDriverField(activeDay, 'contracted_meal_cost', val);
+                      handleUpdateDailyDriverField(activeDay, 'meal_cost', val);
+                    }}
+                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Allowance ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : 0;
+                      handleUpdateDailyDriverField(activeDay, 'contracted_other_allowance', val);
+                      handleUpdateDailyDriverField(activeDay, 'other_allowance', val);
+                    }}
+                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Charged Price Section (Selling Price to Client / PDF) */}
+            <div className="bg-emerald-50/40 rounded-xl p-3 border border-emerald-100 space-y-2">
+              <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">2. Charged Price (Guest / Client Selling Price for Invoice & PDF)</span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Rate ($)</label>
+                  <input
+                    type="number"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.charged_per_day_rate ?? dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 15}
+                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_per_day_rate', e.target.value ? Number(e.target.value) : 0)}
+                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Acc ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.charged_accommodation_cost ?? dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0}
+                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_accommodation_cost', e.target.value ? Number(e.target.value) : 0)}
+                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Meals ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.charged_meal_cost ?? dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0}
+                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_meal_cost', e.target.value ? Number(e.target.value) : 0)}
+                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Allowance ($)</label>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    disabled={isLockedByOther}
+                    value={dailyDriverAssignments[activeDay]?.charged_other_allowance ?? dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0}
+                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_other_allowance', e.target.value ? Number(e.target.value) : 0)}
+                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Daily Cost Summary Banner */}
@@ -21644,7 +22069,7 @@ function AIItineraryBuilder({
                     </div>
                   </div>
 
-                  {/* Location & Distance Row / Location, Quantity, Charged Unit Price & Contracted Unit Price Row for Activity */}
+                  {/* Location & Distance Row / Location, Quantity, Charged Unit Price & Contracted Unit Price Row for Activity & MEAL */}
                   {block.type === ItineraryBlockTypes.ACTIVITY ? (
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
                       <div className="md:col-span-6">
@@ -21688,23 +22113,102 @@ function AIItineraryBuilder({
                         </div>
                       </div>
                       <div className="md:col-span-2">
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Contracted Unit Price ($)</label>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Charged Total Price ($)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-neutral-400 text-xs font-semibold">$</span>
+                          <input
+                            type="text"
+                            readOnly
+                            value={
+                              (() => {
+                                const qty = block.quantity !== undefined ? block.quantity : (block.headCount !== undefined ? block.headCount : ((touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0)));
+                                const unit = block.agreedPrice !== undefined ? Number(block.agreedPrice) : 0;
+                                return (qty * unit).toFixed(2);
+                              })()
+                            }
+                            className="w-full text-xs border border-neutral-200 rounded-xl pl-6 pr-3.5 py-2 bg-neutral-50 text-emerald-800 font-bold shadow-sm cursor-not-allowed select-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : block.type === ItineraryBlockTypes.MEAL ? (
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
+                      <div className="md:col-span-4">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Location / Destination</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Sigiriya, Kandy, Galle"
+                          value={block.locationName || ''}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'locationName', e.target.value)}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Meal Type</label>
+                        <select
+                          value={block.mealType || 'Lunch'}
+                          onChange={(e) => handleUpdateBlockField(block.id, 'mealType', e.target.value)}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                        >
+                          <option value="Breakfast">Breakfast</option>
+                          <option value="Lunch">Lunch</option>
+                          <option value="Dinner">Dinner</option>
+                          <option value="Snack">Snack</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Quantity / Covers</label>
+                        <input
+                          type="number"
+                          placeholder="Covers count"
+                          value={block.quantity !== undefined ? block.quantity : (block.headCount !== undefined ? block.headCount : ((touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0)))}
+                          onChange={(e) => {
+                            const val = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                            handleUpdateBlockField(block.id, 'quantity', val);
+                            handleUpdateBlockField(block.id, 'headCount', val);
+                          }}
+                          disabled={isLockedByOther}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Charged Unit Price ($)</label>
                         <div className="relative">
                           <span className="absolute left-3 top-2 text-neutral-400 text-xs font-semibold">$</span>
                           <input
                             type="text"
                             placeholder="0.00"
-                            value={block.contractedPrice !== undefined ? block.contractedPrice : ''}
-                            onChange={(e) => handleUpdateBlockField(block.id, 'contractedPrice', e.target.value ? Number(e.target.value) : undefined)}
+                            value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
+                            onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
                             disabled={isLockedByOther}
                             className="w-full text-xs border border-neutral-200 rounded-xl pl-6 pr-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Charged Total Price ($)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-neutral-400 text-xs font-semibold">$</span>
+                          <input
+                            type="text"
+                            readOnly
+                            value={
+                              (() => {
+                                const qty = block.quantity !== undefined ? block.quantity : (block.headCount !== undefined ? block.headCount : ((touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0)));
+                                const unit = block.agreedPrice !== undefined ? Number(block.agreedPrice) : 0;
+                                return (qty * unit).toFixed(2);
+                              })()
+                            }
+                            className="w-full text-xs border border-neutral-200 rounded-xl pl-6 pr-3.5 py-2 bg-neutral-50 text-emerald-800 font-bold shadow-sm cursor-not-allowed select-none"
                           />
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-dashed border-neutral-200">
-                      <div className="md:col-span-8">
+                      <div className={block.type === ItineraryBlockTypes.TRAVEL ? "md:col-span-8" : "md:col-span-12"}>
                         <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Location / Destination</label>
                         <input
                           type="text"
@@ -21715,17 +22219,19 @@ function AIItineraryBuilder({
                           className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                         />
                       </div>
-                      <div className="md:col-span-4">
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Distance (km)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 50 km"
-                          value={block.distance || ''}
-                          onChange={(e) => handleUpdateBlockField(block.id, 'distance', e.target.value)}
-                          disabled={isLockedByOther}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
-                        />
-                      </div>
+                      {block.type === ItineraryBlockTypes.TRAVEL && (
+                        <div className="md:col-span-4">
+                          <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Distance (km)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 50 km"
+                            value={block.distance || ''}
+                            onChange={(e) => handleUpdateBlockField(block.id, 'distance', e.target.value)}
+                            disabled={isLockedByOther}
+                            className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -22137,6 +22643,7 @@ function AIItineraryBuilder({
           appSettings={appSettings}
           masterData={masterData}
           dayCostOverrides={tripData?.dayCostOverrides}
+          dailyDriverAssignments={dailyDriverAssignments}
         />
       </div>
     </div>

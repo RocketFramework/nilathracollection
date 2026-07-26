@@ -33,6 +33,13 @@ export interface InvoiceCalculationParams {
     agencyFee?: number;
     total?: number;
   }>;
+  dailyDriverAssignments?: Record<number, {
+    per_day_rate?: number;
+    accommodation_cost?: number;
+    meal_cost?: number;
+    other_allowance?: number;
+    [key: string]: any;
+  }>;
 }
 
 export class InvoiceCalculationService {
@@ -48,7 +55,8 @@ export class InvoiceCalculationService {
       flightsQuotedSeparately = false,
       flightsQuotedPrice = 0,
       customServiceFee,
-      dayCostOverrides = {}
+      dayCostOverrides = {},
+      dailyDriverAssignments = {}
     } = params;
 
     const invoiceItems: InvoiceItem[] = [];
@@ -173,7 +181,16 @@ export class InvoiceCalculationService {
     // Add custom train blocks or explicit travel blocks if they have custom agreed prices
     const trainBlocks = itinerary.filter(b => b.type === 'train');
     const trainTotal = trainBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
-    transportTotal += trainTotal;
+
+    // Sum driver accommodation costs across daily driver assignments (preferring charged_accommodation_cost)
+    let driverAccommodationTotal = 0;
+    if (dailyDriverAssignments) {
+      Object.values(dailyDriverAssignments).forEach(assignment => {
+        driverAccommodationTotal += Number(assignment?.charged_accommodation_cost ?? assignment?.contracted_accommodation_cost ?? assignment?.accommodation_cost ?? 0);
+      });
+    }
+
+    transportTotal += trainTotal + driverAccommodationTotal;
 
     const dailyActivityIdsTransport: string[] = [];
     const travelBlocks = itinerary.filter(b => b.type === 'travel' || b.type === 'train');
