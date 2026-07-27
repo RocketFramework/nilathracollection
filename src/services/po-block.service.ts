@@ -17,8 +17,8 @@ export class POBlockService {
 
         const blockIds = blocks.map(b => b.id);
 
-        // 2. Fetch mappings, activities, and rfq vendors in parallel
-        const [mappingsResult, vendorsResult] = await Promise.all([
+        // 2. Fetch mappings, activities, rfq vendors, and driver assignments in parallel
+        const [mappingsResult, vendorsResult, driverItinResult] = await Promise.all([
             adminSupabase
                 .from('po_block_daily_activities')
                 .select('*')
@@ -26,11 +26,16 @@ export class POBlockService {
             adminSupabase
                 .from('tour_rfq_emails')
                 .select('*')
-                .in('po_block_id', blockIds)
+                .in('po_block_id', blockIds),
+            adminSupabase
+                .from('tour_itinerary_drivers')
+                .select('*, tour_itineraries(day_number, date)')
+                .eq('tour_id', tourId)
         ]);
 
         if (mappingsResult.error) throw mappingsResult.error;
         const mappings = mappingsResult.data || [];
+        const driverItinRows = driverItinResult.data || [];
 
         // 3. Fetch daily activities in parallel with the vendor fetch above
         const dailyActivityIds = mappings.map(m => m.daily_activity_id);
@@ -58,7 +63,7 @@ export class POBlockService {
         // Assemble joins in memory — sort activities within each block by service_date ascending
         return blocks.map(block => {
             const blockMappings = mappings.filter(m => m.po_block_id === block.id);
-            const blockActivities = activities
+            let blockActivities = activities
                 .filter(act => blockMappings.some(m => m.daily_activity_id === act.id))
                 .sort((a, b) => {
                     const dateA = a.service_date || a.tour_itineraries?.date || '';
@@ -69,6 +74,42 @@ export class POBlockService {
                     return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
                 });
             const blockVendors = vendors.filter(v => v.po_block_id === block.id);
+
+            if (block.block_type === 'driver') {
+                const targetDriverId = block.name.split(' | ID: ')[1];
+                const matchingDriverRows = driverItinRows.filter((r: any) => r.driver_id === targetDriverId);
+
+                if (matchingDriverRows.length > 0) {
+                    blockActivities = matchingDriverRows.map((row: any) => {
+                        const itin = row.tour_itineraries;
+                        const dayNum = itin?.day_number || 1;
+                        const dateStr = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
+
+                        const rate = Number(row.contracted_per_day_rate ?? row.per_day_rate ?? 0);
+                        const acc = Number(row.contracted_accommodation_cost ?? 0);
+                        const meals = Number(row.contracted_meal_cost ?? 0);
+                        const allow = Number(row.contracted_other_allowance ?? 0);
+                        const dayTotal = rate;
+
+                        return {
+                            id: row.id,
+                            activity_type: 'driver',
+                            title: `Driver Service - Day ${dayNum} ($${dayTotal.toFixed(2)})`,
+                            service_date: dateStr,
+                            day_number: dayNum,
+                            tour_itineraries: itin,
+                            contracted_price: dayTotal,
+                            contracted_total_price: dayTotal,
+                            quantity: 1,
+                            driver_id: row.driver_id,
+                            contracted_per_day_rate: rate,
+                            contracted_accommodation_cost: acc,
+                            contracted_meal_cost: meals,
+                            contracted_other_allowance: allow
+                        };
+                    }).sort((a: any, b: any) => (a.day_number || 0) - (b.day_number || 0));
+                }
+            }
 
             return {
                 ...block,
@@ -503,6 +544,22 @@ export class POBlockService {
         }
 
 
+        // Check driver assignments in tour_itineraries/tour_itinerary_drivers
+        const { data: itinDriversData } = await adminSupabase
+            .from('tour_itinerary_drivers')
+            .select('driver_id')
+            .eq('tour_id', tourId)
+            .not('driver_id', 'is', null);
+
+        const itinDriverIds = Array.from(new Set((itinDriversData || []).map((d: any) => d.driver_id).filter(Boolean)));
+        const existingDriverBlockIds = new Set(
+            existingBlocks
+                .filter(b => b.block_type === 'driver')
+                .map(b => b.name.split(' | ID: ')[1])
+                .filter(Boolean)
+        );
+        const hasMissingDriverBlock = itinDriverIds.some(id => !existingDriverBlockIds.has(id));
+
         // ── Normal rebuild: Compare activity signatures ───────────────────────────
         if (nonFinalizedBlocks.length > 0) {
             const buildSig = (acts: any[]) =>
@@ -530,7 +587,7 @@ export class POBlockService {
                 (b.block_type === 'guide' || b.block_type === 'driver') && !b.name.includes('| ID:')
             );
 
-            if (!hasInvalidNames && !allBlocksHaveNoMappings && incomingSig === existingSig) {
+            if (!hasMissingDriverBlock && !hasInvalidNames && !allBlocksHaveNoMappings && incomingSig === existingSig) {
                 return { blocks: existingBlocks, status: 'unchanged' }; // Nothing changed
             }
         }
@@ -651,9 +708,18 @@ export class POBlockService {
                     : { data: [] as any[] };
                 return { guideIds, lookup: guides || [] };
             })(),
-            // ── 6. DRIVER: group by driver_id ─────────────────────────────────────────
+            // ── 6. DRIVER: group by driver_id from daily_activities AND tour_itinerary_drivers ──
             (async () => {
-                const driverIds = Array.from(new Set(activitiesToGroup.map(a => a.driver_id).filter(Boolean)))
+                const { data: itinDrivers } = await adminSupabase
+                    .from('tour_itinerary_drivers')
+                    .select('driver_id')
+                    .eq('tour_id', tourId)
+                    .not('driver_id', 'is', null);
+
+                const driverIdsFromItin = (itinDrivers || []).map((d: any) => d.driver_id).filter(Boolean);
+                const driverIdsFromActivities = activitiesToGroup.map(a => a.driver_id).filter(Boolean);
+
+                const driverIds = Array.from(new Set([...driverIdsFromActivities, ...driverIdsFromItin]))
                     .filter(id => !finalizedDriverIds.has(id)) as string[];
                 const { data: drivers } = driverIds.length > 0
                     ? await adminSupabase.from('drivers').select('id, first_name, last_name, per_day_rate').in('id', driverIds)

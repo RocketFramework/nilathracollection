@@ -139,7 +139,7 @@ export class TourDailyDriverService {
                 dayToItinIdMap[dayNum] = tourItinId;
             }
 
-            const contractedRate = p.contracted_per_day_rate ?? p.per_day_rate ?? 15;
+            const contractedRate = Number(p.contracted_per_day_rate ?? p.per_day_rate ?? 0);
             const contractedAcc = p.contracted_accommodation_cost ?? p.accommodation_cost ?? 0;
             const contractedMeal = p.contracted_meal_cost ?? p.meal_cost ?? 0;
             const contractedOther = p.contracted_other_allowance ?? p.other_allowance ?? 0;

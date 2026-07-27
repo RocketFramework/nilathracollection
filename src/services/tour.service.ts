@@ -851,11 +851,11 @@ export class TourService {
 
                     const quantity = b.quantity || 1;
                     const contractedPrice = b.contractedPrice || 0;
-                    const agreedUnitPrice = b.agreedPrice || 0;
-                    const agreedTotalPrice = agreedUnitPrice * quantity;
+                    const agreedTotalPrice = b.agreedPrice !== undefined && b.agreedPrice !== null ? Number(b.agreedPrice) : 0;
+                    const agreedUnitPrice = quantity > 0 ? agreedTotalPrice / quantity : agreedTotalPrice;
 
                     b.contractedPrice = contractedPrice;
-                    b.agreedPrice = agreedUnitPrice;
+                    b.agreedPrice = agreedTotalPrice;
 
                     activitiesToInsert.push({
                         ...basePayload,
@@ -929,9 +929,14 @@ export class TourService {
                             basePayload.hotel_room_id = primaryRoomId;
                         }
 
-                        basePayload.charged_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
-                        basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
+                        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                            basePayload.charged_total_price = Number(b.agreedPrice);
+                            basePayload.charged_unit_price = basePayload.quantity > 0 ? Number(b.agreedPrice) / basePayload.quantity : Number(b.agreedPrice);
+                        } else {
+                            basePayload.charged_total_price = totalAgreedPrice > 0 ? totalAgreedPrice : null;
+                            basePayload.charged_unit_price = totalAgreedPrice > 0 && totalRooms > 0 ? totalAgreedPrice / totalRooms : null;
+                        }
 
                         // Apply custom contracted overrides if present (e.g. special buying rates)
                         if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
@@ -966,8 +971,14 @@ export class TourService {
                         basePayload.double_room_id = assumedRoomId;
                         basePayload.double_room_count = assumedQty;
                         basePayload.quantity = assumedQty;
-                        basePayload.charged_unit_price = acc.pricePerNight || null;
-                        basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
+                        
+                        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                            basePayload.charged_total_price = Number(b.agreedPrice);
+                            basePayload.charged_unit_price = assumedQty > 0 ? Number(b.agreedPrice) / assumedQty : Number(b.agreedPrice);
+                        } else {
+                            basePayload.charged_unit_price = acc.pricePerNight || null;
+                            basePayload.charged_total_price = (acc.pricePerNight && assumedQty) ? acc.pricePerNight * assumedQty : null;
+                        }
                         
                         // Apply custom contracted overrides if present (e.g. special buying rates)
                         if (acc.customContractedUnitPrice !== undefined || acc.customContractedTotalPrice !== undefined) {
@@ -993,8 +1004,13 @@ export class TourService {
                         basePayload.quantity = b.quantity || 1;
                         basePayload.contracted_price = b.contractedPrice || 0;
                         basePayload.contracted_total_price = b.contractedTotalPrice || ((b.contractedPrice || 0) * basePayload.quantity);
-                        basePayload.charged_unit_price = b.agreedPrice || 0;
-                        basePayload.charged_total_price = (b.agreedPrice || 0) * basePayload.quantity;
+                        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                            basePayload.charged_total_price = Number(b.agreedPrice);
+                            basePayload.charged_unit_price = basePayload.quantity > 0 ? Number(b.agreedPrice) / basePayload.quantity : Number(b.agreedPrice);
+                        } else {
+                            basePayload.charged_unit_price = b.agreedPrice || 0;
+                            basePayload.charged_total_price = (b.agreedPrice || 0) * basePayload.quantity;
+                        }
                         activitiesToInsert.push(basePayload);
                     }
                 } else {
@@ -1004,59 +1020,42 @@ export class TourService {
                     }
                     
                     let contractedPrice = b.contractedPrice;
-                    
-                    // Extract unit and total price correctly based on block type semantics
-                    // For meals and activities, UI treats b.agreedPrice as the UNIT PRICE.
-                    // For travel and guides, UI and logic expects b.agreedPrice as the TOTAL PRICE.
-                    let agreedTotalPrice = b.agreedPrice || null;
-                    let agreedUnitPrice = agreedTotalPrice ? agreedTotalPrice / quantity : null;
+                    let agreedTotalPrice: number | null = null;
+                    let agreedUnitPrice: number | null = null;
 
-                    if (b.type === 'meal' || b.type === 'activity') {
-                        agreedUnitPrice = b.agreedPrice || null;
-                        agreedTotalPrice = agreedUnitPrice ? agreedUnitPrice * quantity : null;
-                    }
-
-                    if (b.type === 'travel') {
-                        // Dynamically calculate based on km and travel style if we have a distance
-                        let distanceNum = 0;
-                        if (b.distance) {
-                            const d = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
-                            if (!isNaN(d)) distanceNum = d;
-                        }
-                        
-                        if (distanceNum > 0) {
-                            // Vehicle km rate from app settings (vehicle is tracked via transport_requirement_vehicles)
-                            const dynamicVehicleKmRate = vehicleKmRate;
-
-                            // Always enforce the global km rate as the contracted base unit rate
-                            contractedPrice = dynamicVehicleKmRate;
+                    if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
+                        agreedTotalPrice = Number(b.agreedPrice);
+                        agreedUnitPrice = quantity > 0 ? agreedTotalPrice / quantity : agreedTotalPrice;
+                    } else {
+                        if (b.type === 'travel') {
+                            let distanceNum = 0;
+                            if (b.distance) {
+                                const d = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                                if (!isNaN(d)) distanceNum = d;
+                            }
                             
-                            quantity = distanceNum > 0 ? distanceNum : 1; // Distance is the multiplier (quantity)
-                            
-                            // Respect manually negotiated agreed TOTAL price if it exists
-                            if (b.agreedPrice) {
-                                agreedTotalPrice = b.agreedPrice;
-                                agreedUnitPrice = agreedTotalPrice / quantity;
-                            } else {
+                            if (distanceNum > 0) {
+                                const dynamicVehicleKmRate = vehicleKmRate;
+                                contractedPrice = dynamicVehicleKmRate;
+                                quantity = distanceNum > 0 ? distanceNum : 1;
                                 agreedUnitPrice = (contractedPrice || 0) * (1 + (transportMarkup / 100));
                                 agreedTotalPrice = agreedUnitPrice * quantity;
                             }
-                        }
-                    } else if (b.type === 'meal') {
-                        if (contractedPrice !== undefined && contractedPrice !== null && !b.agreedPrice) {
-                            agreedUnitPrice = contractedPrice * (1 + (restaurantMarkup / 100));
-                            agreedTotalPrice = agreedUnitPrice * quantity;
-                        }
-                    } else if (b.type === 'activity') {
-                        if (contractedPrice !== undefined && contractedPrice !== null && !b.agreedPrice) {
-                            agreedUnitPrice = contractedPrice * (1 + (activityMarkup / 100));
-                            agreedTotalPrice = agreedUnitPrice * quantity;
+                        } else if (b.type === 'meal') {
+                            if (contractedPrice !== undefined && contractedPrice !== null) {
+                                agreedUnitPrice = contractedPrice * (1 + (restaurantMarkup / 100));
+                                agreedTotalPrice = agreedUnitPrice * quantity;
+                            }
+                        } else if (b.type === 'activity') {
+                            if (contractedPrice !== undefined && contractedPrice !== null) {
+                                agreedUnitPrice = contractedPrice * (1 + (activityMarkup / 100));
+                                agreedTotalPrice = agreedUnitPrice * quantity;
+                            }
                         }
                     }
 
-                    // Enforce mutations on the original block reference so it persists to JSON planner_data
                     b.contractedPrice = contractedPrice;
-                    b.agreedPrice = (b.type === 'meal' || b.type === 'activity') ? (agreedUnitPrice ?? undefined) : (agreedTotalPrice ?? undefined); // Store properly so UI doesn't blow up
+                    b.agreedPrice = agreedTotalPrice ?? undefined;
                     if (b.type === 'travel') {
                         b.transportQuantity = quantity;
                     } else if (b.type === 'meal') {
@@ -1210,7 +1209,7 @@ export class TourService {
             markupResult,
             staysResult
         ] = await Promise.all([
-            supabaseAdmin.from('hotels').select('name, location_address, reservation_agent_contact, reservation_email').eq('id', newHotelId).single(),
+            supabaseAdmin.from('hotels').select('name, location_address, reservation_agent_contact, reservation_email, hotel_rooms(*)').eq('id', newHotelId).single(),
             selectedRoomIds.length > 0
                 ? supabaseAdmin.from('room_rates').select('*').in('hotel_room_id', selectedRoomIds)
                 : Promise.resolve({ data: [] as any[], error: null }),
@@ -1277,7 +1276,7 @@ export class TourService {
                 else if (reqType === 'Family') { roomUpdatePayload.family_room_id = room.roomId; roomUpdatePayload.family_room_count = room.quantity; }
 
                 const roomRates = ratesData.filter((r: any) => r.hotel_room_id === room.roomId);
-                let baseRate = room.contractedPrice || 0;
+                let baseRate = room.contractedPrice || room.pricePerNight || 0;
                 const stayDateStr = stayDate ? String(stayDate) : "";
 
                 const applicableRates = roomRates.filter((r: any) => {
@@ -1300,6 +1299,16 @@ export class TourService {
                     const matrixRateObj = ratesToSearch.find((r: any) => r[fieldName] !== undefined && r[fieldName] !== null && r[fieldName] > 0);
                     if (matrixRateObj) baseRate = matrixRateObj[fieldName];
                 }
+
+                if (baseRate === 0 && newHotel.hotel_rooms) {
+                    const hr = newHotel.hotel_rooms.find((r: any) => r.id === room.roomId);
+                    if (hr) {
+                        baseRate = Number(hr.price_per_night || hr.base_rate || hr.contracted_price || 0);
+                    }
+                }
+
+                room.contractedPrice = baseRate;
+                room.pricePerNight = baseRate * (1 + markup / 100);
 
                 totalContracted += baseRate * room.quantity;
             }
@@ -1418,7 +1427,20 @@ export class TourService {
             if (Array.isArray(pData.accommodations)) {
                 pData.accommodations = pData.accommodations.map((a: any) => {
                     if (dayNumbers.includes(Number(a.nightIndex))) {
-                        return { ...a, hotelId: newHotelId, hotelName: newHotel.name, selectedRooms, roomId: selectedRooms[0]?.roomId || '', roomName: selectedRooms[0]?.roomName || '', mealPlan: selectedRooms[0]?.mealPlan || 'BB', pricePerNight: avgChargedPriceAcrossStays };
+                        const updatedAcc = {
+                            ...a,
+                            hotelId: newHotelId,
+                            hotelName: newHotel.name,
+                            selectedRooms,
+                            roomId: selectedRooms[0]?.roomId || '',
+                            roomName: selectedRooms[0]?.roomName || '',
+                            mealPlan: selectedRooms[0]?.mealPlan || 'BB',
+                            pricePerNight: avgChargedPriceAcrossStays
+                        };
+                        delete updatedAcc.customContractedUnitPrice;
+                        delete updatedAcc.customContractedTotalPrice;
+                        delete updatedAcc.customRateNote;
+                        return updatedAcc;
                     }
                     return a;
                 });

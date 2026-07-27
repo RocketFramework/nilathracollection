@@ -161,13 +161,18 @@ export class VendorBookingService {
                         // Parse total distance correctly from distance strings (e.g. "120 km")
                         const totalKmForDay = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
 
-                        // Build description: "Day N Transport – <from> → <to>"
+                        const isStayDay = totalKmForDay === 0 || legs.some((l: any) => 
+                            (l.title || '').toLowerCase().includes('driver and vehicle stays') || 
+                            (l.title || '').toLowerCase().includes('vehicle and driver stays')
+                        );
                         const fromLocation = firstLeg.pickup_location || firstLeg.location_name || firstLeg.title || 'Origin';
                         const lastLeg = legs[legs.length - 1] as any;
                         const toLocation = lastLeg.dropoff_location || lastLeg.destination_location || lastLeg.title || 'Destination';
+                        
+                        const routeStr = isStayDay ? 'Vehicle and Driver Stays' : `${fromLocation} → ${toLocation}`;
                         const description = dayNum
-                            ? `Day ${dayNum} Transport – ${fromLocation} → ${toLocation}`
-                            : `Transport – ${fromLocation} → ${toLocation}`;
+                            ? `Day ${dayNum} Transport – ${routeStr}`
+                            : `Transport – ${routeStr}`;
 
                         // Compute day price from vehicle pricing
                         // Sum across all unique requirement ids on legs of this day
@@ -238,8 +243,76 @@ export class VendorBookingService {
                         }
                     }
 
+                } else if (bookingData.vendor_type === 'driver') {
+                    // ── DRIVER PATH: Fetch daily driver records from tour_itinerary_drivers ──
+                    const { data: driverRows, error: dErr } = await supabase
+                        .from('tour_itinerary_drivers')
+                        .select('*, tour_itineraries(day_number, date)')
+                        .eq('tour_id', bookingData.tour_id)
+                        .eq('driver_id', bookingData.vendor_id);
+
+                    if (dErr) {
+                        console.error('Error fetching driver rows from tour_itinerary_drivers:', dErr);
+                    }
+
+                    const rows = driverRows || [];
+
+                    if (rows.length === 0) {
+                        // Fallback if no tour_itinerary_drivers rows exist yet
+                        activities.forEach((act) => {
+                            const itin = (act as any).tour_itineraries;
+                            const dateVal = itin?.date || act.service_date || null;
+                            const dayNum = itin?.day_number || act.day_number || null;
+                            const unitPrice = Number(act.contracted_price || act.charged_unit_price || 25);
+                            const totalPrice = Number(act.contracted_total_price || unitPrice);
+                            calculatedSubtotal += totalPrice;
+                            poItems.push({
+                                id: crypto.randomUUID(),
+                                daily_activity_id: act.id,
+                                description: `Driver Fee - ${act.title || 'Driver Service'}`,
+                                service_date: dateVal,
+                                quantity: 1,
+                                unit_price: unitPrice,
+                                total_price: totalPrice,
+                                day_number: dayNum,
+                            });
+                        });
+                    } else {
+                        // Sort rows by day_number
+                        rows.sort((a: any, b: any) => (a.tour_itineraries?.day_number || 0) - (b.tour_itineraries?.day_number || 0));
+
+                        for (const row of rows) {
+                            const itin = row.tour_itineraries;
+                            const dayNum = itin?.day_number || 1;
+                            const dateVal = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
+
+                            const contractedRate = Number(row.contracted_per_day_rate ?? 0);
+                            const contractedAcc = Number(row.contracted_accommodation_cost ?? 0);
+                            const contractedMeal = Number(row.contracted_meal_cost ?? 0);
+                            const contractedOther = Number(row.contracted_other_allowance ?? 0);
+
+                            const dayTotal = contractedRate;
+                            calculatedSubtotal += dayTotal;
+
+                            poItems.push({
+                                id: crypto.randomUUID(),
+                                description: `Day ${dayNum} Driver Services (Rate: $${contractedRate})`,
+                                service_date: dateVal,
+                                quantity: 1,
+                                unit_price: dayTotal,
+                                total_price: dayTotal,
+                                day_number: dayNum,
+                                service_details: {
+                                    per_day_rate: contractedRate,
+                                    accommodation_cost: contractedAcc,
+                                    meal_cost: contractedMeal,
+                                    other_allowance: contractedOther
+                                }
+                            });
+                        }
+                    }
                 } else {
-                    // ── NON-TRANSPORT PATH (hotel / restaurant / vendor / guide / driver) ──
+                    // ── NON-TRANSPORT PATH (hotel / restaurant / vendor / guide) ──
                     activities.forEach((act) => {
                         const itin = (act as any).tour_itineraries;
                         const checkInDate = itin?.date || act.created_at ? new Date(itin?.date || act.created_at).toISOString().split('T')[0] : null;
@@ -381,7 +454,6 @@ export class VendorBookingService {
         else if (bookingData.vendor_type === 'vendor') poPayload.activity_vendor_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'transport_provider') poPayload.transport_provider_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'tour_guide') poPayload.guide_id = bookingData.vendor_id;
-        else if (bookingData.vendor_type === 'driver') poPayload.driver_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'restaurant') poPayload.restaurant_id = bookingData.vendor_id;
 
         const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
@@ -1049,6 +1049,7 @@ function PlannerWizardWorkspace() {
       const numDays = touristData?.preferences?.duration_days || 5;
 
       const activitiesToSave = [];
+      const assignmentsToSave: TourDailyDriverDTO[] = [];
 
       for (let idx = 0; idx < numDays; idx++) {
         const dayNum = idx + 1;
@@ -1074,13 +1075,28 @@ function PlannerWizardWorkspace() {
           charged_total_price: rateData.chargedPrice,
           description: rateData.note || `Rate Type: ${rateData.rateType}`
         });
+
+        assignmentsToSave.push({
+          tour_id: tourId,
+          day_number: dayNum,
+          driver_id: driverId,
+          contracted_per_day_rate: rateData.contractedPrice,
+          charged_per_day_rate: rateData.chargedPrice,
+          notes: rateData.note || rateData.rateType || ''
+        } as TourDailyDriverDTO);
       }
 
+      await saveTourDailyDriversAction(tourId, assignmentsToSave);
       const res = await saveDriverDailyActivitiesAction(tourId, driverId, activitiesToSave);
+
       if (res.success) {
         const reloadRes = await getDriverDailyActivitiesAction(tourId);
         if (reloadRes.success && reloadRes.activities) {
           setDriverActivities(reloadRes.activities);
+        }
+        const blocksRes = await getPOBlocksAction(tourId);
+        if (blocksRes.success && blocksRes.blocks) {
+          setPoBlocks(blocksRes.blocks);
         }
         alert("Driver rates saved successfully!");
       } else {
@@ -2827,94 +2843,56 @@ function PlannerWizardWorkspace() {
 
 
   useEffect(() => {
+    let isMounted = true;
     if (currentStep?.id === 'driver-selection' && tourId && poBlocks.length > 0) {
       const driverBlocks = poBlocks.filter((b: any) => b.block_type === 'driver');
       const arrivalDate = touristData?.preferences?.arrival_date || '';
       const numDays = touristData?.preferences?.duration_days || 5;
 
-      const initialRates: typeof driverRatesState = {};
+      getTourDailyDriversAction(tourId).then((res) => {
+        if (!isMounted) return;
+        const dailyDriverRows = (res.success && res.drivers ? res.drivers : []) as TourDailyDriverDTO[];
+        const initialRates: typeof driverRatesState = {};
 
-      driverBlocks.forEach((block: any) => {
-        const driverId = block.name.split(' | ID: ')[1];
-        if (!driverId) return;
+        driverBlocks.forEach((block: any) => {
+          const driverId = block.name.split(' | ID: ')[1];
+          if (!driverId) return;
 
-        initialRates[driverId] = {};
+          initialRates[driverId] = {};
 
-        const driverActsForThisDriver = driverActivities.filter((act: any) => act.driver_id === driverId);
-
-        for (let idx = 0; idx < numDays; idx++) {
-          const dayNum = idx + 1;
-          let dateStr = '';
-          if (arrivalDate) {
-            try {
-              const d = new Date(arrivalDate);
-              d.setDate(d.getDate() + idx);
-              dateStr = d.toISOString().split('T')[0];
-            } catch (e) { }
-          }
-
-          const existingAct = driverActsForThisDriver.find((act: any) => {
-            const actDate = act.service_date?.split('T')[0];
-            return actDate === dateStr;
-          });
-
-          if (existingAct) {
-            initialRates[driverId][dayNum] = {
-              rateType: existingAct.description?.startsWith('Rate Type: ')
-                ? existingAct.description.substring(11).split(' - ')[0]
-                : 'Custom',
-              contractedPrice: existingAct.contracted_price || 0,
-              chargedPrice: existingAct.charged_unit_price || 0,
-              note: existingAct.description || ''
-            };
-          } else {
-            const driver = masterData.drivers?.find((d: any) => d.id === driverId);
-            const defaultRate = driver?.per_day_rate || 15;
-
-            let driverDayRateKey: string = Settings.Luxury_Chauffeur_Day_Rate;
-            let defaultRateType = 'Chauffeur Default';
-
-            const style = touristData?.preferences?.travel_style || 'Luxury';
-            if (style === TRAVEL_STYLES.REGULAR) {
-              driverDayRateKey = Settings.Regular_Chauffeur_Day_Rate;
-              defaultRateType = 'Regular Chauffeur Rate';
-            } else if (style === TRAVEL_STYLES.PREMIUM) {
-              driverDayRateKey = Settings.Premium_Chauffeur_Day_Rate;
-              defaultRateType = 'Premium Chauffeur Rate';
-            } else if (style === TRAVEL_STYLES.LUXURY) {
-              driverDayRateKey = Settings.Luxury_Chauffeur_Day_Rate;
-              defaultRateType = 'Luxury Chauffeur Rate';
-            } else if (style === TRAVEL_STYLES.ULTRA_VIP) {
-              driverDayRateKey = Settings.Ultra_Vip_Chauffeur_Day_Rate;
-              defaultRateType = 'Ultra VIP Chauffeur Rate';
-            } else {
-              driverDayRateKey = Settings.Regular_Chauffeur_Day_Rate;
-              defaultRateType = 'Regular Chauffeur Rate';
+          for (let idx = 0; idx < numDays; idx++) {
+            const dayNum = idx + 1;
+            let dateStr = '';
+            if (arrivalDate) {
+              try {
+                const d = new Date(arrivalDate);
+                d.setDate(d.getDate() + idx);
+                dateStr = d.toISOString().split('T')[0];
+              } catch (e) { }
             }
 
-            let initialContracted = defaultRate;
-            if (appSettings && appSettings[driverDayRateKey] !== undefined) {
-              initialContracted = Number(appSettings[driverDayRateKey]) || defaultRate;
+            // Find matching row in tour_itinerary_drivers for this driver and day
+            const row = dailyDriverRows.find((r: any) => r.driver_id === driverId && Number(r.day_number) === dayNum);
+            if (row) {
+              const contractedTotal = Number(row.contracted_per_day_rate ?? 0);
+              const chargedTotal = Number(row.charged_per_day_rate ?? row.contracted_per_day_rate ?? 0);
+
+              initialRates[driverId][dayNum] = {
+                rateType: row.notes || 'Driver Agreement Rate',
+                contractedPrice: contractedTotal,
+                chargedPrice: chargedTotal,
+                note: row.notes || ''
+              };
             }
-
-            const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined
-              ? Number(appSettings[Settings.Diver_Markup])
-              : (Number(appSettings?.[Settings.Driver_Markup]) || 0);
-            const initialCharged = initialContracted * (1 + markupPercent / 100);
-
-            initialRates[driverId][dayNum] = {
-              rateType: defaultRateType,
-              contractedPrice: initialContracted,
-              chargedPrice: initialCharged,
-              note: `Rate Type: ${defaultRateType}`
-            };
           }
-        }
+        });
+
+        setDriverRatesState(initialRates);
       });
-
-      setDriverRatesState(initialRates);
     }
-  }, [currentStep?.id, driverActivities, poBlocks, touristData, appSettings, masterData.drivers]);
+
+    return () => { isMounted = false; };
+  }, [currentStep?.id, poBlocks, touristData, masterData.drivers, tourId]);
 
   // Sync shareEditorRef on navigation/tab switch
   useEffect(() => {
@@ -4092,7 +4070,78 @@ function PlannerWizardWorkspace() {
             } catch { return dateStr; }
           };
 
+          const tpVehicles: any[] = req.transport_requirement_vehicles || [];
+
+          let vehicleSpecsTable = '';
+          if (tpVehicles.length > 0) {
+            const vehicleRows = tpVehicles.map((rv: any, idx: number) => {
+              const v = rv.vehicle || {};
+              const label = v.make_and_model || v.make || req.vehicle_make || 'Vehicle';
+              const type = v.vehicle_type ? ` (${v.vehicle_type})` : '';
+              const qty = rv.quantity || 1;
+              const yr = formatModelYear(req.vehicle_model_year || v.model_year);
+              const bg = idx % 2 === 1 ? 'background-color:#FAFAF9;' : '';
+              return `<tr style="${bg}">
+                <td style="padding:6px 10px;border-bottom:1px solid #E6E4E0;font-weight:600;">${label}${type}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #E6E4E0;text-align:center;">${qty}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #E6E4E0;">${yr}</td>
+              </tr>`;
+            }).join('');
+
+            vehicleSpecsTable = `<table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
+              <thead>
+                <tr style="background-color:#EAE8E4;">
+                  <th style="padding:6px 10px;text-align:left;font-weight:700;color:#1B3A2D;">Vehicle Make / Type</th>
+                  <th style="padding:6px 10px;text-align:center;font-weight:700;color:#1B3A2D;">Qty</th>
+                  <th style="padding:6px 10px;text-align:left;font-weight:700;color:#1B3A2D;">Model Year</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${vehicleRows}
+              </tbody>
+            </table>`;
+          } else {
+            vehicleSpecsTable = `<table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
+              <tbody>
+                <tr>
+                  <td style="padding:5px 8px;width:45%;color:#555;font-weight:600;">Vehicle Make / Type</td>
+                  <td style="padding:5px 8px;">${req.vehicle_make || 'Any Make'}</td>
+                </tr>
+                <tr style="background-color:#FAFAF9;">
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Model Year</td>
+                  <td style="padding:5px 8px;">${formatModelYear(req.vehicle_model_year)}</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Number of Vehicles</td>
+                  <td style="padding:5px 8px;">${req.number_of_vehicles || 1}</td>
+                </tr>
+                <tr style="background-color:#FAFAF9;">
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Engagement Duration</td>
+                  <td style="padding:5px 8px;">${req.vehicle_duration ? `${req.vehicle_duration} Days` : 'As per itinerary'}</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Estimated Total KM</td>
+                  <td style="padding:5px 8px;">${(res as any).total_km || 0} km</td>
+                </tr>
+                <tr style="background-color:#FAFAF9;">
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Leather Seats</td>
+                  <td style="padding:5px 8px;">${req.leather_seats ? 'Yes' : 'No'}</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Vehicle Colour Preference</td>
+                  <td style="padding:5px 8px;">${req.vehicle_color || 'Any'}</td>
+                </tr>
+                <tr style="background-color:#FAFAF9;">
+                  <td style="padding:5px 8px;color:#555;font-weight:600;">Mint / Showroom Condition</td>
+                  <td style="padding:5px 8px;">${req.vehicle_is_mint_condition ? 'Yes' : 'No'}</td>
+                </tr>
+              </tbody>
+            </table>`;
+          }
+
           bodyHtml = bodyHtml.replace(/{{Transport Provider Name}}/g, hotel?.name || '');
+          bodyHtml = bodyHtml.replace(/{{Pax}}/g, occupancyStr);
+          bodyHtml = bodyHtml.replace(/{{Vehicle Specifications Table}}/g, vehicleSpecsTable);
           bodyHtml = bodyHtml.replace(/{{Vehicle Make}}/g, req.vehicle_make || 'Any Make');
           bodyHtml = bodyHtml.replace(/{{Model Year}}/g, formatModelYear(req.vehicle_model_year));
           bodyHtml = bodyHtml.replace(/{{Number of Vehicles}}/g, String(req.number_of_vehicles || 1));
@@ -4124,15 +4173,59 @@ function PlannerWizardWorkspace() {
               const first = legs[0] as any;
               const dayNum = first.tour_itineraries?.day_number || first.day_number || '';
               const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
-              const from = first.pickup_location || first.location_name || 'Origin';
-              const last = legs[legs.length - 1] as any;
-              const to = last.dropoff_location || last.destination_location || last.location_name || 'Destination';
-              const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
+              const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+              
+              const isStayDay = totalKm === 0 || legs.every((l: any) => 
+                (l.title || '').toLowerCase().includes('driver and vehicle stays') || 
+                (l.title || '').toLowerCase().includes('vehicle and driver stays')
+              );
+
+              let routeDisplay = '';
+              let kmDisplay = '';
+
+              if (isStayDay) {
+                routeDisplay = 'Vehicle and Driver Stays';
+                kmDisplay = '-';
+              } else {
+                const firstLeg = legs[0] as any;
+                const lastLeg = legs[legs.length - 1] as any;
+
+                let origin = '';
+                let destination = '';
+
+                const titleMatch = (firstLeg.title || '').match(/(.+?)\s+to\s+(.+)/i);
+                const locationMatch = (firstLeg.location_name || '').match(/(.+?)\s+to\s+(.+)/i);
+
+                if (locationMatch && locationMatch[1] && locationMatch[2]) {
+                  origin = locationMatch[1].trim();
+                  destination = locationMatch[2].trim();
+                } else if (titleMatch && titleMatch[1] && titleMatch[2] && !titleMatch[1].toLowerCase().includes('travel') && !titleMatch[1].toLowerCase().includes('journey') && !titleMatch[1].toLowerCase().includes('transfer')) {
+                  origin = titleMatch[1].trim();
+                  destination = titleMatch[2].trim();
+                } else {
+                  destination = lastLeg.location_name || lastLeg.title || 'Destination';
+                  const idx = sortedStays.findIndex(s => s.id === firstLeg.id);
+                  if (idx > 0) {
+                    for (let i = idx - 1; i >= 0; i--) {
+                      const prev = sortedStays[i];
+                      if (prev && prev.location_name && prev.location_name !== destination) {
+                        origin = prev.location_name;
+                        break;
+                      }
+                    }
+                  }
+                  if (!origin) origin = firstLeg.pickup_location || 'Origin';
+                }
+
+                routeDisplay = `${origin} &#8594; ${destination}`;
+                kmDisplay = `${Math.round(totalKm)} km`;
+              }
+
               return `<tr>
                 <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;white-space:nowrap;">Day ${dayNum}</td>
                 <td style="border:1px solid #E6E4E0;padding:7px 10px;">${displayDate}</td>
-                <td style="border:1px solid #E6E4E0;padding:7px 10px;">${from} &#8594; ${to}</td>
-                <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">${totalKm > 0 ? totalKm + ' km' : 'TBD'}</td>
+                <td style="border:1px solid #E6E4E0;padding:7px 10px;">${routeDisplay}</td>
+                <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">${kmDisplay}</td>
               </tr>`;
             }).join('');
           const rfqItineraryTable = `<table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;margin-top:8px;">
@@ -4930,6 +5023,118 @@ function PlannerWizardWorkspace() {
 <p>Kindly acknowledge receipt and confirm this dining reservation under the agreed rates.</p>
 <p>Thank you for your continued partnership with Nilathra Collection.</p>
 <p>Best regards,<br /><strong>${agentName}</strong><br />Nilathra Collection Operations</p>`;
+    } else if (vType === 'driver') {
+      // ── DRIVER PO body — Uses tour_itinerary_drivers table data ──────
+      const targetDriverId = hotel?.id || poBlockId?.split(' | ID: ')[1];
+      const driverName = hotel?.name || `${hotel?.first_name || ''} ${hotel?.last_name || ''}`.trim() || 'Driver';
+
+      // Fetch driver assignments from Supabase
+      const { data: driverRows } = await supabase
+        .from('tour_itinerary_drivers')
+        .select('*, tour_itineraries(day_number, date)')
+        .eq('tour_id', tourId)
+        .eq('driver_id', targetDriverId);
+
+      const rows = (driverRows || []).sort((a: any, b: any) => (a.tour_itineraries?.day_number || 0) - (b.tour_itineraries?.day_number || 0));
+
+      let driverSubtotal = 0;
+      let driverTableRows = '';
+
+      if (rows.length > 0) {
+        driverTableRows = rows.map((row: any) => {
+          const itin = row.tour_itineraries;
+          const dayNum = itin?.day_number || 1;
+          const displayDate = itin?.date ? formatDate(itin.date) : `Day ${dayNum}`;
+
+          const rate = Number(row.contracted_per_day_rate ?? 0);
+          const dayTotal = rate;
+          driverSubtotal += dayTotal;
+
+          return `<tr>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;">Day ${dayNum}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;">${displayDate}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">$${rate.toFixed(2)}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:bold;">$${dayTotal.toFixed(2)}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        driverTableRows = sortedStays.map((act: any) => {
+          const dayNum = act.tour_itineraries?.day_number || act.day_number || 1;
+          const displayDate = act.service_date ? formatDate(act.service_date) : `Day ${dayNum}`;
+          const rate = Number(act.contracted_price || act.charged_unit_price || 25);
+          driverSubtotal += rate;
+          return `<tr>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;">Day ${dayNum}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;">${displayDate}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">$${rate.toFixed(2)}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:bold;">$${rate.toFixed(2)}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      calculatedSubtotal = driverSubtotal;
+      const driverTotalDisplay = `$${driverSubtotal.toFixed(2)}`;
+      const assignedDaysCount = rows.length > 0 ? rows.length : sortedStays.length;
+
+      defaultBody = `
+<p style="margin:0 0 12px;font-size:13px;color:#1B3A2D;">Dear <strong>${driverName}</strong>,</p>
+<p style="margin:0 0 12px;font-size:13px;color:#333;">
+  Please find below the formal Purchase Order <strong>${poNumber}</strong> issued by Nilathra Collection
+  confirming your engagement as chauffeur / driver for our tour itinerary. Kindly review and confirm acceptance.
+</p>
+
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Purchase Order Summary</p>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
+    <tbody>
+      <tr>
+        <td style="padding:4px 8px;width:40%;color:#555;font-weight:600;">PO Number</td>
+        <td style="padding:4px 8px;"><strong>${poNumber}</strong></td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Driver Name</td>
+        <td style="padding:4px 8px;">${driverName}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Assigned Duration</td>
+        <td style="padding:4px 8px;">${assignedDaysCount} Day${assignedDaysCount !== 1 ? 's' : ''}</td>
+      </tr>
+      <tr style="background-color:#FAFAF9;">
+        <td style="padding:4px 8px;color:#555;font-weight:600;">Total PO Value</td>
+        <td style="padding:4px 8px;"><strong>${driverTotalDisplay}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Daily Driver Cost Breakdown</p>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
+    <thead><tr style="background-color:#EAE8E4;">
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Day</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:left;">Date</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">Daily Rate</th>
+      <th style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">Day Total</th>
+    </tr></thead>
+    <tbody>${driverTableRows}</tbody>
+    <tfoot>
+      <tr style="background-color:#EAE8E4;">
+        <td colspan="3" style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:700;">Total PO Amount</td>
+        <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:700;">${driverTotalDisplay}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<p style="font-size:13px;color:#333;margin:0 0 10px;">
+  The above rates include all agreed daily fees and allowances. Kindly acknowledge and confirm acceptance.
+</p>
+<p style="font-size:13px;color:#333;margin:0;">
+  Thank you for your partnership with Nilathra Collection.<br /><br />
+  Warm regards,<br />
+  <strong>${agentName}</strong><br />
+  Nilathra Collection Operations
+</p>`.trim();
     } else if (vType === 'transport_provider') {
       // ── TRANSPORT PO body — professional, matches RFQ template quality ──────
 
@@ -5007,10 +5212,53 @@ function PlannerWizardWorkspace() {
           const first = legs[0] as any;
           const dayNum = first.tour_itineraries?.day_number || first.day_number || '';
           const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
-          const from = first.pickup_location || first.location_name || 'Origin';
-          const last = legs[legs.length - 1] as any;
-          const to = last.dropoff_location || last.destination_location || last.location_name || 'Destination';
-          const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
+          const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+
+          const isStayDay = totalKm === 0 || legs.every((l: any) => 
+            (l.title || '').toLowerCase().includes('driver and vehicle stays') || 
+            (l.title || '').toLowerCase().includes('vehicle and driver stays')
+          );
+
+          let routeDisplay = '';
+          let kmDisplay = '';
+
+          if (isStayDay) {
+            routeDisplay = 'Vehicle and Driver Stays';
+            kmDisplay = '-';
+          } else {
+            const firstLeg = legs[0] as any;
+            const lastLeg = legs[legs.length - 1] as any;
+
+            let origin = '';
+            let destination = '';
+
+            const titleMatch = (firstLeg.title || '').match(/(.+?)\s+to\s+(.+)/i);
+            const locationMatch = (firstLeg.location_name || '').match(/(.+?)\s+to\s+(.+)/i);
+
+            if (locationMatch && locationMatch[1] && locationMatch[2]) {
+              origin = locationMatch[1].trim();
+              destination = locationMatch[2].trim();
+            } else if (titleMatch && titleMatch[1] && titleMatch[2] && !titleMatch[1].toLowerCase().includes('travel') && !titleMatch[1].toLowerCase().includes('journey') && !titleMatch[1].toLowerCase().includes('transfer')) {
+              origin = titleMatch[1].trim();
+              destination = titleMatch[2].trim();
+            } else {
+              destination = lastLeg.location_name || lastLeg.title || 'Destination';
+              const idx = sortedStays.findIndex(s => s.id === firstLeg.id);
+              if (idx > 0) {
+                for (let i = idx - 1; i >= 0; i--) {
+                  const prev = sortedStays[i];
+                  if (prev && prev.location_name && prev.location_name !== destination) {
+                    origin = prev.location_name;
+                    break;
+                  }
+                }
+              }
+              if (!origin) origin = firstLeg.pickup_location || 'Origin';
+            }
+
+            routeDisplay = `${origin} &#8594; ${destination}`;
+            kmDisplay = `${Math.round(totalKm)} km`;
+          }
 
           // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
           let dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
@@ -5033,7 +5281,7 @@ function PlannerWizardWorkspace() {
               return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
             }, 0);
 
-            const totalDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+            const totalDistance = totalKm;
             const excessDistance = Math.max(0, totalDistance - maxMileage);
             const extraKmCost = excessDistance * extraKmRate;
             dayRate = baseRate + extraKmCost;
@@ -5043,8 +5291,8 @@ function PlannerWizardWorkspace() {
           return `<tr>
             <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;">Day ${dayNum}</td>
             <td style="border:1px solid #E6E4E0;padding:7px 10px;">${displayDate}</td>
-            <td style="border:1px solid #E6E4E0;padding:7px 10px;">${from} &#8594; ${to}</td>
-            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">${totalKm > 0 ? totalKm + ' km' : 'TBD'}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;">${routeDisplay}</td>
+            <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;">${kmDisplay}</td>
             <td style="border:1px solid #E6E4E0;padding:7px 10px;text-align:right;font-weight:bold;">${rateDisplay}</td>
           </tr>`;
         }).join('');
@@ -5052,6 +5300,13 @@ function PlannerWizardWorkspace() {
       calculatedSubtotal = tpSubtotal;
       const tpTotalDisplay = tpSubtotal > 0 ? `$${tpSubtotal.toFixed(2)}` : 'As per quotation';
       const durationDays = Object.keys(tpDayGroups).length;
+
+      const adults = touristData?.preferences?.adults || 2;
+      const children = touristData?.preferences?.children || 0;
+      const infants = touristData?.preferences?.infants || 0;
+      let occupancyStr = `${adults} Adults`;
+      if (children > 0) occupancyStr += ` / ${children} Children`;
+      if (infants > 0) occupancyStr += ` / ${infants} Infants`;
 
       defaultBody = `
 <p style="margin:0 0 12px;font-size:13px;color:#1B3A2D;">Dear <strong>${hotel.name}</strong> Team,</p>
@@ -5087,6 +5342,11 @@ function PlannerWizardWorkspace() {
       </tr>
     </tbody>
   </table>
+</div>
+
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:12px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Guest Occupancy / Passengers</p>
+  <p style="margin:0;font-size:13px;font-weight:600;color:#333;">${occupancyStr}</p>
 </div>
 
 ${vehicleSpecsHtml}
@@ -8409,6 +8669,15 @@ ${chauffeurHtml}
                                         {hotel.hotel_class}
                                       </span>
                                     )}
+                                    {(() => {
+                                      const blockTotalValue = blockActivities.reduce((sum: number, act: any) => sum + (Number(act.contracted_total_price ?? act.charged_total_price) || 0), 0);
+                                      return (
+                                        <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-855 border border-emerald-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
+                                          <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
+                                          <span className="font-mono font-bold">${blockTotalValue.toFixed(2)}</span>
+                                        </span>
+                                      );
+                                    })()}
                                     <div className="flex items-center gap-2 ml-2">
                                       {standardStays.length > 0 && (
                                         <button
@@ -9626,7 +9895,7 @@ ${chauffeurHtml}
 
                           return (
                             <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
-                              {/* Block Header */}
+                                              {/* Block Header */}
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">
@@ -9641,6 +9910,15 @@ ${chauffeurHtml}
                                         {vendor.category}
                                       </span>
                                     )}
+                                    {(() => {
+                                      const blockTotalValue = blockActivities.reduce((sum: number, act: any) => sum + (Number(act.contracted_total_price ?? act.charged_total_price) || 0), 0);
+                                      return (
+                                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-800 border border-indigo-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
+                                          <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
+                                          <span className="font-mono font-bold">${blockTotalValue.toFixed(2)}</span>
+                                        </span>
+                                      );
+                                    })()}
                                     <div className="flex items-center gap-2 ml-2">
                                       <button
                                         type="button"
@@ -10159,6 +10437,15 @@ ${chauffeurHtml}
                                         Transport
                                       </span>
                                     )}
+                                    {(() => {
+                                      const blockTotalValue = blockActivities.reduce((sum: number, act: any) => sum + (Number(act.contracted_total_price ?? act.charged_total_price) || 0), 0);
+                                      return (
+                                        <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
+                                          <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
+                                          <span className="font-mono font-bold">${blockTotalValue.toFixed(2)}</span>
+                                        </span>
+                                      );
+                                    })()}
                                     <div className="flex items-center gap-2 ml-2">
                                       <button
                                         type="button"
@@ -10283,6 +10570,18 @@ ${chauffeurHtml}
                                                       });
                                                     }
 
+                                                    // Update main dbActivities state to prevent overwrite on save/reload
+                                                    setDbActivities(prev => prev.map(act => {
+                                                      if (optimisticActivities[act.id]) {
+                                                        return {
+                                                          ...act,
+                                                          contracted_price: optimisticActivities[act.id].contracted_total_price,
+                                                          contracted_total_price: optimisticActivities[act.id].contracted_total_price,
+                                                        };
+                                                      }
+                                                      return act;
+                                                    }));
+
                                                     // Optimistic UI update
                                                     setPoBlocks(prev => prev.map(pb => {
                                                       if (pb.id !== block.id) return pb;
@@ -10292,6 +10591,7 @@ ${chauffeurHtml}
                                                           if (optimisticActivities[da.id]) {
                                                             return {
                                                               ...da,
+                                                              contracted_price: optimisticActivities[da.id].contracted_total_price,
                                                               contracted_total_price: optimisticActivities[da.id].contracted_total_price,
                                                             };
                                                           }
@@ -10300,8 +10600,14 @@ ${chauffeurHtml}
                                                       };
                                                     }));
 
-                                                    // Persist to DB
-                                                    await finalizeActivityPricesAction(updates);
+                                                    // Persist to DB and refresh blocks
+                                                    const res = await finalizeActivityPricesAction(updates);
+                                                    if (res.success) {
+                                                      const blocksRes = await getPOBlocksAction(tourId);
+                                                      if (blocksRes.success && blocksRes.blocks) {
+                                                        setPoBlocks(blocksRes.blocks);
+                                                      }
+                                                    }
                                                   } catch (err) {
                                                     console.error('Failed to apply recommended block rates:', err);
                                                   }
@@ -10758,30 +11064,56 @@ ${chauffeurHtml}
                                                     const perLegTotal = parseFloat((recommendedDailyRate / numLegs).toFixed(2));
                                                     const firstLegTotal = parseFloat((recommendedDailyRate - (perLegTotal * (numLegs - 1))).toFixed(2));
 
+                                                    const dayPricesMap: Record<string, number> = {};
+                                                    allLegIds.forEach((id: string, legIdx: number) => {
+                                                      dayPricesMap[id] = legIdx === 0 ? firstLegTotal : perLegTotal;
+                                                    });
+
+                                                    // Update main dbActivities state to prevent overwrite on save/reload
+                                                    setDbActivities(prev => prev.map(act => {
+                                                      if (dayPricesMap[act.id] !== undefined) {
+                                                        return {
+                                                          ...act,
+                                                          contracted_price: dayPricesMap[act.id],
+                                                          contracted_total_price: dayPricesMap[act.id],
+                                                        };
+                                                      }
+                                                      return act;
+                                                    }));
+
                                                     // Optimistic UI update
                                                     setPoBlocks(prev => prev.map(pb => {
                                                       if (pb.id !== block.id) return pb;
                                                       return {
                                                         ...pb,
                                                         daily_activities: (pb.daily_activities || []).map((da: any) => {
-                                                          const legIdx = allLegIds.indexOf(da.id);
-                                                          if (legIdx === -1) return da;
-                                                          return {
-                                                            ...da,
-                                                            contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
-                                                          };
+                                                          if (dayPricesMap[da.id] !== undefined) {
+                                                            return {
+                                                              ...da,
+                                                              contracted_price: dayPricesMap[da.id],
+                                                              contracted_total_price: dayPricesMap[da.id],
+                                                            };
+                                                          }
+                                                          return da;
                                                         })
                                                       };
                                                     }));
 
-                                                    // Persist to DB
-                                                    await finalizeActivityPricesAction(
+                                                    // Persist to DB and refresh blocks
+                                                    const res = await finalizeActivityPricesAction(
                                                       allLegIds.map((id, legIdx) => ({
                                                         id,
-                                                        contracted_price: null,
+                                                        contracted_price: legIdx === 0 ? firstLegTotal : perLegTotal,
                                                         contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
                                                       }))
                                                     );
+
+                                                    if (res.success) {
+                                                      const blocksRes = await getPOBlocksAction(tourId);
+                                                      if (blocksRes.success && blocksRes.blocks) {
+                                                        setPoBlocks(blocksRes.blocks);
+                                                      }
+                                                    }
                                                   }
                                                 }}
                                                 disabled={isLockedByOther}
@@ -11349,10 +11681,8 @@ ${chauffeurHtml}
                                   </thead>
                                   <tbody className="divide-y divide-neutral-100">
                                     {tourDays.map((day) => {
-                                      const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, chargedPrice: 0, note: '' };
+                                      const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, note: '' };
                                       const guideDefaultRate = guide?.daily_rate || 20;
-
-                                      const markupPercent = Number(appSettings?.[Settings.Tour_Guide_Markup]) || 0;
 
                                       return (
                                         <tr key={day.dayNum} className="hover:bg-neutral-50/40 transition-colors">
@@ -11381,8 +11711,6 @@ ${chauffeurHtml}
                                                   contracted = guideDefaultRate;
                                                 }
 
-                                                const charged = contracted * (1 + markupPercent / 100);
-
                                                 setGuideRatesState(prev => ({
                                                   ...prev,
                                                   [guideId]: {
@@ -11391,7 +11719,6 @@ ${chauffeurHtml}
                                                       ...prev[guideId][day.dayNum],
                                                       rateType: type,
                                                       contractedPrice: contracted,
-                                                      chargedPrice: parseFloat(charged.toFixed(2)),
                                                       note: `Rate Type: ${type}`
                                                     }
                                                   }
@@ -11415,7 +11742,6 @@ ${chauffeurHtml}
                                               value={dayRate.contractedPrice}
                                               onChange={(e) => {
                                                 const contracted = parseFloat(e.target.value) || 0;
-                                                const charged = contracted * (1 + markupPercent / 100);
                                                 setGuideRatesState(prev => ({
                                                   ...prev,
                                                   [guideId]: {
@@ -11424,7 +11750,7 @@ ${chauffeurHtml}
                                                       ...prev[guideId][day.dayNum],
                                                       rateType: 'Custom',
                                                       contractedPrice: contracted,
-                                                      chargedPrice: parseFloat(charged.toFixed(2))
+                                                      chargedPrice: contracted
                                                     }
                                                   }
                                                 }));
@@ -11896,6 +12222,10 @@ ${chauffeurHtml}
                                     <h4 className="text-base font-bold text-neutral-800 font-serif">
                                       {driver ? `${driver.first_name || ''} ${driver.last_name || ''}` : 'Unassigned Driver'}
                                     </h4>
+                                    <span className="px-2.5 py-0.5 bg-violet-50 text-violet-800 border border-violet-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
+                                      <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
+                                      <span className="font-mono font-bold">${(totalCharged || totalContracted || 0).toFixed(2)}</span>
+                                    </span>
                                   </div>
                                   <p className="text-xs text-neutral-500">
                                     {driver ? `Phone: ${driver.phone || 'N/A'} | License: ${driver.license_number || 'N/A'}` : 'Assign a driver in the itinerary.'}
@@ -12095,19 +12425,14 @@ ${chauffeurHtml}
                                     <tr className="bg-neutral-50 border-b border-neutral-200/60">
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Day / Date</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Rate Type Preset</th>
-                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Contracted Price ($)</th>
-                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-32">Charged Price ($)</th>
+                                      <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px] w-36">Contracted Price ($)</th>
                                       <th className="p-3.5 font-bold text-neutral-500 uppercase tracking-wider text-[10px]">Note / Remarks</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-neutral-100">
-                                    {tourDays.map((day) => {
-                                      const dayRate = rates[day.dayNum] || { rateType: 'Custom', contractedPrice: 0, chargedPrice: 0, note: '' };
+                                    {tourDays.filter((day) => Boolean(rates[day.dayNum])).map((day) => {
+                                      const dayRate = rates[day.dayNum];
                                       const driverDefaultRate = driver?.per_day_rate || 15;
-
-                                      const markupPercent = appSettings?.[Settings.Diver_Markup] !== undefined
-                                        ? Number(appSettings[Settings.Diver_Markup])
-                                        : (Number(appSettings?.[Settings.Driver_Markup]) || 0);
 
                                       return (
                                         <tr key={day.dayNum} className="hover:bg-neutral-50/40 transition-colors">
@@ -12138,8 +12463,6 @@ ${chauffeurHtml}
                                                   contracted = driverDefaultRate;
                                                 }
 
-                                                const charged = contracted * (1 + markupPercent / 100);
-
                                                 setDriverRatesState(prev => ({
                                                   ...prev,
                                                   [driverId]: {
@@ -12148,7 +12471,7 @@ ${chauffeurHtml}
                                                       ...prev[driverId][day.dayNum],
                                                       rateType: type,
                                                       contractedPrice: contracted,
-                                                      chargedPrice: parseFloat(charged.toFixed(2)),
+                                                      chargedPrice: contracted,
                                                       note: `Rate Type: ${type}`
                                                     }
                                                   }
@@ -12173,7 +12496,6 @@ ${chauffeurHtml}
                                               value={dayRate.contractedPrice}
                                               onChange={(e) => {
                                                 const contracted = parseFloat(e.target.value) || 0;
-                                                const charged = contracted * (1 + markupPercent / 100);
                                                 setDriverRatesState(prev => ({
                                                   ...prev,
                                                   [driverId]: {
@@ -12182,30 +12504,7 @@ ${chauffeurHtml}
                                                       ...prev[driverId][day.dayNum],
                                                       rateType: 'Custom',
                                                       contractedPrice: contracted,
-                                                      chargedPrice: parseFloat(charged.toFixed(2))
-                                                    }
-                                                  }
-                                                }));
-                                              }}
-                                              disabled={isLockedByOther}
-                                              className="w-24 border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800"
-                                            />
-                                          </td>
-                                          <td className="p-3.5">
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={dayRate.chargedPrice}
-                                              onChange={(e) => {
-                                                const charged = parseFloat(e.target.value) || 0;
-                                                setDriverRatesState(prev => ({
-                                                  ...prev,
-                                                  [driverId]: {
-                                                    ...prev[driverId],
-                                                    [day.dayNum]: {
-                                                      ...prev[driverId][day.dayNum],
-                                                      chargedPrice: charged
+                                                      chargedPrice: contracted
                                                     }
                                                   }
                                                 }));
@@ -12249,12 +12548,6 @@ ${chauffeurHtml}
                                   <span className="text-[9px] text-neutral-450 uppercase block font-mono font-bold">Accumulated Cost (Contracted)</span>
                                   <span className="font-mono text-neutral-700 font-extrabold text-base">
                                     ${totalContracted.toFixed(2)}
-                                  </span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-[9px] text-emerald-600 uppercase block font-mono font-bold">Accumulated Charged (Selling)</span>
-                                  <span className="font-mono text-emerald-800 font-extrabold text-base">
-                                    ${totalCharged.toFixed(2)}
                                   </span>
                                 </div>
                               </div>
@@ -16121,17 +16414,24 @@ ${chauffeurHtml}
                                                                 ...tripData,
                                                                 accommodations: tripData.accommodations.map(a => {
                                                                   const matches = Number(a.nightIndex) === Number(activeBlock?.dayNumber);
-                                                                  return matches ? {
-                                                                    ...a,
-                                                                    hotelId: h.id,
-                                                                    hotelName: h.name,
-                                                                    selectedRooms: newSelected,
-                                                                    roomId: room.id,
-                                                                    roomName: room.room_name,
-                                                                    mealPlan: currentMealPlan,
-                                                                    pricePerNight: avgCharged,
-                                                                    address: h.location_address || h.closest_city || ''
-                                                                  } : a;
+                                                                  if (matches) {
+                                                                    const updatedAcc = {
+                                                                      ...a,
+                                                                      hotelId: h.id,
+                                                                      hotelName: h.name,
+                                                                      selectedRooms: newSelected,
+                                                                      roomId: room.id,
+                                                                      roomName: room.room_name,
+                                                                      mealPlan: currentMealPlan,
+                                                                      pricePerNight: avgCharged,
+                                                                      address: h.location_address || h.closest_city || ''
+                                                                    };
+                                                                    delete updatedAcc.customContractedUnitPrice;
+                                                                    delete updatedAcc.customContractedTotalPrice;
+                                                                    delete updatedAcc.customRateNote;
+                                                                    return updatedAcc;
+                                                                  }
+                                                                  return a;
                                                                 })
                                                               });
                                                             }
@@ -17757,7 +18057,7 @@ ${chauffeurHtml}
                         required
                         placeholder="e.g. reservations@hotel.com"
                         value={rfqEmailTo}
-                        onChange={(e) => setRfqEmailTo(e.target.value)}
+                        onChange={(e) => { const val = e.target.value; startTransition(() => setRfqEmailTo(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                       <span className="text-[9px] text-neutral-400 mt-1 block">
@@ -17774,7 +18074,7 @@ ${chauffeurHtml}
                         required
                         placeholder="RFQ Subject"
                         value={rfqEmailSubject}
-                        onChange={(e) => setRfqEmailSubject(e.target.value)}
+                        onChange={(e) => { const val = e.target.value; startTransition(() => setRfqEmailSubject(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                     </div>
@@ -18138,7 +18438,7 @@ ${chauffeurHtml}
                         required
                         placeholder="e.g. reservations@hotel.com"
                         value={poEmailTo}
-                        onChange={(e) => setPoEmailTo(e.target.value)}
+                        onChange={(e) => { const val = e.target.value; startTransition(() => setPoEmailTo(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                       <span className="text-[9px] text-neutral-400 mt-1 block">
@@ -18155,7 +18455,7 @@ ${chauffeurHtml}
                         required
                         placeholder="PO Subject"
                         value={poEmailSubject}
-                        onChange={(e) => setPoEmailSubject(e.target.value)}
+                        onChange={(e) => { const val = e.target.value; startTransition(() => setPoEmailSubject(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                     </div>
@@ -18169,7 +18469,7 @@ ${chauffeurHtml}
                         min="0"
                         step="0.01"
                         value={poDiscount || ""}
-                        onChange={(e) => setPoDiscount(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => { const val = parseFloat(e.target.value) || 0; startTransition(() => setPoDiscount(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                     </div>
@@ -18183,7 +18483,7 @@ ${chauffeurHtml}
                         min="0"
                         step="0.01"
                         value={poTax || ""}
-                        onChange={(e) => setPoTax(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => { const val = parseFloat(e.target.value) || 0; startTransition(() => setPoTax(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                     </div>
@@ -18194,7 +18494,7 @@ ${chauffeurHtml}
                       </label>
                       <textarea
                         value={poVendorNotes}
-                        onChange={(e) => setPoVendorNotes(e.target.value)}
+                        onChange={(e) => { const val = e.target.value; startTransition(() => setPoVendorNotes(val)); }}
                         placeholder="Notes or instructions to be sent/saved with the purchase order..."
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm h-20 resize-none"
                       />
@@ -18210,19 +18510,19 @@ ${chauffeurHtml}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Dining Options</label>
-                          <input type="text" value={poDiningOptions} onChange={e => setPoDiningOptions(e.target.value)} placeholder="e.g. À la carte, set menu, buffet" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                          <input type="text" value={poDiningOptions} onChange={e => { const val = e.target.value; startTransition(() => setPoDiningOptions(val)); }} placeholder="e.g. À la carte, set menu, buffet" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Cuisine Availability</label>
-                          <input type="text" value={poCuisineAvailability} onChange={e => setPoCuisineAvailability(e.target.value)} placeholder="e.g. Sri Lankan, European, Chinese" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                          <input type="text" value={poCuisineAvailability} onChange={e => { const val = e.target.value; startTransition(() => setPoCuisineAvailability(val)); }} placeholder="e.g. Sri Lankan, European, Chinese" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Room Booking <span className="font-normal text-neutral-300 normal-case">(optional)</span></label>
-                          <input type="text" value={poRoomBooking} onChange={e => setPoRoomBooking(e.target.value)} placeholder="e.g. Private dining room confirmed for 10 pax" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                          <input type="text" value={poRoomBooking} onChange={e => { const val = e.target.value; startTransition(() => setPoRoomBooking(val)); }} placeholder="e.g. Private dining room confirmed for 10 pax" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
                         </div>
                         <div>
                           <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Exclusive Booking <span className="font-normal text-neutral-300 normal-case">(optional)</span></label>
-                          <input type="text" value={poExclusiveBooking} onChange={e => setPoExclusiveBooking(e.target.value)} placeholder="e.g. Venue exclusively booked — USD 5,000" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
+                          <input type="text" value={poExclusiveBooking} onChange={e => { const val = e.target.value; startTransition(() => setPoExclusiveBooking(val)); }} placeholder="e.g. Venue exclusively booked — USD 5,000" className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm" />
                         </div>
                       </div>
                     </div>

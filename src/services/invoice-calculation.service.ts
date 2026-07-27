@@ -182,15 +182,19 @@ export class InvoiceCalculationService {
     const trainBlocks = itinerary.filter(b => b.type === 'train');
     const trainTotal = trainBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
-    // Sum driver accommodation costs across daily driver assignments (preferring charged_accommodation_cost)
-    let driverAccommodationTotal = 0;
+    // Sum driver charged costs (rate + accommodation + meals + allowances) across daily driver assignments
+    let driverAssignmentsChargedTotal = 0;
     if (dailyDriverAssignments) {
       Object.values(dailyDriverAssignments).forEach(assignment => {
-        driverAccommodationTotal += Number(assignment?.charged_accommodation_cost ?? assignment?.contracted_accommodation_cost ?? assignment?.accommodation_cost ?? 0);
+        const rate = Number(assignment?.charged_per_day_rate ?? assignment?.contracted_per_day_rate ?? assignment?.per_day_rate ?? 0);
+        const acc = Number(assignment?.charged_accommodation_cost ?? assignment?.contracted_accommodation_cost ?? assignment?.accommodation_cost ?? 0);
+        const meal = Number(assignment?.charged_meal_cost ?? assignment?.contracted_meal_cost ?? assignment?.meal_cost ?? 0);
+        const allow = Number(assignment?.charged_other_allowance ?? assignment?.contracted_other_allowance ?? assignment?.other_allowance ?? 0);
+        driverAssignmentsChargedTotal += (rate + acc + meal + allow);
       });
     }
 
-    transportTotal += trainTotal + driverAccommodationTotal;
+    transportTotal += trainTotal + driverAssignmentsChargedTotal;
 
     const dailyActivityIdsTransport: string[] = [];
     const travelBlocks = itinerary.filter(b => b.type === 'travel' || b.type === 'train');

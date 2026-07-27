@@ -887,9 +887,43 @@ export const generateTransportPoPdf = async (
         const last    = legs[legs.length - 1] as any;
         const dayNum  = first.tour_itineraries?.day_number || first.day_number || idx + 1;
         const dispDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
-        const from    = first.pickup_location || first.location_name || 'Origin';
-        const to      = last.dropoff_location  || last.destination_location || last.location_name || 'Destination';
-        const totalKm = legs.reduce((s: number, l: any) => s + (Number(l.quantity) || 0), 0);
+        const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+        const isStayDay = totalKm === 0 || legs.every((l: any) => 
+            (l.title || '').toLowerCase().includes('driver and vehicle stays') || 
+            (l.title || '').toLowerCase().includes('vehicle and driver stays')
+        );
+
+        let origin = '';
+        let destination = '';
+
+        if (!isStayDay) {
+            const firstLeg = legs[0] as any;
+            const lastLeg = legs[legs.length - 1] as any;
+
+            const titleMatch = (firstLeg.title || '').match(/(.+?)\s+to\s+(.+)/i);
+            const locationMatch = (firstLeg.location_name || '').match(/(.+?)\s+to\s+(.+)/i);
+
+            if (locationMatch && locationMatch[1] && locationMatch[2]) {
+                origin = locationMatch[1].trim();
+                destination = locationMatch[2].trim();
+            } else if (titleMatch && titleMatch[1] && titleMatch[2] && !titleMatch[1].toLowerCase().includes('travel') && !titleMatch[1].toLowerCase().includes('journey') && !titleMatch[1].toLowerCase().includes('transfer')) {
+                origin = titleMatch[1].trim();
+                destination = titleMatch[2].trim();
+            } else {
+                destination = lastLeg.location_name || lastLeg.title || 'Destination';
+                const idx = sortedStays.findIndex(s => s.id === firstLeg.id);
+                if (idx > 0) {
+                    for (let i = idx - 1; i >= 0; i--) {
+                        const prev = sortedStays[i];
+                        if (prev && prev.location_name && prev.location_name !== destination) {
+                            origin = prev.location_name;
+                            break;
+                        }
+                    }
+                }
+                if (!origin) origin = firstLeg.pickup_location || 'Origin';
+            }
+        }
 
         // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
         let dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
@@ -912,7 +946,7 @@ export const generateTransportPoPdf = async (
                 return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
             }, 0);
 
-            const totalDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+            const totalDistance = totalKm;
             const excessDistance = Math.max(0, totalDistance - maxMileage);
             const extraKmCost = excessDistance * extraKmRate;
             dayRate = baseRate + extraKmCost;
@@ -932,10 +966,15 @@ export const generateTransportPoPdf = async (
         doc.setFont('helvetica', 'normal');
         doc.text(dispDate, 44, topY + 5.5);
 
-        const fromSplit = doc.splitTextToSize(from, 50);
-        const toSplit   = doc.splitTextToSize(to,   50);
-        doc.text(fromSplit, 74,  topY + 5.5);
-        doc.text(toSplit,   130, topY + 5.5);
+        if (isStayDay) {
+            doc.text('Vehicle and Driver Stays', 74, topY + 5.5);
+            doc.text('-', 130, topY + 5.5);
+        } else {
+            const fromSplit = doc.splitTextToSize(origin, 50);
+            const toSplit   = doc.splitTextToSize(destination, 50);
+            doc.text(fromSplit, 74,  topY + 5.5);
+            doc.text(toSplit,   130, topY + 5.5);
+        }
         doc.text(dayRate > 0 ? `$${dayRate.toFixed(2)}` : 'As quoted', 188, topY + 5.5, { align: 'right' });
 
         topY += 8;

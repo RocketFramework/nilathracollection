@@ -1733,50 +1733,25 @@ export async function getTransportRfqTemplateAction(tourId: string) {
 <p style="margin:0 0 14px;font-family:sans-serif;font-size:13px;color:#333;">
   On behalf of <strong>Nilathra Collection</strong>, we are writing to request a formal quotation
   for transport services required for an upcoming guest itinerary. We would appreciate your best
-  available rate for a dedicated chauffeur-driven vehicle as detailed below.
+  available rate for dedicated transport services as detailed below.
 </p>
+
+<!-- ─── Guest Occupancy ──────────────────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 4px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Guest Occupancy / Passengers
+  </p>
+  <p style="margin:0;font-family:sans-serif;font-size:13px;font-weight:600;color:#333;">
+    {{Pax}}
+  </p>
+</div>
 
 <!-- ─── Vehicle Requirements ─────────────────────────────────────────────── -->
 <div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:16px 18px;margin:0 0 16px;">
   <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
-    Vehicle Specifications Required
+    Vehicle Specifications & Requirements
   </p>
-  <table style="width:100%;border-collapse:collapse;font-family:sans-serif;font-size:12px;color:#333;">
-    <tbody>
-      <tr>
-        <td style="padding:5px 8px;width:45%;color:#555;font-weight:600;">Vehicle Make / Type</td>
-        <td style="padding:5px 8px;">{{Vehicle Make}}</td>
-      </tr>
-      <tr style="background-color:#FAFAF9;">
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Model Year</td>
-        <td style="padding:5px 8px;">{{Model Year}}</td>
-      </tr>
-      <tr>
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Number of Vehicles</td>
-        <td style="padding:5px 8px;">{{Number of Vehicles}}</td>
-      </tr>
-      <tr style="background-color:#FAFAF9;">
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Engagement Duration</td>
-        <td style="padding:5px 8px;">{{Vehicle Duration}}</td>
-      </tr>
-      <tr>
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Estimated Total KM</td>
-        <td style="padding:5px 8px;">{{Total Km}} km</td>
-      </tr>
-      <tr style="background-color:#FAFAF9;">
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Leather Seats</td>
-        <td style="padding:5px 8px;">{{Leather Seats}}</td>
-      </tr>
-      <tr>
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Vehicle Colour Preference</td>
-        <td style="padding:5px 8px;">{{Vehicle Color}}</td>
-      </tr>
-      <tr style="background-color:#FAFAF9;">
-        <td style="padding:5px 8px;color:#555;font-weight:600;">Mint / Showroom Condition</td>
-        <td style="padding:5px 8px;">{{Mint Condition}}</td>
-      </tr>
-    </tbody>
-  </table>
+  {{Vehicle Specifications Table}}
 </div>
 
 <!-- ─── Chauffeur Requirements ────────────────────────────────────────────── -->
@@ -1813,7 +1788,7 @@ export async function getTransportRfqTemplateAction(tourId: string) {
 <!-- ─── Itinerary / Route Schedule ───────────────────────────────────────── -->
 <div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:16px 18px;margin:0 0 16px;">
   <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
-    Daily Route Schedule
+    Daily Transport Route Schedule
   </p>
   {{Itinerary Details}}
 </div>
@@ -1826,7 +1801,7 @@ export async function getTransportRfqTemplateAction(tourId: string) {
   the dates above.
 </p>
 <p style="font-family:sans-serif;font-size:13px;color:#333;margin:0 0 16px;">
-  Please reply at your earliest convenience so we may confirm arrangements with our guest.
+  Please reply at your earliest convenience so we may confirm arrangements for our guest.
 </p>
 
 <p style="font-family:sans-serif;font-size:13px;color:#333;margin:0;">
@@ -1858,41 +1833,34 @@ export async function getTransportRfqTemplateAction(tourId: string) {
         // content (copied from the guide RFQ template).
         const body = (dbTemplate?.body_html || '').toLowerCase();
         const isStale = !dbTemplate ||
+            !body.includes('{{pax}}') ||
+            !body.includes('{{vehicle specifications table}}') ||
             body.includes('tour guide services') ||
             body.includes('professional tour guide') ||
             body.includes('guide services for the following') ||
             body.includes('{{guide name}}');
 
-        // Best-effort: update the DB row so future loads are correct.
-        // We use UPDATE (not upsert) to avoid needing a unique constraint on name.
         if (isStale) {
             if (dbTemplate?.id) {
                 // Row exists but has stale content — update it
-                adminSupabase
+                await adminSupabase
                     .from('email_templates')
                     .update({
                         subject: TRANSPORT_RFQ_TEMPLATE_SUBJECT,
                         body_html: TRANSPORT_RFQ_TEMPLATE_BODY,
                     })
-                    .eq('id', dbTemplate.id)
-                    .then(({ error }) => {
-                        if (error) console.warn('Could not update transport RFQ template in DB:', error.message);
-                    });
+                    .eq('id', dbTemplate.id);
             } else {
                 // No row yet — insert one
-                adminSupabase
+                await adminSupabase
                     .from('email_templates')
                     .insert({
                         name: 'Request for Quote - Transport',
                         subject: TRANSPORT_RFQ_TEMPLATE_SUBJECT,
                         body_html: TRANSPORT_RFQ_TEMPLATE_BODY,
-                    })
-                    .then(({ error }) => {
-                        if (error) console.warn('Could not insert transport RFQ template in DB:', error.message);
                     });
             }
 
-            // Always return the correct inline template immediately — don't wait for DB
             return {
                 success: true,
                 template: {
@@ -1906,7 +1874,11 @@ export async function getTransportRfqTemplateAction(tourId: string) {
 
         return {
             success: true,
-            template: dbTemplate,
+            template: {
+                name: 'Request for Quote - Transport',
+                subject: TRANSPORT_RFQ_TEMPLATE_SUBJECT,
+                body_html: TRANSPORT_RFQ_TEMPLATE_BODY,
+            },
             total_km: tourResult.data?.total_km || 0
         };
 
