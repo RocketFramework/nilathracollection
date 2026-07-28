@@ -84,6 +84,8 @@ import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, B
 import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { TourDailyDriverDTO } from '../../dtos/tour-daily-driver.dto';
+import { generateCustomerInvoicePdf } from '../../utils/customer-invoice-pdf';
+import { generateCustomerPaymentReceiptPdf } from '../../utils/customer-payment-receipt-pdf';
 import {
   getTouristDataAction,
   saveTouristDataAction,
@@ -108,6 +110,7 @@ import {
   acquireItineraryLockAction,
   refreshItineraryLockAction,
   releaseItineraryLockAction,
+  sendCustomerInvoiceEmailAction,
   checkItineraryLockStatusAction,
   getAssignedHotelsAction,
   getAssignedRestaurantsAction,
@@ -156,6 +159,9 @@ import {
   getCustomerAdvancePaymentsAction,
   deleteCustomerInvoiceAction,
   registerCustomerPaymentAction,
+  updateCustomerInvoiceDiscountAction,
+  updateCustomerPaymentAction,
+  deleteCustomerPaymentAction,
   uploadPayslipAction,
   getPayslipSignedUrlAction,
   finalizeActivityPricesAction,
@@ -3551,6 +3557,196 @@ function PlannerWizardWorkspace() {
   const [customerPaymentSlipUrl, setCustomerPaymentSlipUrl] = useState<string>('');
   const [isUploadingCustomerPaymentSlip, setIsUploadingCustomerPaymentSlip] = useState<boolean>(false);
   const [showRecordAdvancePayment, setShowRecordAdvancePayment] = useState<boolean>(false);
+  const [editingDiscountInvoiceId, setEditingDiscountInvoiceId] = useState<string | null>(null);
+  const [editingDiscountValue, setEditingDiscountValue] = useState<string>('');
+
+  // Editing payment record state
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editingPaymentAmount, setEditingPaymentAmount] = useState<string>('');
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<string>('Bank Transfer');
+  const [editingPaymentTxId, setEditingPaymentTxId] = useState<string>('');
+  const [editingPaymentDate, setEditingPaymentDate] = useState<string>('');
+  const [editingPaymentCurrency, setEditingPaymentCurrency] = useState<string>('USD');
+  const [editingPaymentExchangeRate, setEditingPaymentExchangeRate] = useState<string>('1.0');
+  const [editingPaymentSlipUrl, setEditingPaymentSlipUrl] = useState<string>('');
+  const [isUploadingEditSlip, setIsUploadingEditSlip] = useState<boolean>(false);
+
+  const handleOpenEditPayment = (p: any) => {
+    setEditingPaymentId(p.id);
+    setEditingPaymentAmount(String(p.amount || ''));
+    setEditingPaymentMethod(p.payment_method || 'Bank Transfer');
+    setEditingPaymentTxId(p.transaction_id || '');
+    setEditingPaymentDate(p.payment_date ? new Date(p.payment_date).toISOString().split('T')[0] : (p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]));
+    setEditingPaymentCurrency(p.currency || 'USD');
+    setEditingPaymentExchangeRate(String(p.exchange_rate || '1.0'));
+    setEditingPaymentSlipUrl(p.attachment_url || '');
+  };
+
+  const handleSaveEditPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPaymentId) return;
+
+    try {
+      const res = await updateCustomerPaymentAction(editingPaymentId, {
+        amount: parseFloat(editingPaymentAmount) || 0,
+        payment_method: editingPaymentMethod,
+        transaction_id: editingPaymentTxId || null,
+        payment_date: editingPaymentDate || new Date().toISOString().split('T')[0],
+        currency: editingPaymentCurrency,
+        exchange_rate: parseFloat(editingPaymentExchangeRate) || 1.0,
+        attachment_url: editingPaymentSlipUrl || null
+      });
+
+      if (res.success) {
+        setEditingPaymentId(null);
+        reloadCustomerInvoices();
+      } else {
+        alert("Failed to update payment record: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleDeleteCustomerPayment = async (paymentId: string) => {
+    if (!confirm("Are you sure you want to delete this payment record? This action cannot be undone.")) return;
+    try {
+      const res = await deleteCustomerPaymentAction(paymentId);
+      if (res.success) {
+        reloadCustomerInvoices();
+      } else {
+        alert("Failed to delete payment record: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    }
+  };
+
+  const handleUpdateInvoiceDiscount = async (invoiceId: string) => {
+    const discountVal = parseFloat(editingDiscountValue) || 0;
+    try {
+      const res = await updateCustomerInvoiceDiscountAction(invoiceId, discountVal);
+      if (res.success) {
+        setEditingDiscountInvoiceId(null);
+        setEditingDiscountValue('');
+        reloadCustomerInvoices();
+      } else {
+        alert("Failed to update discount: " + res.error);
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    }
+  };
+
+  // Share Customer Invoice modal state
+  const [isShareInvoiceModalOpen, setIsShareInvoiceModalOpen] = useState<boolean>(false);
+  const [selectedShareInvoice, setSelectedShareInvoice] = useState<any | null>(null);
+  const [shareInvoiceToEmail, setShareInvoiceToEmail] = useState<string>('');
+  const [shareInvoiceSubject, setShareInvoiceSubject] = useState<string>('');
+  const [shareInvoiceBodyHtml, setShareInvoiceBodyHtml] = useState<string>('');
+  const [isSendingInvoiceEmail, setIsSendingInvoiceEmail] = useState<boolean>(false);
+  const [shareInvoiceFeedback, setShareInvoiceFeedback] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const handleDownloadInvoicePdf = async (inv: any) => {
+    try {
+      const doc = await generateCustomerInvoicePdf(inv, appSettings, touristData);
+      if (doc) {
+        doc.save(`Customer_Invoice_${inv.invoice_number || 'Draft'}.pdf`);
+      } else {
+        alert("Failed to generate PDF invoice.");
+      }
+    } catch (err: any) {
+      console.error("Error generating invoice PDF:", err);
+      alert("Error generating PDF: " + err.message);
+    }
+  };
+
+  const handleDownloadReceiptPdf = async (payment: any, invoice?: any) => {
+    try {
+      const doc = await generateCustomerPaymentReceiptPdf(payment, invoice, appSettings, touristData, guideRfqDetails?.tour);
+      if (doc) {
+        const receiptNo = `REC-${new Date(payment.payment_date || payment.created_at || Date.now()).getFullYear()}-${String(payment.id || '').substring(0, 6).toUpperCase()}`;
+        doc.save(`Payment_Receipt_${receiptNo}.pdf`);
+      } else {
+        alert("Failed to generate payment receipt PDF.");
+      }
+    } catch (err: any) {
+      console.error("Error generating receipt PDF:", err);
+      alert("Error generating receipt PDF: " + err.message);
+    }
+  };
+
+  const handleOpenShareInvoiceModal = (inv: any) => {
+    setSelectedShareInvoice(inv);
+    const guestEmail = inv.billing_details?.email || touristData?.profile?.email || '';
+    const guestName = inv.billing_details?.name || `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim() || 'Valued Guest';
+
+    setShareInvoiceToEmail(guestEmail);
+    setShareInvoiceSubject(`Customer Invoice ${inv.invoice_number || ''} – Nilathra Collection`);
+
+    const formattedAmount = `${inv.currency || 'USD'} ${Number(inv.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+    const bodyText = `<p style="margin: 0 0 16px; font-size: 15px; color: #4a4a4a; line-height: 1.7;">Dear ${guestName},</p>
+<p style="margin: 0 0 16px; font-size: 15px; color: #4a4a4a; line-height: 1.7;">Please find attached your official customer invoice for your upcoming bespoke journey with <strong>Nilathra Collection</strong>.</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;border-left:3px solid #C9A84C;border-radius:4px;margin:20px 0;">
+  <tr>
+    <td style="padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#C9A84C;">Invoice Details</p>
+      <p style="margin:0;font-size:16px;font-weight:600;color:#1B3A2D;">Invoice No: ${inv.invoice_number || ''}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:#333;font-weight:bold;">Total Amount: ${formattedAmount}</p>
+    </td>
+  </tr>
+</table>
+<p style="margin: 0 0 16px; font-size: 15px; color: #4a4a4a; line-height: 1.7;">If you have any questions or require any adjustments, please feel free to reach out to our concierge team at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.</p>
+<p style="margin: 0; font-size: 15px; color: #4a4a4a; line-height: 1.7;">Warmest regards,<br/><strong>Nilathra Collection Concierge Team</strong></p>`;
+
+    setShareInvoiceBodyHtml(bodyText);
+    setShareInvoiceFeedback(null);
+    setIsShareInvoiceModalOpen(true);
+  };
+
+  const handleSendShareInvoice = async () => {
+    if (!shareInvoiceToEmail) {
+      setShareInvoiceFeedback({ type: 'error', text: 'Recipient email address is required.' });
+      return;
+    }
+    setIsSendingInvoiceEmail(true);
+    setShareInvoiceFeedback(null);
+    try {
+      let pdfBase64 = undefined;
+      let pdfFilename = undefined;
+      if (selectedShareInvoice) {
+        const doc = await generateCustomerInvoicePdf(selectedShareInvoice, appSettings, touristData);
+        if (doc) {
+          const dataUrl = doc.output('datauristring');
+          pdfBase64 = dataUrl.split(',')[1];
+          pdfFilename = `Invoice_${selectedShareInvoice.invoice_number || 'Details'}.pdf`;
+        }
+      }
+
+      const res = await sendCustomerInvoiceEmailAction({
+        to: shareInvoiceToEmail,
+        subject: shareInvoiceSubject,
+        body: shareInvoiceBodyHtml,
+        invoiceId: selectedShareInvoice?.id,
+        pdfBase64,
+        pdfFilename
+      });
+
+      if (res.success) {
+        setShareInvoiceFeedback({ type: 'success', text: 'Invoice email sent successfully to customer!' });
+        setTimeout(() => {
+          setIsShareInvoiceModalOpen(false);
+        }, 1500);
+      } else {
+        setShareInvoiceFeedback({ type: 'error', text: res.error || 'Failed to send invoice email.' });
+      }
+    } catch (err: any) {
+      setShareInvoiceFeedback({ type: 'error', text: err.message || 'Error sending email.' });
+    } finally {
+      setIsSendingInvoiceEmail(false);
+    }
+  };
 
   // Profit & Loss Analysis states & calculations
   const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(true);
@@ -6298,10 +6494,22 @@ ${chauffeurHtml}
     setInvoiceBillingPhone(defaultPhone);
     setInvoiceBillingAddress(defaultAddress);
 
-    // Default 14 days due date
+    // Resolve travel start date (from tours table, or tourist preferences / itinerary)
+    const travelStartDate = (guideRfqDetails?.tour?.start_date ? new Date(guideRfqDetails.tour.start_date).toISOString().split('T')[0] : '')
+      || touristData?.preferences?.arrival_date 
+      || tripData?.profile?.arrivalDate 
+      || (dbActivities?.[0]?.service_date ? new Date(dbActivities[0].service_date).toISOString().split('T')[0] : '');
+
+    // Default 14 days due date, capped at travel start date
     const d = new Date();
     d.setDate(d.getDate() + 14);
-    setInvoiceDueDate(d.toISOString().split('T')[0]);
+    let targetDueDateStr = d.toISOString().split('T')[0];
+
+    if (travelStartDate && targetDueDateStr > travelStartDate) {
+      targetDueDateStr = travelStartDate;
+    }
+
+    setInvoiceDueDate(targetDueDateStr);
 
     setInvoiceDiscountAmount('0.00');
     setInvoiceTaxAmount('0.00');
@@ -6348,6 +6556,13 @@ ${chauffeurHtml}
     e.preventDefault();
     if (!tourId) return;
 
+    const travelStartDate = touristData?.preferences?.arrival_date || tripData?.profile?.arrivalDate || (dbActivities?.[0]?.service_date) || '';
+    let finalDueDate = invoiceDueDate;
+    if (travelStartDate && finalDueDate > travelStartDate) {
+      finalDueDate = travelStartDate;
+      setInvoiceDueDate(travelStartDate);
+    }
+
     setIsGeneratingCustomerInvoice(true);
     try {
       const res = await generateCustomerInvoiceAction({
@@ -6364,7 +6579,7 @@ ${chauffeurHtml}
           phone: invoiceBillingPhone,
           address: invoiceBillingAddress
         },
-        dueDate: invoiceDueDate || undefined
+        dueDate: finalDueDate || undefined
       });
 
       if (res.success) {
@@ -14445,6 +14660,105 @@ ${chauffeurHtml}
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {customerAdvancePayments.map((p: any) => {
+                            if (editingPaymentId === p.id) {
+                              return (
+                                <form key={p.id} onSubmit={handleSaveEditPayment} className="col-span-full p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-3 animate-in fade-in">
+                                  <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                                    <h5 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Coins className="w-3.5 h-3.5" /> Edit Advance Payment Record
+                                    </h5>
+                                    <button type="button" onClick={() => setEditingPaymentId(null)} className="text-neutral-400 hover:text-neutral-600 text-xs font-bold">✕</button>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Amount</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={editingPaymentAmount}
+                                        onChange={(e) => setEditingPaymentAmount(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono font-bold"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Method</label>
+                                      <select
+                                        value={editingPaymentMethod}
+                                        onChange={(e) => setEditingPaymentMethod(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      >
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Credit Card">Credit Card</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Cheque">Cheque</option>
+                                      </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction / Ref ID</label>
+                                      <input
+                                        type="text"
+                                        value={editingPaymentTxId}
+                                        onChange={(e) => setEditingPaymentTxId(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Payment Date</label>
+                                      <input
+                                        type="date"
+                                        required
+                                        value={editingPaymentDate}
+                                        onChange={(e) => setEditingPaymentDate(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Currency</label>
+                                      <select
+                                        value={editingPaymentCurrency}
+                                        onChange={(e) => setEditingPaymentCurrency(e.target.value)}
+                                        className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                      >
+                                        <option value="USD">USD ($)</option>
+                                        <option value="LKR">LKR (Rs)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                        <option value="AUD">AUD ($)</option>
+                                      </select>
+                                    </div>
+                                    {editingPaymentCurrency !== 'USD' && (
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Exchange Rate (vs USD)</label>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={editingPaymentExchangeRate}
+                                          onChange={(e) => setEditingPaymentExchangeRate(e.target.value)}
+                                          className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200/60">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingPaymentId(null)}
+                                      className="px-3 py-1.5 border border-neutral-300 hover:bg-neutral-100 text-neutral-600 rounded-lg text-xs font-bold uppercase cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="submit"
+                                      className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold uppercase cursor-pointer shadow-sm"
+                                    >
+                                      Save Payment Changes
+                                    </button>
+                                  </div>
+                                </form>
+                              );
+                            }
+
                             return (
                               <div key={p.id} className="p-4 bg-white border border-neutral-200 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                                 <div className="space-y-1.5">
@@ -14481,6 +14795,31 @@ ${chauffeurHtml}
                                   <span className="text-[9px] text-neutral-400 font-mono block">
                                     Recd: {p.payment_date ? new Date(p.payment_date).toLocaleDateString(undefined, { dateStyle: 'medium' }) : new Date(p.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                                   </span>
+                                  <div className="flex items-center justify-end gap-1.5 pt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditPayment(p)}
+                                      className="text-[10px] font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeletePayment(p.id)}
+                                      className="text-[10px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                    >
+                                      Delete
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadReceiptPdf(p, customerInvoices?.[0] || null)}
+                                      className="flex items-center gap-1 text-[10px] font-bold text-emerald-850 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                      title="Download Official Payment Receipt PDF"
+                                    >
+                                      <Receipt className="w-3 h-3 text-emerald-800" />
+                                      <span>Receipt PDF</span>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -14555,7 +14894,12 @@ ${chauffeurHtml}
                       <div className="space-y-6">
                         {customerInvoices.map((inv) => {
                           const isExpanded = expandedInvoiceId === inv.id;
-                          const totalPaid = (inv.payments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+                          const totalPaid = (inv.payments || []).reduce((sum: number, p: any) => {
+                            const amt = Number(p.amount) || 0;
+                            const rate = Number(p.exchange_rate) || 1.0;
+                            const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
+                            return sum + usd;
+                          }, 0);
                           const remainingBalance = Math.max(0, inv.amount - totalPaid);
 
                           return (
@@ -14581,6 +14925,22 @@ ${chauffeurHtml}
                                   </div>
 
                                   <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleDownloadInvoicePdf(inv)}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-neutral-700 bg-white hover:bg-neutral-50 rounded-xl transition-all shadow-sm cursor-pointer border border-neutral-200"
+                                      title="Download Invoice PDF"
+                                    >
+                                      <Download className="w-3.5 h-3.5 text-emerald-800" />
+                                      Download PDF
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenShareInvoiceModal(inv)}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition-all shadow-sm cursor-pointer"
+                                      title="Share Invoice with Customer"
+                                    >
+                                      <Share2 className="w-3.5 h-3.5" />
+                                      Share Invoice
+                                    </button>
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${inv.status === 'Paid'
                                         ? 'bg-green-50 text-green-700 border border-green-100'
                                         : inv.status === 'Cancelled'
@@ -14629,28 +14989,7 @@ ${chauffeurHtml}
                                       {touristData?.preferences?.travel_style || 'Luxury'}
                                     </span>
                                   </div>
-                                  <div>
-                                    <span className="font-bold text-neutral-500 block">Service Fee Rate</span>
-                                    <span className="font-medium text-neutral-800">
-                                      {inv.service_fee_percentage !== undefined && inv.service_fee_percentage !== null
-                                        ? `${inv.service_fee_percentage}%`
-                                        : (() => {
-                                          const travelStyle = touristData?.preferences?.travel_style || 'Luxury';
-                                          const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
-                                          const serviceFeeKey = `${styleKey}_service_fee`;
-                                          if (appSettings && appSettings[serviceFeeKey] !== undefined) {
-                                            return `${Number(appSettings[serviceFeeKey])}% (Default)`;
-                                          }
-                                          const hardcodedDefaults: Record<string, string> = {
-                                            regular: '5%',
-                                            premium: '8%',
-                                            luxury: '10%',
-                                            ultra_vip: '15%'
-                                          };
-                                          return `${hardcodedDefaults[styleKey] || '10%'} (Default)`;
-                                        })()}
-                                    </span>
-                                  </div>
+
                                   {inv.agency_note && (
                                     <div className="pt-1 border-t border-neutral-100">
                                       <span className="font-bold text-neutral-500 block">Notes / Bank Details</span>
@@ -14664,6 +15003,28 @@ ${chauffeurHtml}
                                   <div>
                                     <span className="font-bold text-neutral-700 block mb-1">Payment Status</span>
                                     <div className="flex items-center justify-between text-[11px] py-1 border-b border-neutral-200/50">
+                                      <div className="flex items-center gap-1.5">
+                                        <span>Discount:</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (editingDiscountInvoiceId === inv.id) {
+                                              setEditingDiscountInvoiceId(null);
+                                            } else {
+                                              setEditingDiscountInvoiceId(inv.id);
+                                              setEditingDiscountValue(String(inv.discount_amount || 0));
+                                            }
+                                          }}
+                                          className="text-[10px] text-emerald-800 font-bold hover:underline cursor-pointer"
+                                        >
+                                          {inv.discount_amount && inv.discount_amount > 0 ? 'Edit' : '+ Discount'}
+                                        </button>
+                                      </div>
+                                      <span className="font-mono font-bold text-amber-700">
+                                        -{inv.currency || 'USD'} {Number(inv.discount_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] py-1 border-b border-neutral-200/50">
                                       <span>Total Paid:</span>
                                       <span className="font-mono font-bold text-emerald-800">
                                         {inv.currency || 'USD'} {totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -14676,6 +15037,33 @@ ${chauffeurHtml}
                                       </span>
                                     </div>
                                   </div>
+
+                                  {/* Inline Edit Discount Form */}
+                                  {editingDiscountInvoiceId === inv.id && (
+                                    <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2 text-xs my-2 animate-in slide-in-from-top-1 duration-150">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-bold text-amber-900 text-[11px]">Set Discount Amount ($)</span>
+                                        <button type="button" onClick={() => setEditingDiscountInvoiceId(null)} className="text-neutral-400 hover:text-neutral-600 text-xs font-bold">✕</button>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={editingDiscountValue}
+                                          onChange={(e) => setEditingDiscountValue(e.target.value)}
+                                          className="w-full bg-white border border-neutral-200 rounded-lg p-1.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono"
+                                          placeholder="0.00"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateInvoiceDiscount(inv.id)}
+                                          className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer shadow-sm"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
 
                                   {inv.status !== 'Paid' && customerPaymentInvoiceId !== inv.id && (
                                     <div className="flex flex-col gap-2 mt-3">
@@ -15001,20 +15389,148 @@ ${chauffeurHtml}
                                     <h6 className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Client Payment History</h6>
                                     {inv.payments && inv.payments.length > 0 ? (
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {inv.payments.map((p: any) => (
-                                          <div key={p.id} className="p-3 bg-white border border-neutral-150 rounded-xl flex items-center justify-between text-[11px] shadow-sm animate-in fade-in">
-                                            <div>
-                                              <span className="font-bold text-neutral-700 block">{p.payment_method}</span>
-                                              <span className="text-[10px] text-neutral-450 block font-mono">{p.transaction_id || 'No Ref / Tx ID'}</span>
+                                        {inv.payments.map((p: any) => {
+                                          if (editingPaymentId === p.id) {
+                                            return (
+                                              <form key={p.id} onSubmit={handleSaveEditPayment} className="col-span-full p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-3 animate-in fade-in">
+                                                <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                                                  <h5 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Coins className="w-3.5 h-3.5" /> Edit Payment Record
+                                                  </h5>
+                                                  <button type="button" onClick={() => setEditingPaymentId(null)} className="text-neutral-400 hover:text-neutral-600 text-xs font-bold">✕</button>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                  <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-neutral-500 uppercase">Amount</label>
+                                                    <input
+                                                      type="number"
+                                                      step="0.01"
+                                                      required
+                                                      value={editingPaymentAmount}
+                                                      onChange={(e) => setEditingPaymentAmount(e.target.value)}
+                                                      className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono font-bold"
+                                                    />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-neutral-500 uppercase">Method</label>
+                                                    <select
+                                                      value={editingPaymentMethod}
+                                                      onChange={(e) => setEditingPaymentMethod(e.target.value)}
+                                                      className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                    >
+                                                      <option value="Bank Transfer">Bank Transfer</option>
+                                                      <option value="Credit Card">Credit Card</option>
+                                                      <option value="Cash">Cash</option>
+                                                      <option value="Cheque">Cheque</option>
+                                                    </select>
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction / Ref ID</label>
+                                                    <input
+                                                      type="text"
+                                                      value={editingPaymentTxId}
+                                                      onChange={(e) => setEditingPaymentTxId(e.target.value)}
+                                                      className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono"
+                                                    />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-neutral-500 uppercase">Payment Date</label>
+                                                    <input
+                                                      type="date"
+                                                      required
+                                                      value={editingPaymentDate}
+                                                      onChange={(e) => setEditingPaymentDate(e.target.value)}
+                                                      className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                    />
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-neutral-500 uppercase">Currency</label>
+                                                    <select
+                                                      value={editingPaymentCurrency}
+                                                      onChange={(e) => setEditingPaymentCurrency(e.target.value)}
+                                                      className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-bold"
+                                                    >
+                                                      <option value="USD">USD ($)</option>
+                                                      <option value="LKR">LKR (Rs)</option>
+                                                      <option value="EUR">EUR (€)</option>
+                                                      <option value="GBP">GBP (£)</option>
+                                                      <option value="AUD">AUD ($)</option>
+                                                    </select>
+                                                  </div>
+                                                  {editingPaymentCurrency !== 'USD' && (
+                                                    <div className="space-y-1">
+                                                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Exchange Rate (vs USD)</label>
+                                                      <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editingPaymentExchangeRate}
+                                                        onChange={(e) => setEditingPaymentExchangeRate(e.target.value)}
+                                                        className="w-full bg-white border border-neutral-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-mono"
+                                                      />
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200/60">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setEditingPaymentId(null)}
+                                                    className="px-3 py-1.5 border border-neutral-300 hover:bg-neutral-100 text-neutral-600 rounded-lg text-xs font-bold uppercase cursor-pointer"
+                                                  >
+                                                    Cancel
+                                                  </button>
+                                                  <button
+                                                    type="submit"
+                                                    className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold uppercase cursor-pointer shadow-sm"
+                                                  >
+                                                    Save Payment Changes
+                                                  </button>
+                                                </div>
+                                              </form>
+                                            );
+                                          }
+
+                                          return (
+                                            <div key={p.id} className="p-3 bg-white border border-neutral-150 rounded-xl flex items-center justify-between text-[11px] shadow-sm animate-in fade-in">
+                                              <div>
+                                                <span className="font-bold text-neutral-700 block">{p.payment_method}</span>
+                                                <span className="text-[10px] text-neutral-450 block font-mono">{p.transaction_id || 'No Ref / Tx ID'}</span>
+                                              </div>
+                                              <div className="text-right flex flex-col items-end gap-0.5">
+                                                <span className="font-mono font-bold text-emerald-800 block">
+                                                  {p.currency || inv.currency || 'USD'} {Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </span>
+                                                <span className="text-[9px] text-neutral-400 font-mono block">
+                                                  {p.payment_date ? new Date(p.payment_date).toLocaleDateString(undefined, { dateStyle: 'short' }) : new Date(p.created_at).toLocaleDateString(undefined, { dateStyle: 'short' })}
+                                                </span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEditPayment(p)}
+                                                    className="text-[10px] font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                                  >
+                                                    Edit
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteCustomerPayment(p.id)}
+                                                    className="text-[10px] font-bold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                                  >
+                                                    Delete
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleDownloadReceiptPdf(p, inv)}
+                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-850 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 px-2 py-0.5 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                                    title="Download Official Payment Receipt PDF"
+                                                  >
+                                                    <Receipt className="w-3 h-3 text-emerald-800" />
+                                                    <span>Receipt PDF</span>
+                                                  </button>
+                                                </div>
+                                              </div>
                                             </div>
-                                            <div className="text-right">
-                                              <span className="font-mono font-bold text-emerald-800 block">${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                              <span className="text-[9px] text-neutral-400 font-mono block">
-                                                {new Date(p.created_at).toLocaleDateString(undefined, { dateStyle: 'short' })}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     ) : (
                                       <p className="text-[10px] text-neutral-450 italic">No payments logged against this invoice yet.</p>
@@ -15025,6 +15541,111 @@ ${chauffeurHtml}
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+
+                    {/* Share Customer Invoice Modal */}
+                    {isShareInvoiceModalOpen && (
+                      <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-neutral-200 space-y-5 animate-in zoom-in-95 duration-200">
+                          <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center border border-emerald-100">
+                                <Share2 className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h3 className="text-base font-bold text-neutral-800">Share Customer Invoice</h3>
+                                <p className="text-xs text-neutral-400">Send PDF invoice directly to the tourist email address</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setIsShareInvoiceModalOpen(false)}
+                              className="p-1 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100 transition-all cursor-pointer"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          {shareInvoiceFeedback && (
+                            <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                              shareInvoiceFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}>
+                              {shareInvoiceFeedback.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                              <span>{shareInvoiceFeedback.text}</span>
+                            </div>
+                          )}
+
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-neutral-450 uppercase tracking-wider block">To Email Address</label>
+                              <input
+                                type="email"
+                                value={shareInvoiceToEmail}
+                                onChange={(e) => setShareInvoiceToEmail(e.target.value)}
+                                placeholder="e.g. guest@example.com"
+                                className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-medium"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-neutral-450 uppercase tracking-wider block">Email Subject</label>
+                              <input
+                                type="text"
+                                value={shareInvoiceSubject}
+                                onChange={(e) => setShareInvoiceSubject(e.target.value)}
+                                className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800 font-medium"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-neutral-450 uppercase tracking-wider block">Message Preview</label>
+                              <div
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => setShareInvoiceBodyHtml(e.currentTarget.innerHTML)}
+                                dangerouslySetInnerHTML={{ __html: shareInvoiceBodyHtml }}
+                                className="w-full bg-neutral-50/50 border border-neutral-200 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-emerald-800 min-h-[140px] max-h-[220px] overflow-y-auto leading-relaxed"
+                              />
+                            </div>
+
+                            <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/60 flex items-center justify-between text-xs text-emerald-850">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-emerald-800" />
+                                <span className="font-bold">Attached Document:</span>
+                                <span className="font-mono text-[11px]">Customer_Invoice_{selectedShareInvoice?.invoice_number || 'Details'}.pdf</span>
+                              </div>
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold uppercase">Auto-Generated</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+                            <button
+                              type="button"
+                              onClick={() => setIsShareInvoiceModalOpen(false)}
+                              className="px-4 py-2 border border-neutral-250 hover:bg-neutral-50 text-neutral-600 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSendShareInvoice}
+                              disabled={isSendingInvoiceEmail}
+                              className="flex items-center gap-2 px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-50"
+                            >
+                              {isSendingInvoiceEmail ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Sending Invoice...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4" />
+                                  <span>Send Invoice Email</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -16849,6 +17470,14 @@ ${chauffeurHtml}
           const taxPreview = parseFloat(invoiceTaxAmount) || 0;
           const totalPreview = Math.max(0, subtotalPreview - discountPreview + taxPreview);
 
+          const advancePaymentsTotalUSD = (customerAdvancePayments || []).reduce((sum: number, p: any) => {
+            const amt = Number(p.amount) || 0;
+            const rate = Number(p.exchange_rate) || 1.0;
+            const usd = (p.currency === 'USD' || !p.currency) ? amt : (rate > 0 ? amt / rate : amt);
+            return sum + usd;
+          }, 0);
+          const estimatedBalanceDue = Math.max(0, totalPreview - advancePaymentsTotalUSD);
+
           return (
             <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
               <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden border border-neutral-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
@@ -16916,11 +17545,26 @@ ${chauffeurHtml}
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold">Payment Due Date</label>
+                          <label className="text-[10px] uppercase tracking-wider text-neutral-450 font-bold flex items-center justify-between">
+                            <span>Payment Due Date</span>
+                            {(() => {
+                              const travelStartDate = (guideRfqDetails?.tour?.start_date ? new Date(guideRfqDetails.tour.start_date).toISOString().split('T')[0] : '') || touristData?.preferences?.arrival_date || tripData?.profile?.arrivalDate || (dbActivities?.[0]?.service_date ? new Date(dbActivities[0].service_date).toISOString().split('T')[0] : '') || '';
+                              return travelStartDate ? <span className="text-[9px] text-amber-700 font-medium normal-case">(Max: {travelStartDate})</span> : null;
+                            })()}
+                          </label>
                           <input
                             type="date"
+                            max={(guideRfqDetails?.tour?.start_date ? new Date(guideRfqDetails.tour.start_date).toISOString().split('T')[0] : '') || touristData?.preferences?.arrival_date || tripData?.profile?.arrivalDate || (dbActivities?.[0]?.service_date ? new Date(dbActivities[0].service_date).toISOString().split('T')[0] : '') || undefined}
                             value={invoiceDueDate}
-                            onChange={(e) => setInvoiceDueDate(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const travelStartDate = (guideRfqDetails?.tour?.start_date ? new Date(guideRfqDetails.tour.start_date).toISOString().split('T')[0] : '') || touristData?.preferences?.arrival_date || tripData?.profile?.arrivalDate || (dbActivities?.[0]?.service_date ? new Date(dbActivities[0].service_date).toISOString().split('T')[0] : '') || '';
+                              if (travelStartDate && val > travelStartDate) {
+                                setInvoiceDueDate(travelStartDate);
+                              } else {
+                                setInvoiceDueDate(val);
+                              }
+                            }}
                             className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                           />
                         </div>
@@ -17088,9 +17732,21 @@ ${chauffeurHtml}
                             </div>
                           )}
                           <div className="flex items-center justify-between text-emerald-900 font-extrabold text-sm pt-2 border-t border-neutral-200/50">
-                            <span>Total Selling Price:</span>
+                            <span>Total Invoiced Amount:</span>
                             <span className="font-mono text-base">${totalPreview.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           </div>
+                          {advancePaymentsTotalUSD > 0 && (
+                            <>
+                              <div className="flex items-center justify-between text-emerald-700 font-medium text-xs pt-1">
+                                <span>Less: Advance Payments Received:</span>
+                                <span className="font-mono">-${advancePaymentsTotalUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-neutral-800 font-extrabold text-sm pt-1.5 border-t border-dashed border-neutral-250">
+                                <span>Net Balance Due:</span>
+                                <span className="font-mono text-base text-emerald-800">${estimatedBalanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

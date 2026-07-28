@@ -263,7 +263,6 @@ export class InvoiceCalculationService {
       ? effectiveFeePercent.toFixed(0)
       : effectiveFeePercent.toFixed(1);
 
-    // Get concierge/guide/driver block IDs for linkage
     const curationTypes = ['guide', 'driver', 'buffer', 'wait'];
     const curationBlocks = itinerary.filter(b => curationTypes.includes(b.type || ''));
     

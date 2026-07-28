@@ -2079,6 +2079,72 @@ export async function sendHotelRfqEmailAction(options: {
     }
 }
 
+export async function sendCustomerInvoiceEmailAction(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+    invoiceId?: string;
+    pdfBase64?: string;
+    pdfFilename?: string;
+}) {
+    try {
+        const { to, from, subject, body, invoiceId, pdfBase64, pdfFilename } = options;
+        if (!to) {
+            return { success: false, error: "Recipient email is required." };
+        }
+        const apiKey = process.env.RESEND_API_KEY;
+        const sender = from || process.env.EMAIL_FROM || 'concierge@nilathra.com';
+
+        const isHtml = /<[a-z][\s\S]*>/i.test(body);
+        const contentHtml = `
+            <div style="font-size:15px;color:#4a4a4a;line-height:1.7;${isHtml ? '' : 'white-space:pre-wrap;'}">${body}</div>
+            <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
+              For any questions regarding your invoice or itinerary, please contact your concierge team at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
+            </p>
+        `;
+        const html = emailService.generateEmailHtml('Customer Invoice', 'Customer Invoice', contentHtml);
+
+        const attachments: any[] = [];
+        if (pdfBase64 && pdfFilename) {
+            attachments.push({
+                filename: pdfFilename,
+                content: pdfBase64
+            });
+        }
+
+        if (apiKey) {
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: sender,
+                    to: to,
+                    subject: subject,
+                    html: html,
+                    attachments
+                })
+            });
+
+            const resJson = await res.json();
+            if (!res.ok) {
+                console.error("Resend email delivery failed:", resJson);
+                await emailService.sendEmail({ to, from: sender, subject, html, attachments });
+            }
+        } else {
+            await emailService.sendEmail({ to, from: sender, subject, html, attachments });
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in sendCustomerInvoiceEmailAction:", error);
+        return { success: false, error: error.message || "An unexpected error occurred." };
+    }
+}
+
 export async function changeHotelDatabaseAction(
     tourId: string,
     stayIds: string[],
@@ -2347,6 +2413,17 @@ export async function registerCustomerPaymentAction(dto: any) {
     }
 }
 
+export async function updateCustomerInvoiceDiscountAction(invoiceId: string, discountAmount: number) {
+    try {
+        const invoice = await CustomerInvoiceService.updateCustomerInvoiceDiscount(invoiceId, discountAmount);
+        revalidatePath("/admin-new");
+        return { success: true, invoice };
+    } catch (error: any) {
+        console.error("Error in updateCustomerInvoiceDiscountAction:", error);
+        return { success: false, error: error.message || "Failed to update invoice discount." };
+    }
+}
+
 export async function updateEmailProposalAction(
     id: string,
     isRfq: boolean,
@@ -2524,6 +2601,28 @@ export async function saveTourDailyDriversAction(tourId: string, assignments: To
     } catch (error: any) {
         console.error("Error saving tour daily drivers:", error);
         return { success: false, error: error.message || "Failed to save tour daily drivers." };
+    }
+}
+
+export async function updateCustomerPaymentAction(paymentId: string, updates: Record<string, any>) {
+    try {
+        const payment = await CustomerInvoiceService.updateCustomerPayment(paymentId, updates);
+        revalidatePath('/admin-new');
+        return { success: true, payment };
+    } catch (error: any) {
+        console.error("Error updating customer payment:", error);
+        return { success: false, error: error.message || "Failed to update payment." };
+    }
+}
+
+export async function deleteCustomerPaymentAction(paymentId: string) {
+    try {
+        await CustomerInvoiceService.deleteCustomerPayment(paymentId);
+        revalidatePath('/admin-new');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting customer payment:", error);
+        return { success: false, error: error.message || "Failed to delete payment." };
     }
 }
 

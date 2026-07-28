@@ -198,14 +198,41 @@ export class CustomerInvoiceService {
           ? Number(appSettings[serviceFeeKey]) 
           : 10;
 
+        // 4.6 Fetch unassigned advance payments for this tour to credit against invoice
+        const { data: advancePayments } = await supabaseAdmin
+            .from('customer_payments')
+            .select('*')
+            .eq('tour_id', dto.tour_id)
+            .is('invoice_id', null);
+
+        const totalAdvancePaidUSD = (advancePayments || []).reduce((sum: number, p: any) => {
+            const amt = Number(p.amount) || 0;
+            const rate = Number(p.exchange_rate) || 1.0;
+            const usd = (p.currency === 'USD' || !p.currency) ? amt : (rate > 0 ? amt / rate : amt);
+            return sum + usd;
+        }, 0);
+
+        const initialStatus = totalAdvancePaidUSD >= finalAmount ? 'Paid' : 'Pending';
+
+        // Check tour start date from tours table and cap due date if necessary
+        let finalDueDate = dto.dueDate || null;
+        if (tour.start_date && finalDueDate) {
+            const tourStartStr = typeof tour.start_date === 'string' 
+                ? tour.start_date.split('T')[0] 
+                : new Date(tour.start_date).toISOString().split('T')[0];
+            if (finalDueDate > tourStartStr) {
+                finalDueDate = tourStartStr;
+            }
+        }
+
         // 5. Insert invoice
         const invoicePayload = {
             tour_id: dto.tour_id,
             tourist_id: tour.tourist_id,
             amount: finalAmount,
             currency: tour.planner_data?.profile?.currency || 'USD',
-            status: 'Pending',
-            due_date: dto.dueDate || null,
+            status: initialStatus,
+            due_date: finalDueDate,
             invoice_number: invoiceNumber,
             billing_details: dto.billingDetails,
             agency_note: dto.agencyNote || null,
@@ -221,6 +248,15 @@ export class CustomerInvoiceService {
             .single();
 
         if (invError) throw invError;
+
+        // 5.1 Link unassigned advance payments to this generated invoice
+        if (advancePayments && advancePayments.length > 0) {
+            const advanceIds = advancePayments.map(p => p.id);
+            await supabaseAdmin
+                .from('customer_payments')
+                .update({ invoice_id: invoice.id })
+                .in('id', advanceIds);
+        }
 
         // 6. Insert items and create links to daily activities
         if (items.length > 0) {
@@ -270,6 +306,24 @@ export class CustomerInvoiceService {
      */
     static async getCustomerInvoices(tourId: string) {
         const supabaseAdmin = createAdminClient();
+
+        // 0. Auto-link unassigned payments for this tour if an invoice exists
+        const { data: latestInvoice } = await supabaseAdmin
+            .from('customer_invoices')
+            .select('id')
+            .eq('tour_id', tourId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (latestInvoice) {
+            await supabaseAdmin
+                .from('customer_payments')
+                .update({ invoice_id: latestInvoice.id })
+                .eq('tour_id', tourId)
+                .is('invoice_id', null);
+        }
+
         const { data: invoices, error } = await supabaseAdmin
             .from('customer_invoices')
             .select(`
@@ -281,6 +335,26 @@ export class CustomerInvoiceService {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
+
+        // Auto-update invoice status if total payments >= invoice amount
+        if (invoices && invoices.length > 0) {
+            for (const inv of invoices as any[]) {
+                const totalPaidUSD = (inv.payments || []).reduce((sum: number, p: any) => {
+                    const amt = Number(p.amount) || 0;
+                    const rate = Number(p.exchange_rate) || 1.0;
+                    const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
+                    return sum + usd;
+                }, 0);
+
+                if (totalPaidUSD >= (inv.amount || 0) && inv.status !== 'Paid') {
+                    inv.status = 'Paid';
+                    await supabaseAdmin
+                        .from('customer_invoices')
+                        .update({ status: 'Paid' })
+                        .eq('id', inv.id);
+                }
+            }
+        }
 
         // Fetch linked daily activities for each invoice item
         if (invoices && invoices.length > 0) {
@@ -317,6 +391,22 @@ export class CustomerInvoiceService {
      */
     static async registerCustomerPayment(dto: CustomerPaymentDTO) {
         const supabaseAdmin = createAdminClient();
+
+        // If invoice_id is not set, try to find the latest invoice for this tour
+        if (!dto.invoice_id && dto.tour_id) {
+            const { data: latestInvoice } = await supabaseAdmin
+                .from('customer_invoices')
+                .select('id')
+                .eq('tour_id', dto.tour_id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (latestInvoice) {
+                dto.invoice_id = latestInvoice.id;
+            }
+        }
+
         const { data: payment, error: payError } = await supabaseAdmin
             .from('customer_payments')
             .insert(dto)
@@ -328,10 +418,15 @@ export class CustomerInvoiceService {
         // Fetch invoice and all related payments to tally totals if it's tied to an invoice
         if (dto.invoice_id) {
             const { data: invoice } = await supabaseAdmin.from('customer_invoices').select('amount').eq('id', dto.invoice_id).single();
-            const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount').eq('invoice_id', dto.invoice_id);
-            const totalPaid = (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+            const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount, currency, exchange_rate').eq('invoice_id', dto.invoice_id);
+            const totalPaidUSD = (payments || []).reduce((sum: number, p: any) => {
+                const amt = Number(p.amount) || 0;
+                const rate = Number(p.exchange_rate) || 1.0;
+                const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
+                return sum + usd;
+            }, 0);
 
-            if (invoice && totalPaid >= invoice.amount) {
+            if (invoice && totalPaidUSD >= invoice.amount) {
                 await supabaseAdmin.from('customer_invoices').update({ status: 'Paid' }).eq('id', dto.invoice_id);
             }
         }
@@ -356,16 +451,158 @@ export class CustomerInvoiceService {
     }
 
     /**
-     * Delete a customer invoice (deletes children items via DB Cascade)
+     * Update discount amount on an existing customer invoice and recalculate total
+     */
+    static async updateCustomerInvoiceDiscount(invoiceId: string, discountAmount: number) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Fetch invoice and its items & payments
+        const { data: invoice, error: invErr } = await supabaseAdmin
+            .from('customer_invoices')
+            .select('*, items:customer_invoice_items(*), payments:customer_payments(*)')
+            .eq('id', invoiceId)
+            .single();
+
+        if (invErr || !invoice) throw new Error("Invoice not found: " + (invErr?.message || ""));
+
+        const itemsSubtotal = (invoice.items || []).reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+        const tax = Number(invoice.tax_amount) || 0;
+        const discount = Math.max(0, Number(discountAmount) || 0);
+        const newFinalAmount = Math.max(0, itemsSubtotal - discount + tax);
+
+        const totalPaidUSD = (invoice.payments || []).reduce((sum: number, p: any) => {
+            const amt = Number(p.amount) || 0;
+            const rate = Number(p.exchange_rate) || 1.0;
+            const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
+            return sum + usd;
+        }, 0);
+
+        const newStatus = totalPaidUSD >= newFinalAmount ? 'Paid' : (invoice.status === 'Paid' ? 'Pending' : invoice.status);
+
+        const { data: updated, error: updateErr } = await supabaseAdmin
+            .from('customer_invoices')
+            .update({
+                discount_amount: discount,
+                amount: newFinalAmount,
+                status: newStatus
+            })
+            .eq('id', invoiceId)
+            .select()
+            .single();
+
+        if (updateErr) throw updateErr;
+        return updated;
+    }
+
+    /**
+     * Delete a customer invoice (un-links advance payments & deletes invoice)
+     */
+    /**
+     * Delete a customer invoice (un-links advance payments & deletes invoice)
      */
     static async deleteCustomerInvoice(invoiceId: string) {
         const supabaseAdmin = createAdminClient();
+
+        // 1. Un-link payments from this invoice so they revert to unassigned advance payments
+        await supabaseAdmin
+            .from('customer_payments')
+            .update({ invoice_id: null })
+            .eq('invoice_id', invoiceId);
+
+        // 2. Delete invoice
         const { error } = await supabaseAdmin
             .from('customer_invoices')
             .delete()
             .eq('id', invoiceId);
 
         if (error) throw error;
+        return true;
+    }
+
+    /**
+     * Update an existing customer payment record
+     */
+    static async updateCustomerPayment(paymentId: string, updates: Record<string, any>) {
+        const supabaseAdmin = createAdminClient();
+
+        // 1. Fetch current payment record
+        const { data: currentPayment, error: fetchErr } = await supabaseAdmin
+            .from('customer_payments')
+            .select('*')
+            .eq('id', paymentId)
+            .single();
+
+        if (fetchErr || !currentPayment) throw new Error("Payment record not found: " + (fetchErr?.message || ""));
+
+        // 2. Update payment record
+        const { data: updatedPayment, error: updateErr } = await supabaseAdmin
+            .from('customer_payments')
+            .update(updates)
+            .eq('id', paymentId)
+            .select()
+            .single();
+
+        if (updateErr) throw updateErr;
+
+        // 3. Recalculate linked invoice status if tied to an invoice
+        const invoiceId = currentPayment.invoice_id;
+        if (invoiceId) {
+            const { data: invoice } = await supabaseAdmin.from('customer_invoices').select('amount').eq('id', invoiceId).single();
+            const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount, currency, exchange_rate').eq('invoice_id', invoiceId);
+            
+            const totalPaidUSD = (payments || []).reduce((sum: number, p: any) => {
+                const amt = Number(p.amount) || 0;
+                const rate = Number(p.exchange_rate) || 1.0;
+                const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
+                return sum + usd;
+            }, 0);
+
+            if (invoice) {
+                const newStatus = totalPaidUSD >= invoice.amount ? 'Paid' : 'Pending';
+                await supabaseAdmin.from('customer_invoices').update({ status: newStatus }).eq('id', invoiceId);
+            }
+        }
+
+        return updatedPayment;
+    }
+
+    /**
+     * Delete an existing customer payment record
+     */
+    static async deleteCustomerPayment(paymentId: string) {
+        const supabaseAdmin = createAdminClient();
+
+        const { data: currentPayment } = await supabaseAdmin
+            .from('customer_payments')
+            .select('*')
+            .eq('id', paymentId)
+            .single();
+
+        const { error } = await supabaseAdmin
+            .from('customer_payments')
+            .delete()
+            .eq('id', paymentId);
+
+        if (error) throw error;
+
+        if (currentPayment?.invoice_id) {
+            const invoiceId = currentPayment.invoice_id;
+            const { data: invoice } = await supabaseAdmin.from('customer_invoices').select('amount').eq('id', invoiceId).single();
+            const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount, currency, exchange_rate').eq('invoice_id', invoiceId);
+            
+            const totalPaidUSD = (payments || []).reduce((sum: number, p: any) => {
+                const amt = Number(p.amount) || 0;
+                const rate = Number(p.exchange_rate) || 1.0;
+                const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
+                return sum + usd;
+            }, 0);
+
+            if (invoice) {
+                const newStatus = totalPaidUSD >= invoice.amount ? 'Paid' : 'Pending';
+                await supabaseAdmin.from('customer_invoices').update({ status: newStatus }).eq('id', invoiceId);
+            }
+        }
+
         return true;
     }
 }
