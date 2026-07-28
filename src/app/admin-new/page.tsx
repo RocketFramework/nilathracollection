@@ -4120,14 +4120,16 @@ function PlannerWizardWorkspace() {
 
     const block = itinerary.find(b => b.id === blockId);
     const poBlock = poBlocks.find(b => b.id === blockId);
-    const isRestaurant = block?.type === 'meal' || poBlock?.block_type === 'meal' || poBlock?.block_type === 'restaurant' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id);
+    const hasHotelStays = stays.some(s => s.activity_type === 'sleep' || s.type === 'sleep');
+    const isHotelBlock = poBlock?.block_type === 'accommodation' || poBlock?.block_type === 'sleep' || block?.type === 'sleep' || hasHotelStays;
+    const isRestaurant = !isHotelBlock && (block?.type === 'meal' || poBlock?.block_type === 'meal' || poBlock?.block_type === 'restaurant' || stays.some(s => s.activity_type === 'meal' || s.type === 'meal' || s.restaurantId || s.restaurant_id));
     // If the po_block is explicitly typed as 'travel', treat it as transport — never guide.
     // guide_id / driver_id are set on ALL daily_activities for the tour (the guide/driver
     // accompanies everything), so we must not use those fields alone to decide type.
     const isExplicitTravelBlock = poBlock?.block_type === 'travel' || block?.type === 'travel';
-    const isGuide = !isExplicitTravelBlock && (block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id && !s.transport_id));
-    const isDriver = !isExplicitTravelBlock && ((block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id && !s.transport_id));
-    const isTransport = isExplicitTravelBlock || (!isGuide && !isDriver && stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id));
+    const isGuide = !isHotelBlock && !isExplicitTravelBlock && (block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id && !s.transport_id));
+    const isDriver = !isHotelBlock && !isExplicitTravelBlock && ((block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id && !s.transport_id));
+    const isTransport = !isHotelBlock && (isExplicitTravelBlock || (!isGuide && !isDriver && stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id)));
 
     setRfqIsRestaurant(isRestaurant);
     setRfqIsTransport(isTransport);
@@ -4174,13 +4176,30 @@ function PlannerWizardWorkspace() {
           return dayA - dayB;
         });
 
-        const standardStaysOnly = sortedStays.filter(s => !s.isCustomPO);
-        const checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || sortedStays[0]?.tour_itineraries?.date || '';
-        const nightsCount = standardStaysOnly.length;
+        const sleepStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+        let checkInDate = '';
+        let nightsCount = 0;
+        let lastSleepDate = '';
+
+        if (sleepStaysOnly.length > 0) {
+          const firstSleep = sleepStaysOnly[0];
+          const lastSleep = sleepStaysOnly[sleepStaysOnly.length - 1];
+          checkInDate = firstSleep?.service_date || firstSleep?.tour_itineraries?.date || '';
+          lastSleepDate = lastSleep?.service_date || lastSleep?.tour_itineraries?.date || checkInDate;
+          nightsCount = sleepStaysOnly.length;
+        } else {
+          const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
+          if (serviceDates.length > 0) {
+            checkInDate = serviceDates[0];
+            lastSleepDate = serviceDates[serviceDates.length - 1];
+            nightsCount = 1;
+          }
+        }
+
         let checkOutDate = '';
-        if (checkInDate && nightsCount > 0) {
-          const d = new Date(checkInDate);
-          d.setDate(d.getDate() + nightsCount);
+        if (lastSleepDate) {
+          const d = new Date(lastSleepDate);
+          d.setDate(d.getDate() + 1);
           checkOutDate = d.toISOString().split('T')[0];
         }
 
@@ -5023,23 +5042,30 @@ function PlannerWizardWorkspace() {
       }
     };
 
-    const standardStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
+    const sleepStaysOnly = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
     let checkInDate = '';
     let nightsCount = 0;
-    if (standardStaysOnly.length > 0) {
-      checkInDate = standardStaysOnly[0]?.tour_itineraries?.date || '';
-      nightsCount = standardStaysOnly.length;
+    let lastSleepDate = '';
+
+    if (sleepStaysOnly.length > 0) {
+      const firstSleep = sleepStaysOnly[0];
+      const lastSleep = sleepStaysOnly[sleepStaysOnly.length - 1];
+      checkInDate = firstSleep?.service_date || firstSleep?.tour_itineraries?.date || '';
+      lastSleepDate = lastSleep?.service_date || lastSleep?.tour_itineraries?.date || checkInDate;
+      nightsCount = sleepStaysOnly.length;
     } else {
       const serviceDates = sortedStays.map(s => s.service_date || s.tour_itineraries?.date).filter(Boolean);
       if (serviceDates.length > 0) {
         checkInDate = serviceDates[0];
-        nightsCount = serviceDates.length;
+        lastSleepDate = serviceDates[serviceDates.length - 1];
+        nightsCount = 1;
       }
     }
+
     let checkOutDate = '';
-    if (checkInDate && nightsCount > 0) {
-      const d = new Date(checkInDate);
-      d.setDate(d.getDate() + nightsCount);
+    if (lastSleepDate) {
+      const d = new Date(lastSleepDate);
+      d.setDate(d.getDate() + 1);
       checkOutDate = d.toISOString().split('T')[0];
     }
 
