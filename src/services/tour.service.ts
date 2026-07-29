@@ -950,7 +950,14 @@ export class TourService {
                             basePayload.contracted_total_price = totalContractedPrice > 0 ? totalContractedPrice : null;
                         }
 
-                        basePayload.meal_plan = mealPlan;
+                        const effectiveMealPlan = b.mealPlan || mealPlan || acc.mealPlan || null;
+                        basePayload.meal_plan = effectiveMealPlan;
+                        if (b.mealPlan && acc) {
+                            acc.mealPlan = b.mealPlan;
+                            if (acc.selectedRooms) {
+                                acc.selectedRooms.forEach((r: any) => r.mealPlan = b.mealPlan);
+                            }
+                        }
 
                         if (acc.customRateNote) {
                             basePayload.description = acc.customRateNote;
@@ -992,7 +999,11 @@ export class TourService {
                             basePayload.contracted_total_price = (b.contractedPrice != null && assumedQty != null) ? b.contractedPrice * assumedQty : null;
                         }
 
-                        basePayload.meal_plan = acc.mealPlan || null;
+                        const effectiveFallbackMealPlan = b.mealPlan || acc.mealPlan || null;
+                        basePayload.meal_plan = effectiveFallbackMealPlan;
+                        if (b.mealPlan && acc) {
+                            acc.mealPlan = b.mealPlan;
+                        }
 
                         if (acc.customRateNote) {
                             basePayload.description = acc.customRateNote;

@@ -21817,6 +21817,19 @@ function AIItineraryBuilder({
               }
             }
           }
+          if (field === 'mealPlan' && value && tripData && tripData.accommodations) {
+            const dayNum = updated.dayNumber;
+            const accIndex = tripData.accommodations.findIndex((a: any) => a.nightIndex === dayNum);
+            if (accIndex !== -1) {
+              const updatedAccs = [...tripData.accommodations];
+              const accItem = { ...updatedAccs[accIndex], mealPlan: value };
+              if (accItem.selectedRooms) {
+                accItem.selectedRooms = accItem.selectedRooms.map((sr: any) => ({ ...sr, mealPlan: value }));
+              }
+              updatedAccs[accIndex] = accItem;
+              setTripData((prev: any) => prev ? { ...prev, accommodations: updatedAccs } : prev);
+            }
+          }
         }
         return updated;
       }
@@ -22000,7 +22013,7 @@ function AIItineraryBuilder({
     { value: ItineraryBlockTypes.CUSTOM, label: 'Custom Item' }
   ];
 
-  const mealPlans = ['None', 'BB', 'HB', 'FB', 'AI']; return (
+  const mealPlans = ['RO', 'BB', 'HB', 'FB', 'AI']; return (
     <div className="relative overflow-hidden bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-neutral-200/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
       {/* Decorative Glowing Blobs */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-full filter blur-3xl -translate-y-12 translate-x-12 pointer-events-none" />
@@ -23245,7 +23258,7 @@ function AIItineraryBuilder({
                       <div>
                         <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Meal Plan</label>
                         <select
-                          value={block.mealPlan || 'BB'}
+                          value={block.mealPlan === 'None' ? 'RO' : (block.mealPlan || 'BB')}
                           onChange={(e) => handleUpdateBlockField(block.id, 'mealPlan', e.target.value)}
                           disabled={isLockedByOther}
                           className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
