@@ -789,6 +789,8 @@ export async function finalizeActivityPricesAction(
 ) {
     try {
         const adminSupabase = createAdminClient();
+        const affectedPoIds = new Set<string>();
+
         for (const update of updates) {
             const dbFields: any = {};
             if (update.price_finalized !== undefined) {
@@ -813,12 +815,137 @@ export async function finalizeActivityPricesAction(
                 dbFields.guide_room_discount = update.guide_room_discount;
             }
 
+            // 1. Update daily_activities table
             const { error } = await adminSupabase
                 .from('daily_activities')
                 .update(dbFields)
                 .eq('id', update.id);
             if (error) throw error;
+
+            // 2. Sync to purchase_order_daily_transport_items & purchase_order_items if a PO exists
+            if (update.contracted_total_price !== undefined && update.contracted_total_price !== null) {
+                const newPrice = Number(update.contracted_total_price);
+
+                // Check transport legs junction table
+                const { data: transportLegs } = await adminSupabase
+                    .from('purchase_order_daily_transport_items')
+                    .select('id, purchase_order_item_id')
+                    .eq('daily_activity_id', update.id);
+
+                if (transportLegs && transportLegs.length > 0) {
+                    for (const leg of transportLegs) {
+                        await adminSupabase
+                            .from('purchase_order_daily_transport_items')
+                            .update({ day_rate: newPrice })
+                            .eq('id', leg.id);
+
+                        if (leg.purchase_order_item_id) {
+                            const { data: poItem } = await adminSupabase
+                                .from('purchase_order_items')
+                                .update({ unit_price: newPrice, total_price: newPrice })
+                                .eq('id', leg.purchase_order_item_id)
+                                .select('purchase_order_id')
+                                .single();
+
+                            if (poItem?.purchase_order_id) {
+                                affectedPoIds.add(poItem.purchase_order_id);
+                            }
+                        }
+                    }
+                }
+
+                // Check direct purchase_order_items
+                const { data: directPoItems } = await adminSupabase
+                    .from('purchase_order_items')
+                    .update({ unit_price: newPrice, total_price: newPrice })
+                    .eq('daily_activity_id', update.id)
+                    .select('purchase_order_id');
+
+                if (directPoItems) {
+                    directPoItems.forEach(item => {
+                        if (item.purchase_order_id) affectedPoIds.add(item.purchase_order_id);
+                    });
+                }
+            }
         }
+
+        // 3. Recalculate subtotal and total_amount for all affected POs
+        for (const poId of Array.from(affectedPoIds)) {
+            const { data: items } = await adminSupabase
+                .from('purchase_order_items')
+                .select('total_price')
+                .eq('purchase_order_id', poId);
+
+            const newSubtotal = (items || []).reduce((sum, item) => sum + Number(item.total_price || 0), 0);
+
+            const { data: po } = await adminSupabase
+                .from('purchase_orders')
+                .select('tax, discount')
+                .eq('id', poId)
+                .single();
+
+            const newTotal = newSubtotal + Number(po?.tax || 0) - Number(po?.discount || 0);
+
+            await adminSupabase
+                .from('purchase_orders')
+                .update({ subtotal: newSubtotal, total_amount: newTotal })
+                .eq('id', poId);
+        }
+
+        // 4. Sync updated prices into tours.planner_data so saveTour and Refresh Data never overwrite them
+        if (updates.length > 0) {
+            const { data: actSample } = await adminSupabase
+                .from('daily_activities')
+                .select('tour_id')
+                .eq('id', updates[0].id)
+                .maybeSingle();
+
+            if (actSample?.tour_id) {
+                const { data: tourData } = await adminSupabase
+                    .from('tours')
+                    .select('planner_data')
+                    .eq('id', actSample.tour_id)
+                    .single();
+
+                if (tourData?.planner_data) {
+                    const pData = tourData.planner_data as any;
+                    if (Array.isArray(pData.itinerary)) {
+                        let plannerModified = false;
+                        const updateMap = new Map(updates.map(u => [u.id, u]));
+
+                        pData.itinerary = pData.itinerary.map((b: any) => {
+                            const u = updateMap.get(b.id);
+                            if (u) {
+                                plannerModified = true;
+                                const updatedBlock = { ...b };
+                                if (u.contracted_price !== undefined) {
+                                    updatedBlock.contractedPrice = u.contracted_price ?? undefined;
+                                }
+                                if (u.contracted_total_price !== undefined) {
+                                    updatedBlock.contractedTotalPrice = u.contracted_total_price ?? undefined;
+                                    if (u.contracted_price === undefined) {
+                                        updatedBlock.contractedPrice = u.contracted_total_price ?? undefined;
+                                    }
+                                }
+                                if (u.price_finalized !== undefined) {
+                                    updatedBlock.priceFinalized = u.price_finalized;
+                                }
+                                return updatedBlock;
+                            }
+                            return b;
+                        });
+
+                        if (plannerModified) {
+                            await adminSupabase
+                                .from('tours')
+                                .update({ planner_data: pData })
+                                .eq('id', actSample.tour_id);
+                        }
+                    }
+                }
+            }
+        }
+
         return { success: true };
     } catch (error: any) {
         console.error("Error finalizing prices:", error);

@@ -2006,6 +2006,12 @@ function PlannerWizardWorkspace() {
       });
 
       finalizeActivityPricesAction(updates)
+        .then(async (res) => {
+          if (res.success && tourId) {
+            const posRes = await getPurchaseOrdersAction(tourId);
+            if (posRes.success && posRes.pos) setPurchaseOrders(posRes.pos);
+          }
+        })
         .catch(err => console.error('Rate override persist failed:', err))
         .finally(() => setIsApplyingRateOverride(false));
     } else {
@@ -2062,6 +2068,12 @@ function PlannerWizardWorkspace() {
         contracted_total_price: legIdx === 0 ? firstLegTotal : perLegTotal,
       }))
     )
+      .then(async (res) => {
+        if (res.success && tourId) {
+          const posRes = await getPurchaseOrdersAction(tourId);
+          if (posRes.success && posRes.pos) setPurchaseOrders(posRes.pos);
+        }
+      })
       .catch(err => console.error('Rate override persist failed:', err))
       .finally(() => setIsApplyingRateOverride(false));
   };
@@ -10824,12 +10836,18 @@ ${chauffeurHtml}
                                                       };
                                                     }));
 
-                                                    // Persist to DB and refresh blocks
+                                                    // Persist to DB and refresh blocks & purchase orders
                                                     const res = await finalizeActivityPricesAction(updates);
-                                                    if (res.success) {
-                                                      const blocksRes = await getPOBlocksAction(tourId);
+                                                    if (res.success && tourId) {
+                                                      const [blocksRes, posRes] = await Promise.all([
+                                                        getPOBlocksAction(tourId),
+                                                        getPurchaseOrdersAction(tourId)
+                                                      ]);
                                                       if (blocksRes.success && blocksRes.blocks) {
                                                         setPoBlocks(blocksRes.blocks);
+                                                      }
+                                                      if (posRes.success && posRes.pos) {
+                                                        setPurchaseOrders(posRes.pos);
                                                       }
                                                     }
                                                   } catch (err) {
@@ -14058,11 +14076,20 @@ ${chauffeurHtml}
                                         const diff = po.currency === inv.currency ? (inv.amount - po.total_amount) : ((inv.amount * (inv.exchange_rate || 1.0)) - (po.currency === 'USD' ? po.total_amount * (inv.exchange_rate || 1.0) : po.total_amount));
                                         const isMatched = Math.abs(diff) < 0.01;
                                         const invPayments = inv.payments || [];
-                                        const totalPaidInv = invPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                                        const totalPaidInv = invPayments.reduce((sum: number, p: any) => {
+                                          if (!p.currency || p.currency === inv.currency) {
+                                            return sum + Number(p.amount);
+                                          } else {
+                                            // Convert payment currency using LKR as a bridge
+                                            const pLkrValue = Number(p.amount) * Number(p.exchange_rate || 1.0);
+                                            const invExchangeRate = Number(inv.exchange_rate || defaultUsdLkrRate || 1.0);
+                                            return sum + (pLkrValue / invExchangeRate);
+                                          }
+                                        }, 0);
 
                                         // Deduct advance payments that belong to this PO
                                         const totalAdvApplied = advPayments.reduce((sum: number, p: any) => {
-                                          if (p.currency === inv.currency) {
+                                          if (!p.currency || p.currency === inv.currency) {
                                             return sum + Number(p.amount);
                                           } else {
                                             // Convert currencies using LKR as a bridge
@@ -14073,6 +14100,9 @@ ${chauffeurHtml}
                                         }, 0);
 
                                         const remainingInvBalance = Math.max(0, inv.amount - totalAdvApplied - totalPaidInv);
+                                        const calculatedStatus = remainingInvBalance <= 0.01
+                                          ? 'Paid'
+                                          : ((totalPaidInv + totalAdvApplied) > 0.01 ? 'Partial Paid' : (inv.status || 'Confirmed'));
 
                                         return (
                                           <div key={inv.id} className="bg-white border border-neutral-200 rounded-2xl p-5 shadow-sm space-y-4">
@@ -14081,11 +14111,11 @@ ${chauffeurHtml}
                                               <div>
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-xs font-bold text-neutral-805">#{inv.invoice_number}</span>
-                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${inv.status === 'Confirmed' ? 'bg-blue-100 border border-blue-200 text-blue-800' :
-                                                    inv.status === 'Paid' ? 'bg-green-105 border border-green-200 text-green-800' :
-                                                      'bg-amber-105 border border-amber-200 text-amber-800'
+                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${calculatedStatus === 'Paid' ? 'bg-emerald-100 border border-emerald-200 text-emerald-800' :
+                                                    calculatedStatus === 'Partial Paid' ? 'bg-amber-100 border border-amber-200 text-amber-800' :
+                                                      'bg-blue-100 border border-blue-200 text-blue-800'
                                                     }`}>
-                                                    {inv.status}
+                                                    {calculatedStatus}
                                                   </span>
                                                   <button
                                                     type="button"
@@ -14194,9 +14224,14 @@ ${chauffeurHtml}
 
                                             {/* Invoice payments history */}
                                             <div className="space-y-3 font-sans">
-                                              <div className="flex items-center justify-between border-t border-neutral-100 pt-3">
-                                                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Invoice Disbursements</span>
-                                                {remainingInvBalance > 0 && payingInvoiceId !== inv.id && (
+                                              <div className="flex items-center justify-between border-t border-neutral-100 pt-3 flex-wrap gap-2">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Invoice Disbursements</span>
+                                                  <span className={`px-2.5 py-0.5 text-[9px] font-extrabold rounded-full ${remainingInvBalance <= 0.01 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+                                                    {remainingInvBalance <= 0.01 ? 'Fully Paid ($0.00 Due)' : `Balance Due: ${inv.currency || 'USD'} ${remainingInvBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                                  </span>
+                                                </div>
+                                                {remainingInvBalance > 0.01 && payingInvoiceId !== inv.id && (
                                                   <button
                                                     onClick={() => {
                                                       setPayingInvoiceId(inv.id);
@@ -14207,7 +14242,7 @@ ${chauffeurHtml}
                                                       setPaymentRef('');
                                                       setPaymentNotes('');
                                                     }}
-                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 font-serif"
+                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 font-serif cursor-pointer"
                                                   >
                                                     <Plus className="w-3 h-3" />
                                                     Add Payment
@@ -16964,9 +16999,15 @@ ${chauffeurHtml}
                                                               changeHotelDatabaseAction(tourId, [activeAssignment.blockId], h.id, newSelected)
                                                                 .then(async (res) => {
                                                                   if (res.success) {
-                                                                    const blocksRes = await getPOBlocksAction(tourId);
+                                                                    const [blocksRes, posRes] = await Promise.all([
+                                                                      getPOBlocksAction(tourId),
+                                                                      getPurchaseOrdersAction(tourId)
+                                                                    ]);
                                                                     if (blocksRes.success && blocksRes.blocks) {
                                                                       setPoBlocks(blocksRes.blocks);
+                                                                    }
+                                                                    if (posRes.success && posRes.pos) {
+                                                                      setPurchaseOrders(posRes.pos);
                                                                     }
                                                                   }
                                                                 })
@@ -18224,9 +18265,15 @@ ${chauffeurHtml}
                                                           changeHotelDatabaseAction(tourId, stayIds, h.id, newSelected)
                                                             .then(async (res) => {
                                                               if (res.success) {
-                                                                const blocksRes = await getPOBlocksAction(tourId);
+                                                                const [blocksRes, posRes] = await Promise.all([
+                                                                  getPOBlocksAction(tourId),
+                                                                  getPurchaseOrdersAction(tourId)
+                                                                ]);
                                                                 if (blocksRes.success && blocksRes.blocks) {
                                                                   setPoBlocks(blocksRes.blocks);
+                                                                }
+                                                                if (posRes.success && posRes.pos) {
+                                                                  setPurchaseOrders(posRes.pos);
                                                                 }
                                                               }
                                                             })
