@@ -4,6 +4,17 @@ import { POBlockService } from "@/services/po-block.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { revalidatePath } from "next/cache";
 
+export async function syncMissingActivitiesToPOBlocksAction(tourId: string) {
+    try {
+        const result = await POBlockService.syncMissingActivitiesToPOBlocks(tourId);
+        revalidatePath(`/admin-new`);
+        return { success: true, blocks: result.blocks, addedCount: result.addedCount };
+    } catch (error: any) {
+        console.error("Error syncing missing activities to PO blocks:", error);
+        return { success: false, error: error.message || "Failed to sync missing activities." };
+    }
+}
+
 export async function initializeDefaultBlocksAction(tourId: string) {
     try {
         const result = await POBlockService.initializeDefaultBlocks(tourId);

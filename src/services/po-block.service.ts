@@ -465,6 +465,121 @@ export class POBlockService {
         }
     }
 
+    static async syncMissingActivitiesToPOBlocks(tourId: string): Promise<{
+        blocks: POBlock[];
+        addedCount: number;
+    }> {
+        const adminSupabase = createAdminClient();
+
+        // 1. Fetch all daily_activities for tour
+        const { data: rawActivities, error: actErr } = await adminSupabase
+            .from('daily_activities')
+            .select('id, title, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vendor_activity_id, service_date, contracted_price, charged_total_price, tour_itineraries(day_number, date)')
+            .eq('tour_id', tourId);
+
+        if (actErr) throw actErr;
+
+        const activities = (rawActivities || []).filter((a: any) => a.id);
+        if (activities.length === 0) {
+            const blocks = await this.getPOBlocksForTour(tourId);
+            return { blocks, addedCount: 0 };
+        }
+
+        // 2. Fetch existing PO blocks
+        const existingBlocks = await this.getPOBlocksForTour(tourId);
+        if (existingBlocks.length === 0) {
+            // No blocks exist yet -> run full initialization
+            const initRes = await this.initializeDefaultBlocks(tourId);
+            return { blocks: initRes.blocks, addedCount: activities.length };
+        }
+
+        // 3. Collect all activity IDs currently linked in po_block_daily_activities
+        const linkedActivityIds = new Set<string>();
+        existingBlocks.forEach(b => {
+            (b.daily_activities || []).forEach(act => {
+                if (act.id) linkedActivityIds.add(act.id);
+            });
+        });
+
+        // 4. Find unlinked daily_activities that have supplier IDs (hotel_id, transport_id, driver_id, vendor_id, guide_id, restaurant_id)
+        const unlinkedActivities = activities.filter(act => {
+            if (linkedActivityIds.has(act.id)) return false;
+            return Boolean(act.hotel_id || act.transport_id || act.driver_id || act.vendor_id || act.guide_id || act.restaurant_id || act.activity_type === 'sleep' || act.activity_type === 'travel');
+        });
+
+        // Clean up junction links for daily_activities that no longer exist in DB
+        const currentActivityIds = new Set(activities.map(a => a.id));
+        const blockIds = existingBlocks.map(b => b.id);
+        const staleJunctionIds = Array.from(linkedActivityIds).filter(id => !currentActivityIds.has(id));
+        if (staleJunctionIds.length > 0 && blockIds.length > 0) {
+            await adminSupabase
+                .from('po_block_daily_activities')
+                .delete()
+                .in('po_block_id', blockIds)
+                .in('daily_activity_id', staleJunctionIds);
+        }
+
+        if (unlinkedActivities.length === 0) {
+            // ALL records with hotel_id, transport_id, etc. are already present in PO blocks!
+            console.log('[POBlock] All daily_activities are present in PO blocks. Zero missing.');
+            const updatedBlocks = await this.getPOBlocksForTour(tourId);
+            return { blocks: updatedBlocks, addedCount: 0 };
+        }
+
+        console.log(`[POBlock] Found ${unlinkedActivities.length} missing daily_activities. Linking to PO blocks...`);
+
+        // 5. For each unlinked activity, attach it to an existing PO block for that supplier or create a new block
+        const newJunctionRows: Array<{ po_block_id: string; daily_activity_id: string }> = [];
+
+        for (const act of unlinkedActivities) {
+            let targetBlock: POBlock | undefined = undefined;
+
+            // Try to match by hotel_id
+            if (act.hotel_id || act.activity_type === 'sleep') {
+                targetBlock = existingBlocks.find(b => (b.block_type === 'sleep' || b.block_type === 'accommodation') && (b.daily_activities?.some(a => a.hotel_id === act.hotel_id) || b.name.toLowerCase().includes(act.title.toLowerCase())));
+            }
+            // Try to match by transport_id or driver_id
+            else if (act.transport_id || act.activity_type === 'travel') {
+                targetBlock = existingBlocks.find(b => b.block_type === 'travel');
+            }
+            else if (act.driver_id) {
+                targetBlock = existingBlocks.find(b => b.block_type === 'driver' && b.name.includes(act.driver_id));
+            }
+            else if (act.guide_id) {
+                targetBlock = existingBlocks.find(b => b.block_type === 'guide' && b.name.includes(act.guide_id));
+            }
+            else if (act.restaurant_id || act.activity_type === 'meal') {
+                targetBlock = existingBlocks.find(b => b.block_type === 'meal');
+            }
+            else if (act.vendor_id || act.vendor_activity_id || act.activity_type === 'activity') {
+                targetBlock = existingBlocks.find(b => b.block_type === 'activity');
+            }
+
+            // If no matching block exists, find any non-finalized block of the same type, or use the first available block
+            if (!targetBlock) {
+                targetBlock = existingBlocks.find(b => b.has_finalized !== true);
+            }
+
+            if (targetBlock) {
+                newJunctionRows.push({
+                    po_block_id: targetBlock.id,
+                    daily_activity_id: act.id
+                });
+            }
+        }
+
+        if (newJunctionRows.length > 0) {
+            const { error: insertErr } = await adminSupabase
+                .from('po_block_daily_activities')
+                .upsert(newJunctionRows, { onConflict: 'po_block_id,daily_activity_id' });
+
+            if (insertErr) console.error('[POBlock] Failed to link missing activities:', insertErr);
+        }
+
+        const refreshedBlocks = await this.getPOBlocksForTour(tourId);
+        return { blocks: refreshedBlocks, addedCount: unlinkedActivities.length };
+    }
+
     static async initializeDefaultBlocks(tourId: string): Promise<{
         blocks: POBlock[];
         status: 'unchanged' | 'rebuilt' | 'needs_full_rebuild';

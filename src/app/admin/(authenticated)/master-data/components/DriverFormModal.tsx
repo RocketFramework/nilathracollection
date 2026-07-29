@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, Driver } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
+import { saveDriverAction } from "@/actions/admin.actions";
 
 interface DriverFormModalProps {
     isOpen: boolean;
@@ -76,7 +77,9 @@ export default function DriverFormModal({ isOpen, onClose, driver, onSave, userR
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const savedId = await MasterDataService.saveDriver(formData as Driver);
+                const res = await saveDriverAction(formData as Driver);
+                if (res.error) throw new Error(res.error);
+                const savedId = res.savedId;
                 onSave();
 
                 if (savedId) {

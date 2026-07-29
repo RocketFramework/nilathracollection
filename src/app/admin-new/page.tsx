@@ -170,6 +170,7 @@ import {
   saveCustomHotelItemAction
 } from '@/actions/admin.actions';
 import {
+  syncMissingActivitiesToPOBlocksAction,
   initializeDefaultBlocksAction,
   getPOBlocksAction,
   createPOBlockAction,
@@ -8396,16 +8397,17 @@ ${chauffeurHtml}
                         onClick={async () => {
                           setLoadingBlocks(true);
                           setPoDataNeedsRebuild(false);
-                          const res = await initializeDefaultBlocksAction(tourId);
+                          const res = await syncMissingActivitiesToPOBlocksAction(tourId);
                           if (res.success && res.blocks) {
                             setPoBlocks(res.blocks);
                           }
                           setLoadingBlocks(false);
                         }}
-                        className="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300/70 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        title="Compare daily_activities and pull any missing items into PO blocks without destroying existing blocks"
                       >
-                        <History className="w-3.5 h-3.5" />
-                        Reset to Defaults
+                        <RefreshCw className="w-3.5 h-3.5 text-emerald-800" />
+                        Refresh Data &amp; Sync Missing Items
                       </button>
                     </div>
 

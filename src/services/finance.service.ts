@@ -37,10 +37,9 @@ export class FinanceService {
 
         if (error) throw error;
 
-        // Restore daily_activity_id from special_notes hack to bypass obsolete FK constraint
-        const processedData = data?.map(po => ({
-            ...po,
-            items: po.items?.map((item: any) => {
+        // Restore daily_activity_id from special_notes hack to bypass obsolete FK constraint and auto-tally PO total_amount against items sum
+        const processedData = data?.map(po => {
+            const processedItems = po.items?.map((item: any) => {
                 if (item.special_notes?.includes('BLOCK_REF:')) {
                     const parts = item.special_notes.split('|| BLOCK_REF:');
                     if (parts.length > 1) {
@@ -52,9 +51,38 @@ export class FinanceService {
                     }
                 }
                 return item;
-            }),
-            advance_payments: (po.advance_payments as any[])?.filter(p => !p.supplier_invoice_id) || []
-        }));
+            }) || [];
+
+            let itemsSum = 0;
+            if (processedItems.length > 0) {
+                itemsSum = processedItems.reduce((sum: number, item: any) => {
+                    const qty = Number(item.quantity || 1);
+                    const unitPrice = Number(item.unit_price ?? item.contracted_price ?? 0);
+                    return sum + (qty * unitPrice);
+                }, 0);
+            }
+
+            const calculatedSubtotal = itemsSum > 0 ? itemsSum : (po.subtotal || 0);
+            const calculatedTotal = calculatedSubtotal + (po.tax || 0) - (po.discount || 0);
+
+            if (processedItems.length > 0 && Math.abs((po.total_amount || 0) - calculatedTotal) > 0.01) {
+                console.log(`Auto-tallying PO ${po.po_number}: stored total ${po.total_amount} -> calculated total ${calculatedTotal}`);
+                po.subtotal = calculatedSubtotal;
+                po.total_amount = calculatedTotal;
+                supabase.from('purchase_orders').update({
+                    subtotal: calculatedSubtotal,
+                    total_amount: calculatedTotal
+                }).eq('id', po.id).then(({ error }) => {
+                    if (error) console.error(`Failed auto-updating PO ${po.po_number} total_amount:`, error);
+                });
+            }
+
+            return {
+                ...po,
+                items: processedItems,
+                advance_payments: (po.advance_payments as any[])?.filter(p => !p.supplier_invoice_id) || []
+            };
+        });
 
         return processedData as DBPurchaseOrder[];
     }

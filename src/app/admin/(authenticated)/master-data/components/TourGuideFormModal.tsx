@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, TourGuide } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
+import { saveTourGuideAction } from "@/actions/admin.actions";
 
 interface TourGuideFormModalProps {
     isOpen: boolean;
@@ -92,7 +93,9 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const savedId = await MasterDataService.saveTourGuide(formData as TourGuide);
+                const res = await saveTourGuideAction(formData as TourGuide);
+                if (res.error) throw new Error(res.error);
+                const savedId = res.savedId;
                 onSave();
 
                 if (savedId) {

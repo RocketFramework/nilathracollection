@@ -6,7 +6,7 @@ import { AdminService, UserService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { TouristService } from "@/services/tourist.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { MasterDataService, Restaurant, TransportProvider, Vendor } from "@/services/master-data.service";
+import { MasterDataService, Restaurant, TransportProvider, Vendor, Driver, TourGuide } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
@@ -661,6 +661,18 @@ export async function getDriversAction(options?: any) {
     }
 }
 
+export async function saveDriverAction(driver: Driver) {
+    try {
+        const supabase = createAdminClient();
+        const savedId = await MasterDataService.saveDriver(driver, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true, savedId };
+    } catch (error: any) {
+        console.error("Error saving driver:", error);
+        return { error: error.message || "Failed to save driver." };
+    }
+}
+
 export async function getTourGuidesAction(options?: any) {
     try {
         const supabase = createAdminClient();
@@ -669,6 +681,18 @@ export async function getTourGuidesAction(options?: any) {
     } catch (error: any) {
         console.error("Error fetching guides:", error);
         return { error: error.message || "Failed to load guides." };
+    }
+}
+
+export async function saveTourGuideAction(guide: TourGuide) {
+    try {
+        const supabase = createAdminClient();
+        const savedId = await MasterDataService.saveTourGuide(guide, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true, savedId };
+    } catch (error: any) {
+        console.error("Error saving tour guide:", error);
+        return { error: error.message || "Failed to save tour guide." };
     }
 }
 export async function getPurchaseOrdersAction(tourId: string) {
@@ -961,10 +985,10 @@ export async function resolveApprovalAction(id: string, status: 'APPROVED' | 'RE
                         await MasterDataService.saveTransportProvider(proposed_data, { client: adminSupabase });
                         break;
                     case 'driver':
-                        await MasterDataService.saveDriver(proposed_data);
+                        await MasterDataService.saveDriver(proposed_data, { client: adminSupabase });
                         break;
                     case 'guide':
-                        await MasterDataService.saveTourGuide(proposed_data);
+                        await MasterDataService.saveTourGuide(proposed_data, { client: adminSupabase });
                         break;
                     default:
                         console.warn(`Unknown entity type for approval application: ${entity_type}`);

@@ -620,22 +620,23 @@ export class MasterDataService {
         return data as Driver;
     }
 
-    static async saveDriver(driver: Driver) {
+    static async saveDriver(driver: Driver, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
         const { payment_details, id, payment_detail_id, ...driverData } = driver;
 
         let activePaymentId = payment_detail_id;
         if (payment_details) {
-            activePaymentId = await savePaymentDetails(payment_details);
+            activePaymentId = await savePaymentDetails(payment_details, dbClient);
         }
 
         const payload = { ...driverData, payment_detail_id: activePaymentId };
 
         let savedId = id;
         if (id) {
-            const { error } = await supabase.from('drivers').update(payload).eq('id', id);
+            const { error } = await dbClient.from('drivers').update(payload).eq('id', id);
             if (error) throw error;
         } else {
-            const { data, error } = await supabase.from('drivers').insert([payload]).select().single();
+            const { data, error } = await dbClient.from('drivers').insert([payload]).select().single();
             if (error) throw error;
             savedId = data.id;
         }
@@ -694,22 +695,23 @@ export class MasterDataService {
         return data as TourGuide;
     }
 
-    static async saveTourGuide(guide: TourGuide) {
+    static async saveTourGuide(guide: TourGuide, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
         const { payment_details, id, payment_detail_id, ...guideData } = guide;
 
         let activePaymentId = payment_detail_id;
         if (payment_details) {
-            activePaymentId = await savePaymentDetails(payment_details);
+            activePaymentId = await savePaymentDetails(payment_details, dbClient);
         }
 
         const payload = { ...guideData, payment_detail_id: activePaymentId };
 
         let savedId = id;
         if (id) {
-            const { error } = await supabase.from('tour_guides').update(payload).eq('id', id);
+            const { error } = await dbClient.from('tour_guides').update(payload).eq('id', id);
             if (error) throw error;
         } else {
-            const { data, error } = await supabase.from('tour_guides').insert([payload]).select().single();
+            const { data, error } = await dbClient.from('tour_guides').insert([payload]).select().single();
             if (error) throw error;
             savedId = data.id;
         }
