@@ -388,6 +388,12 @@ export class TourService {
         return { tripData, tourMsg };
     }
 
+    private static normalizeMealPlan(mp: string | null | undefined): string | null {
+        if (!mp) return null;
+        if (mp.trim().toLowerCase() === 'none') return 'RO';
+        return mp;
+    }
+
     /**
      * Saves the robust TripData UI state perfectly into a JSONB column to prevent data loss.
      * Also systematically maps `tripData.itinerary` to `tour_itineraries` and `daily_activities` 
@@ -398,6 +404,23 @@ export class TourService {
                        `tripData itinerary length: ${tripData?.itinerary?.length}\n` +
                        `tripData accommodations length: ${tripData?.accommodations?.length}\n\n`;
         console.log(logMsg);
+
+        // Normalize any legacy 'None' mealPlan entries in itinerary and accommodations to 'RO'
+        if (tripData?.itinerary) {
+            tripData.itinerary.forEach((b: any) => {
+                if (b.mealPlan) b.mealPlan = TourService.normalizeMealPlan(b.mealPlan) || 'BB';
+            });
+        }
+        if (tripData?.accommodations) {
+            tripData.accommodations.forEach((acc: any) => {
+                if (acc.mealPlan) acc.mealPlan = TourService.normalizeMealPlan(acc.mealPlan) || 'BB';
+                if (acc.selectedRooms) {
+                    acc.selectedRooms.forEach((r: any) => {
+                        if (r.mealPlan) r.mealPlan = TourService.normalizeMealPlan(r.mealPlan) || 'BB';
+                    });
+                }
+            });
+        }
 
         const supabaseAdmin = createAdminClient();
 

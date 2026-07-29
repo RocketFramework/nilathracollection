@@ -1,25 +1,59 @@
 const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
 
-const supabaseUrl = 'https://vknibpdhovgcbenkcnaz.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrbmlicGRob3ZnY2JlbmtjbmF6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTk5OTcwNSwiZXhwIjoyMDg3NTc1NzA1fQ.nUr9s0h8noHP6MxZujQS6MG2lcGfK5GyNe1iL5vuCB8';
+const envLocal = fs.readFileSync('.env.local', 'utf8');
+const env = {};
+envLocal.split('\n').forEach(line => {
+  const parts = line.split('=');
+  if (parts.length >= 2) env[parts[0].trim()] = parts.slice(1).join('=').trim();
+});
+
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function testSave() {
-  const { data: tours } = await supabase.from('tours').select('*').order('updated_at', { ascending: false }).limit(1);
-  if (!tours || tours.length === 0) return;
-  const tour = tours[0];
-  const tripData = tour.planner_data;
-
-  console.log('Original planner_data accommodations count:', tripData.accommodations?.length);
+async function run() {
+  const tourId = '34cfc060-fd58-4c20-8b57-158feeb689d6';
   
-  // Let's print out what is currently in tripData accommodations for the Yala stay
-  const yalaStay = tripData.accommodations.find(a => a.hotelName.includes('Yala'));
-  console.log('Yala stay in tripData:', JSON.stringify(yalaStay, null, 2));
+  // Fetch tour planner_data
+  const { data: tour } = await supabase.from('tours').select('planner_data').eq('id', tourId).single();
+  const tripData = tour.planner_data;
+  
+  // Set day 7 sleep block mealPlan to RO
+  const sleepDay7 = (tripData.itinerary || []).find(b => b.dayNumber === 7 && b.type === 'sleep');
+  if (sleepDay7) {
+    console.log("Day 7 sleep block before:", sleepDay7.mealPlan);
+    sleepDay7.mealPlan = 'RO';
+  }
+  
+  // Run normalization
+  if (tripData?.itinerary) {
+    tripData.itinerary.forEach((b) => {
+      if (b.mealPlan && b.mealPlan.toLowerCase() === 'none') b.mealPlan = 'RO';
+    });
+  }
+  if (tripData?.accommodations) {
+    tripData.accommodations.forEach((acc) => {
+      if (acc.mealPlan && acc.mealPlan.toLowerCase() === 'none') acc.mealPlan = 'RO';
+      if (acc.selectedRooms) {
+        acc.selectedRooms.forEach((r) => {
+          if (r.mealPlan && r.mealPlan.toLowerCase() === 'none') r.mealPlan = 'RO';
+        });
+      }
+    });
+  }
+  
+  // Update planner_data
+  await supabase.from('tours').update({ planner_data: tripData }).eq('id', tourId);
+  
+  // Also update daily_activities on day 7 to RO
+  const { data: itin } = await supabase.from('tour_itineraries').select('id').eq('tour_id', tourId).eq('day_number', 7).single();
+  if (itin) {
+    await supabase.from('daily_activities').update({ meal_plan: 'RO' }).eq('itinerary_id', itin.id).eq('activity_type', 'sleep');
+  }
 
-  // Let's query daily_activities in DB for this tour's sleep activities
-  const { data: dbActs } = await supabase.from('daily_activities').select('*').eq('tour_id', tour.id).eq('activity_type', 'sleep');
-  console.log('Daily activities (sleep) in DB before test:', dbActs.map(a => ({ day: a.itinerary_id, hotel_id: a.hotel_id, room_id: a.hotel_room_id })));
+  console.log("Updated DB successfully!");
 }
 
-testSave();
+run().catch(console.error);

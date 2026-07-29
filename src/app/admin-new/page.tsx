@@ -770,8 +770,8 @@ function PlannerWizardWorkspace() {
     const baseRate = driver?.per_day_rate ? Number(driver.per_day_rate) : 15;
     const totalDays = touristData?.preferences?.duration_days || tripData?.profile?.durationDays || 5;
 
-    const driverMarkupPercent = appSettings?.diver_markup !== undefined 
-      ? Number(appSettings.diver_markup) 
+    const driverMarkupPercent = appSettings?.diver_markup !== undefined
+      ? Number(appSettings.diver_markup)
       : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
     const markupFactor = 1 + (driverMarkupPercent / 100);
 
@@ -816,8 +816,8 @@ function PlannerWizardWorkspace() {
   };
 
   const handleUpdateDailyDriverField = (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => {
-    const driverMarkupPercent = appSettings?.diver_markup !== undefined 
-      ? Number(appSettings.diver_markup) 
+    const driverMarkupPercent = appSettings?.diver_markup !== undefined
+      ? Number(appSettings.diver_markup)
       : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
     const markupFactor = 1 + (driverMarkupPercent / 100);
 
@@ -4389,9 +4389,9 @@ function PlannerWizardWorkspace() {
               const dayNum = first.tour_itineraries?.day_number || first.day_number || '';
               const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
               const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
-              
-              const isStayDay = totalKm === 0 || legs.every((l: any) => 
-                (l.title || '').toLowerCase().includes('driver and vehicle stays') || 
+
+              const isStayDay = totalKm === 0 || legs.every((l: any) =>
+                (l.title || '').toLowerCase().includes('driver and vehicle stays') ||
                 (l.title || '').toLowerCase().includes('vehicle and driver stays')
               );
 
@@ -5436,8 +5436,8 @@ function PlannerWizardWorkspace() {
           const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
           const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
 
-          const isStayDay = totalKm === 0 || legs.every((l: any) => 
-            (l.title || '').toLowerCase().includes('driver and vehicle stays') || 
+          const isStayDay = totalKm === 0 || legs.every((l: any) =>
+            (l.title || '').toLowerCase().includes('driver and vehicle stays') ||
             (l.title || '').toLowerCase().includes('vehicle and driver stays')
           );
 
@@ -6522,8 +6522,8 @@ ${chauffeurHtml}
 
     // Resolve travel start date (from tours table, or tourist preferences / itinerary)
     const travelStartDate = (guideRfqDetails?.tour?.start_date ? new Date(guideRfqDetails.tour.start_date).toISOString().split('T')[0] : '')
-      || touristData?.preferences?.arrival_date 
-      || tripData?.profile?.arrivalDate 
+      || touristData?.preferences?.arrival_date
+      || tripData?.profile?.arrivalDate
       || (dbActivities?.[0]?.service_date ? new Date(dbActivities[0].service_date).toISOString().split('T')[0] : '');
 
     // Default 14 days due date, capped at travel start date
@@ -8195,12 +8195,12 @@ ${chauffeurHtml}
 
                           {/* Remaining Time */}
                           <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${activityBudgetStats.remainingHours < 0
-                              ? 'bg-red-50/40 border-red-100 text-red-900'
-                              : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
+                            ? 'bg-red-50/40 border-red-100 text-red-900'
+                            : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
                             }`}>
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activityBudgetStats.remainingHours < 0
-                                ? 'bg-red-500/10 text-red-600 animate-pulse'
-                                : 'bg-neutral-500/10 text-neutral-600'
+                              ? 'bg-red-500/10 text-red-600 animate-pulse'
+                              : 'bg-neutral-500/10 text-neutral-600'
                               }`}>
                               <Clock className="w-5 h-5" />
                             </div>
@@ -8212,12 +8212,12 @@ ${chauffeurHtml}
 
                           {/* Remaining Days */}
                           <div className={`border rounded-2xl p-3 flex items-center gap-3 transition-colors ${activityBudgetStats.remainingDays < 0
-                              ? 'bg-red-50/40 border-red-100 text-red-900'
-                              : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
+                            ? 'bg-red-50/40 border-red-100 text-red-900'
+                            : 'bg-neutral-50/40 border-neutral-200/80 text-neutral-900'
                             }`}>
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activityBudgetStats.remainingDays < 0
-                                ? 'bg-red-500/10 text-red-600 animate-pulse'
-                                : 'bg-neutral-500/10 text-neutral-600'
+                              ? 'bg-red-500/10 text-red-600 animate-pulse'
+                              : 'bg-neutral-500/10 text-neutral-600'
                               }`}>
                               <CalendarDays className="w-5 h-5" />
                             </div>
@@ -8556,11 +8556,11 @@ ${chauffeurHtml}
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="flex items-center gap-2 flex-grow">
                                         <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${(block.block_type === 'accommodation' || block.block_type === 'sleep') ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                                            block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                                              (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                                                block.block_type === 'guide' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
-                                                  block.block_type === 'driver' ? 'bg-violet-50 text-violet-700 border border-violet-100' :
-                                                    'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                          block.block_type === 'travel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                            (block.block_type === 'restaurant' || block.block_type === 'meal') ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                              block.block_type === 'guide' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
+                                                block.block_type === 'driver' ? 'bg-violet-50 text-violet-700 border border-violet-100' :
+                                                  'bg-emerald-50 text-emerald-700 border border-emerald-100'
                                           }`}>
                                           {block.block_type.toUpperCase()}
                                         </span>
@@ -8993,6 +8993,28 @@ ${chauffeurHtml}
                                   <p className="text-xs text-neutral-505">
                                     {hotel ? (hotel.location_address || hotel.closest_city || 'Location Address not specified') : 'Assign hotel using button or choose a candidate hotel below.'}
                                   </p>
+                                  {hotel && (hotel.reservation_agent_name || hotel.reservation_agent_contact || hotel.reservation_email || hotel.sales_agent_name || hotel.sales_agent_contact) && (
+                                    <div className="flex items-center gap-2 flex-wrap text-[10px] text-neutral-600 font-medium pt-1">
+                                      {(hotel.reservation_agent_name || hotel.sales_agent_name || hotel.gm_name) && (
+                                        <span className="flex items-center gap-1 bg-neutral-100/90 px-2 py-0.5 rounded-md border border-neutral-200/80">
+                                          <span className="font-semibold text-neutral-400">Contact:</span>
+                                          <span className="font-bold text-neutral-800">{hotel.reservation_agent_name || hotel.sales_agent_name || hotel.gm_name}</span>
+                                        </span>
+                                      )}
+                                      {(hotel.reservation_agent_contact || hotel.sales_agent_contact || hotel.gm_contact) && (
+                                        <span className="flex items-center gap-1 bg-neutral-100/90 px-2 py-0.5 rounded-md border border-neutral-200/80">
+                                          <span className="font-semibold text-neutral-400">Phone:</span>
+                                          <span className="font-mono font-bold text-neutral-800">{hotel.reservation_agent_contact || hotel.sales_agent_contact || hotel.gm_contact}</span>
+                                        </span>
+                                      )}
+                                      {(hotel.reservation_email || hotel.sales_email || hotel.email) && (
+                                        <span className="flex items-center gap-1 bg-neutral-100/90 px-2 py-0.5 rounded-md border border-neutral-200/80">
+                                          <span className="font-semibold text-neutral-400">Email:</span>
+                                          <span className="font-mono text-neutral-700">{hotel.reservation_email || hotel.sales_email || hotel.email}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
                                   {/* Pax Breakdown */}
@@ -9135,8 +9157,8 @@ ${chauffeurHtml}
                                             onClick={() => handleOpenCustomRateModal(stay)}
                                             disabled={isLockedByOther}
                                             className={`p-1.5 rounded-lg border transition-all shadow-sm shrink-0 disabled:opacity-40 ${hasCustomRate
-                                                ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50"
-                                                : "border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805"
+                                              ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/50"
+                                              : "border-neutral-200 hover:border-emerald-805/40 hover:bg-emerald-50/20 text-neutral-400 hover:text-emerald-805"
                                               }`}
                                             title="Override Contracted Rates"
                                           >
@@ -9264,8 +9286,8 @@ ${chauffeurHtml}
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
-                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                                    : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
                                                   }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
@@ -9278,10 +9300,10 @@ ${chauffeurHtml}
                                                   </span>
                                                 )}
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected'
-                                                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
-                                                    : emailLog.status === 'Declined'
-                                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                      : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                  ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                  : emailLog.status === 'Declined'
+                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
                                                   }`}>
                                                   {emailLog.status || 'Sent'}
                                                 </span>
@@ -9754,8 +9776,8 @@ ${chauffeurHtml}
                                               .finally(() => setIsRestaurantChanging(false));
                                           }}
                                           className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
-                                              ? 'border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800/10'
-                                              : 'border-neutral-200 bg-white hover:border-emerald-800/50 hover:bg-emerald-50/10'
+                                            ? 'border-emerald-800 bg-emerald-50/30 ring-1 ring-emerald-800/10'
+                                            : 'border-neutral-200 bg-white hover:border-emerald-800/50 hover:bg-emerald-50/10'
                                             }`}
                                         >
                                           <div className="min-w-0">
@@ -9869,8 +9891,8 @@ ${chauffeurHtml}
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
-                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                : 'bg-amber-50 text-amber-800 border border-amber-100'
                                                 }`}>
                                                 {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                               </span>
@@ -9878,8 +9900,8 @@ ${chauffeurHtml}
                                                 Sent: {new Date(emailLog.sent_at).toLocaleString()}
                                               </span>
                                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
-                                                  : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
                                                 }`}>
                                                 {emailLog.status || 'Sent'}
                                               </span>
@@ -10136,7 +10158,7 @@ ${chauffeurHtml}
 
                           return (
                             <div key={block.id} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-6 shadow-sm hover:shadow-md transition-all">
-                                              {/* Block Header */}
+                              {/* Block Header */}
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200/60 pb-4">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">
@@ -10316,8 +10338,8 @@ ${chauffeurHtml}
                                               .finally(() => setIsVendorChanging(false));
                                           }}
                                           className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
-                                              ? 'border-indigo-700 bg-indigo-50/30 ring-1 ring-indigo-700/10'
-                                              : 'border-neutral-200 bg-white hover:border-indigo-700/50 hover:bg-indigo-50/10'
+                                            ? 'border-indigo-700 bg-indigo-50/30 ring-1 ring-indigo-700/10'
+                                            : 'border-neutral-200 bg-white hover:border-indigo-700/50 hover:bg-indigo-50/10'
                                             }`}
                                         >
                                           <div className="min-w-0">
@@ -10430,8 +10452,8 @@ ${chauffeurHtml}
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
-                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                : 'bg-amber-50 text-amber-800 border border-amber-100'
                                                 }`}>
                                                 {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                               </span>
@@ -10444,8 +10466,8 @@ ${chauffeurHtml}
                                                 </span>
                                               )}
                                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
-                                                  : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
                                                 }`}>
                                                 {emailLog.status || 'Sent'}
                                               </span>
@@ -10723,8 +10745,8 @@ ${chauffeurHtml}
                                         }}
                                         disabled={isLockedByOther}
                                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed text-[9px] font-extrabold transition-all shadow-sm disabled:opacity-40 ${block.transport_requirement
-                                            ? 'border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-emerald-800'
-                                            : 'border-neutral-300 hover:bg-neutral-50/20 text-neutral-600'
+                                          ? 'border-emerald-800/40 hover:border-emerald-800 hover:bg-emerald-50/20 text-emerald-800'
+                                          : 'border-neutral-300 hover:bg-neutral-50/20 text-neutral-600'
                                           }`}
                                         title="Transport Specs"
                                       >
@@ -10992,8 +11014,8 @@ ${chauffeurHtml}
                                               .finally(() => setIsTransportChanging(false));
                                           }}
                                           className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
-                                              ? 'border-amber-600 bg-amber-50/30 ring-1 ring-amber-600/10'
-                                              : 'border-neutral-200 bg-white hover:border-amber-600/50 hover:bg-amber-50/10'
+                                            ? 'border-amber-600 bg-amber-50/30 ring-1 ring-amber-600/10'
+                                            : 'border-neutral-200 bg-white hover:border-amber-600/50 hover:bg-amber-50/10'
                                             }`}
                                         >
                                           <div className="min-w-0">
@@ -11269,8 +11291,8 @@ ${chauffeurHtml}
 
                                           <div className="flex items-center justify-end gap-3 flex-shrink-0 ml-auto">
                                             <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${isHighMileage
-                                                ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10'
-                                                : 'bg-white border-neutral-200 text-neutral-700'
+                                              ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10'
+                                              : 'bg-white border-neutral-200 text-neutral-700'
                                               }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance'}>
                                               <span>KM:</span>
                                               <span className="font-extrabold text-xs">{totalDayDistance}</span>
@@ -11408,8 +11430,8 @@ ${chauffeurHtml}
                                           <div className="flex items-center justify-between gap-2 flex-wrap">
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
-                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                : 'bg-amber-50 text-amber-800 border border-amber-100'
                                                 }`}>
                                                 {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                               </span>
@@ -11422,8 +11444,8 @@ ${chauffeurHtml}
                                                 </span>
                                               )}
                                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected' ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
-                                                  : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                : emailLog.status === 'Declined' ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
                                                 }`}>
                                                 {emailLog.status || 'Sent'}
                                               </span>
@@ -11884,8 +11906,8 @@ ${chauffeurHtml}
                                               .finally(() => setIsGuideChanging(false));
                                           }}
                                           className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
-                                              ? 'border-teal-700 bg-teal-50/30 ring-1 ring-teal-700/10'
-                                              : 'border-neutral-200 bg-white hover:border-teal-700/50 hover:bg-teal-50/10'
+                                            ? 'border-teal-700 bg-teal-50/30 ring-1 ring-teal-700/10'
+                                            : 'border-neutral-200 bg-white hover:border-teal-700/50 hover:bg-teal-50/10'
                                             }`}
                                         >
                                           <div className="min-w-0">
@@ -12071,8 +12093,8 @@ ${chauffeurHtml}
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
-                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                                    : 'bg-amber-50 text-amber-800 border border-amber-100'
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                  : 'bg-amber-50 text-amber-800 border border-amber-100'
                                                   }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
@@ -12085,10 +12107,10 @@ ${chauffeurHtml}
                                                   </span>
                                                 )}
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected'
-                                                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
-                                                    : emailLog.status === 'Declined'
-                                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                      : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                                                  ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                  : emailLog.status === 'Declined'
+                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
                                                   }`}>
                                                   {emailLog.status || 'Sent'}
                                                 </span>
@@ -12634,8 +12656,8 @@ ${chauffeurHtml}
                                               .finally(() => setIsDriverChanging(false));
                                           }}
                                           className={`w-full p-3 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${isCurrent
-                                              ? 'border-violet-700 bg-violet-50/30 ring-1 ring-violet-700/10'
-                                              : 'border-neutral-200 bg-white hover:border-violet-700/50 hover:bg-violet-50/10'
+                                            ? 'border-violet-700 bg-violet-50/30 ring-1 ring-violet-700/10'
+                                            : 'border-neutral-200 bg-white hover:border-violet-700/50 hover:bg-violet-50/10'
                                             }`}
                                         >
                                           <div className="min-w-0">
@@ -12819,8 +12841,8 @@ ${chauffeurHtml}
                                             <div className="flex items-center justify-between gap-2 flex-wrap">
                                               <div className="flex items-center gap-1.5 flex-wrap">
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.logType === 'RFQ'
-                                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                                                    : 'bg-amber-50 text-amber-800 border border-amber-105'
+                                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                                                  : 'bg-amber-50 text-amber-800 border border-amber-105'
                                                   }`}>
                                                   {emailLog.logType === 'RFQ' ? 'RFQ' : 'RFP / PO'}
                                                 </span>
@@ -12833,10 +12855,10 @@ ${chauffeurHtml}
                                                   </span>
                                                 )}
                                                 <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full ${emailLog.status === 'Selected'
-                                                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
-                                                    : emailLog.status === 'Declined'
-                                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                                      : 'bg-neutral-100 text-neutral-600 border border-neutral-205'
+                                                  ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                                                  : emailLog.status === 'Declined'
+                                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                                    : 'bg-neutral-100 text-neutral-600 border border-neutral-205'
                                                   }`}>
                                                   {emailLog.status || 'Sent'}
                                                 </span>
@@ -13129,8 +13151,8 @@ ${chauffeurHtml}
                                             <div className="flex items-center gap-2">
                                               <span className="text-xs font-bold text-neutral-800">{quote.vendor_name}</span>
                                               <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${quote.status === 'Selected' ? 'bg-green-150 text-green-800' :
-                                                  quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
-                                                    'bg-neutral-100 text-neutral-600'
+                                                quote.status === 'Replied' ? 'bg-amber-100 text-amber-800' :
+                                                  'bg-neutral-100 text-neutral-600'
                                                 }`}>
                                                 {quote.status}
                                               </span>
@@ -13324,9 +13346,9 @@ ${chauffeurHtml}
 
                                 {booking && (
                                   <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${booking.status === 'Went Ahead' ? 'bg-green-100 border border-green-200 text-green-700' :
-                                      booking.status === 'Confirmed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
-                                        booking.status === 'Cancelled' ? 'bg-red-50 border border-red-200 text-red-700' :
-                                          'bg-neutral-50 border border-neutral-200 text-neutral-600'
+                                    booking.status === 'Confirmed' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
+                                      booking.status === 'Cancelled' ? 'bg-red-50 border border-red-200 text-red-700' :
+                                        'bg-neutral-50 border border-neutral-200 text-neutral-600'
                                     }`}>
                                     Booking: {booking.status}
                                   </span>
@@ -13366,9 +13388,9 @@ ${chauffeurHtml}
                                           <div className="flex items-center gap-2">
                                             <span className="text-xs font-bold text-neutral-850 font-mono">{po.po_number}</span>
                                             <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${po.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
-                                                  po.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                                                    'bg-neutral-100 text-neutral-600'
+                                              po.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
+                                                po.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                                                  'bg-neutral-100 text-neutral-600'
                                               }`}>
                                               PO: {po.status}
                                             </span>
@@ -13478,9 +13500,9 @@ ${chauffeurHtml}
                                       <span className="text-sm font-bold text-neutral-855 font-mono">{po.po_number}</span>
                                       <span className="text-sm font-semibold text-neutral-600">({po.vendor_name})</span>
                                       <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${po.status === 'Completed' ? 'bg-green-105 text-green-800' :
-                                          po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
-                                            po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
-                                              'bg-neutral-105 text-neutral-600'
+                                        po.status === 'Sent' ? 'bg-blue-105 text-blue-800' :
+                                          po.status === 'Accepted' ? 'bg-emerald-105 text-emerald-800' :
+                                            'bg-neutral-105 text-neutral-600'
                                         }`}>
                                         PO: {po.status}
                                       </span>
@@ -14099,8 +14121,8 @@ ${chauffeurHtml}
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-xs font-bold text-neutral-805">#{inv.invoice_number}</span>
                                                   <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${inv.status === 'Confirmed' ? 'bg-blue-100 border border-blue-200 text-blue-800' :
-                                                      inv.status === 'Paid' ? 'bg-green-105 border border-green-200 text-green-800' :
-                                                        'bg-amber-105 border border-amber-200 text-amber-800'
+                                                    inv.status === 'Paid' ? 'bg-green-105 border border-green-200 text-green-800' :
+                                                      'bg-amber-105 border border-amber-200 text-amber-800'
                                                     }`}>
                                                     {inv.status}
                                                   </span>
@@ -14968,10 +14990,10 @@ ${chauffeurHtml}
                                       Share Invoice
                                     </button>
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${inv.status === 'Paid'
-                                        ? 'bg-green-50 text-green-700 border border-green-100'
-                                        : inv.status === 'Cancelled'
-                                          ? 'bg-red-50 text-red-700 border border-red-100'
-                                          : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                      ? 'bg-green-50 text-green-700 border border-green-100'
+                                      : inv.status === 'Cancelled'
+                                        ? 'bg-red-50 text-red-700 border border-red-100'
+                                        : 'bg-amber-50 text-amber-700 border border-amber-100'
                                       }`}>
                                       {inv.status}
                                     </span>
@@ -15593,9 +15615,8 @@ ${chauffeurHtml}
                           </div>
 
                           {shareInvoiceFeedback && (
-                            <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-                              shareInvoiceFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}>
+                            <div className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${shareInvoiceFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+                              }`}>
                               {shareInvoiceFeedback.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                               <span>{shareInvoiceFeedback.text}</span>
                             </div>
@@ -16260,8 +16281,8 @@ ${chauffeurHtml}
 
                     {shareEmailFeedback && (
                       <div className={`p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${shareEmailFeedback.type === 'success'
-                          ? 'bg-green-50 text-green-700 border border-green-100'
-                          : 'bg-red-50 text-red-700 border border-red-100'
+                        ? 'bg-green-50 text-green-700 border border-green-100'
+                        : 'bg-red-50 text-red-700 border border-red-100'
                         }`}>
                         {shareEmailFeedback.type === 'success' ? (
                           <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -16488,8 +16509,8 @@ ${chauffeurHtml}
                             type="submit"
                             disabled={isSendingShareEmail}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold tracking-wider transition-all text-xs uppercase ${isSendingShareEmail
-                                ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                                : 'bg-emerald-800 text-white hover:bg-emerald-950 shadow-md hover:shadow-lg'
+                              ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                              : 'bg-emerald-800 text-white hover:bg-emerald-950 shadow-md hover:shadow-lg'
                               }`}
                           >
                             {isSendingShareEmail ? (
@@ -20011,8 +20032,8 @@ ${chauffeurHtml}
               <div
                 style={shouldCenter ? {} : popoverStyle}
                 className={`bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-[120] ${shouldCenter
-                    ? 'w-full max-w-lg max-h-[90vh]'
-                    : 'max-h-[85vh] slide-in-from-top-2'
+                  ? 'w-full max-w-lg max-h-[90vh]'
+                  : 'max-h-[85vh] slide-in-from-top-2'
                   }`}
               >
                 {/* Modal Header */}
@@ -22126,8 +22147,8 @@ function AIItineraryBuilder({
               }}
               disabled={isLockedByOther}
               className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
-                  ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
-                  : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-855'
+                ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
+                : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-855'
                 }`}
             >
               <Sliders className="w-3.5 h-3.5" />
@@ -22214,8 +22235,8 @@ function AIItineraryBuilder({
           <button
             onClick={() => setShowRulesConfig(!showRulesConfig)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 border ${showRulesConfig
-                ? 'bg-neutral-100 border-neutral-300/80 text-neutral-800 shadow-inner'
-                : 'bg-white hover:bg-neutral-50 border-neutral-200/80 text-neutral-700 hover:text-neutral-900'
+              ? 'bg-neutral-100 border-neutral-300/80 text-neutral-800 shadow-inner'
+              : 'bg-white hover:bg-neutral-50 border-neutral-200/80 text-neutral-700 hover:text-neutral-900'
               }`}
           >
             <SettingsIcon className="w-4 h-4 text-neutral-500" /> AI Rules Config
@@ -22338,8 +22359,8 @@ function AIItineraryBuilder({
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualSingle(Math.max(0, parseInt(e.target.value) || 0))}
                 className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${(hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
-                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                  ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
+                  : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
                   }`}
               />
             </div>
@@ -22353,8 +22374,8 @@ function AIItineraryBuilder({
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualDouble(Math.max(0, parseInt(e.target.value) || 0))}
                 className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${(hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
-                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                  ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
+                  : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
                   }`}
               />
             </div>
@@ -22368,8 +22389,8 @@ function AIItineraryBuilder({
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualTriple(Math.max(0, parseInt(e.target.value) || 0))}
                 className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-805 transition-all ${(hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
-                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                  ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
+                  : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
                   }`}
               />
             </div>
@@ -22383,8 +22404,8 @@ function AIItineraryBuilder({
                 disabled={hasTeam || isLockedByOther}
                 onChange={(e) => setManualFamily(Math.max(0, parseInt(e.target.value) || 0))}
                 className={`w-full px-3.5 py-2 text-xs border rounded-xl font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all ${(hasTeam || isLockedByOther)
-                    ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
-                    : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
+                  ? 'bg-neutral-100/80 text-neutral-400 cursor-not-allowed border-neutral-200'
+                  : 'bg-white text-neutral-800 border-neutral-200 shadow-sm'
                   }`}
               />
             </div>
@@ -22545,8 +22566,8 @@ function AIItineraryBuilder({
                 key={day}
                 onClick={() => setActiveDay(day)}
                 className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 shrink-0 ${activeDay === day
-                    ? 'bg-white text-emerald-900 border border-neutral-200/60 shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40'
+                  ? 'bg-white text-emerald-900 border border-neutral-200/60 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/40'
                   }`}
               >
                 Day {day}
@@ -23258,7 +23279,7 @@ function AIItineraryBuilder({
                       <div>
                         <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Meal Plan</label>
                         <select
-                          value={block.mealPlan === 'None' ? 'RO' : (block.mealPlan || 'BB')}
+                          value={(block.mealPlan === 'None' ? 'RO' : block.mealPlan) || 'BB'}
                           onChange={(e) => handleUpdateBlockField(block.id, 'mealPlan', e.target.value)}
                           disabled={isLockedByOther}
                           className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
@@ -23510,8 +23531,8 @@ function AIItineraryBuilder({
                           }}
                           disabled={isLockedByOther}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${block.transport_requirement
-                              ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
-                              : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
+                            ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
+                            : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
                             }`}
                         >
                           <Sliders className="w-3.5 h-3.5" />
@@ -23524,8 +23545,8 @@ function AIItineraryBuilder({
                     <button
                       onClick={() => setOpenCommentsBlockId(isCommentsOpen ? null : block.id)}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${isCommentsOpen
-                          ? 'bg-neutral-100 border-neutral-300 text-neutral-850 shadow-inner'
-                          : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
+                        ? 'bg-neutral-100 border-neutral-300 text-neutral-850 shadow-inner'
+                        : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800'
                         }`}
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-neutral-400" />
@@ -23556,8 +23577,8 @@ function AIItineraryBuilder({
                           return (
                             <div key={c.id} className={`flex flex-col ${isAgent ? 'items-end' : 'items-start'}`}>
                               <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm leading-relaxed ${isAgent
-                                  ? 'bg-emerald-800 text-white rounded-tr-none'
-                                  : 'bg-white text-neutral-800 border border-neutral-200/80 rounded-tl-none'
+                                ? 'bg-emerald-800 text-white rounded-tr-none'
+                                : 'bg-white text-neutral-800 border border-neutral-200/80 rounded-tl-none'
                                 }`}>
                                 <p>{c.text}</p>
                               </div>
