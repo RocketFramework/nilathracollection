@@ -47,13 +47,9 @@ export class POBlockService {
                 .in('id', dailyActivityIds);
             if (actErr) throw actErr;
             
-            // Filter out records that are activity_type === 'activity' or 'meal' and all vendor/booking references are null
+            // Filter out records that are invalid (missing title or id)
             activities = (actData || []).filter(act => {
-                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                    !act.vendor_id &&
-                    !act.restaurant_id &&
-                    !act.vendor_activity_id &&
-                    !act.hotel_id;
+                const isInvalidActivity = !act.id || !act.title || !act.title.trim();
                 return !isInvalidActivity;
             });
         }
@@ -483,7 +479,7 @@ export class POBlockService {
             this.getPOBlocksForTour(tourId),
             adminSupabase
                 .from('daily_activities')
-                .select('id, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vendor_activity_id, service_date, tour_itineraries(day_number, date)')
+                .select('id, title, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vendor_activity_id, service_date, tour_itineraries(day_number, date)')
                 .eq('tour_id', tourId)
         ]);
 
@@ -494,12 +490,8 @@ export class POBlockService {
         const rawActivities = activityResult.data || [];
 
         // Filter to only meaningful activities
-        const activities = rawActivities.filter(act => {
-            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                !act.vendor_id &&
-                !act.restaurant_id &&
-                !act.vendor_activity_id &&
-                !act.hotel_id;
+        const activities = rawActivities.filter((act: any) => {
+            const isInvalidActivity = !act.id;
             return !isInvalidActivity;
         });
 

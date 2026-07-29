@@ -708,13 +708,9 @@ export async function getDailyActivitiesAction(tourId: string) {
 
         if (error) throw error;
         
-        // Filter out records that are activity_type === 'activity' or 'meal' and all vendor/booking references are null
+        // Filter out records that are invalid (e.g. missing title or id)
         const filteredData = (data || []).filter((act: any) => {
-            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                !act.vendor_id &&
-                !act.restaurant_id &&
-                !act.vendor_activity_id &&
-                !act.hotel_id;
+            const isInvalidActivity = !act.id || !act.title || !act.title.trim();
             return !isInvalidActivity;
         });
 

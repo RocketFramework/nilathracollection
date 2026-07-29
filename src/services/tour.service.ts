@@ -385,6 +385,78 @@ export class TourService {
             tripData.manualFamily = plannerData.manualFamily ?? 0;
         }
 
+        // Reconcile tripData.itinerary with relational daily_activities & tour_itineraries so daily_activities is the single source of truth
+        try {
+            const { data: dbActivities } = await supabaseAdmin
+                .from('daily_activities')
+                .select('id, itinerary_id, service_date, title, activity_type, location_name, distance, description, time_start, time_end, meal_plan, contracted_price, charged_unit_price, charged_total_price, quantity, tour_itineraries(day_number, service_date)')
+                .eq('tour_id', tourId);
+
+            if (dbActivities && dbActivities.length > 0) {
+                const daMap = new Map<string, any>();
+                dbActivities.forEach((da: any) => {
+                    daMap.set(da.id, da);
+                });
+
+                if (!tripData.itinerary) tripData.itinerary = [];
+
+                // 1. Update dayNumber and properties of existing blocks in tripData.itinerary using daily_activities
+                const existingBlockIds = new Set<string>();
+                tripData.itinerary.forEach((b: any) => {
+                    existingBlockIds.add(b.id);
+                    const da = daMap.get(b.id);
+                    if (da) {
+                        const dayNum = (da.tour_itineraries as any)?.day_number;
+                        if (dayNum !== undefined && dayNum !== null) {
+                            b.dayNumber = dayNum;
+                        }
+                        if (da.title) b.name = da.title;
+                        if (da.activity_type) b.type = da.activity_type;
+                        if (da.location_name) b.locationName = da.location_name;
+                        if (da.time_start) b.startTime = da.time_start;
+                        if (da.time_end) b.endTime = da.time_end;
+                        if (da.meal_plan) b.mealPlan = TourService.normalizeMealPlan(da.meal_plan) || b.mealPlan;
+                        if (da.contracted_price !== null && da.contracted_price !== undefined) b.contractedPrice = da.contracted_price;
+                        if (da.charged_total_price !== null && da.charged_total_price !== undefined) b.agreedPrice = da.charged_total_price;
+                        if (da.quantity !== null && da.quantity !== undefined) b.quantity = da.quantity;
+                    }
+                });
+
+                // 2. Append any relational daily_activities rows that are missing from tripData.itinerary
+                dbActivities.forEach((da: any) => {
+                    if (!existingBlockIds.has(da.id)) {
+                        const dayNum = (da.tour_itineraries as any)?.day_number || 1;
+                        const newBlock: any = {
+                            id: da.id,
+                            dayNumber: dayNum,
+                            type: da.activity_type || 'activity',
+                            name: da.title || 'Itinerary Activity',
+                            startTime: da.time_start || '09:00',
+                            endTime: da.time_end || '11:00',
+                            bufferMins: 0,
+                            durationHours: 2,
+                            hotelName: '',
+                            roomName: '',
+                            mealPlan: TourService.normalizeMealPlan(da.meal_plan) || 'BB',
+                            imageUrl: '',
+                            confirmationStatus: 'Pending',
+                            paymentStatus: 'Pending',
+                            internalNotes: da.description || '',
+                            locationName: da.location_name || '',
+                            distance: da.distance || '',
+                            quantity: da.quantity || 1,
+                            contractedPrice: da.contracted_price || 0,
+                            agreedPrice: da.charged_total_price || 0,
+                            comments: []
+                        };
+                        tripData.itinerary.push(newBlock);
+                    }
+                });
+            }
+        } catch (syncErr) {
+            console.error("Error reconciling daily_activities in getTourData:", syncErr);
+        }
+
         return { tripData, tourMsg };
     }
 
@@ -617,6 +689,61 @@ export class TourService {
         // Map TripData.itinerary into days
         if (!tripData.itinerary || tripData.itinerary.length === 0) return;
 
+        // Fetch existing daily_activities from SQL to enforce daily_activities as the SINGLE SOURCE OF TRUTH
+        const { data: existingDaRows } = await supabaseAdmin
+            .from('daily_activities')
+            .select('id, itinerary_id, service_date, title, activity_type, location_name, distance, description, time_start, time_end, meal_plan, contracted_price, charged_unit_price, charged_total_price, quantity, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, tour_itineraries(id, day_number, service_date)')
+            .eq('tour_id', tourId);
+
+        const daMap = new Map<string, any>();
+        (existingDaRows || []).forEach((da: any) => {
+            if (da.id) daMap.set(da.id, da);
+        });
+
+        // Reconcile JSON blocks against SQL daily_activities FIRST
+        const existingBlockIds = new Set<string>();
+        tripData.itinerary.forEach((b: any) => {
+            if (b.id) existingBlockIds.add(b.id);
+            const da = daMap.get(b.id);
+            if (da) {
+                const dayNumFromSql = (da.tour_itineraries as any)?.day_number;
+                if (dayNumFromSql !== undefined && dayNumFromSql !== null) {
+                    b.dayNumber = dayNumFromSql;
+                }
+                if (da.title) b.name = da.title;
+            }
+        });
+
+        // Append any SQL daily_activities rows missing from JSON itinerary
+        (existingDaRows || []).forEach((da: any) => {
+            if (da.id && !existingBlockIds.has(da.id)) {
+                const dayNumFromSql = (da.tour_itineraries as any)?.day_number || 1;
+                tripData.itinerary.push({
+                    id: da.id,
+                    dayNumber: dayNumFromSql,
+                    type: da.activity_type || 'activity',
+                    name: da.title || 'Itinerary Activity',
+                    startTime: da.time_start || '09:00',
+                    endTime: da.time_end || '11:00',
+                    bufferMins: 0,
+                    durationHours: 2,
+                    hotelName: '',
+                    roomName: '',
+                    mealPlan: TourService.normalizeMealPlan(da.meal_plan) || 'BB',
+                    imageUrl: '',
+                    confirmationStatus: 'Pending',
+                    paymentStatus: 'Pending',
+                    internalNotes: da.description || '',
+                    locationName: da.location_name || '',
+                    distance: da.distance || '',
+                    quantity: da.quantity || 1,
+                    contractedPrice: da.contracted_price || 0,
+                    agreedPrice: da.charged_total_price || 0,
+                    comments: []
+                });
+            }
+        });
+
         // Group the flat itinerary list by dayNumber
         const blocksByDay: Record<number, typeof tripData.itinerary> = {};
         for (const block of tripData.itinerary) {
@@ -721,8 +848,7 @@ export class TourService {
             for (const b of blocks) {
                 // Safeguard: Ensure block ID is a valid UUID
                 if (!b.id || !isUuid(b.id)) {
-                    console.warn("Skipping invalid block ID during relational save:", b.id, b.name);
-                    continue;
+                    b.id = crypto.randomUUID();
                 }
 
                 // Prioritize the new vendorId field, fallback to linkedSupplierId for legacy or name-based resolution

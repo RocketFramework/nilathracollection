@@ -3067,11 +3067,7 @@ function PlannerWizardWorkspace() {
 
           const mapped = activitiesList
             .filter((act: any) => {
-              const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                !act.vendor_id &&
-                !act.restaurant_id &&
-                !act.vendor_activity_id &&
-                !act.hotel_id;
+              const isInvalidActivity = !act.id || !act.title || !act.title.trim();
               return !isInvalidActivity;
             })
             .map((a: any) => ({
@@ -3118,14 +3114,7 @@ function PlannerWizardWorkspace() {
             }
             if (state.dbActivities) {
               const filtered = state.dbActivities.filter((act: any) => {
-                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                  !act.vendor_id &&
-                  !act.transport_id &&
-                  !act.driver_id &&
-                  !act.guide_id &&
-                  !act.restaurant_id &&
-                  !act.vendor_activity_id &&
-                  !act.hotel_id;
+                const isInvalidActivity = !act.id || !act.title || !act.title.trim();
                 return !isInvalidActivity;
               });
               setDbActivities(filtered);
@@ -3149,14 +3138,7 @@ function PlannerWizardWorkspace() {
             }
             if (parsed.dbActivities) {
               const filtered = parsed.dbActivities.filter((act: any) => {
-                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                  !act.vendor_id &&
-                  !act.transport_id &&
-                  !act.driver_id &&
-                  !act.guide_id &&
-                  !act.restaurant_id &&
-                  !act.vendor_activity_id &&
-                  !act.hotel_id;
+                const isInvalidActivity = !act.id || !act.title || !act.title.trim();
                 return !isInvalidActivity;
               });
               setDbActivities(filtered);
@@ -3242,14 +3224,7 @@ function PlannerWizardWorkspace() {
       if (res.success && res.activities) {
         const mapped = res.activities
           .filter((act: any) => {
-            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-              !act.vendor_id &&
-              !act.transport_id &&
-              !act.driver_id &&
-              !act.guide_id &&
-              !act.restaurant_id &&
-              !act.vendor_activity_id &&
-              !act.hotel_id;
+            const isInvalidActivity = !act.id || !act.title || !act.title.trim();
             return !isInvalidActivity;
           })
           .map((a: any) => ({
@@ -3394,14 +3369,7 @@ function PlannerWizardWorkspace() {
       if (dbActivitiesRes.success && dbActivitiesRes.activities) {
         const mapped = dbActivitiesRes.activities
           .filter((act: any) => {
-            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-              !act.vendor_id &&
-              !act.transport_id &&
-              !act.driver_id &&
-              !act.guide_id &&
-              !act.restaurant_id &&
-              !act.vendor_activity_id &&
-              !act.hotel_id;
+            const isInvalidActivity = !act.id || !act.title || !act.title.trim();
             return !isInvalidActivity;
           })
           .map((a: any) => ({
@@ -6068,11 +6036,7 @@ ${chauffeurHtml}
       if (daRes.success && daRes.activities) {
         const mapped = daRes.activities
           .filter((act: any) => {
-            const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-              !act.vendor_id &&
-              !act.restaurant_id &&
-              !act.vendor_activity_id &&
-              !act.hotel_id;
+            const isInvalidActivity = !act.id || !act.title || !act.title.trim();
             return !isInvalidActivity;
           })
           .map((a: any) => ({
@@ -8765,14 +8729,7 @@ ${chauffeurHtml}
                           <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
                             {[...dbActivities]
                               .filter((act: any) => {
-                                const isInvalidActivity = (act.activity_type === 'activity' || act.activity_type === 'meal') &&
-                                  !act.vendor_id &&
-                                  !act.transport_id &&
-                                  !act.driver_id &&
-                                  !act.guide_id &&
-                                  !act.restaurant_id &&
-                                  !act.vendor_activity_id &&
-                                  !act.hotel_id;
+                                const isInvalidActivity = !act.id || !act.title || !act.title.trim();
                                 return !isInvalidActivity;
                               })
                               .sort((a: any, b: any) => {
@@ -13455,21 +13412,21 @@ ${chauffeurHtml}
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Receipt className="w-5 h-5 text-emerald-800" />
-                        Finance Controlling (Hotels Only)
+                        Finance Controlling
                       </h3>
                       <p className="text-xs text-neutral-400">
-                        Review purchase orders, match invoice line items, and disburse payments (including advances) for hotel suppliers.
+                        Review purchase orders, match invoice line items, and disburse payments (including advances) for hotels, transport providers, drivers, and suppliers.
                       </p>
                     </div>
 
                     <div className="space-y-6">
-                      {purchaseOrders.filter(po => po.vendor_type === 'hotel' && po.status === 'Accepted').length === 0 ? (
+                      {purchaseOrders.filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor') && po.status === 'Accepted').length === 0 ? (
                         <div className="p-6 text-center bg-neutral-50 rounded-2xl border border-dashed border-neutral-250">
-                          <p className="text-sm text-neutral-500 italic">There are not purchase order that are accpeted by the suppliers.</p>
+                          <p className="text-sm text-neutral-500 italic">There are no purchase orders that are accepted by the suppliers.</p>
                         </div>
                       ) : (
                         purchaseOrders
-                          .filter(po => po.vendor_type === 'hotel' && po.status === 'Accepted')
+                          .filter(po => (po.vendor_type === 'hotel' || po.vendor_type === 'transport' || po.vendor_type === 'driver' || po.vendor_type === 'vendor') && po.status === 'Accepted')
                           .map(po => {
                             const invoices = po.invoices || [];
                             const advPayments = po.advance_payments || [];
@@ -21516,7 +21473,7 @@ function AIItineraryBuilder({
           }
 
           const block: InternalItineraryBlock = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+            id: generateUUID(),
             dayNumber: day.day,
             type: event.type as any,
             name: event.name,
@@ -21607,7 +21564,7 @@ function AIItineraryBuilder({
                 // Insert an auto-generated travel block
                 const travelDuration = Math.max(0.5, Math.round((dist / 35) * 2) / 2); // 35 km/h avg speed
                 const travelBlock: InternalItineraryBlock = {
-                  id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+                  id: generateUUID(),
                   dayNumber: block.dayNumber,
                   type: ItineraryBlockTypes.TRAVEL,
                   name: `Travel to ${block.locationName || block.name}`,
@@ -21668,7 +21625,7 @@ function AIItineraryBuilder({
           }
 
           const stayBlock: InternalItineraryBlock = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+            id: generateUUID(),
             dayNumber: d,
             type: ItineraryBlockTypes.TRAVEL,
             name: "Driver and Vehicle Stays",
@@ -21698,7 +21655,7 @@ function AIItineraryBuilder({
       if (routeResult.droppedActivities && routeResult.droppedActivities.length > 0) {
         routeResult.droppedActivities.forEach(act => {
           dropped.push({
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+            id: generateUUID(),
             dayNumber: 0,
             type: ItineraryBlockTypes.ACTIVITY,
             name: act.activity_name,
@@ -21765,7 +21722,7 @@ function AIItineraryBuilder({
   const handleAddBlock = () => {
     const defaultPax = (touristData?.preferences?.adults || 0) + (touristData?.preferences?.children || 0);
     const newBlock: InternalItineraryBlock = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+      id: generateUUID(),
       dayNumber: activeDay,
       type: ItineraryBlockTypes.ACTIVITY,
       name: '',
@@ -21896,7 +21853,7 @@ function AIItineraryBuilder({
     if (!text.trim()) return;
 
     const newComment: BlockComment = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
+      id: generateUUID(),
       role: 'agent',
       text: text.trim(),
       timestamp: new Date().toISOString()
@@ -23032,14 +22989,36 @@ function AIItineraryBuilder({
                 <div className="p-5 space-y-5">
                   {/* Grid fields */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    {/* Item Type Dropdown */}
+                    {/* Scheduled Day Selector */}
                     <div className="md:col-span-3">
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Scheduled Day / Date</label>
+                      <select
+                        value={block.dayNumber || 1}
+                        onChange={(e) => {
+                          const newDay = parseInt(e.target.value, 10);
+                          if (newDay && newDay !== block.dayNumber) {
+                            setItinerary(prev => prev.map(b => b.id === block.id ? { ...b, dayNumber: newDay } : b));
+                          }
+                        }}
+                        disabled={isLockedByOther}
+                        className="w-full text-xs border border-emerald-300/80 rounded-xl px-3 py-2 bg-emerald-50/50 text-emerald-900 font-black focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                      >
+                        {daysArray.map(dNum => (
+                          <option key={dNum} value={dNum}>
+                            Day {dNum} {getDayDateString(dNum) ? `(${getDayDateString(dNum)})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Item Type Dropdown */}
+                    <div className="md:col-span-2">
                       <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Type</label>
                       <select
                         value={block.type}
                         onChange={(e) => handleUpdateBlockField(block.id, 'type', e.target.value)}
                         disabled={isLockedByOther}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-805 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-805 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                       >
                         {blockTypes.map(opt => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -23048,7 +23027,7 @@ function AIItineraryBuilder({
                     </div>
 
                     {/* Item Name Input */}
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-4">
                       <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Item Title / Name</label>
                       <input
                         type="text"
@@ -23061,7 +23040,7 @@ function AIItineraryBuilder({
                     </div>
 
                     {/* Time Range */}
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-1.5">
                       <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Start Time</label>
                       <input
                         type="text"
@@ -23069,10 +23048,10 @@ function AIItineraryBuilder({
                         value={block.startTime || ''}
                         onChange={(e) => handleUpdateBlockField(block.id, 'startTime', e.target.value)}
                         disabled={isLockedByOther}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-805 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-center disabled:opacity-50"
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-2.5 py-2 bg-white text-neutral-805 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-center disabled:opacity-50"
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-1.5">
                       <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">End Time</label>
                       <input
                         type="text"
@@ -23080,7 +23059,7 @@ function AIItineraryBuilder({
                         value={block.endTime || ''}
                         onChange={(e) => handleUpdateBlockField(block.id, 'endTime', e.target.value)}
                         disabled={isLockedByOther}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-center disabled:opacity-50"
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-2.5 py-2 bg-white text-neutral-850 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm text-center disabled:opacity-50"
                       />
                     </div>
                   </div>
