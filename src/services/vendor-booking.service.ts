@@ -263,8 +263,12 @@ export class VendorBookingService {
                             const itin = (act as any).tour_itineraries;
                             const dateVal = itin?.date || act.service_date || null;
                             const dayNum = itin?.day_number || act.day_number || null;
-                            const unitPrice = Number(act.contracted_price || act.charged_unit_price || 25);
-                            const totalPrice = Number(act.contracted_total_price || unitPrice);
+                            const unitPrice = (act.contracted_price !== undefined && act.contracted_price !== null)
+                                ? Number(act.contracted_price)
+                                : Number(act.charged_unit_price ?? 0);
+                            const totalPrice = (act.contracted_total_price !== undefined && act.contracted_total_price !== null)
+                                ? Number(act.contracted_total_price)
+                                : unitPrice;
                             calculatedSubtotal += totalPrice;
                             poItems.push({
                                 id: crypto.randomUUID(),
@@ -286,7 +290,9 @@ export class VendorBookingService {
                             const dayNum = itin?.day_number || 1;
                             const dateVal = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
 
-                            const contractedRate = Number(row.contracted_per_day_rate ?? 0);
+                            const contractedRate = (row.contracted_per_day_rate !== undefined && row.contracted_per_day_rate !== null)
+                                ? Number(row.contracted_per_day_rate)
+                                : Number(row.per_day_rate ?? 0);
                             const contractedAcc = Number(row.contracted_accommodation_cost ?? 0);
                             const contractedMeal = Number(row.contracted_meal_cost ?? 0);
                             const contractedOther = Number(row.contracted_other_allowance ?? 0);

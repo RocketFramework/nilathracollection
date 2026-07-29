@@ -81,7 +81,9 @@ export class POBlockService {
                         const dayNum = itin?.day_number || 1;
                         const dateStr = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
 
-                        const rate = Number(row.contracted_per_day_rate ?? row.per_day_rate ?? 0);
+                        const rate = (row.contracted_per_day_rate !== undefined && row.contracted_per_day_rate !== null)
+                            ? Number(row.contracted_per_day_rate)
+                            : Number(row.per_day_rate ?? 0);
                         const acc = Number(row.contracted_accommodation_cost ?? 0);
                         const meals = Number(row.contracted_meal_cost ?? 0);
                         const allow = Number(row.contracted_other_allowance ?? 0);
@@ -519,14 +521,70 @@ export class POBlockService {
                 .in('daily_activity_id', staleJunctionIds);
         }
 
-        if (unlinkedActivities.length === 0) {
+        // 4b. Ensure dedicated PO Blocks exist for all assigned Drivers and Guides
+        const [{ data: itinDrivers }, { data: itinGuides }] = await Promise.all([
+            adminSupabase.from('tour_itinerary_drivers').select('driver_id').eq('tour_id', tourId),
+            adminSupabase.from('tour_itinerary_guides').select('guide_id').eq('tour_id', tourId)
+        ]);
+
+        const allDriverIds = new Set<string>();
+        activities.forEach(a => { if (a.driver_id) allDriverIds.add(a.driver_id); });
+        (itinDrivers || []).forEach(d => { if (d.driver_id) allDriverIds.add(d.driver_id); });
+
+        const allGuideIds = new Set<string>();
+        activities.forEach(a => { if (a.guide_id) allGuideIds.add(a.guide_id); });
+        (itinGuides || []).forEach(g => { if (g.guide_id) allGuideIds.add(g.guide_id); });
+
+        let newlyCreatedBlockCount = 0;
+
+        // Create individual PO block for each distinct driver
+        for (const driverId of Array.from(allDriverIds)) {
+            const hasDriverBlock = existingBlocks.some(b => b.block_type === 'driver' && b.name.includes(driverId));
+            if (!hasDriverBlock) {
+                const { data: dData } = await adminSupabase.from('drivers').select('first_name, last_name').eq('id', driverId).single();
+                const driverName = dData ? `${dData.first_name || ''} ${dData.last_name || ''}`.trim() : 'Driver';
+                const nextBlockNum = (Math.max(0, ...existingBlocks.map(b => b.block_number || 0))) + 1 + newlyCreatedBlockCount;
+                
+                const createdBlock = await this.createPOBlock(
+                    tourId,
+                    `Driver: ${driverName} | ID: ${driverId}`,
+                    'driver',
+                    nextBlockNum,
+                    []
+                );
+                existingBlocks.push(createdBlock);
+                newlyCreatedBlockCount++;
+            }
+        }
+
+        // Create individual PO block for each distinct guide
+        for (const guideId of Array.from(allGuideIds)) {
+            const hasGuideBlock = existingBlocks.some(b => b.block_type === 'guide' && b.name.includes(guideId));
+            if (!hasGuideBlock) {
+                const { data: gData } = await adminSupabase.from('tour_guides').select('first_name, last_name').eq('id', guideId).single();
+                const guideName = gData ? `${gData.first_name || ''} ${gData.last_name || ''}`.trim() : 'Tour Guide';
+                const nextBlockNum = (Math.max(0, ...existingBlocks.map(b => b.block_number || 0))) + 1 + newlyCreatedBlockCount;
+                
+                const createdBlock = await this.createPOBlock(
+                    tourId,
+                    `Guide: ${guideName} | ID: ${guideId}`,
+                    'guide',
+                    nextBlockNum,
+                    []
+                );
+                existingBlocks.push(createdBlock);
+                newlyCreatedBlockCount++;
+            }
+        }
+
+        if (unlinkedActivities.length === 0 && newlyCreatedBlockCount === 0) {
             // ALL records with hotel_id, transport_id, etc. are already present in PO blocks!
             console.log('[POBlock] All daily_activities are present in PO blocks. Zero missing.');
             const updatedBlocks = await this.getPOBlocksForTour(tourId);
             return { blocks: updatedBlocks, addedCount: 0 };
         }
 
-        console.log(`[POBlock] Found ${unlinkedActivities.length} missing daily_activities. Linking to PO blocks...`);
+        console.log(`[POBlock] Found ${unlinkedActivities.length} missing daily_activities and ${newlyCreatedBlockCount} new driver/guide blocks. Linking to PO blocks...`);
 
         // 5. For each unlinked activity, attach it to an existing PO block for that supplier or create a new block
         const newJunctionRows: Array<{ po_block_id: string; daily_activity_id: string }> = [];
@@ -538,7 +596,7 @@ export class POBlockService {
             if (act.hotel_id || act.activity_type === 'sleep') {
                 targetBlock = existingBlocks.find(b => (b.block_type === 'sleep' || b.block_type === 'accommodation') && (b.daily_activities?.some(a => a.hotel_id === act.hotel_id) || b.name.toLowerCase().includes(act.title.toLowerCase())));
             }
-            // Try to match by transport_id or driver_id
+            // Try to match by transport_id
             else if (act.transport_id || act.activity_type === 'travel') {
                 targetBlock = existingBlocks.find(b => b.block_type === 'travel');
             }
@@ -577,7 +635,7 @@ export class POBlockService {
         }
 
         const refreshedBlocks = await this.getPOBlocksForTour(tourId);
-        return { blocks: refreshedBlocks, addedCount: unlinkedActivities.length };
+        return { blocks: refreshedBlocks, addedCount: unlinkedActivities.length + newlyCreatedBlockCount };
     }
 
     static async initializeDefaultBlocks(tourId: string): Promise<{

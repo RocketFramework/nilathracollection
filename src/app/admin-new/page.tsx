@@ -5252,7 +5252,9 @@ function PlannerWizardWorkspace() {
         driverTableRows = sortedStays.map((act: any) => {
           const dayNum = act.tour_itineraries?.day_number || act.day_number || 1;
           const displayDate = act.service_date ? formatDate(act.service_date) : `Day ${dayNum}`;
-          const rate = Number(act.contracted_price || act.charged_unit_price || 25);
+          const rate = (act.contracted_price !== undefined && act.contracted_price !== null)
+            ? Number(act.contracted_price)
+            : Number(act.charged_unit_price ?? 0);
           driverSubtotal += rate;
           return `<tr>
             <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;">Day ${dayNum}</td>
