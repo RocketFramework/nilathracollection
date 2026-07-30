@@ -83,7 +83,7 @@ export class CustomerInvoiceService {
         const adults = touristProfile?.adults || tour?.planner_data?.profile?.adults || 2;
         const children = touristProfile?.children || tour?.planner_data?.profile?.children || 0;
         const pax = adults + children;
-        const travelStyle = touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
+        const travelStyle = tour?.travel_style || touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
         const durationDays = itineraries?.length || tour?.planner_data?.profile?.durationDays || 5;
 
         // 6.5 Fetch tour daily drivers
@@ -191,7 +191,7 @@ export class CustomerInvoiceService {
             .eq('id', tour.tourist_id)
             .maybeSingle() : { data: null };
 
-        const travelStyle = touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
+        const travelStyle = tour?.travel_style || touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
         const styleKey = travelStyle.toLowerCase().replace(' ', '_').replace('-', '_');
         const serviceFeeKey = `${styleKey}_service_fee`;
         const serviceFeePercent = appSettings && appSettings[serviceFeeKey] !== undefined 

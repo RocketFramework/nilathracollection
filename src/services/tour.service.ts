@@ -128,6 +128,7 @@ export class TourService {
                 status: 'Draft',
                 start_date: details.start_date,
                 end_date: details.end_date,
+                travel_style: requestMsg.travel_style || 'Luxury',
             }])
             .select('id')
             .single();
@@ -260,7 +261,7 @@ export class TourService {
             durationDays: touristProfile.duration_days || 0,
             budgetTotal: touristProfile.budget_total || 0,
             budgetPerPerson: touristProfile.budget_per_person || 0,
-            travelStyle: (touristProfile.travel_style || 'Luxury') as TravelStyle,
+            travelStyle: (tourMsg.travel_style || touristProfile.travel_style || 'Luxury') as TravelStyle,
             departureCountry: touristProfile.departure_country || '',
             specialConditions: {
                 dietary: touristProfile.dietary_requirements || '',
@@ -317,7 +318,7 @@ export class TourService {
                             ? reqInfo.budget / reqInfo.adults
                             : 0
                     ),
-                    travelStyle: (touristProfile.travel_style || 'Luxury') as TravelStyle,
+                    travelStyle: (tourMsg.travel_style || touristProfile.travel_style || 'Luxury') as TravelStyle,
                     departureCountry: touristProfile.departure_country || '',
                     specialConditions: {
                         dietary: touristProfile.dietary_requirements || '',
@@ -582,6 +583,7 @@ export class TourService {
                 status: tripData.status,
                 start_date: tripData.profile?.arrivalDate || null,
                 end_date: tripData.profile?.departureDate || null,
+                travel_style: tripData.profile?.travelStyle || 'Luxury',
                 total_km: totalKm,
                 total_cities: totalCities.size,
                 total_activities: totalActivities,

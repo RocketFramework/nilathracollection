@@ -216,10 +216,11 @@ export async function upsertTransportRequirementAction(tourId: string, requireme
 
 export async function saveTransportRequirementVehiclesAction(
     requirementId: string,
-    vehicles: Array<{ vehicle_id: string; quantity: number; notes?: string }>
+    vehicles: Array<{ vehicle_id: string; quantity: number; notes?: string }>,
+    tourId?: string
 ) {
     try {
-        await POBlockService.saveTransportRequirementVehicles(requirementId, vehicles);
+        await POBlockService.saveTransportRequirementVehicles(requirementId, vehicles, tourId);
         return { success: true };
     } catch (error: any) {
         console.error("Error saving transport requirement vehicles:", error);

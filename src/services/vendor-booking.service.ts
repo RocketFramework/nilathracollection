@@ -464,17 +464,6 @@ export class VendorBookingService {
 
         const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);
 
-        // 3b. Insert transport junction rows if this is a transport PO
-        if (transportJunctionRows.length > 0) {
-            const { error: junctionErr } = await supabase
-                .from('purchase_order_daily_transport_items')
-                .insert(transportJunctionRows);
-            if (junctionErr) {
-                console.error('Failed to insert transport junction rows:', junctionErr);
-                throw junctionErr;
-            }
-        }
-
         // 4. Update the tour_rfq_emails status if this was initiated from a quote
         if (bookingData.quotation_request_id) {
             await supabase
@@ -524,10 +513,7 @@ export class VendorBookingService {
                 *,
                 items:purchase_order_items(
                     id,
-                    daily_activity_id,
-                    transport_legs:purchase_order_daily_transport_items(
-                        daily_activity_id
-                    )
+                    daily_activity_id
                 )
             `)
             .eq('tour_id', tourId)
@@ -551,15 +537,10 @@ export class VendorBookingService {
 
             const vendorId = po.hotel_id || po.activity_vendor_id || po.transport_provider_id || po.guide_id || po.driver_id || po.restaurant_id || '';
 
-            // For transport POs the daily_activity_id is on the junction table, not the item
             const itemActivityIds = (po.items || [])
                 .map((item: any) => item.daily_activity_id)
                 .filter((id: any) => !!id);
-            const junctionActivityIds = (po.items || [])
-                .flatMap((item: any) => item.transport_legs || [])
-                .map((leg: any) => leg.daily_activity_id)
-                .filter((id: any) => !!id);
-            const allActivityIds = [...new Set([...itemActivityIds, ...junctionActivityIds])];
+            const allActivityIds = [...new Set(itemActivityIds)];
 
 
             return {

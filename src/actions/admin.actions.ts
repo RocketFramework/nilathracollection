@@ -34,6 +34,8 @@ import { CustomerInvoiceService } from "@/services/customer-invoice.service";
 import { Settings } from "@/types/types";
 import { TourDailyDriverService } from "@/services/tour-daily-driver.service";
 import { TourDailyDriverDTO } from "@/dtos/tour-daily-driver.dto";
+import { TourDailyTransportService } from "@/services/tour-daily-transport.service";
+import { TourDailyTransportDTO } from "@/dtos/tour-daily-transport.dto";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -2748,6 +2750,28 @@ export async function saveTourDailyDriversAction(tourId: string, assignments: To
     } catch (error: any) {
         console.error("Error saving tour daily drivers:", error);
         return { success: false, error: error.message || "Failed to save tour daily drivers." };
+    }
+}
+
+export async function getTourDailyTransportsAction(tourId: string) {
+    try {
+        const supabase = createAdminClient();
+        const transports = await TourDailyTransportService.getDailyTransportsByTourId(tourId, supabase);
+        return { success: true, transports };
+    } catch (error: any) {
+        console.error("Error fetching tour daily transports:", error);
+        return { success: false, error: error.message || "Failed to fetch tour daily transports." };
+    }
+}
+
+export async function saveTourDailyTransportsAction(tourId: string, assignments: TourDailyTransportDTO[]) {
+    try {
+        const supabase = createAdminClient();
+        const saved = await TourDailyTransportService.bulkUpsertDailyTransports(tourId, assignments, supabase);
+        return { success: true, saved };
+    } catch (error: any) {
+        console.error("Error saving tour daily transports:", error);
+        return { success: false, error: error.message || "Failed to save tour daily transports." };
     }
 }
 

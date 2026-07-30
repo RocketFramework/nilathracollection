@@ -304,13 +304,6 @@ export class POBlockService {
                 .is('supplier_invoice_id', null);
             if (e4) throw e4;
 
-            // 6. Delete transport leg items
-            const { error: e5 } = await adminSupabase
-                .from('purchase_order_daily_transport_items')
-                .delete()
-                .in('purchase_order_id', poIds);
-            if (e5) throw e5;
-
             // 7. Delete PO line items
             const { error: e6 } = await adminSupabase
                 .from('purchase_order_items')
@@ -1141,7 +1134,8 @@ export class POBlockService {
      */
     static async saveTransportRequirementVehicles(
         requirementId: string,
-        vehicles: Array<{ vehicle_id: string; quantity: number; notes?: string }>
+        vehicles: Array<{ vehicle_id: string; quantity: number; notes?: string }>,
+        tourIdParam?: string
     ): Promise<void> {
         const adminSupabase = createAdminClient();
 
@@ -1164,6 +1158,127 @@ export class POBlockService {
                 .from('transport_requirement_vehicles')
                 .insert(payload);
             if (insErr) throw insErr;
+        }
+
+        // Sync assigned vehicles directly to tour_itinerary_transports for ALL itinerary dates of the tour
+        try {
+            let activeTourId = tourIdParam;
+
+            if (!activeTourId) {
+                const { data: reqData } = await adminSupabase
+                    .from('transport_requirements')
+                    .select('tour_id')
+                    .eq('id', requirementId)
+                    .single();
+                activeTourId = reqData?.tour_id;
+            }
+
+            if (activeTourId) {
+                // Fetch tour's travel_style column directly from tours table (with fallback to planner_data / tourist_profiles)
+                const { data: tourData } = await adminSupabase
+                    .from('tours')
+                    .select('travel_style, tourist_id, planner_data')
+                    .eq('id', activeTourId)
+                    .single();
+
+                let profileStyle: string | null = null;
+                if (tourData?.tourist_id) {
+                    const { data: tp } = await adminSupabase
+                        .from('tourist_profiles')
+                        .select('travel_style')
+                        .eq('id', tourData.tourist_id)
+                        .maybeSingle();
+                    profileStyle = tp?.travel_style || null;
+                }
+
+                const plannerStyle = (tourData?.planner_data as any)?.profile?.travelStyle || (tourData?.planner_data as any)?.profile?.travel_style;
+                const rawStyle = (tourData as any)?.travel_style || profileStyle || plannerStyle || 'Luxury';
+
+                // Fetch ALL itinerary days for this tour
+                const { data: tourItineraries } = await adminSupabase
+                    .from('tour_itineraries')
+                    .select('id, day_number')
+                    .eq('tour_id', activeTourId);
+
+                const allItinIds = (tourItineraries || []).map((it: any) => it.id);
+
+                if (allItinIds.length > 0) {
+                    // Fetch app settings for travel style vehicle day rate and transport markup
+                    const { data: settingsRows } = await adminSupabase
+                        .from('app_settings')
+                        .select('setting_key, setting_value');
+
+                    const appSettingsMap: Record<string, any> = {};
+                    (settingsRows || []).forEach((s: any) => {
+                        appSettingsMap[s.setting_key] = s.setting_value;
+                    });
+
+                    const styleKeyMap: Record<string, string> = {
+                        'Regular': 'regular',
+                        'Standard': 'regular',
+                        'Premium': 'premium',
+                        'Luxury': 'luxury',
+                        'Ultra VIP': 'ultra_vip',
+                        'Ultra-VIP': 'ultra_vip'
+                    };
+                    const styleKey = styleKeyMap[rawStyle] || rawStyle.toLowerCase().replace(/[^a-z_]/g, '_') || 'luxury';
+                    const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
+                    const appVehicleDayRate = Number(appSettingsMap[vehicleDayRateKey]) || 0;
+                    const transportMarkupPercent = Number(appSettingsMap['transport_markup']) || 0;
+                    const markupFactor = 1 + (transportMarkupPercent / 100);
+
+                    // Clear previous vehicle records for ALL itinerary days of this tour
+                    await adminSupabase
+                        .from('tour_itinerary_transports')
+                        .delete()
+                        .in('tour_itinerary_id', allItinIds);
+
+                    if (vehicles.length > 0) {
+                        const vehicleIds = vehicles.map(v => v.vehicle_id);
+                        const { data: vehicleDetails } = await adminSupabase
+                            .from('transport_vehicles')
+                            .select('id, provider_id, day_rate')
+                            .in('id', vehicleIds);
+
+                        const transportRows: any[] = [];
+                        allItinIds.forEach(itinId => {
+                            vehicles.forEach(v => {
+                                const detail = (vehicleDetails || []).find((vd: any) => vd.id === v.vehicle_id);
+                                const qty = Number(v.quantity) || 1;
+                                const contractedRate = (Number(detail?.day_rate) || 0) * qty;
+
+                                // Charged rate = travel_style_vehicle_day_rate * (1 + transport_markup / 100) * quantity
+                                const baseDayRate = appVehicleDayRate > 0 ? appVehicleDayRate : (Number(detail?.day_rate) || 0);
+                                const chargedRate = baseDayRate * markupFactor * qty;
+
+                                transportRows.push({
+                                    tour_id: activeTourId,
+                                    tour_itinerary_id: itinId,
+                                    transport_provider_id: detail?.provider_id || null,
+                                    vehicle_id: v.vehicle_id,
+                                    contracted_per_day_rate: contractedRate,
+                                    charged_per_day_rate: chargedRate,
+                                    notes: v.notes || null,
+                                    updated_at: new Date().toISOString()
+                                });
+                            });
+                        });
+
+                        if (transportRows.length > 0) {
+                            const { error: insError } = await adminSupabase
+                                .from('tour_itinerary_transports')
+                                .insert(transportRows);
+                            if (insError) {
+                                console.error('Error inserting into tour_itinerary_transports:', insError);
+                            } else {
+                                console.log(`[POBlockService] Successfully synced ${transportRows.length} vehicle transport records to tour_itinerary_transports for tour ${activeTourId}`);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (syncErr) {
+            console.error('Failed syncing vehicle assignments to tour_itinerary_transports:', syncErr);
         }
     }
 }

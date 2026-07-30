@@ -668,6 +668,21 @@ export interface TourDailyDriver {
     updated_at?: string;
 }
 
+export interface TourDailyTransport {
+    id?: string;
+    tour_id?: string;
+    tour_itinerary_id?: string;
+    day_number: number;
+    transport_provider_id: string;
+    vehicle_id?: string;
+    per_day_rate: number;
+    excess_mileage_cost: number;
+    other_allowance: number;
+    notes?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
 
 
 

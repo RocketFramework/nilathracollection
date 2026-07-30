@@ -11,19 +11,7 @@ export class FinanceService {
             .from('purchase_orders')
             .select(`
                 *,
-                items:purchase_order_items(
-                    *,
-                    transport_legs:purchase_order_daily_transport_items(
-                        *,
-                        transport_requirement:transport_requirements(
-                            *,
-                            transport_requirement_vehicles(
-                                *,
-                                vehicle:transport_vehicles(*)
-                            )
-                        )
-                    )
-                ),
+                items:purchase_order_items(*),
                 invoices:supplier_invoices(
                     *,
                     items:supplier_invoice_items(*),

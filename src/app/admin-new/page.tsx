@@ -84,6 +84,7 @@ import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, B
 import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { TourDailyDriverDTO } from '../../dtos/tour-daily-driver.dto';
+import { TourDailyTransportDTO } from '../../dtos/tour-daily-transport.dto';
 import { generateCustomerInvoicePdf } from '../../utils/customer-invoice-pdf';
 import { generateCustomerPaymentReceiptPdf } from '../../utils/customer-payment-receipt-pdf';
 import {
@@ -91,6 +92,8 @@ import {
   saveTouristDataAction,
   getTourDailyDriversAction,
   saveTourDailyDriversAction,
+  getTourDailyTransportsAction,
+  saveTourDailyTransportsAction,
   getActivitiesAction,
   getAppMarkupsAction,
   getTourDataAction,
@@ -764,6 +767,7 @@ function PlannerWizardWorkspace() {
   const [itinerary, setItinerary] = useState<InternalItineraryBlock[]>([]);
   const [defaultDriverId, setDefaultDriverId] = useState<string>('');
   const [dailyDriverAssignments, setDailyDriverAssignments] = useState<Record<number, TourDailyDriverDTO>>({});
+  const [dailyTransportAssignments, setDailyTransportAssignments] = useState<Record<number, TourDailyTransportDTO[]>>({});
 
   const handleAssignDefaultDriverToAllDays = (driverId: string) => {
     if (!driverId) return;
@@ -1774,10 +1778,6 @@ function PlannerWizardWorkspace() {
               act.hotel_room_id !== newRoomId ||
               act.quantity !== totalRooms ||
               act.meal_plan !== mealPlan ||
-              act.charged_unit_price !== unitPrice ||
-              act.charged_total_price !== totalAgreedPrice ||
-              act.contracted_price !== finalContractedUnitPrice ||
-              act.contracted_total_price !== finalContractedPrice ||
               act.location_name !== newLocationName ||
               act.description !== expectedDescription ||
               act.single_room_id !== single_room_id ||
@@ -1798,10 +1798,6 @@ function PlannerWizardWorkspace() {
                 hotel_room_id: newRoomId,
                 quantity: totalRooms,
                 meal_plan: mealPlan,
-                charged_unit_price: unitPrice,
-                charged_total_price: totalAgreedPrice,
-                contracted_price: finalContractedUnitPrice,
-                contracted_total_price: finalContractedPrice,
                 location_name: newLocationName,
                 description: expectedDescription,
                 single_room_id,
@@ -1817,15 +1813,10 @@ function PlannerWizardWorkspace() {
               };
             }
           } else {
-            // No accommodation bound for this night! Clear hotel-related fields.
+            // No accommodation bound for this night! Clear room selection fields but preserve activity prices.
             if (
               act.hotel_id !== null ||
               act.hotel_room_id !== null ||
-              act.quantity !== 1 ||
-              act.charged_unit_price !== null ||
-              act.charged_total_price !== null ||
-              act.contracted_price !== null ||
-              act.contracted_total_price !== null ||
               act.single_room_id !== null ||
               act.single_room_count !== 0 ||
               act.double_room_id !== null ||
@@ -1842,11 +1833,6 @@ function PlannerWizardWorkspace() {
                 ...act,
                 hotel_id: null,
                 hotel_room_id: null,
-                quantity: 1,
-                charged_unit_price: null,
-                charged_total_price: null,
-                contracted_price: null,
-                contracted_total_price: null,
                 single_room_id: null,
                 single_room_count: 0,
                 double_room_id: null,
@@ -2893,8 +2879,17 @@ function PlannerWizardWorkspace() {
             // Find matching row in tour_itinerary_drivers for this driver and day
             const row = dailyDriverRows.find((r: any) => r.driver_id === driverId && Number(r.day_number) === dayNum);
             if (row) {
-              const contractedTotal = Number(row.contracted_per_day_rate ?? 0);
-              const chargedTotal = Number(row.charged_per_day_rate ?? row.contracted_per_day_rate ?? 0);
+              const contractedTotal =
+                Number(row.contracted_per_day_rate ?? row.per_day_rate ?? 0) +
+                Number(row.contracted_accommodation_cost ?? row.accommodation_cost ?? 0) +
+                Number(row.contracted_meal_cost ?? row.meal_cost ?? 0) +
+                Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
+
+              const chargedTotal =
+                Number(row.charged_per_day_rate ?? row.contracted_per_day_rate ?? row.per_day_rate ?? 0) +
+                Number(row.charged_accommodation_cost ?? row.contracted_accommodation_cost ?? row.accommodation_cost ?? 0) +
+                Number(row.charged_meal_cost ?? row.contracted_meal_cost ?? row.meal_cost ?? 0) +
+                Number(row.charged_other_allowance ?? row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
               initialRates[driverId][dayNum] = {
                 rateType: row.notes || 'Driver Agreement Rate',
@@ -2958,7 +2953,8 @@ function PlannerWizardWorkspace() {
             rfpEmailsRes,
             blocksRes,
             rebuildStatusRes,
-            dailyDriversRes
+            dailyDriversRes,
+            dailyTransportsRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -2972,7 +2968,8 @@ function PlannerWizardWorkspace() {
             getRfpEmailsForTourAction(activeTourId),
             getPOBlocksAction(activeTourId),
             getTourPORebuildStatusAction(activeTourId),
-            getTourDailyDriversAction(activeTourId)
+            getTourDailyDriversAction(activeTourId),
+            getTourDailyTransportsAction(activeTourId)
           ]);
 
           if (dailyDriversRes?.success && dailyDriversRes.drivers) {
@@ -2987,6 +2984,17 @@ function PlannerWizardWorkspace() {
             if (firstDriver && dailyDriversRes.drivers.every((d: TourDailyDriverDTO) => d.driver_id === firstDriver)) {
               setDefaultDriverId(firstDriver);
             }
+          }
+
+          if (dailyTransportsRes?.success && dailyTransportsRes.transports) {
+            const transportMap: Record<number, TourDailyTransportDTO[]> = {};
+            dailyTransportsRes.transports.forEach((t: TourDailyTransportDTO) => {
+              if (t.day_number) {
+                if (!transportMap[t.day_number]) transportMap[t.day_number] = [];
+                transportMap[t.day_number].push(t);
+              }
+            });
+            setDailyTransportAssignments(transportMap);
           }
 
           if (touristRes.success && touristRes.data) {
@@ -3730,7 +3738,7 @@ function PlannerWizardWorkspace() {
   };
 
   // Profit & Loss Analysis states & calculations
-  const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(true);
+  const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(false);
 
   const profitLossReport = useMemo(() => {
     // 1. Calculate allocated customer invoice details for each activity first
@@ -3779,18 +3787,205 @@ function PlannerWizardWorkspace() {
       if (currency === 'USD') return total;
       if (currency === 'LKR') return exchangeRate > 0 ? total / exchangeRate : total;
       return total;
-    };    // 2. Map Supplier side (Daily Activity as base)
-    const supplierPLItems: ProfitLossLineItem[] = dbActivities.map(da => {
-      const contractedPrice = da.contracted_price || 0;
-      const contractedTotal = contractedPrice * (da.quantity || 1);
-      const chargedPrice = da.charged_unit_price || 0;
-      const chargedTotal = da.charged_total_price || (chargedPrice * (da.quantity || 1));
+    };    // 2. Map Supplier side (Daily Activities + Driver Selection assignments)
+    const supplierPLItems: ProfitLossLineItem[] = dbActivities
+      .filter(da => da.activity_type !== 'driver' && !(da.activity_type === 'travel' && !da.transport_id))
+      .map(da => {
+        const dayNum = da.tour_itineraries?.day_number || da.day_number || 1;
 
-      // Find linked PO items
+        let contractedTotal = da.contracted_total_price !== undefined && da.contracted_total_price !== null
+          ? Number(da.contracted_total_price)
+          : (Number(da.contracted_price) || 0) * (da.quantity || 1);
+        let contractedPrice = Number(da.contracted_price) || (da.quantity > 0 ? contractedTotal / da.quantity : contractedTotal);
+
+        let chargedTotal = da.charged_total_price !== undefined && da.charged_total_price !== null
+          ? Number(da.charged_total_price)
+          : (Number(da.charged_unit_price) || 0) * (da.quantity || 1);
+        let chargedPrice = Number(da.charged_unit_price) || (da.quantity > 0 ? chargedTotal / da.quantity : chargedTotal);
+
+        // Find linked PO items
+        const linkedPOItems = purchaseOrders
+          .filter(po => po.status !== 'Cancelled')
+          .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
+          .filter(item => item.daily_activity_id === da.id);
+
+        let invoicedTotal = 0;
+        let invoicedQty = 0;
+        let poNumber: string | null = null;
+        let supplierInvoiceNumber: string | null = null;
+        let supplierInvoiceCurrency: string | null = null;
+        let supplierInvoiceRate: number | null = null;
+
+        linkedPOItems.forEach(poItem => {
+          poNumber = poItem.po.po_number || poNumber;
+
+          // Sum invoice items
+          const invoices = poItem.po.invoices || [];
+          invoices.forEach((inv: any) => {
+            const invItems = inv.items || [];
+            const matchingInvItems = invItems.filter((ii: any) => ii.purchase_order_item_id === poItem.id);
+
+            matchingInvItems.forEach((ii: any) => {
+              const itemTotalUSD = getInvoiceItemAmountInUSD(ii, Number(inv.exchange_rate) || 1.0, inv.currency || 'USD');
+              invoicedTotal += itemTotalUSD;
+              invoicedQty += ii.quantity || 0;
+
+              supplierInvoiceNumber = inv.invoice_number || supplierInvoiceNumber;
+              supplierInvoiceCurrency = inv.currency || supplierInvoiceCurrency;
+              supplierInvoiceRate = Number(inv.exchange_rate) || supplierInvoiceRate;
+            });
+          });
+        });
+
+        const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+        const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+        const margin = chargedTotal - contractedTotal;
+        const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+
+        const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+        // Resolve vendor name and contact details based on activity_type and respective foreign key in daily_activities
+        let vendorName = 'No Vendor Linked';
+        let vendorPhone: string | null = null;
+        let vendorEmail: string | null = null;
+        let reservationContactName: string | null = null;
+        let reservationContactPhone: string | null = null;
+        let reservationContactEmail: string | null = null;
+        let salesContactName: string | null = null;
+        let salesContactPhone: string | null = null;
+        let salesContactEmail: string | null = null;
+
+        if (da.activity_type === 'travel') {
+          const tp = masterData.transportProviders?.find((t: any) => t.id === da.transport_id);
+          if (tp) {
+            vendorName = tp.name;
+            vendorPhone = tp.phone || null;
+            vendorEmail = tp.email || null;
+          }
+        } else if (da.activity_type === 'sleep') {
+          const hotel = masterData.hotels?.find((h: any) => h.id === da.hotel_id);
+          if (hotel) {
+            vendorName = hotel.name;
+            vendorPhone = hotel.reservation_agent_contact || hotel.sales_agent_contact || null;
+            vendorEmail = hotel.reservation_email || hotel.sales_email || null;
+            reservationContactName = hotel.reservation_agent_name || null;
+            reservationContactPhone = hotel.reservation_agent_contact || null;
+            reservationContactEmail = hotel.reservation_email || null;
+            salesContactName = hotel.sales_agent_name || null;
+            salesContactPhone = hotel.sales_agent_contact || null;
+            salesContactEmail = hotel.sales_email || null;
+          }
+        } else if (da.activity_type === 'meal') {
+          const rest = masterData.restaurants?.find((r: any) => r.id === da.restaurant_id);
+          if (rest) {
+            vendorName = rest.name;
+            vendorPhone = rest.contact_number || null;
+            vendorEmail = rest.email || null;
+          }
+        } else if (da.activity_type === 'guide') {
+          const guide = masterData.guides?.find((g: any) => g.id === da.guide_id);
+          if (guide) {
+            vendorName = guide.full_name || guide.name;
+            vendorPhone = guide.phone || null;
+            vendorEmail = guide.email || null;
+          }
+        } else {
+          const vendor = masterData.vendors?.find((v: any) => v.id === da.vendor_id);
+          if (vendor) {
+            vendorName = vendor.name;
+            vendorPhone = vendor.phone || null;
+            vendorEmail = vendor.email || null;
+          }
+        }
+
+        // Fallback to PO vendor name and contact details
+        if (vendorName === 'No Vendor Linked' && linkedPOItems.length > 0) {
+          const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
+          if (poWithVendor) {
+            vendorName = poWithVendor.po.vendor_name;
+            vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
+            vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+          }
+        }
+
+        return {
+          dailyActivityId: da.id,
+          dayNumber: dayNum,
+          date: da.tour_itineraries?.date || null,
+          title: da.title || '',
+          vendorName,
+          vendorType: da.activity_type || 'other',
+          quantity: da.quantity || 1,
+          contractedPrice,
+          contractedTotal,
+          chargedPrice,
+          chargedTotal,
+          invoicedQty,
+          invoicedUnitPrice,
+          invoicedTotal,
+          invoicedDiscrepancy,
+          margin,
+          marginPercentage,
+          poNumber,
+          supplierInvoiceNumber,
+          supplierInvoiceCurrency,
+          supplierInvoiceRate,
+          vendorPhone,
+          vendorEmail,
+          reservationContactName,
+          reservationContactPhone,
+          reservationContactEmail,
+          salesContactName,
+          salesContactPhone,
+          salesContactEmail,
+          hasDiscrepancy
+        };
+      });
+
+    // 2b. Map Driver line items (Exactly 1 record per day of the tour, matching driver-selection step)
+    const numDaysInTour = touristData?.preferences?.duration_days || itinerary.reduce((max, b) => Math.max(max, Number(b.dayNumber) || 1), 1);
+
+    for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
+      const driverAss = dailyDriverAssignments[dayNum];
+      const dayTravelActs = dbActivities.filter(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum && (a.activity_type === 'travel' || a.activity_type === 'driver' || a.driver_id));
+
+      let contractedTotal = 0;
+      let chargedTotal = 0;
+
+      if (driverAss) {
+        contractedTotal =
+          Number(driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
+          Number(driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
+          Number(driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
+          Number(driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
+
+        chargedTotal =
+          Number(driverAss.charged_per_day_rate ?? driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
+          Number(driverAss.charged_accommodation_cost ?? driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
+          Number(driverAss.charged_meal_cost ?? driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
+          Number(driverAss.charged_other_allowance ?? driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
+      } else if (dayTravelActs.length > 0) {
+        let sumContracted = 0;
+        let sumCharged = 0;
+        dayTravelActs.forEach(act => {
+          sumContracted += Number(act.contracted_total_price ?? act.contracted_price ?? 0);
+          sumCharged += Number(act.charged_total_price ?? act.charged_unit_price ?? act.contracted_price ?? 0);
+        });
+        contractedTotal = sumContracted > 0 ? sumContracted : 15;
+        chargedTotal = sumCharged > 0 ? sumCharged : contractedTotal;
+      } else {
+        contractedTotal = 15;
+        chargedTotal = 15;
+      }
+
+      const contractedPrice = contractedTotal;
+      const chargedPrice = chargedTotal;
+
+      // Find linked PO items for driver/transport on this day
       const linkedPOItems = purchaseOrders
-        .filter(po => po.status !== 'Cancelled')
+        .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'driver' || po.vendor_type === 'transport' || (po.vendor_name && po.vendor_name.toLowerCase().includes('driver'))))
         .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
-        .filter(item => item.daily_activity_id === da.id);
+        .filter(item => Number(item.day_number) === dayNum);
 
       let invoicedTotal = 0;
       let invoicedQty = 0;
@@ -3801,18 +3996,14 @@ function PlannerWizardWorkspace() {
 
       linkedPOItems.forEach(poItem => {
         poNumber = poItem.po.po_number || poNumber;
-
-        // Sum invoice items
         const invoices = poItem.po.invoices || [];
         invoices.forEach((inv: any) => {
           const invItems = inv.items || [];
           const matchingInvItems = invItems.filter((ii: any) => ii.purchase_order_item_id === poItem.id);
-
           matchingInvItems.forEach((ii: any) => {
             const itemTotalUSD = getInvoiceItemAmountInUSD(ii, Number(inv.exchange_rate) || 1.0, inv.currency || 'USD');
             invoicedTotal += itemTotalUSD;
             invoicedQty += ii.quantity || 0;
-
             supplierInvoiceNumber = inv.invoice_number || supplierInvoiceNumber;
             supplierInvoiceCurrency = inv.currency || supplierInvoiceCurrency;
             supplierInvoiceRate = Number(inv.exchange_rate) || supplierInvoiceRate;
@@ -3824,75 +4015,15 @@ function PlannerWizardWorkspace() {
       const invoicedDiscrepancy = invoicedTotal - contractedTotal;
       const margin = chargedTotal - contractedTotal;
       const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
-
-      // A discrepancy exists if:
-      // - Invoiced total doesn't match agreed cost (contracted total) by more than $0.05
-      // - Or if agreed cost is > 0 but invoiced is 0 (delayed invoice)
       const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
 
-      // Resolve vendor name and contact details based on activity_type and respective foreign key in daily_activities
-      let vendorName = 'No Vendor Linked';
-      let vendorPhone: string | null = null;
-      let vendorEmail: string | null = null;
-      let reservationContactName: string | null = null;
-      let reservationContactPhone: string | null = null;
-      let reservationContactEmail: string | null = null;
-      let salesContactName: string | null = null;
-      let salesContactPhone: string | null = null;
-      let salesContactEmail: string | null = null;
+      const driverId = driverAss?.driver_id || dayTravelActs.find(a => a.driver_id)?.driver_id;
+      const driverObj = driverId ? masterData.drivers?.find((d: any) => d.id === driverId) : null;
+      let vendorName = driverObj ? (driverObj.full_name || driverObj.name || `${driverObj.first_name || ''} ${driverObj.last_name || ''}`.trim()) : 'Driver';
+      let vendorPhone = driverObj?.phone || null;
+      let vendorEmail = driverObj?.email || null;
 
-      if (da.activity_type === 'travel') {
-        const tp = masterData.transportProviders?.find((t: any) => t.id === da.transport_id);
-        if (tp) {
-          vendorName = tp.name;
-          vendorPhone = tp.phone || null;
-          vendorEmail = tp.email || null;
-        }
-      } else if (da.activity_type === 'sleep') {
-        const hotel = masterData.hotels?.find((h: any) => h.id === da.hotel_id);
-        if (hotel) {
-          vendorName = hotel.name;
-          vendorPhone = hotel.reservation_agent_contact || hotel.sales_agent_contact || null;
-          vendorEmail = hotel.reservation_email || hotel.sales_email || null;
-          reservationContactName = hotel.reservation_agent_name || null;
-          reservationContactPhone = hotel.reservation_agent_contact || null;
-          reservationContactEmail = hotel.reservation_email || null;
-          salesContactName = hotel.sales_agent_name || null;
-          salesContactPhone = hotel.sales_agent_contact || null;
-          salesContactEmail = hotel.sales_email || null;
-        }
-      } else if (da.activity_type === 'meal') {
-        const rest = masterData.restaurants?.find((r: any) => r.id === da.restaurant_id);
-        if (rest) {
-          vendorName = rest.name;
-          vendorPhone = rest.contact_number || null;
-          vendorEmail = rest.email || null;
-        }
-      } else if (da.activity_type === 'guide') {
-        const guide = masterData.guides?.find((g: any) => g.id === da.guide_id);
-        if (guide) {
-          vendorName = guide.full_name || guide.name;
-          vendorPhone = guide.phone || null;
-          vendorEmail = guide.email || null;
-        }
-      } else if (da.activity_type === 'driver') {
-        const driver = masterData.drivers?.find((d: any) => d.id === da.driver_id);
-        if (driver) {
-          vendorName = driver.full_name || driver.name;
-          vendorPhone = driver.phone || null;
-          vendorEmail = driver.email || null;
-        }
-      } else {
-        const vendor = masterData.vendors?.find((v: any) => v.id === da.vendor_id);
-        if (vendor) {
-          vendorName = vendor.name;
-          vendorPhone = vendor.phone || null;
-          vendorEmail = vendor.email || null;
-        }
-      }
-
-      // Fallback to PO vendor name and contact details
-      if (vendorName === 'No Vendor Linked' && linkedPOItems.length > 0) {
+      if ((vendorName === 'Driver' || !vendorName) && linkedPOItems.length > 0) {
         const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
         if (poWithVendor) {
           vendorName = poWithVendor.po.vendor_name;
@@ -3901,14 +4032,23 @@ function PlannerWizardWorkspace() {
         }
       }
 
-      return {
-        dailyActivityId: da.id,
-        dayNumber: da.tour_itineraries?.day_number || da.day_number || 1,
-        date: da.tour_itineraries?.date || null,
-        title: da.title || '',
+      const matchedActivity = dbActivities.find(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum);
+      const dateVal = matchedActivity?.tour_itineraries?.date || matchedActivity?.service_date || (touristData?.preferences?.arrival_date ? (() => {
+        try {
+          const d = new Date(touristData.preferences.arrival_date);
+          d.setDate(d.getDate() + (dayNum - 1));
+          return d.toISOString().split('T')[0];
+        } catch { return null; }
+      })() : null);
+
+      supplierPLItems.push({
+        dailyActivityId: driverAss?.id || `driver-day-${dayNum}`,
+        dayNumber: dayNum,
+        date: dateVal,
+        title: `Driver Services (Day ${dayNum})`,
         vendorName,
-        vendorType: da.activity_type || 'other',
-        quantity: da.quantity || 1,
+        vendorType: 'driver',
+        quantity: 1,
         contractedPrice,
         contractedTotal,
         chargedPrice,
@@ -3925,15 +4065,197 @@ function PlannerWizardWorkspace() {
         supplierInvoiceRate,
         vendorPhone,
         vendorEmail,
-        reservationContactName,
-        reservationContactPhone,
-        reservationContactEmail,
-        salesContactName,
-        salesContactPhone,
-        salesContactEmail,
+        reservationContactName: null,
+        reservationContactPhone: null,
+        reservationContactEmail: null,
+        salesContactName: null,
+        salesContactPhone: null,
+        salesContactEmail: null,
         hasDiscrepancy
-      };
-    });
+      });
+    }
+
+    // 2c. Map Transport & Transfers line items (Grouped by day, matching transport-provider step)
+    for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
+      const travelLegs = dbActivities.filter(a => a.activity_type === 'travel' && (a.tour_itineraries?.day_number || a.day_number || 1) === dayNum);
+      const transportAssList = dailyTransportAssignments[dayNum] || [];
+      if (travelLegs.length === 0 && transportAssList.length === 0) continue;
+
+      const pathString = travelLegs.length > 0 ? travelLegs.map(t => t.title || t.location_name || 'Travel Leg').join(' → ') : `Day ${dayNum} Transport`;
+      const totalKm = travelLegs.reduce((sum, t) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+
+      const firstLeg = travelLegs[0];
+      const dateVal = firstLeg?.tour_itineraries?.date || firstLeg?.service_date || (touristData?.preferences?.arrival_date ? (() => {
+        try {
+          const d = new Date(touristData.preferences.arrival_date);
+          d.setDate(d.getDate() + (dayNum - 1));
+          return d.toISOString().split('T')[0];
+        } catch { return null; }
+      })() : null);
+
+      // Find linked PO items for transport on this day
+      const linkedPOItems = purchaseOrders
+        .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'transport' || (po.vendor_name && po.vendor_name.toLowerCase().includes('fleet'))))
+        .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
+        .filter(item => Number(item.day_number) === dayNum || travelLegs.some(l => l.id === item.daily_activity_id));
+
+      let invoicedTotal = 0;
+      let invoicedQty = 0;
+      let poNumber: string | null = null;
+      let supplierInvoiceNumber: string | null = null;
+      let supplierInvoiceCurrency: string | null = null;
+      let supplierInvoiceRate: number | null = null;
+
+      linkedPOItems.forEach(poItem => {
+        poNumber = poItem.po.po_number || poNumber;
+        const invoices = poItem.po.invoices || [];
+        invoices.forEach((inv: any) => {
+          const invItems = inv.items || [];
+          const matchingInvItems = invItems.filter((ii: any) => ii.purchase_order_item_id === poItem.id);
+          matchingInvItems.forEach((ii: any) => {
+            const itemTotalUSD = getInvoiceItemAmountInUSD(ii, Number(inv.exchange_rate) || 1.0, inv.currency || 'USD');
+            invoicedTotal += itemTotalUSD;
+            invoicedQty += ii.quantity || 0;
+            supplierInvoiceNumber = inv.invoice_number || supplierInvoiceNumber;
+            supplierInvoiceCurrency = inv.currency || supplierInvoiceCurrency;
+            supplierInvoiceRate = Number(inv.exchange_rate) || supplierInvoiceRate;
+          });
+        });
+      });
+
+      if (transportAssList.length > 0) {
+        transportAssList.forEach((transportAss, idx) => {
+          const contractedTotal =
+            Number(transportAss.contracted_per_day_rate ?? transportAss.per_day_rate ?? 0) +
+            Number(transportAss.contracted_excess_mileage_cost ?? transportAss.excess_mileage_cost ?? 0) +
+            Number(transportAss.contracted_other_allowance ?? transportAss.other_allowance ?? 0);
+
+          const chargedTotal =
+            Number(transportAss.charged_per_day_rate ?? transportAss.contracted_per_day_rate ?? transportAss.per_day_rate ?? 0) +
+            Number(transportAss.charged_excess_mileage_cost ?? transportAss.contracted_excess_mileage_cost ?? transportAss.excess_mileage_cost ?? 0) +
+            Number(transportAss.charged_other_allowance ?? transportAss.contracted_other_allowance ?? transportAss.other_allowance ?? 0);
+
+          const contractedPrice = contractedTotal;
+          const chargedPrice = chargedTotal;
+
+          const tpId = transportAss?.transport_provider_id || travelLegs.find(t => t.transport_id)?.transport_id;
+          const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
+
+          let vendorName = tpObj ? tpObj.name : 'Transport Provider';
+          let vendorPhone = tpObj?.phone || null;
+          let vendorEmail = tpObj?.email || null;
+
+          if ((vendorName === 'Transport Provider' || !vendorName) && linkedPOItems.length > 0) {
+            const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
+            if (poWithVendor) {
+              vendorName = poWithVendor.po.vendor_name;
+              vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
+              vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+            }
+          }
+
+          const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+          const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+          const margin = chargedTotal - contractedTotal;
+          const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+          const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+          supplierPLItems.push({
+            dailyActivityId: transportAss.id || (firstLeg ? firstLeg.id : `transport-day-${dayNum}-${idx}`),
+            dayNumber: dayNum,
+            date: dateVal,
+            title: `${pathString}${totalKm > 0 ? ` (${totalKm} km)` : ''}${transportAssList.length > 1 ? ` [Vehicle ${idx + 1}]` : ''}`,
+            vendorName,
+            vendorType: 'travel',
+            quantity: 1,
+            contractedPrice,
+            contractedTotal,
+            chargedPrice,
+            chargedTotal,
+            invoicedQty,
+            invoicedUnitPrice,
+            invoicedTotal,
+            invoicedDiscrepancy,
+            margin,
+            marginPercentage,
+            poNumber,
+            supplierInvoiceNumber,
+            supplierInvoiceCurrency,
+            supplierInvoiceRate,
+            vendorPhone,
+            vendorEmail,
+            reservationContactName: null,
+            reservationContactPhone: null,
+            reservationContactEmail: null,
+            salesContactName: null,
+            salesContactPhone: null,
+            salesContactEmail: null,
+            hasDiscrepancy
+          });
+        });
+      } else {
+        const contractedTotal = travelLegs.reduce((sum, t) => sum + (Number(t.contracted_total_price ?? t.contracted_price) || 0), 0);
+        const chargedTotal = travelLegs.reduce((sum, t) => sum + (Number(t.charged_total_price ?? t.charged_unit_price ?? t.contracted_price) || 0), 0);
+
+        const contractedPrice = contractedTotal;
+        const chargedPrice = chargedTotal;
+
+        const tpId = travelLegs.find(t => t.transport_id)?.transport_id;
+        const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
+
+        let vendorName = tpObj ? tpObj.name : 'Transport Provider';
+        let vendorPhone = tpObj?.phone || null;
+        let vendorEmail = tpObj?.email || null;
+
+        if ((vendorName === 'Transport Provider' || !vendorName) && linkedPOItems.length > 0) {
+          const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
+          if (poWithVendor) {
+            vendorName = poWithVendor.po.vendor_name;
+            vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
+            vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+          }
+        }
+
+        const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+        const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+        const margin = chargedTotal - contractedTotal;
+        const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+        const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+        supplierPLItems.push({
+          dailyActivityId: firstLeg.id,
+          dayNumber: dayNum,
+          date: dateVal,
+          title: `${pathString}${totalKm > 0 ? ` (${totalKm} km)` : ''}`,
+          vendorName,
+          vendorType: 'travel',
+          quantity: 1,
+          contractedPrice,
+          contractedTotal,
+          chargedPrice,
+          chargedTotal,
+          invoicedQty,
+          invoicedUnitPrice,
+          invoicedTotal,
+          invoicedDiscrepancy,
+          margin,
+          marginPercentage,
+          poNumber,
+          supplierInvoiceNumber,
+          supplierInvoiceCurrency,
+          supplierInvoiceRate,
+          vendorPhone,
+          vendorEmail,
+          reservationContactName: null,
+          reservationContactPhone: null,
+          reservationContactEmail: null,
+          salesContactName: null,
+          salesContactPhone: null,
+          salesContactEmail: null,
+          hasDiscrepancy
+        });
+      }
+    }
 
     supplierPLItems.sort((a, b) => {
       if (a.dayNumber !== b.dayNumber) {
@@ -15864,116 +16186,244 @@ ${chauffeurHtml}
                           );
                         }
 
+                        const CATEGORY_MAP: Record<string, { label: string; order: number }> = {
+                          sleep: { label: 'Accommodations (Hotels)', order: 1 },
+                          accommodation: { label: 'Accommodations (Hotels)', order: 1 },
+                          travel: { label: 'Transport & Transfers', order: 2 },
+                          transport: { label: 'Transport & Transfers', order: 2 },
+                          meal: { label: 'Meals & Dining', order: 3 },
+                          restaurant: { label: 'Meals & Dining', order: 3 },
+                          activity: { label: 'Activities & Excursions', order: 4 },
+                          driver: { label: 'Driver Services', order: 5 },
+                          guide: { label: 'Tour Guide Services', order: 6 },
+                          other: { label: 'Other Supplier Expenses', order: 7 }
+                        };
+
+                        const groupedSupplierItems = (() => {
+                          const map: Record<string, {
+                            key: string;
+                            label: string;
+                            order: number;
+                            items: ProfitLossLineItem[];
+                            contractedTotal: number;
+                            chargedTotal: number;
+                            invoicedTotal: number;
+                            margin: number;
+                            discrepancyCount: number;
+                          }> = {};
+
+                          itemsToRender.forEach(item => {
+                            let key = (item.vendorType || 'other').toLowerCase();
+                            if (key === 'sleep' || key === 'accommodation') key = 'sleep';
+                            else if (key === 'travel' || key === 'transport') key = 'travel';
+                            else if (key === 'meal' || key === 'restaurant') key = 'meal';
+                            else if (key === 'activity') key = 'activity';
+                            else if (key === 'driver') key = 'driver';
+                            else if (key === 'guide') key = 'guide';
+                            else key = 'other';
+
+                            const info = CATEGORY_MAP[key] || { label: 'Other Supplier Expenses', order: 7 };
+
+                            if (!map[key]) {
+                              map[key] = {
+                                key,
+                                label: info.label,
+                                order: info.order,
+                                items: [],
+                                contractedTotal: 0,
+                                chargedTotal: 0,
+                                invoicedTotal: 0,
+                                margin: 0,
+                                discrepancyCount: 0
+                              };
+                            }
+
+                            const g = map[key];
+                            g.items.push(item);
+                            g.contractedTotal += item.contractedTotal || 0;
+                            g.chargedTotal += item.chargedTotal || 0;
+                            g.invoicedTotal += item.invoicedTotal || 0;
+                            g.margin += item.margin || 0;
+                            if (item.hasDiscrepancy) g.discrepancyCount += 1;
+                          });
+
+                          return Object.values(map).sort((a, b) => a.order - b.order);
+                        })();
+
                         return (
-                          <div className="overflow-x-auto border border-neutral-200 rounded-2xl bg-white shadow-sm">
-                            <table className="min-w-full divide-y divide-neutral-200 text-left text-xs">
-                              <thead className="bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                                <tr>
-                                  <th scope="col" className="px-4 py-3">Day / Service</th>
-                                  <th scope="col" className="px-4 py-3">Supplier Detail</th>
-                                  <th scope="col" className="px-4 py-3 text-right">Contracted Price & Total</th>
-                                  <th scope="col" className="px-4 py-3 text-right">Charged Price & Total</th>
-                                  <th scope="col" className="px-4 py-3 text-right">Margin & %</th>
-                                  <th scope="col" className="px-4 py-3 text-center">Status / Audit</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-neutral-100 text-neutral-700 font-medium">
-                                {itemsToRender.map((item, idx) => {
-                                  const isPendingInvoice = item.contractedTotal > 0 && item.invoicedTotal === 0;
-                                  const nextItem = itemsToRender[idx + 1];
-                                  const isLastItemOfDay = nextItem && nextItem.dayNumber !== item.dayNumber;
-                                  return (
-                                    <tr
-                                      key={item.dailyActivityId}
-                                      className={`hover:bg-neutral-50/50 transition-colors ${isLastItemOfDay ? 'border-b-2 border-neutral-300' : ''}`}
-                                    >
-                                      <td className="px-4 py-2">
-                                        <span className="font-semibold text-neutral-800 block">{item.title}</span>
-                                        <span className="block text-[10px] text-neutral-400 mt-0.5 font-mono">
-                                          Day {item.dayNumber} {item.date && `| ${item.date}`} | <span className="capitalize">{item.vendorType}</span> | Qty: {item.quantity}
+                          <div className="space-y-6">
+                            {groupedSupplierItems.map(group => {
+                              const groupMarginPct = group.chargedTotal > 0 ? (group.margin / group.chargedTotal) * 100 : 0;
+                              return (
+                                <div key={group.key} className="border border-neutral-200 rounded-3xl p-6 bg-[#FBFBFA]/50 space-y-5 shadow-sm hover:shadow-md transition-all">
+                                  {/* Category Card Header */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200/70 pb-4">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-800 font-bold">
+                                        <Receipt className="w-4 h-4" />
+                                      </div>
+                                      <div>
+                                        <h4 className="text-base font-serif font-bold text-neutral-900 flex items-center gap-2">
+                                          <span>{group.label}</span>
+                                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-neutral-200/70 text-neutral-700 font-sans">
+                                            {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                                          </span>
+                                        </h4>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      {group.discrepancyCount > 0 ? (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-red-100 text-red-800 border border-red-200">
+                                          <AlertCircle className="w-3.5 h-3.5" /> {group.discrepancyCount} {group.discrepancyCount === 1 ? 'Discrepancy' : 'Discrepancies'}
                                         </span>
-                                      </td>
-                                      <td className="px-4 py-2 space-y-0.5">
-                                        <span className="text-neutral-850 font-bold block">{item.vendorName}</span>
-                                        {item.poNumber && (
-                                          <span className="text-[10px] text-neutral-450 font-mono block">PO: {item.poNumber}</span>
-                                        )}
-                                        {item.supplierInvoiceNumber && (
-                                          <span className="text-[10px] text-neutral-450 font-mono block">Inv: {item.supplierInvoiceNumber} ({item.supplierInvoiceCurrency} @ {item.supplierInvoiceRate})</span>
-                                        )}
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
+                                          <Check className="w-3.5 h-3.5" /> All Reconciled
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
 
-                                        {/* Compact Contact details (single line) */}
-                                        {(() => {
-                                          const parts: string[] = [];
-                                          const rContact = item.reservationContactPhone || item.reservationContactEmail;
-                                          const sContact = item.salesContactPhone || item.salesContactEmail;
+                                  {/* 4-Column Financial Controlling Summary Grid */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border border-neutral-200/80 rounded-2xl shadow-xs">
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Contracted Buying Cost</span>
+                                      <span className="text-sm font-black text-neutral-800 font-mono">
+                                        ${group.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Charged Selling Price</span>
+                                      <span className="text-sm font-black text-neutral-800 font-mono">
+                                        ${group.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Net Margin ($ / %)</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className={`text-sm font-black font-mono ${group.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
+                                          ${group.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                        <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${groupMarginPct >= 10 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                          {groupMarginPct.toFixed(1)}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Invoiced Supplier Total</span>
+                                      <span className="text-sm font-black text-neutral-800 font-mono">
+                                        ${group.invoicedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  </div>
 
-                                          if (rContact) {
-                                            parts.push(`R: ${rContact}`);
-                                          }
-                                          if (sContact) {
-                                            parts.push(`S: ${sContact}`);
-                                          }
-
-                                          if (parts.length === 0 && (item.vendorPhone || item.vendorEmail)) {
-                                            parts.push(`C: ${item.vendorPhone || item.vendorEmail}`);
-                                          }
-
-                                          if (parts.length === 0) return null;
-
+                                  {/* Line-by-Line Detail Table */}
+                                  <div className="overflow-x-auto border border-neutral-200/80 rounded-2xl bg-white shadow-xs">
+                                    <table className="min-w-full divide-y divide-neutral-200 text-left text-xs">
+                                      <thead className="bg-neutral-50 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                                        <tr>
+                                          <th scope="col" className="px-4 py-3">Service / Activity</th>
+                                          <th scope="col" className="px-4 py-3">Supplier Detail</th>
+                                          <th scope="col" className="px-4 py-3 text-right">Contracted Price & Total</th>
+                                          <th scope="col" className="px-4 py-3 text-right">Charged Price & Total</th>
+                                          <th scope="col" className="px-4 py-3 text-right">Margin & %</th>
+                                          <th scope="col" className="px-4 py-3 text-center">Status / Audit</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-neutral-100 text-neutral-700 font-medium">
+                                        {group.items.map((item, idx) => {
+                                          const isPendingInvoice = item.contractedTotal > 0 && item.invoicedTotal === 0;
+                                          const isLastInGroup = idx === group.items.length - 1;
                                           return (
-                                            <span
-                                              className="block text-[9px] text-neutral-500 font-mono mt-0.5 whitespace-nowrap truncate max-w-[200px]"
-                                              title={parts.join(' | ')}
+                                            <tr
+                                              key={item.dailyActivityId}
+                                              className={`hover:bg-neutral-50/50 transition-colors ${isLastInGroup ? '' : 'border-b border-neutral-100'}`}
                                             >
-                                              {parts.join(' | ')}
-                                            </span>
+                                              <td className="px-4 py-2.5">
+                                                <span className="font-semibold text-neutral-800 block">{item.title}</span>
+                                                <span className="block text-[10px] text-neutral-400 mt-0.5 font-mono">
+                                                  Day {item.dayNumber} {item.date && `| ${item.date}`} | <span className="capitalize">{item.vendorType}</span> | Qty: {item.quantity}
+                                                </span>
+                                              </td>
+                                              <td className="px-4 py-2.5 space-y-0.5">
+                                                <span className="text-neutral-850 font-bold block">{item.vendorName}</span>
+                                                {item.poNumber && (
+                                                  <span className="text-[10px] text-neutral-450 font-mono block">PO: {item.poNumber}</span>
+                                                )}
+                                                {item.supplierInvoiceNumber && (
+                                                  <span className="text-[10px] text-neutral-450 font-mono block">Inv: {item.supplierInvoiceNumber} ({item.supplierInvoiceCurrency} @ {item.supplierInvoiceRate})</span>
+                                                )}
+
+                                                {/* Compact Contact details */}
+                                                {(() => {
+                                                  const parts: string[] = [];
+                                                  const rContact = item.reservationContactPhone || item.reservationContactEmail;
+                                                  const sContact = item.salesContactPhone || item.salesContactEmail;
+
+                                                  if (rContact) parts.push(`R: ${rContact}`);
+                                                  if (sContact) parts.push(`S: ${sContact}`);
+                                                  if (parts.length === 0 && (item.vendorPhone || item.vendorEmail)) {
+                                                    parts.push(`C: ${item.vendorPhone || item.vendorEmail}`);
+                                                  }
+                                                  if (parts.length === 0) return null;
+
+                                                  return (
+                                                    <span
+                                                      className="block text-[9px] text-neutral-500 font-mono mt-0.5 whitespace-nowrap truncate max-w-[200px]"
+                                                      title={parts.join(' | ')}
+                                                    >
+                                                      {parts.join(' | ')}
+                                                    </span>
+                                                  );
+                                                })()}
+                                              </td>
+                                              <td className="px-4 py-2.5 text-right font-mono text-neutral-850">
+                                                <div className="font-bold text-xs">${item.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.contractedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                              </td>
+                                              <td className="px-4 py-2.5 text-right font-mono text-neutral-850">
+                                                <div className="font-bold text-xs">${item.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.chargedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                              </td>
+                                              <td className="px-4 py-2.5 text-right font-mono">
+                                                <div className={`font-bold text-xs ${item.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
+                                                  ${item.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </div>
+                                                <div className="flex items-center justify-end gap-1 mt-0.5">
+                                                  {item.marginPercentage < 10 && (
+                                                    <span title="Margin below 10%">
+                                                      <Flag className="w-3 h-3 text-red-600 fill-red-600 animate-pulse" />
+                                                    </span>
+                                                  )}
+                                                  <span className={`text-[10px] font-bold ${item.marginPercentage >= 10 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {item.marginPercentage.toFixed(1)}%
+                                                  </span>
+                                                </div>
+                                              </td>
+                                              <td className="px-4 py-2.5 text-center">
+                                                {isPendingInvoice ? (
+                                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-800 border border-red-200">
+                                                    <AlertCircle className="w-3 h-3" /> Pending Invoice
+                                                  </span>
+                                                ) : item.invoicedDiscrepancy !== 0 ? (
+                                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title={`Agreed: $${item.contractedTotal} vs Invoiced: $${item.invoicedTotal}`}>
+                                                    <AlertCircle className="w-3 h-3" /> Invoice Diff: ${item.invoicedDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                  </span>
+                                                ) : (
+                                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
+                                                    <Check className="w-3 h-3" /> Reconciled
+                                                  </span>
+                                                )}
+                                              </td>
+                                            </tr>
                                           );
-                                        })()}
-                                      </td>
-                                      <td className="px-4 py-2 text-right font-mono text-neutral-850">
-                                        <div className="font-bold text-xs">${item.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                        <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.contractedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                      </td>
-                                      <td className="px-4 py-2 text-right font-mono text-neutral-850">
-                                        <div className="font-bold text-xs">${item.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                        <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.chargedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                      </td>
-                                      <td className="px-4 py-2 text-right font-mono">
-                                        <div className={`font-bold text-xs ${item.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
-                                          ${item.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </div>
-                                        <div className="flex items-center justify-end gap-1 mt-0.5">
-                                          {item.marginPercentage < 10 && (
-                                            <span title="Margin below 10%">
-                                              <Flag className="w-3 h-3 text-red-600 fill-red-600 animate-pulse" />
-                                            </span>
-                                          )}
-                                          <span className={`text-[10px] font-bold ${item.marginPercentage >= 10 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {item.marginPercentage.toFixed(1)}%
-                                          </span>
-                                        </div>
-                                      </td>
-                                      <td className="px-4 py-2 text-center">
-                                        {isPendingInvoice ? (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-800 border border-red-200">
-                                            <AlertCircle className="w-3 h-3" /> Pending Invoice
-                                          </span>
-                                        ) : item.invoicedDiscrepancy !== 0 ? (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title={`Agreed: $${item.contractedTotal} vs Invoiced: $${item.invoicedTotal}`}>
-                                            <AlertCircle className="w-3 h-3" /> Invoice Diff: ${item.invoicedDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                                          </span>
-                                        ) : (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
-                                            <Check className="w-3 h-3" /> Reconciled
-                                          </span>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })()}
@@ -20485,7 +20935,8 @@ ${chauffeurHtml}
 
                       const vehicleSaveRes = await saveTransportRequirementVehiclesAction(
                         requirementId,
-                        reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined }))
+                        reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined })),
+                        tourId
                       );
                       if (!vehicleSaveRes.success) {
                         console.error('[TransportSpecs] Vehicle save failed:', vehicleSaveRes.error);
@@ -20494,6 +20945,17 @@ ${chauffeurHtml}
                         const blocksRes = await getPOBlocksAction(tourId);
                         if (blocksRes.success && blocksRes.blocks) {
                           setPoBlocks(blocksRes.blocks);
+                        }
+                        const dailyTransportsRes = await getTourDailyTransportsAction(tourId);
+                        if (dailyTransportsRes?.success && dailyTransportsRes.transports) {
+                          const transportMap: Record<number, TourDailyTransportDTO[]> = {};
+                          dailyTransportsRes.transports.forEach((t: TourDailyTransportDTO) => {
+                            if (t.day_number) {
+                              if (!transportMap[t.day_number]) transportMap[t.day_number] = [];
+                              transportMap[t.day_number].push(t);
+                            }
+                          });
+                          setDailyTransportAssignments(transportMap);
                         }
                       }
 
