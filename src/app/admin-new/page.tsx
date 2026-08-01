@@ -22011,11 +22011,13 @@ function AIItineraryBuilder({
       return appSettings[fullKey] !== undefined ? Number(appSettings[fullKey]) : setting.defaultValue;
     };
 
-    // 3. Meal Cost (Lunch cost per tourist * pax)
+    // 3. Meal Cost
     const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
-    const meals = overrides.meals !== undefined
-      ? overrides.meals
-      : pax * lunchCostPerHead;
+    const dayMealBlocks = blocksForDay.filter(b => b.type === ItineraryBlockTypes.MEAL);
+    const baseMealsCost = dayMealBlocks.length > 0
+      ? dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0)
+      : (pax * lunchCostPerHead);
+    const meals = baseMealsCost;
 
     // 4. Transport Cost
     let dailyTransportCost = 0;
@@ -22076,9 +22078,7 @@ function AIItineraryBuilder({
       return isNaN(parsed) ? 0 : parsed;
     };
     const km = blocksForDay.reduce((sum, b) => sum + getBlockKm(b), 0);
-    const transport = overrides.transport !== undefined
-      ? overrides.transport
-      : dailyTransportCost;
+    const transport = dailyTransportCost;
 
     // 5. Concierge Cost (ticket, refreshment, seamless concierge)
     const conciergeCostPerHead = getTierValue(TierSettingDefinitions.CONCIERGE_COST);
@@ -24058,7 +24058,7 @@ function AIItineraryBuilder({
                 paxText?: string
               ) => {
                 const isEditing = editingDayField?.dayNum === activeDay && editingDayField?.field === field;
-                const isOverridden = tripData?.dayCostOverrides?.[activeDay]?.[field] !== undefined;
+                const isOverridden = field !== 'transport' && field !== 'meals' && tripData?.dayCostOverrides?.[activeDay]?.[field] !== undefined;
 
                 return (
                   <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-2 relative group min-h-[90px]">
@@ -24067,7 +24067,7 @@ function AIItineraryBuilder({
                         {icon}
                         <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
                       </div>
-                      {!isEditing && (
+                      {!isEditing && field !== 'transport' && field !== 'meals' && (
                         <button
                           onClick={() => {
                             setEditingDayField({ dayNum: activeDay, field });
@@ -24870,6 +24870,7 @@ function AIItineraryBuilder({
           masterData={masterData}
           dayCostOverrides={tripData?.dayCostOverrides}
           dailyDriverAssignments={dailyDriverAssignments}
+          dailyVehicleAssignments={dailyVehicleAssignments}
         />
       </div>
     </div>

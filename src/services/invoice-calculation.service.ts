@@ -33,13 +33,8 @@ export interface InvoiceCalculationParams {
     agencyFee?: number;
     total?: number;
   }>;
-  dailyDriverAssignments?: Record<number, {
-    per_day_rate?: number;
-    accommodation_cost?: number;
-    meal_cost?: number;
-    other_allowance?: number;
-    [key: string]: any;
-  }>;
+  dailyDriverAssignments?: Record<number, any[]>;
+  dailyVehicleAssignments?: Record<number, any[]>;
 }
 
 export class InvoiceCalculationService {
@@ -56,7 +51,8 @@ export class InvoiceCalculationService {
       flightsQuotedPrice = 0,
       customServiceFee,
       dayCostOverrides = {},
-      dailyDriverAssignments = {}
+      dailyDriverAssignments = {},
+      dailyVehicleAssignments = {}
     } = params;
 
     const invoiceItems: InvoiceItem[] = [];
@@ -144,11 +140,24 @@ export class InvoiceCalculationService {
       const baseMealsCost = dayMealBlocks.length > 0
         ? dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0)
         : (pax * lunchCostPerHead);
-      const mealsCost = overrides.meals !== undefined ? overrides.meals : baseMealsCost;
+      const mealsCost = baseMealsCost;
       mealsTotal += mealsCost;
 
       // 3. Transport
-      const dayTransportCost = overrides.transport !== undefined ? overrides.transport : baseDailyTransportCost;
+      let dayTransportCost = 0;
+      const assignedDrivers = dailyDriverAssignments[d] || [];
+      const assignedVehicles = dailyVehicleAssignments[d] || [];
+
+      if (assignedDrivers.length > 0 || assignedVehicles.length > 0) {
+        assignedDrivers.forEach((drv: any) => {
+          dayTransportCost += Number(drv.charged_per_day_rate ?? drv.contracted_per_day_rate ?? drv.per_day_rate ?? 0);
+        });
+        assignedVehicles.forEach((veh: any) => {
+          dayTransportCost += Number(veh.charged_per_day_rate ?? veh.contracted_per_day_rate ?? veh.per_day_rate ?? 0);
+        });
+      } else {
+        dayTransportCost = baseDailyTransportCost;
+      }
       transportTotal += dayTransportCost;
 
       // 4. Concierge
@@ -166,14 +175,15 @@ export class InvoiceCalculationService {
 
     // --- CATEGORY 1: ACCOMMODATION & MEALS ---
     const sleepMealTotal = hotelTotal + mealsTotal;
-    if (sleepMealTotal > 0 || sleepBlocks.length > 0) {
+    const sleepMealBlocks = itinerary.filter(b => b.type === 'sleep' || b.type === 'meal');
+    if (sleepMealTotal > 0 || sleepMealBlocks.length > 0) {
       const description = nights > 0 
         ? `Luxury Accommodation & Bespoke Dining throughout (${nights} Night${nights > 1 ? 's' : ''})`
         : "Luxury Accommodation & Bespoke Dining throughout";
       invoiceItems.push({
         description,
         amount: sleepMealTotal,
-        dailyActivityIds: sleepBlocks.map(b => b.id).filter(Boolean) as string[]
+        dailyActivityIds: sleepMealBlocks.map(b => b.id).filter(Boolean) as string[]
       });
     }
 
@@ -182,19 +192,7 @@ export class InvoiceCalculationService {
     const trainBlocks = itinerary.filter(b => b.type === 'train');
     const trainTotal = trainBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
-    // Sum driver charged costs (rate + accommodation + meals + allowances) across daily driver assignments
-    let driverAssignmentsChargedTotal = 0;
-    if (dailyDriverAssignments) {
-      Object.values(dailyDriverAssignments).forEach(assignment => {
-        const rate = Number(assignment?.charged_per_day_rate ?? assignment?.contracted_per_day_rate ?? assignment?.per_day_rate ?? 0);
-        const acc = Number(assignment?.charged_accommodation_cost ?? assignment?.contracted_accommodation_cost ?? assignment?.accommodation_cost ?? 0);
-        const meal = Number(assignment?.charged_meal_cost ?? assignment?.contracted_meal_cost ?? assignment?.meal_cost ?? 0);
-        const allow = Number(assignment?.charged_other_allowance ?? assignment?.contracted_other_allowance ?? assignment?.other_allowance ?? 0);
-        driverAssignmentsChargedTotal += (rate + acc + meal + allow);
-      });
-    }
-
-    transportTotal += trainTotal + driverAssignmentsChargedTotal;
+    transportTotal += trainTotal;
 
     const dailyActivityIdsTransport: string[] = [];
     const travelBlocks = itinerary.filter(b => b.type === 'travel' || b.type === 'train');

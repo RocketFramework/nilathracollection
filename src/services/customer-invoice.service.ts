@@ -86,17 +86,33 @@ export class CustomerInvoiceService {
         const travelStyle = tour?.travel_style || touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
         const durationDays = itineraries?.length || tour?.planner_data?.profile?.durationDays || 5;
 
-        // 6.5 Fetch tour daily drivers
-        const { data: driverRows } = await supabaseAdmin
-            .from('tour_itinerary_drivers')
-            .select('*, tour_itineraries!inner(day_number)')
-            .eq('tour_id', tourId);
+        // 6.5 Fetch tour daily drivers and vehicles
+        const [ { data: driverRows }, { data: vehicleRows } ] = await Promise.all([
+            supabaseAdmin
+                .from('tour_itinerary_drivers')
+                .select('*, tour_itineraries!inner(day_number)')
+                .eq('tour_id', tourId),
+            supabaseAdmin
+                .from('tour_itinerary_vehicles')
+                .select('*, tour_itineraries!inner(day_number)')
+                .eq('tour_id', tourId)
+        ]);
 
-        const dailyDriverAssignments: Record<number, any> = {};
+        const dailyDriverAssignments: Record<number, any[]> = {};
         (driverRows || []).forEach((d: any) => {
             const dayNum = d.tour_itineraries?.day_number;
             if (dayNum) {
-                dailyDriverAssignments[dayNum] = d;
+                if (!dailyDriverAssignments[dayNum]) dailyDriverAssignments[dayNum] = [];
+                dailyDriverAssignments[dayNum].push(d);
+            }
+        });
+
+        const dailyVehicleAssignments: Record<number, any[]> = {};
+        (vehicleRows || []).forEach((v: any) => {
+            const dayNum = v.tour_itineraries?.day_number;
+            if (dayNum) {
+                if (!dailyVehicleAssignments[dayNum]) dailyVehicleAssignments[dayNum] = [];
+                dailyVehicleAssignments[dayNum].push(v);
             }
         });
 
@@ -123,7 +139,8 @@ export class CustomerInvoiceService {
             flightsQuotedPrice: options.flightsQuotedPrice,
             customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined,
             dayCostOverrides: tour?.planner_data?.dayCostOverrides || {},
-            dailyDriverAssignments
+            dailyDriverAssignments,
+            dailyVehicleAssignments
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])

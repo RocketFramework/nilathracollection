@@ -19,6 +19,7 @@ interface ItineraryPdfTemplateNewProps {
   tripStatus?: string;
   dayCostOverrides?: Record<number, any>;
   dailyDriverAssignments?: Record<number, any>;
+  dailyVehicleAssignments?: Record<number, any>;
 }
 
 export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
@@ -36,7 +37,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     masterData,
     tripStatus,
     dayCostOverrides,
-    dailyDriverAssignments
+    dailyDriverAssignments,
+    dailyVehicleAssignments
   }, ref) => {
 
     const clientName = touristData.profile
@@ -311,7 +313,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       flightsQuotedPrice: 0,
       customServiceFee: undefined,
       dayCostOverrides: dayCostOverrides || {},
-      dailyDriverAssignments: dailyDriverAssignments || {}
+      dailyDriverAssignments: dailyDriverAssignments || {},
+      dailyVehicleAssignments: dailyVehicleAssignments || {}
     });
 
     console.log("PDF calculation debug:", {
