@@ -11086,8 +11086,13 @@ ${chauffeurHtml}
                           const blockActivities = block.daily_activities || [];
                           const travelItems = blockActivities.filter((a: any) => a.activity_type === 'travel');
 
-                          const selectedProviderId = (dailyTransportAssignments[block.dayNumber || 1] || [])[0]?.transport_provider_id;
-                          const provider = selectedProviderId ? masterData.transportProviders?.find((p: any) => p.id === selectedProviderId) : null;
+                          const selectedProviderId = block.transport_provider_id
+                            || block.daily_activities?.[0]?.transport_provider_id
+                            || (Object.values(dailyTransportAssignments).flat().find((t: any) => t?.transport_provider_id) as any)?.transport_provider_id
+                            || (dailyTransportAssignments[block.dayNumber || 1] || [])[0]?.transport_provider_id;
+                          const provider = selectedProviderId
+                            ? masterData.transportProviders?.find((p: any) => p.id === selectedProviderId)
+                            : (block.transport_provider || null);
 
                           const isPickerOpen = transportPickerOpenBlockId === block.id;
 
@@ -11647,7 +11652,16 @@ ${chauffeurHtml}
                                       const dateVal = firstLeg.tour_itineraries?.date || firstLeg.service_date;
 
                                       const totalDayDistance = legs.reduce((sum: number, t: any) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
-                                      const totalDayPrice = legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.charged_total_price) || 0), 0);
+
+                                      // Directly pull contracted_per_day_rate from tour_itinerary_vehicles
+                                      const assignedVehicles = dailyVehicleAssignments[dayNum] || [];
+                                      const vehicleContractedRate = assignedVehicles.reduce(
+                                        (sum: number, v: any) => sum + Number(v.contracted_per_day_rate || 0), 0
+                                      ) || (block.daily_vehicles || [])
+                                        .filter((v: any) => Number(v.tour_itineraries?.day_number || v.day_number) === Number(dayNum))
+                                        .reduce((sum: number, v: any) => sum + Number(v.contracted_per_day_rate || 0), 0);
+
+                                      const totalDayPrice = vehicleContractedRate || legs.reduce((sum: number, t: any) => sum + (Number(t.contracted_total_price ?? t.contracted_price) || 0), 0);
 
                                       const blockVehicles = block.transport_requirement?.transport_requirement_vehicles || [];
                                       let baseDayRate = 0;

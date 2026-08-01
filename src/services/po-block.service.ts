@@ -17,8 +17,8 @@ export class POBlockService {
 
         const blockIds = blocks.map(b => b.id);
 
-        // 2. Fetch mappings, activities, rfq vendors, and driver assignments in parallel
-        const [mappingsResult, vendorsResult, driverItinResult] = await Promise.all([
+        // 2. Fetch mappings, activities, rfq vendors, driver assignments, transport assignments, and vehicle assignments in parallel
+        const [mappingsResult, vendorsResult, driverItinResult, transportItinResult, vehicleItinResult] = await Promise.all([
             adminSupabase
                 .from('po_block_daily_activities')
                 .select('*')
@@ -30,12 +30,22 @@ export class POBlockService {
             adminSupabase
                 .from('tour_itinerary_drivers')
                 .select('*, tour_itineraries(day_number, date)')
+                .eq('tour_id', tourId),
+            adminSupabase
+                .from('tour_itinerary_transports')
+                .select('*, tour_itineraries(day_number, date), transport_providers(*)')
+                .eq('tour_id', tourId),
+            adminSupabase
+                .from('tour_itinerary_vehicles')
+                .select('*, tour_itineraries(day_number, date), vehicles(*)')
                 .eq('tour_id', tourId)
         ]);
 
         if (mappingsResult.error) throw mappingsResult.error;
         const mappings = mappingsResult.data || [];
         const driverItinRows = driverItinResult.data || [];
+        const transportItinRows = transportItinResult.data || [];
+        const vehicleItinRows = vehicleItinResult.data || [];
 
         // 3. Fetch daily activities in parallel with the vendor fetch above
         const dailyActivityIds = mappings.map(m => m.daily_activity_id);
@@ -70,6 +80,9 @@ export class POBlockService {
                     return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
                 });
             const blockVendors = vendors.filter(v => v.po_block_id === block.id);
+
+            let transportProvider: any = null;
+            let transportProviderId: string | undefined = undefined;
 
             if (block.block_type === 'driver') {
                 const targetDriverId = block.name.split(' | ID: ')[1];
@@ -107,12 +120,81 @@ export class POBlockService {
                         };
                     }).sort((a: any, b: any) => (a.day_number || 0) - (b.day_number || 0));
                 }
+            } else if (block.block_type === 'travel') {
+                const targetProviderId = block.name.includes(' | ID: ') ? block.name.split(' | ID: ')[1] : undefined;
+                const filteredTransports = targetProviderId
+                    ? transportItinRows.filter((r: any) => r.transport_provider_id === targetProviderId)
+                    : transportItinRows;
+
+                const pRow = filteredTransports[0] || transportItinRows.find((r: any) => r.transport_provider_id);
+                if (pRow) {
+                    transportProviderId = pRow.transport_provider_id;
+                    transportProvider = pRow.transport_providers;
+                }
+
+                if (filteredTransports.length > 0 || vehicleItinRows.length > 0) {
+                    const dayMap = new Map<number, { transport?: any; vehicle?: any; itin?: any }>();
+                    filteredTransports.forEach((tr: any) => {
+                        const dayNum = tr.tour_itineraries?.day_number || 1;
+                        if (!dayMap.has(dayNum)) dayMap.set(dayNum, {});
+                        dayMap.get(dayNum)!.transport = tr;
+                        dayMap.get(dayNum)!.itin = tr.tour_itineraries;
+                    });
+                    vehicleItinRows.forEach((vr: any) => {
+                        const dayNum = vr.tour_itineraries?.day_number || 1;
+                        if (!targetProviderId || dayMap.has(dayNum)) {
+                            if (!dayMap.has(dayNum)) dayMap.set(dayNum, {});
+                            dayMap.get(dayNum)!.vehicle = vr;
+                            if (!dayMap.get(dayNum)!.itin) dayMap.get(dayNum)!.itin = vr.tour_itineraries;
+                        }
+                    });
+
+                    const synthesizedTravelActs = Array.from(dayMap.entries()).map(([dayNum, data]) => {
+                        const tr = data.transport;
+                        const vr = data.vehicle;
+                        const itin = data.itin;
+                        const dateStr = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
+
+                        const vehicleRate = Number(vr?.contracted_per_day_rate || 0);
+                        const transportRate = Number(tr?.contracted_per_day_rate ?? tr?.charged_per_day_rate ?? 0);
+                        const totalRate = vehicleRate + transportRate;
+
+                        const vehicleName = vr?.vehicles?.name || (vr?.vehicles?.vehicle_number ? `Vehicle (${vr.vehicles.vehicle_number})` : 'Assigned Vehicle');
+                        const pName = tr?.transport_providers?.name || transportProvider?.name || 'Transport Provider';
+
+                        return {
+                            id: tr?.id || vr?.id || `travel-day-${dayNum}`,
+                            activity_type: 'travel',
+                            title: `Transport (${pName} / ${vehicleName}) - Day ${dayNum}`,
+                            service_date: dateStr,
+                            day_number: dayNum,
+                            tour_itineraries: itin,
+                            contracted_price: totalRate,
+                            contracted_total_price: totalRate,
+                            quantity: 1,
+                            transport_id: transportProviderId,
+                            transport_provider_id: transportProviderId,
+                            vehicle_id: vr?.vehicle_id || tr?.vehicle_id || null,
+                            transport_provider: tr?.transport_providers || transportProvider,
+                            vehicle: vr?.vehicles || null,
+                            charged_per_day_rate: totalRate
+                        };
+                    }).sort((a: any, b: any) => (a.day_number || 0) - (b.day_number || 0));
+
+                    if (blockActivities.length === 0 || synthesizedTravelActs.length > 0) {
+                        blockActivities = synthesizedTravelActs;
+                    }
+                }
             }
 
             return {
                 ...block,
                 daily_activities: blockActivities,
-                daily_activity_vendors: blockVendors
+                daily_activity_vendors: blockVendors,
+                transport_provider_id: transportProviderId,
+                transport_provider: transportProvider,
+                daily_transports: transportItinRows,
+                daily_vehicles: vehicleItinRows
             };
         });
     }
@@ -568,6 +650,35 @@ export class POBlockService {
             }
         }
 
+        // Create individual PO block for each distinct transport provider
+        const { data: itinTransportsData } = await adminSupabase
+            .from('tour_itinerary_transports')
+            .select('transport_provider_id')
+            .eq('tour_id', tourId)
+            .not('transport_provider_id', 'is', null);
+
+        const allTransportProviderIds = new Set<string>();
+        (itinTransportsData || []).forEach(t => { if (t.transport_provider_id) allTransportProviderIds.add(t.transport_provider_id); });
+
+        for (const providerId of Array.from(allTransportProviderIds)) {
+            const hasProviderBlock = existingBlocks.some(b => b.block_type === 'travel' && b.name.includes(providerId));
+            if (!hasProviderBlock) {
+                const { data: pData } = await adminSupabase.from('transport_providers').select('name').eq('id', providerId).single();
+                const providerName = pData?.name || 'Transport Provider';
+                const nextBlockNum = (Math.max(0, ...existingBlocks.map(b => b.block_number || 0))) + 1 + newlyCreatedBlockCount;
+                
+                const createdBlock = await this.createPOBlock(
+                    tourId,
+                    `Transport: ${providerName} | ID: ${providerId}`,
+                    'travel',
+                    nextBlockNum,
+                    []
+                );
+                existingBlocks.push(createdBlock);
+                newlyCreatedBlockCount++;
+            }
+        }
+
         if (unlinkedActivities.length === 0 && newlyCreatedBlockCount === 0) {
             // ALL records with hotel_id, transport_id, etc. are already present in PO blocks!
             console.log('[POBlock] All daily_activities are present in PO blocks. Zero missing.');
@@ -810,15 +921,24 @@ export class POBlockService {
             hotelIds.length > 0
                 ? adminSupabase.from('hotels').select('id, name').in('id', hotelIds)
                 : Promise.resolve({ data: [] as any[], error: null }),
-            // ── 2. TRAVEL: group by travel activity type (one block, whole trip) ──
+            // ── 2. TRAVEL: group by travel activity type & transport provider ──
             (async () => {
+                const { data: itinTransports } = await adminSupabase
+                    .from('tour_itinerary_transports')
+                    .select('*, transport_providers(*)')
+                    .eq('tour_id', tourId)
+                    .not('transport_provider_id', 'is', null);
+
+                const providerIds = Array.from(new Set((itinTransports || []).map((t: any) => t.transport_provider_id).filter(Boolean)));
+                const providers = (itinTransports || []).map((t: any) => t.transport_providers).filter(Boolean);
+
                 const travelGroups = new Map<string, any[]>();
                 remainingActivities.filter(a => a.activity_type === 'travel').forEach(act => {
-                    const key = 'travel';
+                    const key = providerIds[0] || 'travel';
                     if (!travelGroups.has(key)) travelGroups.set(key, []);
                     travelGroups.get(key)!.push(act);
                 });
-                return { groups: travelGroups, lookup: [] as any[] };
+                return { groups: travelGroups, lookup: providers || [] };
             })(),
             // ── 3. MEAL: group by restaurant_id ─────────────────────────────────────
             (async () => {
@@ -891,12 +1011,16 @@ export class POBlockService {
             dailyActivityIds: group.map(a => a.id)
         }));
 
-        const travelDescriptors = Array.from(travelGroups.entries()).map(([transportId, group]) => ({
-            name: `${transportProviders.find(p => p.id === transportId)?.name ?? 'Unassigned Transport'} Block`,
-            blockType: 'travel',
-            blockNumber: currentBlockNumber++,
-            dailyActivityIds: group.map(a => a.id)
-        }));
+        const travelDescriptors = Array.from(travelGroups.entries()).map(([transportId, group]) => {
+            const provider = transportProviders.find((p: any) => p.id === transportId);
+            const providerName = provider?.name ? `${provider.name} Transport Block` : 'Unassigned Transport Block';
+            return {
+                name: providerName,
+                blockType: 'travel',
+                blockNumber: currentBlockNumber++,
+                dailyActivityIds: group.map(a => a.id)
+            };
+        });
 
         const mealDescriptors = Array.from(mealGroups.entries()).map(([restaurantId, group]) => ({
             name: `${restaurants.find(r => r.id === restaurantId)?.name ?? 'Unassigned Restaurant'} Block`,

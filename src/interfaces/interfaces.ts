@@ -14,6 +14,10 @@ export interface POBlock {
     daily_activity_vendors?: any[];
     transport_requirement_id?: string;
     transport_requirement?: any;
+    transport_provider_id?: string;
+    transport_provider?: any;
+    daily_transports?: any[];
+    daily_vehicles?: any[];
 }
 
 export interface POBlockDailyActivity {
