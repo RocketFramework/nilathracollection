@@ -447,7 +447,9 @@ export class TourService {
                             distance: da.distance || '',
                             quantity: da.quantity || 1,
                             contractedPrice: da.contracted_price || 0,
-                            agreedPrice: da.charged_total_price || 0,
+                            agreedPrice: (da.activity_type === 'meal' || da.activity_type === 'activity' || da.activity_type === 'train')
+                                 ? (da.charged_unit_price ?? (da.quantity > 0 ? (da.charged_total_price || 0) / da.quantity : (da.charged_total_price || 0)))
+                                 : (da.charged_total_price || 0),
                             comments: []
                         };
                         tripData.itinerary.push(newBlock);
@@ -740,7 +742,9 @@ export class TourService {
                     distance: da.distance || '',
                     quantity: da.quantity || 1,
                     contractedPrice: da.contracted_price || 0,
-                    agreedPrice: da.charged_total_price || 0,
+                    agreedPrice: (da.activity_type === 'meal' || da.activity_type === 'activity' || da.activity_type === 'train')
+                        ? (da.charged_unit_price ?? (da.quantity > 0 ? (da.charged_total_price || 0) / da.quantity : (da.charged_total_price || 0)))
+                        : (da.charged_total_price || 0),
                     comments: []
                 });
             }
@@ -1180,9 +1184,37 @@ export class TourService {
                     let agreedTotalPrice: number | null = null;
                     let agreedUnitPrice: number | null = null;
 
-                    if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
-                        agreedTotalPrice = Number(b.agreedPrice);
-                        agreedUnitPrice = quantity > 0 ? agreedTotalPrice / quantity : agreedTotalPrice;
+                    if (b.type === 'meal') {
+                        const styleKeyMap: Record<string, string> = {
+                            'Regular': 'regular',
+                            'Premium': 'premium',
+                            'Luxury': 'luxury',
+                            'Ultra VIP': 'ultra_vip'
+                        };
+                        const styleKey = styleKeyMap[travelStyle] || 'luxury';
+                        const mType = b.mealType || 'Lunch';
+                        const appSettingKey = `${styleKey}_${mType.toLowerCase()}_cost`;
+                        const baseCost = settingsMap[appSettingKey] || (mType === 'Breakfast' ? 15 : mType === 'Dinner' ? 35 : 25);
+                        const markupPercent = settingsMap['restaurant_markup'] !== undefined
+                            ? Number(settingsMap['restaurant_markup'])
+                            : 10;
+                        const defaultMealCost = baseCost * (1 + markupPercent / 100);
+
+                        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                            agreedUnitPrice = Number(b.agreedPrice);
+                            agreedTotalPrice = agreedUnitPrice * quantity;
+                        } else {
+                            agreedUnitPrice = defaultMealCost;
+                            agreedTotalPrice = defaultMealCost * quantity;
+                        }
+                    } else if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
+                        if (b.type === 'activity' || b.type === 'train' || b.type === 'custom') {
+                            agreedUnitPrice = Number(b.agreedPrice);
+                            agreedTotalPrice = agreedUnitPrice * quantity;
+                        } else {
+                            agreedTotalPrice = Number(b.agreedPrice);
+                            agreedUnitPrice = quantity > 0 ? agreedTotalPrice / quantity : agreedTotalPrice;
+                        }
                     } else {
                         if (b.type === 'travel') {
                             let distanceNum = 0;
@@ -1196,11 +1228,6 @@ export class TourService {
                                 contractedPrice = dynamicVehicleKmRate;
                                 quantity = distanceNum > 0 ? distanceNum : 1;
                                 agreedUnitPrice = (contractedPrice || 0) * (1 + (transportMarkup / 100));
-                                agreedTotalPrice = agreedUnitPrice * quantity;
-                            }
-                        } else if (b.type === 'meal') {
-                            if (contractedPrice !== undefined && contractedPrice !== null) {
-                                agreedUnitPrice = contractedPrice * (1 + (restaurantMarkup / 100));
                                 agreedTotalPrice = agreedUnitPrice * quantity;
                             }
                         } else if (b.type === 'activity') {

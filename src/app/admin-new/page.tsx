@@ -1366,14 +1366,23 @@ function PlannerWizardWorkspace() {
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
         const contractedPrice = restaurant.lunch_rate_per_head || 25;
-        const markupPercent = markups[Settings.Restaurant_Markup] ?? 10;
-        const agreedPrice = contractedPrice * (1 + markupPercent / 100);
+        const travelStyle = tripData?.profile?.travelStyle || 'Luxury';
+        const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+        const mealLabel = block.mealType || 'Lunch';
+        const appSettingKey = `${styleKey}_${mealLabel.toLowerCase()}_cost`;
+        const baseCost = appSettings && appSettings[appSettingKey] !== undefined
+          ? Number(appSettings[appSettingKey])
+          : (mealLabel === 'Breakfast' ? 15 : mealLabel === 'Lunch' ? 25 : 35);
+        const markupPercent = appSettings && appSettings['restaurant_markup'] !== undefined
+          ? Number(appSettings['restaurant_markup'])
+          : 10;
+        const unitCharged = baseCost * (1 + markupPercent / 100);
 
         setItinerary(prev => prev.map(b => b.id === blockId ? {
           ...b,
           restaurantId: value,
           contractedPrice: b.contractedPrice ?? contractedPrice,
-          agreedPrice: b.agreedPrice ?? agreedPrice
+          agreedPrice: unitCharged
         } : b));
       }
     }
@@ -16759,6 +16768,7 @@ ${chauffeurHtml}
                     setDailyVehicleAssignments={setDailyVehicleAssignments}
                     handleAssignDefaultDriverToAllDays={handleAssignDefaultDriverToAllDays}
                     handleUpdateDailyDriverField={handleUpdateDailyDriverField}
+                    dbActivities={dbActivities}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
                   <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -17929,48 +17939,79 @@ ${chauffeurHtml}
                                 )}
                               </button>
 
-                              {isSelected && (
-                                <div className="p-4 border-t border-neutral-100 bg-neutral-50/50 space-y-4">
-                                  <div className="flex items-center justify-between gap-4">
-                                    <span className="text-[10px] font-bold text-neutral-600 uppercase">Covers/Quantity</span>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      value={activeBlock.restaurantQuantity || adults || 1}
-                                      onChange={(e) => updateBlock(activeAssignment.blockId, { restaurantQuantity: parseInt(e.target.value) || 1 })}
-                                      className="w-20 text-xs font-bold text-center py-1.5 px-3 border border-neutral-350 rounded-xl focus:border-emerald-805 outline-none bg-white text-neutral-808"
-                                    />
-                                  </div>
+                              {isSelected && (() => {
+                                const travelStyle = tripData?.profile?.travelStyle || 'Luxury';
+                                return (
+                                  <div className="p-4 border-t border-neutral-100 bg-neutral-50/50 space-y-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                      <span className="text-[10px] font-bold text-neutral-600 uppercase">Covers/Quantity</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={activeBlock.restaurantQuantity || adults || 1}
+                                        onChange={(e) => {
+                                          const newQty = parseInt(e.target.value) || 1;
+                                          const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+                                          const mealLabel = activeBlock.mealType || 'Lunch';
+                                          const appSettingKey = `${styleKey}_${mealLabel.toLowerCase()}_cost`;
+                                          const baseCost = appSettings && appSettings[appSettingKey] !== undefined
+                                            ? Number(appSettings[appSettingKey])
+                                            : (mealLabel === 'Breakfast' ? 15 : mealLabel === 'Lunch' ? 25 : 35);
+                                          const markupPercent = appSettings && appSettings['restaurant_markup'] !== undefined
+                                            ? Number(appSettings['restaurant_markup'])
+                                            : 10;
+                                          const unitCharged = baseCost * (1 + markupPercent / 100);
+                                          updateBlock(activeAssignment.blockId, {
+                                            restaurantQuantity: newQty,
+                                            agreedPrice: unitCharged
+                                          });
+                                        }}
+                                        className="w-20 text-xs font-bold text-center py-1.5 px-3 border border-neutral-350 rounded-xl focus:border-emerald-805 outline-none bg-white text-neutral-808"
+                                      />
+                                    </div>
 
-                                  <div className="space-y-2">
-                                    <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">Meal Selection</span>
-                                    <div className="grid grid-cols-3 gap-2">
-                                      {([
-                                        { label: 'Breakfast', rate: r.breakfast_rate_per_head || 15 },
-                                        { label: 'Lunch', rate: r.lunch_rate_per_head || 25 },
-                                        { label: 'Dinner', rate: r.dinner_rate_per_head || 35 }
-                                      ]).map(meal => {
-                                        const contractedRate = meal.rate;
-                                        const agreedPrice = contractedRate * 1.1; // 10% markup
-                                        const isMealSelected = activeBlock.mealType === meal.label;
+                                    <div className="space-y-2">
+                                      <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block">Meal Selection</span>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        {([
+                                          { label: 'Breakfast', rate: r.breakfast_rate_per_head || 15 },
+                                          { label: 'Lunch', rate: r.lunch_rate_per_head || 25 },
+                                          { label: 'Dinner', rate: r.dinner_rate_per_head || 35 }
+                                        ]).map(meal => {
+                                          const contractedRate = meal.rate;
+                                          const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+                                          const appSettingKey = `${styleKey}_${meal.label.toLowerCase()}_cost`;
+                                          const baseCost = appSettings && appSettings[appSettingKey] !== undefined
+                                            ? Number(appSettings[appSettingKey])
+                                            : (meal.label === 'Breakfast' ? 15 : meal.label === 'Lunch' ? 25 : 35);
+                                          const markupPercent = appSettings && appSettings['restaurant_markup'] !== undefined
+                                            ? Number(appSettings['restaurant_markup'])
+                                            : 10;
+                                          const unitCharged = baseCost * (1 + markupPercent / 100);
+                                          const isMealSelected = activeBlock.mealType === meal.label;
 
-                                        return (
-                                          <button
-                                            key={meal.label}
-                                            type="button"
-                                            onClick={() => updateBlock(activeAssignment.blockId, { mealType: meal.label, contractedPrice: contractedRate, agreedPrice: agreedPrice })}
-                                            className={`p-2.5 rounded-xl border text-center transition-all bg-white ${isMealSelected ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
-                                          >
-                                            <p className="text-[10px] font-bold text-neutral-800">{meal.label}</p>
-                                            <p className="text-[11px] font-black text-emerald-808 mt-1">${agreedPrice.toFixed(0)}</p>
-                                            <p className="text-[8px] text-neutral-455 font-bold uppercase tracking-tighter line-through">${contractedRate.toFixed(0)} Base</p>
-                                          </button>
-                                        );
-                                      })}
+                                          return (
+                                            <button
+                                              key={meal.label}
+                                              type="button"
+                                              onClick={() => updateBlock(activeAssignment.blockId, {
+                                                mealType: meal.label,
+                                                contractedPrice: contractedRate,
+                                                agreedPrice: unitCharged
+                                              })}
+                                              className={`p-2.5 rounded-xl border text-center transition-all bg-white ${isMealSelected ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
+                                            >
+                                              <p className="text-[10px] font-bold text-neutral-800">{meal.label}</p>
+                                              <p className="text-[11px] font-black text-emerald-808 mt-1">${unitCharged.toFixed(0)}</p>
+                                              <p className="text-[8px] text-neutral-455 font-bold uppercase tracking-tighter line-through">${contractedRate.toFixed(0)} Base</p>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              )}
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -21068,6 +21109,7 @@ interface AIItineraryBuilderProps {
   setDailyVehicleAssignments: React.Dispatch<React.SetStateAction<Record<number, TourDailyVehicleDTO[]>>>;
   handleAssignDefaultDriverToAllDays: (driverId: string) => void;
   handleUpdateDailyDriverField: (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => void;
+  dbActivities: any[];
 }
 
 function AIItineraryBuilder({
@@ -21138,7 +21180,8 @@ function AIItineraryBuilder({
   dailyVehicleAssignments,
   setDailyVehicleAssignments,
   handleAssignDefaultDriverToAllDays,
-  handleUpdateDailyDriverField
+  handleUpdateDailyDriverField,
+  dbActivities
 }: AIItineraryBuilderProps) {
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
@@ -21564,14 +21607,22 @@ function AIItineraryBuilder({
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
         const contractedRate = restaurant.lunch_rate_per_head || 25;
-        const markupPercent = 10;
-        const agreedPrice = contractedRate * (1 + markupPercent / 100);
+        const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+        const mealLabel = block.mealType || 'Lunch';
+        const appSettingKey = `${styleKey}_${mealLabel.toLowerCase()}_cost`;
+        const baseCost = appSettings && appSettings[appSettingKey] !== undefined
+          ? Number(appSettings[appSettingKey])
+          : (mealLabel === 'Breakfast' ? 15 : mealLabel === 'Lunch' ? 25 : 35);
+        const markupPercent = appSettings && appSettings['restaurant_markup'] !== undefined
+          ? Number(appSettings['restaurant_markup'])
+          : 10;
+        const unitCharged = baseCost * (1 + markupPercent / 100);
 
         setItinerary(prev => prev.map(b => b.id === blockId ? {
           ...b,
           restaurantId: value,
           contractedPrice: b.contractedPrice ?? contractedRate,
-          agreedPrice: b.agreedPrice ?? agreedPrice
+          agreedPrice: unitCharged
         } : b));
       }
     }
@@ -22012,12 +22063,23 @@ function AIItineraryBuilder({
     };
 
     // 3. Meal Cost
-    const lunchCostPerHead = getTierValue(TierSettingDefinitions.LUNCH_COST);
-    const dayMealBlocks = blocksForDay.filter(b => b.type === ItineraryBlockTypes.MEAL);
-    const baseMealsCost = dayMealBlocks.length > 0
-      ? dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0)
-      : (pax * lunchCostPerHead);
-    const meals = baseMealsCost;
+    const dayMealActs = (dbActivities || []).filter((da: any) => {
+      let actDay: number | null = null;
+      if (da.tour_itineraries) {
+        if (Array.isArray(da.tour_itineraries)) {
+          actDay = da.tour_itineraries[0]?.day_number;
+        } else {
+          actDay = da.tour_itineraries.day_number;
+        }
+      }
+      if (actDay === null || actDay === undefined) {
+        actDay = da.day_number || da.dayNumber || 1;
+      }
+      const actType = da.activity_type || da.type || '';
+      return actType === 'meal' && Number(actDay) === Number(dayNum);
+    });
+
+    const meals = dayMealActs.reduce((sum: number, da: any) => sum + (Number(da.charged_total_price) || 0), 0);
 
     // 4. Transport Cost
     let dailyTransportCost = 0;

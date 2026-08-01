@@ -140,7 +140,8 @@ export class CustomerInvoiceService {
             customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined,
             dayCostOverrides: tour?.planner_data?.dayCostOverrides || {},
             dailyDriverAssignments,
-            dailyVehicleAssignments
+            dailyVehicleAssignments,
+            dbActivities: activities || []
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])

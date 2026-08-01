@@ -35,6 +35,7 @@ export interface InvoiceCalculationParams {
   }>;
   dailyDriverAssignments?: Record<number, any[]>;
   dailyVehicleAssignments?: Record<number, any[]>;
+  dbActivities?: any[];
 }
 
 export class InvoiceCalculationService {
@@ -52,7 +53,8 @@ export class InvoiceCalculationService {
       customServiceFee,
       dayCostOverrides = {},
       dailyDriverAssignments = {},
-      dailyVehicleAssignments = {}
+      dailyVehicleAssignments = {},
+      dbActivities = []
     } = params;
 
     const invoiceItems: InvoiceItem[] = [];
@@ -136,10 +138,18 @@ export class InvoiceCalculationService {
       hotelTotal += hotelCost;
 
       // 2. Meals
-      const dayMealBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'meal');
-      const baseMealsCost = dayMealBlocks.length > 0
-        ? dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0)
-        : (pax * lunchCostPerHead);
+      let baseMealsCost = 0;
+      if (dbActivities && dbActivities.length > 0) {
+        const dayMealActs = dbActivities.filter(da => {
+          const actDay = da.tour_itineraries?.day_number || da.day_number || da.dayNumber || 1;
+          const actType = da.activity_type || da.type || '';
+          return actType === 'meal' && Number(actDay) === Number(d);
+        });
+        baseMealsCost = dayMealActs.reduce((sum, da) => sum + (Number(da.charged_total_price) || 0), 0);
+      } else {
+        const dayMealBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'meal');
+        baseMealsCost = dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+      }
       const mealsCost = baseMealsCost;
       mealsTotal += mealsCost;
 
