@@ -132,21 +132,20 @@ export class POBlockService {
                     transportProvider = pRow.transport_providers;
                 }
 
-                if (filteredTransports.length > 0 || vehicleItinRows.length > 0) {
+                if (filteredTransports.length > 0) {
                     const dayMap = new Map<number, { transport?: any; vehicle?: any; itin?: any }>();
                     filteredTransports.forEach((tr: any) => {
                         const dayNum = tr.tour_itineraries?.day_number || 1;
-                        if (!dayMap.has(dayNum)) dayMap.set(dayNum, {});
-                        dayMap.get(dayNum)!.transport = tr;
-                        dayMap.get(dayNum)!.itin = tr.tour_itineraries;
-                    });
-                    vehicleItinRows.forEach((vr: any) => {
-                        const dayNum = vr.tour_itineraries?.day_number || 1;
-                        if (!targetProviderId || dayMap.has(dayNum)) {
-                            if (!dayMap.has(dayNum)) dayMap.set(dayNum, {});
-                            dayMap.get(dayNum)!.vehicle = vr;
-                            if (!dayMap.get(dayNum)!.itin) dayMap.get(dayNum)!.itin = vr.tour_itineraries;
-                        }
+                        const matchingVr = vehicleItinRows.find((vr: any) =>
+                            (vr.tour_itinerary_id && tr.tour_itinerary_id && vr.tour_itinerary_id === tr.tour_itinerary_id && (tr.vehicle_id ? vr.vehicle_id === tr.vehicle_id : true)) ||
+                            ((vr.tour_itineraries?.day_number || vr.day_number) === dayNum && (tr.vehicle_id ? vr.vehicle_id === tr.vehicle_id : true))
+                        ) || vehicleItinRows.find((vr: any) => (vr.tour_itineraries?.day_number || vr.day_number) === dayNum);
+
+                        dayMap.set(dayNum, {
+                            transport: tr,
+                            vehicle: matchingVr,
+                            itin: tr.tour_itineraries
+                        });
                     });
 
                     const synthesizedTravelActs = Array.from(dayMap.entries()).map(([dayNum, data]) => {
@@ -156,8 +155,6 @@ export class POBlockService {
                         const dateStr = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
 
                         const vehicleRate = Number(vr?.contracted_per_day_rate || 0);
-                        const transportRate = Number(tr?.contracted_per_day_rate ?? tr?.charged_per_day_rate ?? 0);
-                        const totalRate = vehicleRate + transportRate;
 
                         const vehicleName = vr?.vehicles?.name || (vr?.vehicles?.vehicle_number ? `Vehicle (${vr.vehicles.vehicle_number})` : 'Assigned Vehicle');
                         const pName = tr?.transport_providers?.name || transportProvider?.name || 'Transport Provider';
@@ -169,15 +166,15 @@ export class POBlockService {
                             service_date: dateStr,
                             day_number: dayNum,
                             tour_itineraries: itin,
-                            contracted_price: totalRate,
-                            contracted_total_price: totalRate,
+                            contracted_price: vehicleRate,
+                            contracted_total_price: vehicleRate,
                             quantity: 1,
                             transport_id: transportProviderId,
                             transport_provider_id: transportProviderId,
                             vehicle_id: vr?.vehicle_id || tr?.vehicle_id || null,
                             transport_provider: tr?.transport_providers || transportProvider,
                             vehicle: vr?.vehicles || null,
-                            charged_per_day_rate: totalRate
+                            charged_per_day_rate: vehicleRate
                         };
                     }).sort((a: any, b: any) => (a.day_number || 0) - (b.day_number || 0));
 
