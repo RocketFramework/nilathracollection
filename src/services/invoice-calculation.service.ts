@@ -137,17 +137,18 @@ export class InvoiceCalculationService {
       const hotelCost = overrides.hotel !== undefined ? overrides.hotel : baseHotelCost;
       hotelTotal += hotelCost;
 
-      // 2. Meals
+      // 2. Meals (only include meals with assigned restaurant_id or hotel_id)
       let baseMealsCost = 0;
       if (dbActivities && dbActivities.length > 0) {
         const dayMealActs = dbActivities.filter(da => {
           const actDay = da.tour_itineraries?.day_number || da.day_number || da.dayNumber || 1;
           const actType = da.activity_type || da.type || '';
-          return actType === 'meal' && Number(actDay) === Number(d);
+          const hasVendor = Boolean(da.restaurant_id || da.hotel_id || da.vendor_id || da.restaurantId || da.hotelId || da.vendorId);
+          return actType === 'meal' && Number(actDay) === Number(d) && hasVendor;
         });
         baseMealsCost = dayMealActs.reduce((sum, da) => sum + (Number(da.charged_total_price) || 0), 0);
       } else {
-        const dayMealBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'meal');
+        const dayMealBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'meal' && Boolean((b as any).restaurantId || (b as any).hotelId || (b as any).vendorId));
         baseMealsCost = dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
       }
       const mealsCost = baseMealsCost;

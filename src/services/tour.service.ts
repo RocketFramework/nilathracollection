@@ -475,10 +475,6 @@ export class TourService {
      * table rows for reporting / operations!
      */
     static async saveTour(tourId: string, tripData: TripData) {
-        const logMsg = `[${new Date().toISOString()}] saveTour called for tourId: ${tourId}\n` +
-                       `tripData itinerary length: ${tripData?.itinerary?.length}\n` +
-                       `tripData accommodations length: ${tripData?.accommodations?.length}\n\n`;
-        console.log(logMsg);
 
         // Normalize any legacy 'None' mealPlan entries in itinerary and accommodations to 'RO'
         if (tripData?.itinerary) {
@@ -1001,11 +997,11 @@ export class TourService {
 
                     const quantity = b.quantity || 1;
                     const contractedPrice = b.contractedPrice || 0;
-                    const agreedTotalPrice = b.agreedPrice !== undefined && b.agreedPrice !== null ? Number(b.agreedPrice) : 0;
-                    const agreedUnitPrice = quantity > 0 ? agreedTotalPrice / quantity : agreedTotalPrice;
+                    const agreedUnitPrice = b.agreedPrice !== undefined && b.agreedPrice !== null ? Number(b.agreedPrice) : 0;
+                    const agreedTotalPrice = (b.type === 'sleep') ? agreedUnitPrice : (agreedUnitPrice * quantity);
 
                     b.contractedPrice = contractedPrice;
-                    b.agreedPrice = agreedTotalPrice;
+                    b.agreedPrice = (b.type === 'sleep') ? agreedTotalPrice : agreedUnitPrice;
 
                     activitiesToInsert.push({
                         ...basePayload,
@@ -1239,7 +1235,7 @@ export class TourService {
                     }
 
                     b.contractedPrice = contractedPrice;
-                    b.agreedPrice = agreedTotalPrice ?? undefined;
+                    b.agreedPrice = agreedUnitPrice ?? undefined;
                     if (b.type === 'travel') {
                         b.transportQuantity = quantity;
                     } else if (b.type === 'meal') {
@@ -1300,7 +1296,6 @@ export class TourService {
         }
 
         if (allActivitiesToUpsert.length > 0) {
-            console.log("Upserting daily activities:", allActivitiesToUpsert.map(a => ({ id: a.id, title: a.title, type: a.activity_type, hotel_id: a.hotel_id })));
             const { error: upsertErr } = await supabaseAdmin
                 .from('daily_activities')
                 .upsert(allActivitiesToUpsert);

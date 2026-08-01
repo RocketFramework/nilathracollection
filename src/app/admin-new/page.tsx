@@ -22042,7 +22042,7 @@ function AIItineraryBuilder({
   // Helper to calculate daily cost summary
   const calculateDayTotal = (dayNum: number) => {
     const overrides = tripData?.dayCostOverrides?.[dayNum] || {};
-    const blocksForDay = itinerary.filter(b => b.dayNumber === dayNum);
+    const blocksForDay = itinerary.filter(b => Number(b.dayNumber || (b as any).day_number || 1) === Number(dayNum));
 
     // 1. Hotel Cost
     const hotel = overrides.hotel !== undefined
@@ -22063,24 +22063,44 @@ function AIItineraryBuilder({
     };
 
     // 3. Meal Cost
-    const dayMealActs = (dbActivities || []).filter((da: any) => {
-      let actDay: number | null = null;
-      if (da.tour_itineraries) {
-        if (Array.isArray(da.tour_itineraries)) {
-          actDay = da.tour_itineraries[0]?.day_number;
-        } else {
-          actDay = da.tour_itineraries.day_number;
-        }
-      }
-      if (actDay === null || actDay === undefined) {
-        actDay = da.day_number || da.dayNumber || 1;
-      }
-      const actType = da.activity_type || da.type || '';
-      return actType === 'meal' && Number(actDay) === Number(dayNum);
-    });
+    const dayMealBlocks = blocksForDay.filter(b => b.type === ItineraryBlockTypes.MEAL);
 
-    const meals = dayMealActs.reduce((sum: number, da: any) => sum + (Number(da.charged_total_price) || 0), 0);
+    const meals = dayMealBlocks.reduce((sum, b) => {
+      const da = (dbActivities || []).find((a: any) => a.id === b.id || a.itinerary_id === b.id || a.title === b.name);
+      
+      const hasVendor = Boolean(
+        b.restaurantId || b.hotelId || b.vendorId ||
+        da?.restaurant_id || da?.hotel_id || da?.vendor_id || da?.restaurantId || da?.hotelId || da?.vendorId
+      );
 
+      // Rule: Only add meal charged cost if it has a restaurant_id or hotel_id assigned!
+      if (!hasVendor) return sum;
+
+      const qty = b.quantity || b.restaurantQuantity || da?.quantity || (pax > 0 ? pax : 1);
+
+      let unitPrice = 0;
+      if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+        unitPrice = Number(b.agreedPrice);
+      } else if (da?.charged_unit_price !== undefined && da?.charged_unit_price !== null && Number(da.charged_unit_price) > 0) {
+        unitPrice = Number(da.charged_unit_price);
+      } else if (da?.charged_total_price !== undefined && da?.charged_total_price !== null && Number(da.charged_total_price) > 0 && qty > 0) {
+        unitPrice = Number(da.charged_total_price) / qty;
+      } else {
+        // Fallback for records without agreedPrice: calculate default rate from settings
+        const styleKey = (TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury');
+        const mType = b.mealType || (b as any).meal_type || (b.name?.toLowerCase().includes('breakfast') ? 'Breakfast' : b.name?.toLowerCase().includes('dinner') ? 'Dinner' : 'Lunch');
+        const settingKey = `${styleKey}_${mType.toLowerCase()}_cost`;
+        const baseCost = appSettings && appSettings[settingKey] !== undefined
+          ? Number(appSettings[settingKey])
+          : (mType === 'Breakfast' ? 15 : mType === 'Dinner' ? 35 : 25);
+        const markupPercent = appSettings && appSettings['restaurant_markup'] !== undefined
+          ? Number(appSettings['restaurant_markup'])
+          : 10;
+        unitPrice = baseCost * (1 + markupPercent / 100);
+      }
+
+      return sum + (unitPrice * qty);
+    }, 0);
     // 4. Transport Cost
     let dailyTransportCost = 0;
     const assignedDrivers = dailyDriverAssignments[dayNum] || [];
@@ -24085,8 +24105,7 @@ function AIItineraryBuilder({
       })()}
 
         {/* Daily Cost Summary Banner */}
-        {appSettings && (
-          <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
+        <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200/60 pb-3">
               <div className="flex items-center gap-3">
                 <h5 className="text-xs font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-2">
@@ -24209,7 +24228,6 @@ function AIItineraryBuilder({
               );
             })()}
           </div>
-        )}
 
         {/* Schedule list */}
         <div className="space-y-5">
