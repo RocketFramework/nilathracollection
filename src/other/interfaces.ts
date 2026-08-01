@@ -323,26 +323,8 @@ export interface InternalItineraryBlock {
     transportQuantity?: number;
     weather?: string;
     baseRoomRate?: number;
-    transport_requirement_id?: string | null;
-    transport_requirement?: {
-        id?: string;
-        tour_id?: string;
-        vehicle_duration?: number | null;
-        number_of_vehicles?: number;
-        vehicle_make?: string | null;
-        custom_vehicle_make?: string | null;
-        vehicle_model_year?: string | null; // ISO Date String YYYY-MM-DD
-        leather_seats?: boolean;
-        vehicle_color?: string | null;
-        vehicle_is_mint_condition?: boolean;
-        chauffeur_required?: boolean;
-        chauffeur_speak_english?: boolean;
-        chauffeur_other_languages?: string | null;
-        chauffeur_accommodation_needed?: boolean;
-        chauffeur_meal_needed?: boolean;
-        created_at?: string;
-        updated_at?: string;
-    } | null;
+    transport_requirement_id?: string;
+    transport_requirement?: any;
 }
 
 export interface Traveler {
@@ -503,7 +485,6 @@ export interface PurchaseOrderDailyTransportItem {
     id: string;
     purchase_order_item_id: string;
     daily_activity_id: string | null;
-    transport_requirement_id: string | null;
 
     // Snapshot pricing from transport_vehicles at PO creation time
     day_rate: number;
@@ -517,34 +498,6 @@ export interface PurchaseOrderDailyTransportItem {
     day_total_price: number;
 
     created_at?: string;
-
-    // Optional joined data
-    transport_requirement?: {
-        id?: string;
-        tour_id?: string;
-        vehicle_duration?: number | null;
-        number_of_vehicles?: number;
-        vehicle_make?: string | null;
-        chauffeur_required?: boolean;
-        transport_requirement_vehicles?: Array<{
-            id: string;
-            requirement_id: string;
-            vehicle_id: string;
-            quantity: number;
-            notes?: string | null;
-            vehicle?: {
-                id: string;
-                vehicle_type: string;
-                make_and_model?: string | null;
-                make?: string | null;
-                model?: string | null;
-                vehicle_number?: string | null;
-                day_rate?: number | null;
-                max_km_per_day?: number | null;
-                additional_km_rate?: number | null;
-            };
-        }>;
-    } | null;
 }
 
 

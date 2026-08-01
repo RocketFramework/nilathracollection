@@ -66,7 +66,6 @@ export class VendorBookingService {
         const transportJunctionRows: Array<{
             purchase_order_item_id: string;
             daily_activity_id: string;
-            transport_requirement_id: string | null;
             day_rate: number;
             max_km_per_day: number;
             additional_km_rate: number;
@@ -89,47 +88,6 @@ export class VendorBookingService {
                 if (isTransport) {
                     // ── TRANSPORT PATH ───────────────────────────────────────────────────
                     // Group all travel legs by their service date → one PO item per day.
-
-                    // Collect all unique transport_requirement_ids so we can fetch vehicle pricing
-                    const requirementIds = [
-                        ...new Set(
-                            activities
-                                .map((a: any) => a.transport_requirement_id)
-                                .filter(Boolean)
-                        )
-                    ] as string[];
-
-                    // Fetch vehicle pricing for each requirement
-                    // transport_requirement_vehicles has requirement_id, vehicle_id, quantity
-                    // transport_vehicles has day_rate, max_km_per_day, additional_km_rate
-                    let vehiclePricingByReqId: Record<string, {
-                        day_rate: number;
-                        max_km_per_day: number;
-                        additional_km_rate: number;
-                        quantity: number;
-                    }[]> = {};
-
-                    if (requirementIds.length > 0) {
-                        const { data: reqVehicles, error: rvErr } = await supabase
-                            .from('transport_requirement_vehicles')
-                            .select('requirement_id, quantity, vehicle:transport_vehicles(day_rate, max_km_per_day, additional_km_rate)')
-                            .in('requirement_id', requirementIds);
-
-                        if (rvErr) throw rvErr;
-
-                        for (const rv of (reqVehicles || [])) {
-                            const v = (rv as any).vehicle || {};
-                            if (!vehiclePricingByReqId[rv.requirement_id]) {
-                                vehiclePricingByReqId[rv.requirement_id] = [];
-                            }
-                            vehiclePricingByReqId[rv.requirement_id].push({
-                                day_rate: Number(v.day_rate) || 0,
-                                max_km_per_day: Number(v.max_km_per_day) || 0,
-                                additional_km_rate: Number(v.additional_km_rate) || 0,
-                                quantity: Number(rv.quantity) || 1,
-                            });
-                        }
-                    }
 
                     // Group legs by service date
                     const dayGroups = new Map<string, typeof activities>();
@@ -174,46 +132,7 @@ export class VendorBookingService {
                             ? `Day ${dayNum} Transport – ${routeStr}`
                             : `Transport – ${routeStr}`;
 
-                        // Compute day price from vehicle pricing
-                        // Sum across all unique requirement ids on legs of this day
-                        const reqIdsForDay = [
-                            ...new Set(legs.map((a: any) => a.transport_requirement_id).filter(Boolean))
-                        ] as string[];
-
-                        let maxKmPerDay = 0;
-                        let additionalKmRate = 0;
-                        let snapshotDayRate = 0;
-                        let snapshotMaxKm = 0;
-                        let snapshotAdditionalRate = 0;
-
-                        for (const reqId of reqIdsForDay) {
-                            const vehicles = vehiclePricingByReqId[reqId] || [];
-                            for (const v of vehicles) {
-                                if (maxKmPerDay === 0) maxKmPerDay = v.max_km_per_day;
-                                if (additionalKmRate === 0) additionalKmRate = v.additional_km_rate;
-                                // Snapshot the first vehicle's base values (for junction row)
-                                if (snapshotDayRate === 0) snapshotDayRate = v.day_rate;
-                                if (snapshotMaxKm === 0) snapshotMaxKm = v.max_km_per_day;
-                                if (snapshotAdditionalRate === 0) snapshotAdditionalRate = v.additional_km_rate;
-                            }
-                        }
-
-                        // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
                         let dayTotalPrice = legs.reduce((sum: number, a: any) => sum + (Number(a.contracted_total_price) || 0), 0);
-
-                        // If no contracted total price is set, compute from vehicle pricing + mileage surcharge
-                        if (dayTotalPrice === 0) {
-                            let dayRate = 0;
-                            for (const reqId of reqIdsForDay) {
-                                const vehicles = vehiclePricingByReqId[reqId] || [];
-                                for (const v of vehicles) {
-                                    dayRate += v.day_rate * v.quantity;
-                                }
-                            }
-                            const extraKm = Math.max(0, totalKmForDay - maxKmPerDay);
-                            const extraKmCharge = extraKm * additionalKmRate;
-                            dayTotalPrice = dayRate + extraKmCharge;
-                        }
 
                         calculatedSubtotal += dayTotalPrice;
 
@@ -234,10 +153,9 @@ export class VendorBookingService {
                             transportJunctionRows.push({
                                 purchase_order_item_id: poItemId,
                                 daily_activity_id: (leg as any).id,
-                                transport_requirement_id: (leg as any).transport_requirement_id || null,
-                                day_rate: snapshotDayRate,
-                                max_km_per_day: snapshotMaxKm,
-                                additional_km_rate: snapshotAdditionalRate,
+                                day_rate: 0,
+                                max_km_per_day: 0,
+                                additional_km_rate: 0,
                                 total_km_for_day: totalKmForDay,
                             });
                         }

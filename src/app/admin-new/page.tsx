@@ -191,10 +191,7 @@ import {
   getGuideDailyActivitiesAction,
   saveGuideDailyActivitiesAction,
   getDriverDailyActivitiesAction,
-  saveDriverDailyActivitiesAction,
-  upsertTransportRequirementAction,
-  saveTransportRequirementVehiclesAction,
-  getTransportRequirementVehiclesAction
+  saveDriverDailyActivitiesAction
 } from '@/actions/po-block.actions';
 import { POBlock } from '@/interfaces/interfaces';
 import { createClient } from '@/utils/supabase/client';
@@ -11159,8 +11156,7 @@ ${chauffeurHtml}
                                           const reqId = block.transport_requirement_id || block.transport_requirement?.id;
                                           if (reqId) {
                                             setReqVehiclesLoading(true);
-                                            const res = await getTransportRequirementVehiclesAction(reqId);
-                                            setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
+                                            setReqPickedVehicles([]);
                                             setReqVehiclesLoading(false);
                                           } else {
                                             setReqPickedVehicles([]);
@@ -20982,115 +20978,6 @@ ${chauffeurHtml}
                   <button
                     type="button"
                     onClick={async () => {
-                      const reqData = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
-                      const finalMake = reqData.vehicle_make === 'Other' ? reqData.custom_vehicle_make : reqData.vehicle_make;
-
-                      let requirementId = '';
-                      if (isGlobal) {
-                        const existingBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id);
-                        requirementId = existingBlock?.transport_requirement_id || crypto.randomUUID();
-                      } else {
-                        requirementId = selectedTransportBlock?.transport_requirement_id ||
-                          selectedTransportBlock?.daily_activities?.find((da: any) => da.transport_requirement_id)?.transport_requirement_id ||
-                          crypto.randomUUID();
-                      }
-
-                      const { success, requirement, error } = await upsertTransportRequirementAction(tourId, requirementId, {
-                        vehicle_duration: reqData.vehicle_duration || null,
-                        number_of_vehicles: reqData.number_of_vehicles || 1,
-                        vehicle_make: finalMake || null,
-                        vehicle_model_year: reqData.vehicle_model_year || null,
-                        leather_seats: !!reqData.leather_seats,
-                        vehicle_color: reqData.vehicle_color || null,
-                        vehicle_is_mint_condition: !!reqData.vehicle_is_mint_condition,
-                        chauffeur_required: reqData.chauffeur_required !== false,
-                        chauffeur_speak_english: reqData.chauffeur_speak_english !== false,
-                        chauffeur_other_languages: reqData.chauffeur_other_languages || null,
-                        chauffeur_accommodation_needed: !!reqData.chauffeur_accommodation_needed,
-                        chauffeur_meal_needed: !!reqData.chauffeur_meal_needed
-                      });
-
-                      if (success && requirement) {
-                        if (isGlobal) {
-                          setItinerary(prev => prev.map(b => {
-                            if (b.type === ItineraryBlockTypes.TRAVEL) {
-                              return {
-                                ...b,
-                                transport_requirement_id: requirementId,
-                                transport_requirement: requirement
-                              };
-                            }
-                            return b;
-                          }));
-                        } else {
-                          const activityIds = selectedTransportBlock.daily_activities
-                            ? selectedTransportBlock.daily_activities.map((a: any) => a.id)
-                            : [selectedTransportBlock.id];
-
-                          setItinerary(prev => prev.map(b => {
-                            if (activityIds.includes(b.id)) {
-                              return {
-                                ...b,
-                                transport_requirement_id: requirementId,
-                                transport_requirement: requirement
-                              };
-                            }
-                            return b;
-                          }));
-
-                          setPoBlocks(prev => prev.map(pb => {
-                            const matchesPOBlock = pb.id === selectedTransportBlock.id;
-                            const matchesActivity = pb.daily_activities?.some((da: any) => da.id === selectedTransportBlock.id);
-
-                            if (matchesPOBlock || matchesActivity) {
-                              return {
-                                ...pb,
-                                transport_requirement: requirement,
-                                daily_activities: (pb.daily_activities || []).map((da: any) => {
-                                  if (matchesPOBlock || da.id === selectedTransportBlock.id) {
-                                    return {
-                                      ...da,
-                                      transport_requirement_id: requirementId,
-                                      transport_requirement: requirement
-                                    };
-                                  }
-                                  return da;
-                                })
-                              };
-                            }
-                            return pb;
-                          }));
-                        }
-                      } else {
-                        alert('Failed to save specifications: ' + (error || 'Unknown error'));
-                      }
-
-                      const vehicleSaveRes = await saveTransportRequirementVehiclesAction(
-                        requirementId,
-                        reqPickedVehicles.map(pv => ({ vehicle_id: pv.vehicleId, quantity: pv.quantity, notes: pv.notes || undefined })),
-                        tourId
-                      );
-                      if (!vehicleSaveRes.success) {
-                        console.error('[TransportSpecs] Vehicle save failed:', vehicleSaveRes.error);
-                        alert('Transport specs saved but vehicle assignments failed: ' + (vehicleSaveRes.error || 'Unknown error'));
-                      } else {
-                        const blocksRes = await getPOBlocksAction(tourId);
-                        if (blocksRes.success && blocksRes.blocks) {
-                          setPoBlocks(blocksRes.blocks);
-                        }
-                        const dailyTransportsRes = await getTourDailyTransportsAction(tourId);
-                        if (dailyTransportsRes?.success && dailyTransportsRes.transports) {
-                          const transportMap: Record<number, TourDailyTransportDTO[]> = {};
-                          dailyTransportsRes.transports.forEach((t: TourDailyTransportDTO) => {
-                            if (t.day_number) {
-                              if (!transportMap[t.day_number]) transportMap[t.day_number] = [];
-                              transportMap[t.day_number].push(t);
-                            }
-                          });
-                          setDailyTransportAssignments(transportMap);
-                        }
-                      }
-
                       setShowTransportReqModal(false);
                       setIsGlobalTransportReqEdit(false);
                       setSelectedTransportBlock(null);
@@ -22993,13 +22880,7 @@ function AIItineraryBuilder({
                 setSelectedTransportBlock(targetBlock);
                 setShowTransportReqModal(true);
 
-                const reqId = targetBlock.transport_requirement_id || targetBlock.transport_requirement?.id;
-                if (reqId) {
-                  setReqVehiclesLoading(true);
-                  const res = await getTransportRequirementVehiclesAction(reqId);
-                  setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
-                  setReqVehiclesLoading(false);
-                }
+                setReqPickedVehicles([]);
               }}
               disabled={isLockedByOther}
               className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
@@ -24925,18 +24806,7 @@ function AIItineraryBuilder({
                             setReqShowVehiclePicker(false);
                             setReqPickedVehicles([]);
                             setShowTransportReqModal(true);
-                            // Pre-populate picked vehicles from the junction table
-                            // Prefer transport_requirement_id (flat field) over the nested .id
-                            // because transport_requirement object may be null even when the id is saved
-                            const reqId = block.transport_requirement_id || block.transport_requirement?.id;
-                            if (reqId) {
-                              setReqVehiclesLoading(true);
-                              const res = await getTransportRequirementVehiclesAction(reqId);
-                              setReqPickedVehicles(res.success && res.vehicles ? res.vehicles : []);
-                              setReqVehiclesLoading(false);
-                            } else {
                               setReqPickedVehicles([]);
-                            }
                           }}
                           disabled={isLockedByOther}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-extrabold transition-all duration-200 shadow-sm ${block.transport_requirement

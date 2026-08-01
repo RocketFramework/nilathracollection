@@ -731,8 +731,8 @@ export const generateTransportPoPdf = async (
     topY += 19;
 
     // ─── Transport Requirement data ───────────────────────────────────────────
-    const tpReq: any     = options.transportRequirement || stays[0]?.transport_requirement || {};
-    const tpVehicles: any[] = tpReq.transport_requirement_vehicles || [];
+    const tpReq: any     = options.transportRequirement || {};
+    const tpVehicles: any[] = [];
 
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '-';
