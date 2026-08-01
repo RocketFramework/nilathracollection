@@ -1030,14 +1030,13 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
             // Filter for transport activities
             const transportActivities = activities.filter(a => 
                 a.distance != null && a.distance !== '' &&
-                a.transport_id &&
                 a.contracted_price != null
             );
 
             if (transportActivities.length > 0) {
-                // Group by transport_id
+                // Group by transport type
                 const transportGroups = transportActivities.reduce((acc, a) => {
-                    const groupKey = a.transport_id;
+                    const groupKey = 'transport';
                     if (!acc[groupKey]) acc[groupKey] = [];
                     acc[groupKey].push(a);
                     return acc;
@@ -1049,8 +1048,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                     const poNumber = `PO-TRN-${Date.now().toString().slice(-6)}`;
                     
                     const firstAct = transportActs[0];
-                    const transportId = firstAct.transport_id;
-                    const providerData = allTransportProviders.find((p: any) => p.id === transportId);
+                    const providerData = allTransportProviders[0];
                     const vendorName = providerData ? providerData.name : 'Transport Provider';
 
                     let calculatedSubtotal = 0;
@@ -1110,7 +1108,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                         po_date: new Date().toISOString().split('T')[0],
                         vendor_type: 'transport' as const,
                         vendor_name: vendorName,
-                        transport_provider_id: transportId,
+                        transport_provider_id: providerData?.id || undefined,
                         vendor_address: providerData?.address || undefined,
                         vendor_phone: providerData?.phone || undefined,
                         vendor_email: providerData?.email || undefined,
@@ -1426,9 +1424,7 @@ Total Guests: ${totalGuestCount} (${totalKids} Kids)`;
                                                 // Find finalized vendor name for display
                                                 let finalizedVendorName = 'None';
                                                 if (act.hotel_id) finalizedVendorName = masterHotels.find(h => h.id === act.hotel_id)?.name || 'Hotel';
-                                                else if (act.transport_id) finalizedVendorName = masterTransports.find(t => t.id === act.transport_id)?.name || 'Transport';
                                                 else if (act.guide_id) finalizedVendorName = masterGuides.find(g => g.id === act.guide_id)?.first_name || 'Guide';
-                                                else if (act.driver_id) finalizedVendorName = masterDrivers.find(d => d.id === act.driver_id)?.first_name || 'Driver';
                                                 else if (act.restaurant_id) finalizedVendorName = masterRestaurants.find(r => r.id === act.restaurant_id)?.name || 'Restaurant';
                                                 else if (act.vendor_id) finalizedVendorName = masterVendors.find(v => v.id === act.vendor_id)?.name || 'Vendor';
 

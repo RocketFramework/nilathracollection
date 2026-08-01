@@ -3749,7 +3749,7 @@ function PlannerWizardWorkspace() {
       return total;
     };    // 2. Map Supplier side (Daily Activities + Driver Selection assignments)
     const supplierPLItems: ProfitLossLineItem[] = dbActivities
-      .filter(da => da.activity_type !== 'driver' && !(da.activity_type === 'travel' && !da.transport_id))
+      .filter(da => da.activity_type !== 'driver')
       .map(da => {
         const dayNum = da.tour_itineraries?.day_number || da.day_number || 1;
 
@@ -3816,7 +3816,9 @@ function PlannerWizardWorkspace() {
         let salesContactEmail: string | null = null;
 
         if (da.activity_type === 'travel') {
-          const tp = masterData.transportProviders?.find((t: any) => t.id === da.transport_id);
+          const dayNum = da.tour_itineraries?.day_number || da.day_number || 1;
+          const tpId = (dailyTransportAssignments[dayNum] || [])[0]?.transport_provider_id;
+          const tp = tpId ? masterData.transportProviders?.find((t: any) => t.id === tpId) : null;
           if (tp) {
             vendorName = tp.name;
             vendorPhone = tp.phone || null;
@@ -3907,7 +3909,7 @@ function PlannerWizardWorkspace() {
 
     for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
       const driverAssList = dailyDriverAssignments[dayNum] || [];
-      const dayTravelActs = dbActivities.filter(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum && (a.activity_type === 'travel' || a.activity_type === 'driver' || a.driver_id));
+      const dayTravelActs = dbActivities.filter(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum && (a.activity_type === 'travel' || a.activity_type === 'driver'));
 
       const matchedActivity = dbActivities.find(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum);
       const dateVal = matchedActivity?.tour_itineraries?.date || matchedActivity?.service_date || (touristData?.preferences?.arrival_date ? (() => {
@@ -4043,7 +4045,7 @@ function PlannerWizardWorkspace() {
         const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
         const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
 
-        const driverId = dayTravelActs.find(a => a.driver_id)?.driver_id;
+        const driverId = (dailyDriverAssignments[dayNum] || [])[0]?.driver_id;
         const driverObj = driverId ? masterData.drivers?.find((d: any) => d.id === driverId) : null;
         let vendorName = driverObj ? (driverObj.full_name || driverObj.name || `${driverObj.first_name || ''} ${driverObj.last_name || ''}`.trim()) : 'Driver';
         let vendorPhone = driverObj?.phone || null;
@@ -4134,20 +4136,13 @@ function PlannerWizardWorkspace() {
 
       if (transportAssList.length > 0) {
         transportAssList.forEach((transportAss, idx) => {
-          const contractedTotal =
-            Number(transportAss.contracted_per_day_rate ?? transportAss.per_day_rate ?? 0) +
-            Number(transportAss.contracted_excess_mileage_cost ?? transportAss.excess_mileage_cost ?? 0) +
-            Number(transportAss.contracted_other_allowance ?? transportAss.other_allowance ?? 0);
-
-          const chargedTotal =
-            Number(transportAss.charged_per_day_rate ?? transportAss.contracted_per_day_rate ?? transportAss.per_day_rate ?? 0) +
-            Number(transportAss.charged_excess_mileage_cost ?? transportAss.contracted_excess_mileage_cost ?? transportAss.excess_mileage_cost ?? 0) +
-            Number(transportAss.charged_other_allowance ?? transportAss.contracted_other_allowance ?? transportAss.other_allowance ?? 0);
+          const contractedTotal = 0;
+          const chargedTotal = 0;
 
           const contractedPrice = contractedTotal;
           const chargedPrice = chargedTotal;
 
-          const tpId = transportAss?.transport_provider_id || travelLegs.find(t => t.transport_id)?.transport_id;
+          const tpId = transportAss?.transport_provider_id;
           const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
 
           let vendorName = tpObj ? tpObj.name : 'Transport Provider';
@@ -4209,7 +4204,7 @@ function PlannerWizardWorkspace() {
         const contractedPrice = contractedTotal;
         const chargedPrice = chargedTotal;
 
-        const tpId = travelLegs.find(t => t.transport_id)?.transport_id;
+        const tpId = (dailyTransportAssignments[dayNum] || [])[0]?.transport_provider_id;
         const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
 
         let vendorName = tpObj ? tpObj.name : 'Transport Provider';
@@ -4555,9 +4550,9 @@ function PlannerWizardWorkspace() {
     // guide_id / driver_id are set on ALL daily_activities for the tour (the guide/driver
     // accompanies everything), so we must not use those fields alone to decide type.
     const isExplicitTravelBlock = poBlock?.block_type === 'travel' || block?.type === 'travel';
-    const isGuide = !isHotelBlock && !isExplicitTravelBlock && (block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id && !s.transport_id));
-    const isDriver = !isHotelBlock && !isExplicitTravelBlock && ((block?.type as any) === 'driver' || poBlock?.block_type === 'driver' || stays.some(s => s.activity_type === 'travel' && s.driver_id && !s.transport_id));
-    const isTransport = !isHotelBlock && (isExplicitTravelBlock || (!isGuide && !isDriver && stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId || s.transport_id)));
+    const isGuide = !isHotelBlock && !isExplicitTravelBlock && (block?.type === 'guide' || poBlock?.block_type === 'guide' || stays.some(s => s.activity_type === 'travel' && s.guide_id));
+    const isDriver = !isHotelBlock && !isExplicitTravelBlock && ((block?.type as any) === 'driver' || poBlock?.block_type === 'driver');
+    const isTransport = !isHotelBlock && (isExplicitTravelBlock || (!isGuide && !isDriver && stays.some(s => s.activity_type === 'travel' || s.type === 'travel' || s.transportId)));
 
     setRfqIsRestaurant(isRestaurant);
     setRfqIsTransport(isTransport);
@@ -10166,20 +10161,6 @@ ${chauffeurHtml}
                                           onClick={() => {
                                             if (isCurrent) return;
                                             const mealIds = mealActivities.map((a: any) => a.id);
-                                            // Optimistic update
-                                            setDbActivities(prev => prev.map(act =>
-                                              mealIds.includes(act.id) ? { ...act, restaurant_id: r.id } : act
-                                            ));
-                                            setPoBlocks(prev => prev.map(pb => {
-                                              if (pb.id !== block.id) return pb;
-                                              return {
-                                                ...pb,
-                                                name: `${r.name} Block`,
-                                                daily_activities: (pb.daily_activities || []).map((da: any) =>
-                                                  mealIds.includes(da.id) ? { ...da, restaurant_id: r.id } : da
-                                                )
-                                              };
-                                            }));
                                             setRestaurantPickerOpenBlockId(null);
                                             // DB sync
                                             setIsRestaurantChanging(true);
@@ -10729,9 +10710,6 @@ ${chauffeurHtml}
                                             if (isCurrent) return;
                                             const actIds = actItems.map((a: any) => a.id);
                                             // Optimistic update
-                                            setDbActivities(prev => prev.map(act =>
-                                              actIds.includes(act.id) ? { ...act, vendor_id: v.id } : act
-                                            ));
                                             setPoBlocks(prev => prev.map(pb => {
                                               if (pb.id !== block.id) return pb;
                                               return {
@@ -11084,7 +11062,7 @@ ${chauffeurHtml}
                           const blockActivities = block.daily_activities || [];
                           const travelItems = blockActivities.filter((a: any) => a.activity_type === 'travel');
 
-                          const selectedProviderId = blockActivities.find((a: any) => a.transport_id)?.transport_id;
+                          const selectedProviderId = (dailyTransportAssignments[block.dayNumber || 1] || [])[0]?.transport_provider_id;
                           const provider = selectedProviderId ? masterData.transportProviders?.find((p: any) => p.id === selectedProviderId) : null;
 
                           const isPickerOpen = transportPickerOpenBlockId === block.id;
@@ -11412,9 +11390,6 @@ ${chauffeurHtml}
                                           onClick={() => {
                                             if (isCurrent) return;
                                             const travelIds = travelItems.map((a: any) => a.id);
-                                            setDbActivities(prev => prev.map(act =>
-                                              travelIds.includes(act.id) ? { ...act, transport_id: p.id } : act
-                                            ));
                                             setPoBlocks(prev => prev.map(pb => {
                                               if (pb.id !== block.id) return pb;
                                               return {
@@ -21295,25 +21270,16 @@ function AIItineraryBuilder({
       return;
     }
 
-    const markupPercent = Number(appSettings?.[Settings.Transport_Markup]) || 0;
-    const markupFactor = 1 + (markupPercent / 100);
-    const baseRate = 0;
+    const providerVehicles = (masterData.transportVehicles || []).filter(
+      (v: any) => v.provider_id === providerId || v.transport_provider_id === providerId
+    );
+    const defaultVehicleId = providerVehicles[0]?.id || null;
 
     const newAssignment: TourDailyTransportDTO = {
       tour_id: tourId,
       day_number: activeDay,
       transport_provider_id: providerId,
-      contracted_per_day_rate: baseRate,
-      per_day_rate: baseRate,
-      contracted_excess_mileage_cost: 0,
-      excess_mileage_cost: 0,
-      contracted_other_allowance: 0,
-      other_allowance: 0,
-      distance_km: 0,
-      charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
-      charged_excess_mileage_cost: 0,
-      charged_other_allowance: 0,
-      notes: ''
+      vehicle_id: defaultVehicleId
     };
     setTempTransports(prev => [...prev, newAssignment]);
   };
@@ -21366,11 +21332,7 @@ function AIItineraryBuilder({
   const updateTempTransportField = (index: number, field: keyof TourDailyTransportDTO, value: any) => {
     setTempTransports(prev => prev.map((item, idx) => {
       if (idx !== index) return item;
-      const next = { ...item, [field]: value };
-      if (field === 'contracted_per_day_rate') next.per_day_rate = value;
-      if (field === 'contracted_excess_mileage_cost') next.excess_mileage_cost = value;
-      if (field === 'contracted_other_allowance') next.other_allowance = value;
-      return next;
+      return { ...item, [field]: value };
     }));
   };
 
@@ -21981,12 +21943,6 @@ function AIItineraryBuilder({
           Number(d.charged_other_allowance ?? d.contracted_other_allowance ?? d.other_allowance ?? 0);
       });
 
-      assignedTransports.forEach(t => {
-        dailyTransportCost +=
-          Number(t.charged_per_day_rate ?? t.contracted_per_day_rate ?? t.per_day_rate ?? 0) +
-          Number(t.charged_excess_mileage_cost ?? t.contracted_excess_mileage_cost ?? t.excess_mileage_cost ?? 0) +
-          Number(t.charged_other_allowance ?? t.contracted_other_allowance ?? t.other_allowance ?? 0);
-      });
 
       assignedVehicles.forEach(v => {
         dailyTransportCost +=
@@ -22840,62 +22796,7 @@ function AIItineraryBuilder({
             </select>
           </div>
 
-          {/* Transport Provider Dropdown */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide font-sans">Provider:</span>
-            <select
-              value={tripData?.defaultTransportId || ''}
-              onChange={(e) => {
-                const val = e.target.value || undefined;
-                setTripData(prev => prev ? { ...prev, defaultTransportId: val } : prev);
-                onChauffeurNeededChange(!!val);
-              }}
-              disabled={isLockedByOther}
-              className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-855 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-808/10 focus:border-emerald-808 transition-all cursor-pointer shadow-sm disabled:opacity-50 max-w-[220px]"
-            >
-              <option value="">Select Default Transport...</option>
-              {(masterData?.transportProviders || []).map((provider: any) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={async (e) => {
-                // Use the exact same flow as the per-block "Transport Specs" button:
-                // find the first travel block that has (or could have) a requirement, open the modal, fetch its vehicles.
-                const rect = e.currentTarget.getBoundingClientRect();
-                setModalTriggerRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
 
-                // Prefer a block that already has a requirement id, fall back to any travel block
-                const blockWithReq = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id);
-                const anyTravelBlock = itinerary.find(b => b.type === ItineraryBlockTypes.TRAVEL);
-                const targetBlock = blockWithReq || anyTravelBlock;
-
-                if (!targetBlock) return; // no travel blocks at all — nothing to open
-
-                setReqShowVehiclePicker(false);
-                setReqPickedVehicles([]);
-                setSelectedTransportBlock(targetBlock);
-                setShowTransportReqModal(true);
-
-                setReqPickedVehicles([]);
-              }}
-              disabled={isLockedByOther}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm ${itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
-                ? 'bg-amber-50 border-amber-205 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
-                : 'border-neutral-200/80 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-855'
-                }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>
-                {itinerary.some(b => b.type === ItineraryBlockTypes.TRAVEL && b.transport_requirement_id)
-                  ? 'Edit Transport Specs'
-                  : 'Transport Specs'}
-              </span>
-            </button>
-          </div>
 
           {/* Guide Dropdown */}
           <div className="flex items-center gap-2">
@@ -23411,9 +23312,11 @@ function AIItineraryBuilder({
                     <div className="flex flex-wrap gap-1 mt-1">
                       {(dailyTransportAssignments[activeDay] || []).map((ass, i) => {
                         const tpObj = masterData.transportProviders?.find((p: any) => p.id === ass.transport_provider_id);
+                        const vObj = ass.vehicle_id ? masterData.transportVehicles?.find((v: any) => v.id === ass.vehicle_id) : null;
+                        const vName = vObj ? ` (${vObj.make_and_model || [vObj.make, vObj.model].filter(Boolean).join(' ')})` : '';
                         return (
                           <span key={i} className="inline-block bg-white border border-neutral-200 text-neutral-800 px-2 py-0.5 rounded-md font-medium shadow-2xs">
-                            {tpObj ? tpObj.name : 'Provider'}
+                            {tpObj ? tpObj.name : 'Provider'}{vName}
                           </span>
                         );
                       })}
@@ -23727,6 +23630,10 @@ function AIItineraryBuilder({
                   tempTransports.map((transport, index) => {
                     const tpObj = masterData.transportProviders?.find((p: any) => p.id === transport.transport_provider_id);
                     const name = tpObj ? tpObj.name : 'Transport Provider';
+                    const providerVehicles = (masterData.transportVehicles || []).filter(
+                      (v: any) => v.provider_id === transport.transport_provider_id || v.transport_provider_id === transport.transport_provider_id
+                    );
+
                     return (
                       <div key={index} className="border border-neutral-200 rounded-2xl p-4.5 bg-white shadow-xs space-y-3.5 relative">
                         <button
@@ -23737,98 +23644,30 @@ function AIItineraryBuilder({
                           <Trash2 className="w-4 h-4" />
                         </button>
 
-                        <div className="flex items-center gap-2 mb-2 pr-8">
-                          <UserCircle className="w-5 h-5 text-emerald-855" />
-                          <span className="text-xs font-black text-neutral-800">{name}</span>
-                        </div>
-
-                        {/* Contracted Cost Block */}
-                        <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/50 space-y-2">
-                          <span className="text-[9px] font-extrabold text-neutral-500 uppercase tracking-wider block">Contracted Cost (Buying Price)</span>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div>
-                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
-                              <input
-                                type="number"
-                                value={transport.contracted_per_day_rate ?? transport.per_day_rate ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'contracted_per_day_rate', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Excess Mileage ($)</label>
-                              <input
-                                type="number"
-                                value={transport.contracted_excess_mileage_cost ?? transport.excess_mileage_cost ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'contracted_excess_mileage_cost', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Other Allowance ($)</label>
-                              <input
-                                type="number"
-                                value={transport.contracted_other_allowance ?? transport.other_allowance ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'contracted_other_allowance', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Distance (km)</label>
-                              <input
-                                type="number"
-                                value={transport.distance_km ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'distance_km', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pr-8">
+                          <div className="flex items-center gap-2">
+                            <UserCircle className="w-5 h-5 text-emerald-855" />
+                            <span className="text-xs font-black text-neutral-800">{name}</span>
                           </div>
-                        </div>
 
-                        {/* Charged Cost Block */}
-                        <div className="bg-emerald-50/30 rounded-xl p-3 border border-emerald-100 space-y-2">
-                          <span className="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider block">Charged Cost (Selling Price)</span>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div>
-                              <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
-                              <input
-                                type="number"
-                                value={transport.charged_per_day_rate ?? transport.contracted_per_day_rate ?? transport.per_day_rate ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'charged_per_day_rate', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Excess Mileage ($)</label>
-                              <input
-                                type="number"
-                                value={transport.charged_excess_mileage_cost ?? transport.contracted_excess_mileage_cost ?? transport.excess_mileage_cost ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'charged_excess_mileage_cost', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Other Allowance ($)</label>
-                              <input
-                                type="number"
-                                value={transport.charged_other_allowance ?? transport.contracted_other_allowance ?? transport.other_allowance ?? 0}
-                                onChange={(e) => updateTempTransportField(index, 'charged_other_allowance', Number(e.target.value) || 0)}
-                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
-                              />
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Vehicle:</span>
+                            <select
+                              value={transport.vehicle_id || ''}
+                              onChange={(e) => updateTempTransportField(index, 'vehicle_id', e.target.value || null)}
+                              className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer max-w-[260px]"
+                            >
+                              <option value="">No Vehicle Selected</option>
+                              {providerVehicles.map((v: any) => {
+                                const vLabel = [v.make_and_model || [v.make, v.model].filter(Boolean).join(' '), v.vehicle_number ? `(${v.vehicle_number})` : ''].filter(Boolean).join(' ');
+                                return (
+                                  <option key={v.id} value={v.id}>
+                                    {vLabel || `Vehicle ${v.id}`}
+                                  </option>
+                                );
+                              })}
+                            </select>
                           </div>
-                        </div>
-
-                        {/* Notes */}
-                        <div>
-                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes / Instructions</label>
-                          <input
-                            type="text"
-                            placeholder="Add notes for this transport assignment on Day ..."
-                            value={transport.notes || ''}
-                            onChange={(e) => updateTempTransportField(index, 'notes', e.target.value)}
-                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
-                          />
                         </div>
                       </div>
                     );

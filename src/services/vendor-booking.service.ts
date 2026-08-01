@@ -62,15 +62,6 @@ export class VendorBookingService {
 
         // 2. Retrieve linked daily activities to create PO items
         const poItems: any[] = [];
-        // Junction rows for transport POs (one per travel leg)
-        const transportJunctionRows: Array<{
-            purchase_order_item_id: string;
-            daily_activity_id: string;
-            day_rate: number;
-            max_km_per_day: number;
-            additional_km_rate: number;
-            total_km_for_day: number;
-        }> = [];
         let calculatedSubtotal = 0;
 
         if (daily_activity_ids && daily_activity_ids.length > 0) {
@@ -139,7 +130,7 @@ export class VendorBookingService {
                         const poItemId = crypto.randomUUID();
                         poItems.push({
                             id: poItemId,
-                            // No daily_activity_id on the item itself — legs are in junction table
+                            daily_activity_id: firstLeg.id,
                             description,
                             service_date: dateKey !== 'unknown' ? dateKey : null,
                             quantity: 1,
@@ -147,18 +138,6 @@ export class VendorBookingService {
                             total_price: dayTotalPrice,
                             day_number: dayNum,
                         });
-
-                        // Build junction rows — one per leg
-                        for (const leg of legs) {
-                            transportJunctionRows.push({
-                                purchase_order_item_id: poItemId,
-                                daily_activity_id: (leg as any).id,
-                                day_rate: 0,
-                                max_km_per_day: 0,
-                                additional_km_rate: 0,
-                                total_km_for_day: totalKmForDay,
-                            });
-                        }
                     }
 
                 } else if (bookingData.vendor_type === 'driver') {
@@ -587,22 +566,7 @@ export class VendorBookingService {
             .map((item: any) => item.daily_activity_id)
             .filter((id: any) => !!id);
 
-        // For transport POs, daily_activity_id is stored in the junction table
-        if (activityIds.length === 0 && targetPO.vendor_type === 'transport') {
-            const itemIds = (targetPO.items || []).map((item: any) => item.id).filter(Boolean);
-            if (itemIds.length > 0) {
-                const { data: junctionLegs, error: jErr } = await supabase
-                    .from('purchase_order_daily_transport_items')
-                    .select('daily_activity_id')
-                    .in('purchase_order_item_id', itemIds);
-                if (jErr) throw jErr;
-                activityIds.push(
-                    ...(junctionLegs || [])
-                        .map((row: any) => row.daily_activity_id)
-                        .filter(Boolean)
-                );
-            }
-        }
+
 
         if (activityIds.length === 0) {
             throw new Error("No daily activities linked to this Purchase Order.");
@@ -669,9 +633,7 @@ export class VendorBookingService {
 
         if (vType === 'hotel') dailyActivityUpdates.hotel_id = vendor_id;
         else if (vType === 'vendor') dailyActivityUpdates.vendor_id = vendor_id;
-        else if (vType === 'transport_provider') dailyActivityUpdates.transport_id = vendor_id;
         else if (vType === 'tour_guide') dailyActivityUpdates.guide_id = vendor_id;
-        else if (vType === 'driver') dailyActivityUpdates.driver_id = vendor_id;
         else if (vType === 'restaurant') dailyActivityUpdates.restaurant_id = vendor_id;
 
         const { error: daError } = await supabase

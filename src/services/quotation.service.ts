@@ -136,8 +136,6 @@ export class QuotationService {
                 updates.hotel_id = quote.vendor_id;
             } else if (block.block_type === 'meal') {
                 updates.restaurant_id = quote.vendor_id;
-            } else if (block.block_type === 'travel') {
-                updates.transport_id = quote.vendor_id;
             } else if (block.block_type === 'activity') {
                 updates.vendor_id = quote.vendor_id;
             }

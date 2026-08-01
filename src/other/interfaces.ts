@@ -476,29 +476,7 @@ export interface DailyActivityVendorLink {
     updated_at?: string;
 }
 
-/**
- * One row in purchase_order_daily_transport_items.
- * Links a single per-day purchase_order_items billing row to an individual
- * daily_activities travel leg, and carries snapshot pricing from transport_vehicles.
- */
-export interface PurchaseOrderDailyTransportItem {
-    id: string;
-    purchase_order_item_id: string;
-    daily_activity_id: string | null;
 
-    // Snapshot pricing from transport_vehicles at PO creation time
-    day_rate: number;
-    max_km_per_day: number;
-    additional_km_rate: number;
-    total_km_for_day: number;
-
-    // Computed by DB (GENERATED ALWAYS AS ... STORED)
-    extra_km: number;
-    extra_km_charge: number;
-    day_total_price: number;
-
-    created_at?: string;
-}
 
 
 export interface TourRfpEmail {
@@ -628,10 +606,6 @@ export interface TourDailyTransport {
     day_number: number;
     transport_provider_id: string;
     vehicle_id?: string;
-    per_day_rate: number;
-    excess_mileage_cost: number;
-    other_allowance: number;
-    notes?: string;
     created_at?: string;
     updated_at?: string;
 }

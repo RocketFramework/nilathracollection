@@ -184,21 +184,7 @@ export class TourDailyDriverService {
             throw upsertErr;
         }
 
-        // 4. Update daily_activities for travel activities on each day where a driver is assigned
-        for (const item of formattedPayloads) {
-            if (item.tour_itinerary_id) {
-                const { error: daUpdateErr } = await sb
-                    .from('daily_activities')
-                    .update({ driver_id: item.driver_id })
-                    .eq('tour_id', tourId)
-                    .eq('itinerary_id', item.tour_itinerary_id)
-                    .eq('activity_type', 'travel');
 
-                if (daUpdateErr) {
-                    console.error(`Error updating driver_id on daily_activities for day itinerary ${item.tour_itinerary_id}:`, daUpdateErr);
-                }
-            }
-        }
 
         return (savedData || []).map((row: any) => {
             const contractedRate = Number(row.contracted_per_day_rate ?? row.per_day_rate ?? 0);

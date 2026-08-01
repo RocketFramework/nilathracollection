@@ -421,8 +421,7 @@ export function PriceNegotiationStep({ tripData, updateData, setIsDirty }: { tri
 
                 const assignedTransportIds = Array.from(new Set([
                     ...tripData.itinerary.filter(b => b.type === 'travel' && b.transportId).map(b => b.transportId),
-                    tripData.defaultTransportId,
-                    ...acts.filter(a => a.activity_type === 'travel' && a.transport_id).map(a => a.transport_id)
+                    tripData.defaultTransportId
                 ].filter(Boolean) as string[]));
 
                 const assignedGuideIds = Array.from(new Set([

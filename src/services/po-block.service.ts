@@ -234,8 +234,8 @@ export class POBlockService {
      * Full cascade delete of ALL PO-related data for a tour.
      * Deletes in FK-safe order:
      *   supplier_payments → supplier_invoice_items → supplier_invoices
-     *   → purchase_order_daily_transport_items → purchase_order_items
-     *   → tour_rfq_emails / tour_rfp_emails → purchase_orders → po_blocks
+     *   → purchase_order_items → tour_rfq_emails / tour_rfp_emails
+     *   → purchase_orders → po_blocks
      *   (po_block_daily_activities is cascade-deleted by the po_blocks FK)
      *
      * Called only when a full AI itinerary regeneration is confirmed by the agent.
@@ -468,7 +468,7 @@ export class POBlockService {
         // 1. Fetch all daily_activities for tour
         const { data: rawActivities, error: actErr } = await adminSupabase
             .from('daily_activities')
-            .select('id, title, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vendor_activity_id, service_date, contracted_price, charged_total_price, tour_itineraries(day_number, date)')
+            .select('id, title, activity_type, hotel_id, restaurant_id, vendor_id, guide_id, vendor_activity_id, service_date, contracted_price, charged_total_price, tour_itineraries(day_number, date)')
             .eq('tour_id', tourId);
 
         if (actErr) throw actErr;
@@ -495,10 +495,10 @@ export class POBlockService {
             });
         });
 
-        // 4. Find unlinked daily_activities that have supplier IDs (hotel_id, transport_id, driver_id, vendor_id, guide_id, restaurant_id)
+        // 4. Find unlinked daily_activities that have supplier IDs (hotel_id, vendor_id, guide_id, restaurant_id)
         const unlinkedActivities = activities.filter(act => {
             if (linkedActivityIds.has(act.id)) return false;
-            return Boolean(act.hotel_id || act.transport_id || act.driver_id || act.vendor_id || act.guide_id || act.restaurant_id || act.activity_type === 'sleep' || act.activity_type === 'travel');
+            return Boolean(act.hotel_id || act.vendor_id || act.guide_id || act.restaurant_id || act.activity_type === 'sleep' || act.activity_type === 'travel');
         });
 
         // Clean up junction links for daily_activities that no longer exist in DB
@@ -520,7 +520,6 @@ export class POBlockService {
         ]);
 
         const allDriverIds = new Set<string>();
-        activities.forEach(a => { if (a.driver_id) allDriverIds.add(a.driver_id); });
         (itinDrivers || []).forEach(d => { if (d.driver_id) allDriverIds.add(d.driver_id); });
 
         const allGuideIds = new Set<string>();
@@ -588,12 +587,9 @@ export class POBlockService {
             if (act.hotel_id || act.activity_type === 'sleep') {
                 targetBlock = existingBlocks.find(b => (b.block_type === 'sleep' || b.block_type === 'accommodation') && (b.daily_activities?.some(a => a.hotel_id === act.hotel_id) || b.name.toLowerCase().includes(act.title.toLowerCase())));
             }
-            // Try to match by transport_id
-            else if (act.transport_id || act.activity_type === 'travel') {
+            // Try to match by transport / travel
+            else if (act.activity_type === 'travel') {
                 targetBlock = existingBlocks.find(b => b.block_type === 'travel');
-            }
-            else if (act.driver_id) {
-                targetBlock = existingBlocks.find(b => b.block_type === 'driver' && b.name.includes(act.driver_id));
             }
             else if (act.guide_id) {
                 targetBlock = existingBlocks.find(b => b.block_type === 'guide' && b.name.includes(act.guide_id));
@@ -644,7 +640,7 @@ export class POBlockService {
             this.getPOBlocksForTour(tourId),
             adminSupabase
                 .from('daily_activities')
-                .select('id, title, activity_type, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, vendor_activity_id, service_date, tour_itineraries(day_number, date)')
+                .select('id, title, activity_type, hotel_id, restaurant_id, vendor_id, guide_id, vendor_activity_id, service_date, tour_itineraries(day_number, date)')
                 .eq('tour_id', tourId)
         ]);
 
@@ -720,12 +716,12 @@ export class POBlockService {
         // ── Normal rebuild: Compare activity signatures ───────────────────────────
         if (nonFinalizedBlocks.length > 0) {
             const buildSig = (acts: any[]) =>
-                acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.transport_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}:${a.guide_id || ''}:${a.driver_id || ''}`)
+                acts.map(a => `${a.id}:${a.hotel_id || ''}:${a.restaurant_id || ''}:${a.vendor_id || ''}:${a.guide_id || ''}`)
                     .sort().join('|');
 
             const isMappableActivity = (a: any) => {
                 if (a.activity_type === 'sleep' || a.hotel_id) return true;
-                if (a.activity_type === 'travel' && a.transport_id) return true;
+                if (a.activity_type === 'travel') return true;
                 if (a.activity_type === 'meal') return true;
                 if (a.activity_type === 'activity') return true;
                 return false;
@@ -814,19 +810,15 @@ export class POBlockService {
             hotelIds.length > 0
                 ? adminSupabase.from('hotels').select('id, name').in('id', hotelIds)
                 : Promise.resolve({ data: [] as any[], error: null }),
-            // ── 2. TRAVEL: group by transport_id (one block per provider, whole trip) ──
+            // ── 2. TRAVEL: group by travel activity type (one block, whole trip) ──
             (async () => {
                 const travelGroups = new Map<string, any[]>();
-                remainingActivities.filter(a => a.activity_type === 'travel' && a.transport_id).forEach(act => {
-                    const key = act.transport_id!;
+                remainingActivities.filter(a => a.activity_type === 'travel').forEach(act => {
+                    const key = 'travel';
                     if (!travelGroups.has(key)) travelGroups.set(key, []);
                     travelGroups.get(key)!.push(act);
                 });
-                const transportIds = Array.from(travelGroups.keys());
-                const { data: providers } = transportIds.length > 0
-                    ? await adminSupabase.from('transport_providers').select('id, name').in('id', transportIds)
-                    : { data: [] as any[] };
-                return { groups: travelGroups, lookup: providers || [] };
+                return { groups: travelGroups, lookup: [] as any[] };
             })(),
             // ── 3. MEAL: group by restaurant_id ─────────────────────────────────────
             (async () => {
@@ -865,7 +857,7 @@ export class POBlockService {
                     : { data: [] as any[] };
                 return { guideIds, lookup: guides || [] };
             })(),
-            // ── 6. DRIVER: group by driver_id from daily_activities AND tour_itinerary_drivers ──
+            // ── 6. DRIVER: group by driver_id from tour_itinerary_drivers ──
             (async () => {
                 const { data: itinDrivers } = await adminSupabase
                     .from('tour_itinerary_drivers')
@@ -874,9 +866,8 @@ export class POBlockService {
                     .not('driver_id', 'is', null);
 
                 const driverIdsFromItin = (itinDrivers || []).map((d: any) => d.driver_id).filter(Boolean);
-                const driverIdsFromActivities = activitiesToGroup.map(a => a.driver_id).filter(Boolean);
 
-                const driverIds = Array.from(new Set([...driverIdsFromActivities, ...driverIdsFromItin]))
+                const driverIds = Array.from(new Set(driverIdsFromItin))
                     .filter(id => !finalizedDriverIds.has(id)) as string[];
                 const { data: drivers } = driverIds.length > 0
                     ? await adminSupabase.from('drivers').select('id, first_name, last_name, per_day_rate').in('id', driverIds)
@@ -975,7 +966,6 @@ export class POBlockService {
             .select('*, tour_itineraries(day_number, date)')
             .eq('tour_id', tourId)
             .eq('activity_type', 'travel')
-            .is('transport_id', null)
             .is('vendor_id', null)
             .not('guide_id', 'is', null);
         if (error) throw error;

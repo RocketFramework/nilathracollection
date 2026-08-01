@@ -694,7 +694,7 @@ export class TourService {
         // Fetch existing daily_activities from SQL to enforce daily_activities as the SINGLE SOURCE OF TRUTH
         const { data: existingDaRows } = await supabaseAdmin
             .from('daily_activities')
-            .select('id, itinerary_id, service_date, title, activity_type, location_name, distance, description, time_start, time_end, meal_plan, contracted_price, charged_unit_price, charged_total_price, quantity, hotel_id, transport_id, restaurant_id, vendor_id, driver_id, guide_id, tour_itineraries(id, day_number, service_date)')
+            .select('id, itinerary_id, service_date, title, activity_type, location_name, distance, description, time_start, time_end, meal_plan, contracted_price, charged_unit_price, charged_total_price, quantity, hotel_id, restaurant_id, vendor_id, guide_id, tour_itineraries(id, day_number, service_date)')
             .eq('tour_id', tourId);
 
         const daMap = new Map<string, any>();
@@ -959,8 +959,6 @@ export class TourService {
                     contracted_price: b.contractedPrice,
                     charged_unit_price: b.agreedPrice,
                     charged_total_price: b.agreedPrice,
-                    transport_id: (b.transportId && isUuid(b.transportId)) ? b.transportId : (b.type === 'travel' ? (tripData.defaultTransportId || null) : null),
-                    driver_id: (b.driverId && isUuid(b.driverId)) ? b.driverId : (tripData.defaultDriverId || null),
                     guide_id: (b.guideId && isUuid(b.guideId)) ? b.guideId : (tripData.defaultGuideId || null),
                     restaurant_id: (b.restaurantId && isUuid(b.restaurantId)) ? b.restaurantId : null,
                     hotel_id: (b.hotelId && isUuid(b.hotelId)) ? b.hotelId : null,
@@ -978,8 +976,6 @@ export class TourService {
 
                 if (b.isCustomPO) {
                     basePayload.vendor_id = null;
-                    basePayload.transport_id = null;
-                    basePayload.driver_id = null;
                     basePayload.guide_id = null;
                     basePayload.activity_id = null;
                     basePayload.restaurant_id = null;
@@ -1995,7 +1991,6 @@ export class TourService {
         // Update all travel activities + fetch itineraries in parallel
         const [, itinerariesResult] = await Promise.all([
             supabaseAdmin.from('daily_activities').update({
-                transport_id: newProviderId,
                 location_name: provider.address || '',
             }).in('id', travelActivityIds),
             itinIds.length > 0
@@ -2007,13 +2002,14 @@ export class TourService {
         const dayNumbers = itineraries.map((i: any) => Number(i.day_number)).filter(Boolean);
 
         // Fetch old provider name
-        const { data: oldProviderAct } = await supabaseAdmin
-            .from('daily_activities')
-            .select('transport_id')
-            .in('id', travelActivityIds)
+        // Fetch old provider name from tour_itinerary_transports
+        const { data: oldTransportRow } = await supabaseAdmin
+            .from('tour_itinerary_transports')
+            .select('transport_provider_id')
+            .eq('tour_id', tourId)
             .limit(1)
             .maybeSingle();
-        const oldProviderId = oldProviderAct?.transport_id;
+        const oldProviderId = oldTransportRow?.transport_provider_id;
         const oldProviderResult = oldProviderId
             ? await supabaseAdmin.from('transport_providers').select('name').eq('id', oldProviderId).maybeSingle()
             : { data: null };
@@ -2315,13 +2311,6 @@ export class TourService {
             .single();
         const oldDriverName = oldDriver ? `${oldDriver.first_name || ''} ${oldDriver.last_name || ''}`.trim() : 'Unassigned Driver';
 
-        // 3. Update driver_id in daily_activities for this tour
-        await supabaseAdmin
-            .from('daily_activities')
-            .update({ driver_id: newDriverId })
-            .eq('tour_id', tourId)
-            .eq('driver_id', oldDriverId);
-
         // 4. Update the po_blocks table name
         const oldBlockNamePattern = `% | ID: ${oldDriverId}`;
         const newBlockName = `Driver: ${newDriverName} | ID: ${newDriverId}`;
@@ -2354,17 +2343,7 @@ export class TourService {
             mappedActivityIds = (mappedActs || []).map(m => m.daily_activity_id);
         }
 
-        // Also include direct references
-        const { data: directActs } = await supabaseAdmin
-            .from('daily_activities')
-            .select('id')
-            .eq('tour_id', tourId)
-            .eq('driver_id', newDriverId);
-        
-        const allDriverActIds = Array.from(new Set([
-            ...mappedActivityIds,
-            ...(directActs || []).map(d => d.id)
-        ]));
+        const allDriverActIds = Array.from(new Set(mappedActivityIds));
 
         if (allDriverActIds.length > 0) {
             const { data: actsToUpdate } = await supabaseAdmin

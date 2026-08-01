@@ -826,37 +826,9 @@ export async function finalizeActivityPricesAction(
                 .eq('id', update.id);
             if (error) throw error;
 
-            // 2. Sync to purchase_order_daily_transport_items & purchase_order_items if a PO exists
+            // 2. Sync to purchase_order_items if a PO exists
             if (update.contracted_total_price !== undefined && update.contracted_total_price !== null) {
                 const newPrice = Number(update.contracted_total_price);
-
-                // Check transport legs junction table
-                const { data: transportLegs } = await adminSupabase
-                    .from('purchase_order_daily_transport_items')
-                    .select('id, purchase_order_item_id')
-                    .eq('daily_activity_id', update.id);
-
-                if (transportLegs && transportLegs.length > 0) {
-                    for (const leg of transportLegs) {
-                        await adminSupabase
-                            .from('purchase_order_daily_transport_items')
-                            .update({ day_rate: newPrice })
-                            .eq('id', leg.id);
-
-                        if (leg.purchase_order_item_id) {
-                            const { data: poItem } = await adminSupabase
-                                .from('purchase_order_items')
-                                .update({ unit_price: newPrice, total_price: newPrice })
-                                .eq('id', leg.purchase_order_item_id)
-                                .select('purchase_order_id')
-                                .single();
-
-                            if (poItem?.purchase_order_id) {
-                                affectedPoIds.add(poItem.purchase_order_id);
-                            }
-                        }
-                    }
-                }
 
                 // Check direct purchase_order_items
                 const { data: directPoItems } = await adminSupabase
@@ -2641,8 +2613,6 @@ export async function updateEmailProposalAction(
                             actUpdates.hotel_id = updated.vendor_id;
                         } else if (block.block_type === 'meal') {
                             actUpdates.restaurant_id = updated.vendor_id;
-                        } else if (block.block_type === 'travel') {
-                            actUpdates.transport_id = updated.vendor_id;
                         } else if (block.block_type === 'activity') {
                             actUpdates.vendor_id = updated.vendor_id;
                         }
