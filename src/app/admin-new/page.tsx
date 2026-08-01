@@ -99,6 +99,7 @@ import {
   getTourDailyVehiclesAction,
   saveTourDailyVehiclesAction,
   getTransportVehiclesAction,
+  getTourItineraryCountAction,
   getActivitiesAction,
   getAppMarkupsAction,
   getTourDataAction,
@@ -2904,7 +2905,8 @@ function PlannerWizardWorkspace() {
             rebuildStatusRes,
             dailyDriversRes,
             dailyTransportsRes,
-            dailyVehiclesRes
+            dailyVehiclesRes,
+            itinCountRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -2920,7 +2922,8 @@ function PlannerWizardWorkspace() {
             getTourPORebuildStatusAction(activeTourId),
             getTourDailyDriversAction(activeTourId),
             getTourDailyTransportsAction(activeTourId),
-            getTourDailyVehiclesAction(activeTourId)
+            getTourDailyVehiclesAction(activeTourId),
+            getTourItineraryCountAction(activeTourId)
           ]);
 
           if (dailyDriversRes?.success && dailyDriversRes.drivers) {
@@ -2960,11 +2963,20 @@ function PlannerWizardWorkspace() {
             setDailyVehicleAssignments(vehicleMap);
           }
 
+          if (touristRes.success && touristRes.data) {
+            setTouristData(touristRes.data);
+          }
+
           if (tourRes.success && tourRes.data) {
             const fullTripData = tourRes.data.tripData as TripData;
             const tourTravelStyle = tourRes.data.tourMsg?.travel_style;
             if (tourTravelStyle && fullTripData.profile) {
               fullTripData.profile.travelStyle = tourTravelStyle as TravelStyle;
+            }
+            if (itinCountRes && itinCountRes.success && (itinCountRes.count ?? 0) > 0) {
+              if (fullTripData.profile) {
+                fullTripData.profile.durationDays = itinCountRes.count ?? 0;
+              }
             }
             setTripData(fullTripData);
             setItinerary(sortItineraryChronologically(fullTripData.itinerary || []));
@@ -3017,6 +3029,9 @@ function PlannerWizardWorkspace() {
                   infants: fullTripData.profile.infants !== undefined && fullTripData.profile.infants !== null
                     ? fullTripData.profile.infants
                     : prev.preferences.infants,
+                  duration_days: (itinCountRes && itinCountRes.success && (itinCountRes.count ?? 0) > 0)
+                    ? (itinCountRes.count ?? 0)
+                    : (fullTripData.profile.durationDays || prev.preferences.duration_days || 5)
                 }
               }));
             }
@@ -21141,83 +21156,104 @@ function AIItineraryBuilder({
   const [applyScope, setApplyScope] = useState<'current' | 'all'>('current');
 
   const openDriversModal = () => {
-    setTempDrivers(dailyDriverAssignments[activeDay] || []);
-    setApplyScope('current');
+    const current = dailyDriverAssignments[activeDay] || [];
+    setTempDrivers(current.map(d => ({ ...d, applyScope: d.applyScope || 'current' })));
     setAllocationModal('drivers');
   };
 
   const openTransportsModal = () => {
-    setTempTransports(dailyTransportAssignments[activeDay] || []);
-    setApplyScope('current');
+    const current = dailyTransportAssignments[activeDay] || [];
+    setTempTransports(current.map(t => ({ ...t, applyScope: t.applyScope || 'current' })));
     setAllocationModal('transports');
   };
 
   const openVehiclesModal = () => {
-    setTempVehicles(dailyVehicleAssignments[activeDay] || []);
+    const current = dailyVehicleAssignments[activeDay] || [];
+    setTempVehicles(current.map(v => ({ ...v, applyScope: v.applyScope || 'current' })));
     setVehicleProviderSearch('');
-    setApplyScope('current');
     setAllocationModal('vehicles');
   };
 
-  const saveDriversModal = () => {
-    if (applyScope === 'all') {
-      const next: Record<number, TourDailyDriverDTO[]> = {};
-      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
-      for (let d = 1; d <= numDays; d++) {
-        next[d] = tempDrivers.map(item => ({
-          ...item,
-          day_number: d,
-          tour_itinerary_id: undefined
-        }));
+  const saveDriversModal = async () => {
+    try {
+      const otherDays = Object.entries(dailyDriverAssignments)
+        .filter(([day]) => Number(day) !== activeDay)
+        .flatMap(([_, list]) => list);
+      const payloads = [...otherDays, ...tempDrivers];
+
+      const res = await saveTourDailyDriversAction(tourId, payloads);
+      if (res.success && res.saved) {
+        const driverMap: Record<number, TourDailyDriverDTO[]> = {};
+        res.saved.forEach((d: TourDailyDriverDTO) => {
+          if (d.day_number) {
+            if (!driverMap[d.day_number]) driverMap[d.day_number] = [];
+            driverMap[d.day_number].push(d);
+          }
+        });
+        setDailyDriverAssignments(driverMap);
+      } else {
+        console.error("Failed to save daily drivers on modal close:", res.error);
+        alert("Failed to save driver assignments: " + res.error);
       }
-      setDailyDriverAssignments(next);
-    } else {
-      setDailyDriverAssignments(prev => ({
-        ...prev,
-        [activeDay]: tempDrivers
-      }));
+    } catch (err: any) {
+      console.error("Error saving daily drivers:", err);
+      alert("Error saving drivers: " + err.message);
     }
     setAllocationModal(null);
   };
 
-  const saveTransportsModal = () => {
-    if (applyScope === 'all') {
-      const next: Record<number, TourDailyTransportDTO[]> = {};
-      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
-      for (let d = 1; d <= numDays; d++) {
-        next[d] = tempTransports.map(item => ({
-          ...item,
-          day_number: d,
-          tour_itinerary_id: undefined
-        }));
+  const saveTransportsModal = async () => {
+    try {
+      const otherDays = Object.entries(dailyTransportAssignments)
+        .filter(([day]) => Number(day) !== activeDay)
+        .flatMap(([_, list]) => list);
+      const payloads = [...otherDays, ...tempTransports];
+
+      const res = await saveTourDailyTransportsAction(tourId, payloads);
+      if (res.success && res.saved) {
+        const transportMap: Record<number, TourDailyTransportDTO[]> = {};
+        res.saved.forEach((t: TourDailyTransportDTO) => {
+          if (t.day_number) {
+            if (!transportMap[t.day_number]) transportMap[t.day_number] = [];
+            transportMap[t.day_number].push(t);
+          }
+        });
+        setDailyTransportAssignments(transportMap);
+      } else {
+        console.error("Failed to save daily transports on modal close:", res.error);
+        alert("Failed to save transport assignments: " + res.error);
       }
-      setDailyTransportAssignments(next);
-    } else {
-      setDailyTransportAssignments(prev => ({
-        ...prev,
-        [activeDay]: tempTransports
-      }));
+    } catch (err: any) {
+      console.error("Error saving daily transports:", err);
+      alert("Error saving transports: " + err.message);
     }
     setAllocationModal(null);
   };
 
-  const saveVehiclesModal = () => {
-    if (applyScope === 'all') {
-      const next: Record<number, TourDailyVehicleDTO[]> = {};
-      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
-      for (let d = 1; d <= numDays; d++) {
-        next[d] = tempVehicles.map(item => ({
-          ...item,
-          day_number: d,
-          tour_itinerary_id: undefined
-        }));
+  const saveVehiclesModal = async () => {
+    try {
+      const otherDays = Object.entries(dailyVehicleAssignments)
+        .filter(([day]) => Number(day) !== activeDay)
+        .flatMap(([_, list]) => list);
+      const payloads = [...otherDays, ...tempVehicles];
+
+      const res = await saveTourDailyVehiclesAction(tourId, payloads);
+      if (res.success && res.saved) {
+        const vehicleMap: Record<number, TourDailyVehicleDTO[]> = {};
+        res.saved.forEach((v: TourDailyVehicleDTO) => {
+          if (v.day_number) {
+            if (!vehicleMap[v.day_number]) vehicleMap[v.day_number] = [];
+            vehicleMap[v.day_number].push(v);
+          }
+        });
+        setDailyVehicleAssignments(vehicleMap);
+      } else {
+        console.error("Failed to save daily vehicles on modal close:", res.error);
+        alert("Failed to save vehicle assignments: " + res.error);
       }
-      setDailyVehicleAssignments(next);
-    } else {
-      setDailyVehicleAssignments(prev => ({
-        ...prev,
-        [activeDay]: tempVehicles
-      }));
+    } catch (err: any) {
+      console.error("Error saving daily vehicles:", err);
+      alert("Error saving vehicles: " + err.message);
     }
     setAllocationModal(null);
   };
@@ -21305,6 +21341,7 @@ function AIItineraryBuilder({
       charged_accommodation_cost: 0,
       charged_meal_cost: 0,
       charged_other_allowance: 0,
+      applyScope: 'current',
       notes: ''
     };
     setTempDrivers(prev => [...prev, newAssignment]);
@@ -21329,7 +21366,8 @@ function AIItineraryBuilder({
       tour_id: tourId,
       day_number: activeDay,
       transport_provider_id: providerId,
-      vehicle_id: defaultVehicleId
+      vehicle_id: defaultVehicleId,
+      applyScope: 'current'
     };
     setTempTransports(prev => [...prev, newAssignment]);
   };
@@ -21362,6 +21400,7 @@ function AIItineraryBuilder({
       charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
       charged_excess_mileage_cost: 0,
       charged_other_allowance: 0,
+      applyScope: 'current',
       notes: ''
     };
     setTempVehicles(prev => [...prev, newAssignment]);
@@ -21987,18 +22026,12 @@ function AIItineraryBuilder({
     if (assignedDrivers.length > 0 || assignedTransports.length > 0 || assignedVehicles.length > 0) {
       assignedDrivers.forEach(d => {
         dailyTransportCost +=
-          Number(d.charged_per_day_rate ?? d.contracted_per_day_rate ?? d.per_day_rate ?? 0) +
-          Number(d.charged_accommodation_cost ?? d.contracted_accommodation_cost ?? d.accommodation_cost ?? 0) +
-          Number(d.charged_meal_cost ?? d.contracted_meal_cost ?? d.meal_cost ?? 0) +
-          Number(d.charged_other_allowance ?? d.contracted_other_allowance ?? d.other_allowance ?? 0);
+          Number(d.charged_per_day_rate ?? d.contracted_per_day_rate ?? d.per_day_rate ?? 0);
       });
-
 
       assignedVehicles.forEach(v => {
         dailyTransportCost +=
-          Number(v.charged_per_day_rate ?? v.contracted_per_day_rate ?? v.per_day_rate ?? 0) +
-          Number(v.charged_excess_mileage_cost ?? v.contracted_excess_mileage_cost ?? v.excess_mileage_cost ?? 0) +
-          Number(v.charged_other_allowance ?? v.contracted_other_allowance ?? v.other_allowance ?? 0);
+          Number(v.charged_per_day_rate ?? v.contracted_per_day_rate ?? v.per_day_rate ?? 0);
       });
     } else {
       if (appSettings && (chauffeurNeeded || guideNeeded)) {
@@ -23491,10 +23524,21 @@ function AIItineraryBuilder({
                           <Trash2 className="w-4 h-4" />
                         </button>
 
-                        <div className="flex items-center gap-2 mb-2 pr-8">
+                        <div className="flex items-center gap-2 mb-2 pr-8 flex-wrap">
                           <UserCircle className="w-5 h-5 text-emerald-850" />
                           <span className="text-xs font-black text-neutral-800">{name}</span>
-                          <span className="text-[10px] text-neutral-400 font-semibold font-mono">(${Number(driver.contracted_per_day_rate ?? driver.per_day_rate ?? 0).toFixed(2)} Base Rate)</span>
+                          <span className="text-[10px] text-neutral-400 font-semibold font-mono mr-2">(${Number(driver.contracted_per_day_rate ?? driver.per_day_rate ?? 0).toFixed(2)} Base Rate)</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-neutral-400 font-bold">Scope:</span>
+                            <select
+                              value={driver.applyScope || 'current'}
+                              onChange={(e) => updateTempDriverField(index, 'applyScope', e.target.value as 'current' | 'all')}
+                              className="text-[10px] border border-neutral-200 rounded-lg px-2 py-0.5 bg-neutral-50 text-neutral-700 font-bold focus:outline-none transition-all cursor-pointer"
+                            >
+                              <option value="current">Only Day {activeDay}</option>
+                              <option value="all">All Days of Tour</option>
+                            </select>
+                          </div>
                         </div>
 
                         {/* Contracted Cost Block */}
@@ -23520,7 +23564,7 @@ function AIItineraryBuilder({
                               />
                             </div>
                             <div>
-                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meal Cost ($)</label>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meals ($)</label>
                               <input
                                 type="number"
                                 value={driver.contracted_meal_cost ?? driver.meal_cost ?? 0}
@@ -23529,7 +23573,7 @@ function AIItineraryBuilder({
                               />
                             </div>
                             <div>
-                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Allowance ($)</label>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Other Allowance ($)</label>
                               <input
                                 type="number"
                                 value={driver.contracted_other_allowance ?? driver.other_allowance ?? 0}
@@ -23563,7 +23607,7 @@ function AIItineraryBuilder({
                               />
                             </div>
                             <div>
-                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Meal Cost ($)</label>
+                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Meals ($)</label>
                               <input
                                 type="number"
                                 value={driver.charged_meal_cost ?? driver.contracted_meal_cost ?? driver.meal_cost ?? 0}
@@ -23572,7 +23616,7 @@ function AIItineraryBuilder({
                               />
                             </div>
                             <div>
-                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Allowance ($)</label>
+                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Other Allowance ($)</label>
                               <input
                                 type="number"
                                 value={driver.charged_other_allowance ?? driver.contracted_other_allowance ?? driver.other_allowance ?? 0}
@@ -23602,46 +23646,19 @@ function AIItineraryBuilder({
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-neutral-500">Apply assignments to:</span>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="driverApplyScope"
-                      checked={applyScope === 'current'}
-                      onChange={() => setApplyScope('current')}
-                      className="text-emerald-855 focus:ring-emerald-855"
-                    />
-                    Only Day {activeDay}
-                  </label>
-                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="driverApplyScope"
-                      checked={applyScope === 'all'}
-                      onChange={() => setApplyScope('all')}
-                      className="text-emerald-855 focus:ring-emerald-855"
-                    />
-                    All Days of Tour
-                  </label>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAllocationModal(null)}
-                  className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveDriversModal}
-                  className="px-5 py-2 bg-emerald-850 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
-                >
-                  Save Changes
-                </button>
-              </div>
+            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-end gap-2 bg-neutral-50/50">
+              <button
+                onClick={() => setAllocationModal(null)}
+                className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveDriversModal}
+                className="px-5 py-2 bg-emerald-850 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -23712,29 +23729,43 @@ function AIItineraryBuilder({
                           <Trash2 className="w-4 h-4" />
                         </button>
 
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pr-8">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pr-8 flex-wrap">
                           <div className="flex items-center gap-2">
                             <UserCircle className="w-5 h-5 text-emerald-855" />
                             <span className="text-xs font-black text-neutral-800">{name}</span>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Vehicle:</span>
-                            <select
-                              value={transport.vehicle_id || ''}
-                              onChange={(e) => updateTempTransportField(index, 'vehicle_id', e.target.value || null)}
-                              className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer max-w-[260px]"
-                            >
-                              <option value="">No Vehicle Selected</option>
-                              {providerVehicles.map((v: any) => {
-                                const vLabel = [v.make_and_model || [v.make, v.model].filter(Boolean).join(' '), v.vehicle_number ? `(${v.vehicle_number})` : ''].filter(Boolean).join(' ');
-                                return (
-                                  <option key={v.id} value={v.id}>
-                                    {vLabel || `Vehicle ${v.id}`}
-                                  </option>
-                                );
-                              })}
-                            </select>
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Vehicle:</span>
+                              <select
+                                value={transport.vehicle_id || ''}
+                                onChange={(e) => updateTempTransportField(index, 'vehicle_id', e.target.value || null)}
+                                className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer max-w-[200px]"
+                              >
+                                <option value="">No Vehicle Selected</option>
+                                {providerVehicles.map((v: any) => {
+                                  const vLabel = [v.make_and_model || [v.make, v.model].filter(Boolean).join(' '), v.vehicle_number ? `(${v.vehicle_number})` : ''].filter(Boolean).join(' ');
+                                  return (
+                                    <option key={v.id} value={v.id}>
+                                      {vLabel || `Vehicle ${v.id}`}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-neutral-400 font-bold">Scope:</span>
+                              <select
+                                value={transport.applyScope || 'current'}
+                                onChange={(e) => updateTempTransportField(index, 'applyScope', e.target.value as 'current' | 'all')}
+                                className="text-[10px] border border-neutral-200 rounded-lg px-2 py-0.5 bg-neutral-50 text-neutral-700 font-bold focus:outline-none transition-all cursor-pointer"
+                              >
+                                <option value="current">Only Day {activeDay}</option>
+                                <option value="all">All Days of Tour</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -23745,46 +23776,19 @@ function AIItineraryBuilder({
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-neutral-500">Apply assignments to:</span>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="transportApplyScope"
-                      checked={applyScope === 'current'}
-                      onChange={() => setApplyScope('current')}
-                      className="text-emerald-855 focus:ring-emerald-855"
-                    />
-                    Only Day {activeDay}
-                  </label>
-                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="transportApplyScope"
-                      checked={applyScope === 'all'}
-                      onChange={() => setApplyScope('all')}
-                      className="text-emerald-855 focus:ring-emerald-855"
-                    />
-                    All Days of Tour
-                  </label>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAllocationModal(null)}
-                  className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveTransportsModal}
-                  className="px-5 py-2 bg-emerald-850 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
-                >
-                  Save Changes
-                </button>
-              </div>
+            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-end gap-2 bg-neutral-50/50">
+              <button
+                onClick={() => setAllocationModal(null)}
+                className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveTransportsModal}
+                className="px-5 py-2 bg-emerald-850 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -23887,9 +23891,20 @@ function AIItineraryBuilder({
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className="flex items-center gap-2 mb-2 pr-8">
+                          <div className="flex items-center gap-2 mb-2 pr-8 flex-wrap">
                             <UserCircle className="w-5 h-5 text-emerald-855" />
                             <span className="text-xs font-black text-neutral-800">{name}</span>
+                            <div className="flex items-center gap-1.5 ml-2">
+                              <span className="text-[10px] text-neutral-400 font-bold">Scope:</span>
+                              <select
+                                value={vehicle.applyScope || 'current'}
+                                onChange={(e) => updateTempVehicleField(index, 'applyScope', e.target.value as 'current' | 'all')}
+                                className="text-[10px] border border-neutral-200 rounded-lg px-2 py-0.5 bg-neutral-50 text-neutral-700 font-bold focus:outline-none transition-all cursor-pointer"
+                              >
+                                <option value="current">Only Day {activeDay}</option>
+                                <option value="all">All Days of Tour</option>
+                              </select>
+                            </div>
                           </div>
 
                           {/* Contracted Cost Block */}
@@ -23988,46 +24003,19 @@ function AIItineraryBuilder({
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-bold text-neutral-500">Apply assignments to:</span>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
-                      <input
-                        type="radio"
-                        name="vehicleApplyScope"
-                        checked={applyScope === 'current'}
-                        onChange={() => setApplyScope('current')}
-                        className="text-emerald-855 focus:ring-emerald-855"
-                      />
-                      Only Day {activeDay}
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
-                      <input
-                        type="radio"
-                        name="vehicleApplyScope"
-                        checked={applyScope === 'all'}
-                        onChange={() => setApplyScope('all')}
-                        className="text-emerald-855 focus:ring-emerald-855"
-                      />
-                      All Days of Tour
-                    </label>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setAllocationModal(null)}
-                    className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveVehiclesModal}
-                    className="px-5 py-2 bg-emerald-855 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
-                  >
-                    Save Changes
-                  </button>
-                </div>
+              <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-end gap-2 bg-neutral-50/50">
+                <button
+                  onClick={() => setAllocationModal(null)}
+                  className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveVehiclesModal}
+                  className="px-5 py-2 bg-emerald-855 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                >
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>

@@ -28,13 +28,13 @@ function loadEnv() {
 
 const env = loadEnv();
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Let's create an anon client and see if we can read/write tour_itinerary_transports
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.log('Using Service Role Key to bypass RLS...');
+const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 async function test() {
-    console.log('Testing select on tour_itinerary_transports with anon key...');
+    console.log('Testing select on tour_itinerary_transports with service role key...');
     const { data: selectData, error: selectError } = await supabase
         .from('tour_itinerary_transports')
         .select('*')
@@ -46,7 +46,7 @@ async function test() {
         console.log('Select Succeeded, data:', selectData);
     }
 
-    console.log('Testing insert on tour_itinerary_transports with anon key...');
+    console.log('Testing insert on tour_itinerary_transports with service role key...');
     const { data: insertData, error: insertError } = await supabase
         .from('tour_itinerary_transports')
         .insert([{
@@ -54,7 +54,7 @@ async function test() {
             tour_itinerary_id: '6f6b04db-1450-43eb-88c0-fcafaff7403b',
             transport_provider_id: 'a8f7ef93-94f4-4c77-93c6-ef9783154ae9',
             vehicle_id: '54511e1e-1848-42a4-9a73-2638bc3994f9'
-        }]);
+        }]).select();
 
     if (insertError) {
         console.error('Insert Failed:', insertError);

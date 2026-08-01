@@ -22,6 +22,7 @@ export interface TourDailyVehicleDTO {
     route_path?: string;
     distance_km?: number;
     notes?: string;
+    applyScope?: 'current' | 'all';
     created_at?: string;
     updated_at?: string;
 }

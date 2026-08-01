@@ -23,6 +23,7 @@ export interface TourDailyDriverDTO {
     charged_other_allowance?: number;
 
     notes?: string;
+    applyScope?: 'current' | 'all';
     created_at?: string;
     updated_at?: string;
 }

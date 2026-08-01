@@ -2714,10 +2714,10 @@ export async function getTourDailyDriversAction(tourId: string) {
     }
 }
 
-export async function saveTourDailyDriversAction(tourId: string, assignments: TourDailyDriverDTO[]) {
+export async function saveTourDailyDriversAction(tourId: string, assignments: TourDailyDriverDTO[], applyToAllDays?: boolean) {
     try {
         const supabase = createAdminClient();
-        const saved = await TourDailyDriverService.bulkUpsertDailyDrivers(tourId, assignments, supabase);
+        const saved = await TourDailyDriverService.bulkUpsertDailyDrivers(tourId, assignments, supabase, applyToAllDays);
         return { success: true, saved };
     } catch (error: any) {
         console.error("Error saving tour daily drivers:", error);
@@ -2736,10 +2736,10 @@ export async function getTourDailyTransportsAction(tourId: string) {
     }
 }
 
-export async function saveTourDailyTransportsAction(tourId: string, assignments: TourDailyTransportDTO[]) {
+export async function saveTourDailyTransportsAction(tourId: string, assignments: TourDailyTransportDTO[], applyToAllDays?: boolean) {
     try {
         const supabase = createAdminClient();
-        const saved = await TourDailyTransportService.bulkUpsertDailyTransports(tourId, assignments, supabase);
+        const saved = await TourDailyTransportService.bulkUpsertDailyTransports(tourId, assignments, supabase, applyToAllDays);
         return { success: true, saved };
     } catch (error: any) {
         console.error("Error saving tour daily transports:", error);
@@ -2758,10 +2758,10 @@ export async function getTourDailyVehiclesAction(tourId: string) {
     }
 }
 
-export async function saveTourDailyVehiclesAction(tourId: string, assignments: TourDailyVehicleDTO[]) {
+export async function saveTourDailyVehiclesAction(tourId: string, assignments: TourDailyVehicleDTO[], applyToAllDays?: boolean) {
     try {
         const supabase = createAdminClient();
-        const saved = await TourDailyVehicleService.bulkUpsertDailyVehicles(tourId, assignments, supabase);
+        const saved = await TourDailyVehicleService.bulkUpsertDailyVehicles(tourId, assignments, supabase, applyToAllDays);
         return { success: true, saved };
     } catch (error: any) {
         console.error("Error saving tour daily vehicles:", error);
@@ -2801,6 +2801,22 @@ export async function getTransportVehiclesAction() {
     } catch (error: any) {
         console.error("Error fetching transport vehicles:", error);
         return { success: false, error: error.message || "Failed to load transport vehicles." };
+    }
+}
+
+export async function getTourItineraryCountAction(tourId: string) {
+    try {
+        const supabase = createAdminClient();
+        const { count, error } = await supabase
+            .from('tour_itineraries')
+            .select('*', { count: 'exact', head: true })
+            .eq('tour_id', tourId);
+
+        if (error) throw error;
+        return { success: true, count: count || 0 };
+    } catch (error: any) {
+        console.error("Error fetching tour itinerary count:", error);
+        return { success: false, error: error.message || "Failed to load tour itinerary count." };
     }
 }
 

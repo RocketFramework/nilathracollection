@@ -5,6 +5,7 @@ export interface TourDailyTransportDTO {
     day_number: number;
     transport_provider_id: string;
     vehicle_id?: string | null;
+    applyScope?: 'current' | 'all';
     created_at?: string;
     updated_at?: string;
 }

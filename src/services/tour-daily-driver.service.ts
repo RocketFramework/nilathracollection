@@ -92,7 +92,7 @@ export class TourDailyDriverService {
         return data;
     }
 
-    static async bulkUpsertDailyDrivers(tourId: string, payloads: TourDailyDriverDTO[], client?: any): Promise<TourDailyDriverDTO[]> {
+    static async bulkUpsertDailyDrivers(tourId: string, payloads: TourDailyDriverDTO[], client?: any, applyToAllDays?: boolean): Promise<TourDailyDriverDTO[]> {
         const sb = client || getSupabaseClient();
         if (!payloads || payloads.length === 0) {
             await sb.from('tour_itinerary_drivers').delete().eq('tour_id', tourId);
@@ -114,31 +114,9 @@ export class TourDailyDriverService {
             dayToItinIdMap[Number(it.day_number)] = it.id;
         });
 
-        // 2. Ensure each payload has a valid tour_itinerary_id (insert missing itinerary days if needed)
+        // 2. Format payloads and handle replication per-item
         const formattedPayloads: any[] = [];
         for (const p of payloads) {
-            const dayNum = Number(p.day_number);
-            let tourItinId = p.tour_itinerary_id || dayToItinIdMap[dayNum];
-
-            if (!tourItinId) {
-                const { data: newItin, error: createItinErr } = await sb
-                    .from('tour_itineraries')
-                    .insert([{
-                        tour_id: tourId,
-                        day_number: dayNum,
-                        title: `Day ${dayNum}`
-                    }])
-                    .select('id')
-                    .single();
-
-                if (createItinErr || !newItin) {
-                    console.error(`Failed to scaffold tour_itineraries for day ${dayNum}:`, createItinErr);
-                    continue;
-                }
-                tourItinId = newItin.id;
-                dayToItinIdMap[dayNum] = tourItinId;
-            }
-
             const contractedRate = Number(p.contracted_per_day_rate ?? p.per_day_rate ?? 0);
             const contractedAcc = p.contracted_accommodation_cost ?? p.accommodation_cost ?? 0;
             const contractedMeal = p.contracted_meal_cost ?? p.meal_cost ?? 0;
@@ -149,24 +127,71 @@ export class TourDailyDriverService {
             const chargedMeal = p.charged_meal_cost ?? contractedMeal;
             const chargedOther = p.charged_other_allowance ?? contractedOther;
 
-            formattedPayloads.push({
-                tour_id: tourId,
-                tour_itinerary_id: tourItinId,
-                driver_id: p.driver_id || null,
+            if (p.applyScope === 'all') {
+                // Replicate across all itineraries
+                (itineraries || []).forEach((it: any) => {
+                    formattedPayloads.push({
+                        tour_id: tourId,
+                        tour_itinerary_id: it.id,
+                        driver_id: p.driver_id || null,
 
-                contracted_per_day_rate: contractedRate,
-                contracted_accommodation_cost: contractedAcc,
-                contracted_meal_cost: contractedMeal,
-                contracted_other_allowance: contractedOther,
+                        contracted_per_day_rate: contractedRate,
+                        contracted_accommodation_cost: contractedAcc,
+                        contracted_meal_cost: contractedMeal,
+                        contracted_other_allowance: contractedOther,
 
-                charged_per_day_rate: chargedRate,
-                charged_accommodation_cost: chargedAcc,
-                charged_meal_cost: chargedMeal,
-                charged_other_allowance: chargedOther,
+                        charged_per_day_rate: chargedRate,
+                        charged_accommodation_cost: chargedAcc,
+                        charged_meal_cost: chargedMeal,
+                        charged_other_allowance: chargedOther,
 
-                notes: p.notes || null,
-                updated_at: new Date().toISOString()
-            });
+                        notes: p.notes || null,
+                        updated_at: new Date().toISOString()
+                    });
+                });
+            } else {
+                // Single day assignment
+                const dayNum = Number(p.day_number);
+                let tourItinId = p.tour_itinerary_id || dayToItinIdMap[dayNum];
+
+                if (!tourItinId) {
+                    const { data: newItin, error: createItinErr } = await sb
+                        .from('tour_itineraries')
+                        .insert([{
+                            tour_id: tourId,
+                            day_number: dayNum,
+                            title: `Day ${dayNum}`
+                        }])
+                        .select('id')
+                        .single();
+
+                    if (createItinErr || !newItin) {
+                        console.error(`Failed to scaffold tour_itineraries for day ${dayNum}:`, createItinErr);
+                        continue;
+                    }
+                    tourItinId = newItin.id;
+                    dayToItinIdMap[dayNum] = tourItinId;
+                }
+
+                formattedPayloads.push({
+                    tour_id: tourId,
+                    tour_itinerary_id: tourItinId,
+                    driver_id: p.driver_id || null,
+
+                    contracted_per_day_rate: contractedRate,
+                    contracted_accommodation_cost: contractedAcc,
+                    contracted_meal_cost: contractedMeal,
+                    contracted_other_allowance: contractedOther,
+
+                    charged_per_day_rate: chargedRate,
+                    charged_accommodation_cost: chargedAcc,
+                    charged_meal_cost: chargedMeal,
+                    charged_other_allowance: chargedOther,
+
+                    notes: p.notes || null,
+                    updated_at: new Date().toISOString()
+                });
+            }
         }
 
         if (formattedPayloads.length === 0) return [];
@@ -174,9 +199,17 @@ export class TourDailyDriverService {
         // 3. Delete and Insert driver assignments into tour_itinerary_drivers
         await sb.from('tour_itinerary_drivers').delete().eq('tour_id', tourId);
 
+        // Deduplicate to avoid unique constraint violations
+        const uniquePayloadsMap: Record<string, any> = {};
+        formattedPayloads.forEach(fp => {
+            const key = `${fp.tour_itinerary_id}_${fp.driver_id}`;
+            uniquePayloadsMap[key] = fp;
+        });
+        const deduplicatedPayloads = Object.values(uniquePayloadsMap);
+
         const { data: savedData, error: upsertErr } = await sb
             .from('tour_itinerary_drivers')
-            .insert(formattedPayloads)
+            .insert(deduplicatedPayloads)
             .select();
 
         if (upsertErr) {

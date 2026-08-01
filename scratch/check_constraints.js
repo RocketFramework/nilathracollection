@@ -12,21 +12,23 @@ const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE
 
 async function checkConstraints() {
   console.log('--- Checking indices / constraints ---');
-  
-  // We can query pg_indexes or information_schema
-  const { data, error } = await supabase.rpc('exec_sql', {
-    sql: `
-      SELECT conname, contype, pg_get_constraintdef(c.oid) 
-      FROM pg_constraint c 
-      JOIN pg_namespace n ON n.oid = c.connamespace 
-      WHERE n.nspname = 'public' AND conrelid::regclass::text IN ('tour_itinerary_drivers', 'tour_itinerary_transports');
-    `
-  }).catch(() => ({ error: 'no rpc' }));
+  try {
+    const { data, error } = await supabase.rpc('exec_sql', {
+      sql: `
+        SELECT conname, contype, pg_get_constraintdef(c.oid) 
+        FROM pg_constraint c 
+        JOIN pg_namespace n ON n.oid = c.connamespace 
+        WHERE n.nspname = 'public' AND conrelid::regclass::text IN ('tour_itinerary_drivers', 'tour_itinerary_transports');
+      `
+    });
 
-  if (error) {
-    console.log('Error querying pg_constraint:', error);
-  } else {
-    console.log('Constraints:', data);
+    if (error) {
+      console.log('Error querying pg_constraint:', error);
+    } else {
+      console.log('Constraints:', data);
+    }
+  } catch (e) {
+    console.log('Caught error:', e);
   }
 }
 

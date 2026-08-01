@@ -49,7 +49,7 @@ export class TourDailyTransportService {
         }));
     }
 
-    static async bulkUpsertDailyTransports(tourId: string, payloads: TourDailyTransportDTO[], client?: any): Promise<TourDailyTransportDTO[]> {
+    static async bulkUpsertDailyTransports(tourId: string, payloads: TourDailyTransportDTO[], client?: any, applyToAllDays?: boolean): Promise<TourDailyTransportDTO[]> {
         const sb = client || getSupabaseClient();
         if (!payloads || payloads.length === 0) {
             await sb.from('tour_itinerary_transports').delete().eq('tour_id', tourId);
@@ -73,44 +73,64 @@ export class TourDailyTransportService {
 
         const formattedPayloads: any[] = [];
         for (const p of payloads) {
-            const dayNum = Number(p.day_number);
-            let tourItinId = p.tour_itinerary_id || dayToItinIdMap[dayNum];
-
-            if (!tourItinId) {
-                const { data: newItin, error: createItinErr } = await sb
-                    .from('tour_itineraries')
-                    .insert([{
+            if (p.applyScope === 'all') {
+                (itineraries || []).forEach((it: any) => {
+                    formattedPayloads.push({
                         tour_id: tourId,
-                        day_number: dayNum,
-                        title: `Day ${dayNum}`
-                    }])
-                    .select('id')
-                    .single();
+                        tour_itinerary_id: it.id,
+                        transport_provider_id: p.transport_provider_id || null,
+                        vehicle_id: p.vehicle_id || null,
+                        updated_at: new Date().toISOString()
+                    });
+                });
+            } else {
+                const dayNum = Number(p.day_number);
+                let tourItinId = p.tour_itinerary_id || dayToItinIdMap[dayNum];
 
-                if (createItinErr || !newItin) {
-                    console.error(`Failed to scaffold tour_itineraries for day ${dayNum}:`, createItinErr);
-                    continue;
+                if (!tourItinId) {
+                    const { data: newItin, error: createItinErr } = await sb
+                        .from('tour_itineraries')
+                        .insert([{
+                            tour_id: tourId,
+                            day_number: dayNum,
+                            title: `Day ${dayNum}`
+                        }])
+                        .select('id')
+                        .single();
+
+                    if (createItinErr || !newItin) {
+                        console.error(`Failed to scaffold tour_itineraries for day ${dayNum}:`, createItinErr);
+                        continue;
+                    }
+                    tourItinId = newItin.id;
+                    dayToItinIdMap[dayNum] = tourItinId;
                 }
-                tourItinId = newItin.id;
-                dayToItinIdMap[dayNum] = tourItinId;
-            }
 
-            formattedPayloads.push({
-                tour_id: tourId,
-                tour_itinerary_id: tourItinId,
-                transport_provider_id: p.transport_provider_id || null,
-                vehicle_id: p.vehicle_id || null,
-                updated_at: new Date().toISOString()
-            });
+                formattedPayloads.push({
+                    tour_id: tourId,
+                    tour_itinerary_id: tourItinId,
+                    transport_provider_id: p.transport_provider_id || null,
+                    vehicle_id: p.vehicle_id || null,
+                    updated_at: new Date().toISOString()
+                });
+            }
         }
 
         if (formattedPayloads.length === 0) return [];
 
         await sb.from('tour_itinerary_transports').delete().eq('tour_id', tourId);
 
+        // Deduplicate
+        const uniquePayloadsMap: Record<string, any> = {};
+        formattedPayloads.forEach(fp => {
+            const key = `${fp.tour_itinerary_id}_${fp.transport_provider_id}_${fp.vehicle_id}`;
+            uniquePayloadsMap[key] = fp;
+        });
+        const deduplicatedPayloads = Object.values(uniquePayloadsMap);
+
         const { data: savedData, error: upsertErr } = await sb
             .from('tour_itinerary_transports')
-            .insert(formattedPayloads)
+            .insert(deduplicatedPayloads)
             .select();
 
         if (upsertErr) {
