@@ -133,7 +133,7 @@ export class TourDailyTransportService {
                 tour_id: tourId,
                 tour_itinerary_id: tourItinId,
                 transport_provider_id: p.transport_provider_id || null,
-                vehicle_id: p.vehicle_id || null,
+                vehicle_id: null,
 
                 contracted_per_day_rate: contractedRate,
                 contracted_excess_mileage_cost: contractedMileage,

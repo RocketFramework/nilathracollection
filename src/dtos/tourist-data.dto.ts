@@ -242,7 +242,7 @@ export namespace TouristDataDTO {
         // Insert new team rows
         if (data.team && data.team.length > 0) {
             const teamRows = data.team.map(t => ({
-                id: isUuid(t.id) ? t.id : undefined,
+                id: isUuid(t.id) ? t.id : crypto.randomUUID(),
                 tour_id: tourId,
                 tourist_id: touristId,
                 full_name: t.full_name,

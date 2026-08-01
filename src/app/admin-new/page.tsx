@@ -85,6 +85,8 @@ import { POStatus } from '../../types/finance';
 import { TouristDataDTO, TouristTeamMemberDTO, TouristProfileDTO, TravelPreferencesDTO, TripRequestDTO } from '../../dtos/tourist-data.dto';
 import { TourDailyDriverDTO } from '../../dtos/tour-daily-driver.dto';
 import { TourDailyTransportDTO } from '../../dtos/tour-daily-transport.dto';
+import { TourDailyVehicleDTO } from '@/dtos/tour-daily-vehicle.dto';
+import { TourDailyVehicle } from '@/interfaces/interfaces';
 import { generateCustomerInvoicePdf } from '../../utils/customer-invoice-pdf';
 import { generateCustomerPaymentReceiptPdf } from '../../utils/customer-payment-receipt-pdf';
 import {
@@ -94,6 +96,9 @@ import {
   saveTourDailyDriversAction,
   getTourDailyTransportsAction,
   saveTourDailyTransportsAction,
+  getTourDailyVehiclesAction,
+  saveTourDailyVehiclesAction,
+  getTransportVehiclesAction,
   getActivitiesAction,
   getAppMarkupsAction,
   getTourDataAction,
@@ -766,10 +771,11 @@ function PlannerWizardWorkspace() {
   const [tripData, setTripData] = useState<TripData | null>(null);
   const [itinerary, setItinerary] = useState<InternalItineraryBlock[]>([]);
   const [defaultDriverId, setDefaultDriverId] = useState<string>('');
-  const [dailyDriverAssignments, setDailyDriverAssignments] = useState<Record<number, TourDailyDriverDTO>>({});
+  const [dailyDriverAssignments, setDailyDriverAssignments] = useState<Record<number, TourDailyDriverDTO[]>>({});
   const [dailyTransportAssignments, setDailyTransportAssignments] = useState<Record<number, TourDailyTransportDTO[]>>({});
+  const [dailyVehicleAssignments, setDailyVehicleAssignments] = useState<Record<number, TourDailyVehicleDTO[]>>({});
 
-  const handleAssignDefaultDriverToAllDays = (driverId: string) => {
+  const handleAssignDefaultDriverToAllDays = async (driverId: string) => {
     if (!driverId) return;
     const driver = masterData.drivers?.find((d: any) => d.id === driverId);
     const baseRate = driver?.per_day_rate ? Number(driver.per_day_rate) : 15;
@@ -780,37 +786,31 @@ function PlannerWizardWorkspace() {
       : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
     const markupFactor = 1 + (driverMarkupPercent / 100);
 
-    setDailyDriverAssignments(prev => {
-      const nextAssignments: Record<number, TourDailyDriverDTO> = { ...prev };
-      for (let day = 1; day <= totalDays; day++) {
-        const existing = prev[day] || {};
-        const cRate = existing.contracted_per_day_rate !== undefined ? existing.contracted_per_day_rate : (existing.per_day_rate !== undefined ? existing.per_day_rate : baseRate);
-        const cAcc = existing.contracted_accommodation_cost !== undefined ? existing.contracted_accommodation_cost : (existing.accommodation_cost || 0);
-        const cMeal = existing.contracted_meal_cost !== undefined ? existing.contracted_meal_cost : (existing.meal_cost || 0);
-        const cOther = existing.contracted_other_allowance !== undefined ? existing.contracted_other_allowance : (existing.other_allowance || 0);
-
-        nextAssignments[day] = {
-          ...existing,
+    const nextAssignments: Record<number, TourDailyDriverDTO[]> = {};
+    for (let day = 1; day <= totalDays; day++) {
+      nextAssignments[day] = [
+        {
+          tour_id: tourId,
           day_number: day,
           driver_id: driverId,
-          per_day_rate: cRate,
-          accommodation_cost: cAcc,
-          meal_cost: cMeal,
-          other_allowance: cOther,
-          contracted_per_day_rate: cRate,
-          contracted_accommodation_cost: cAcc,
-          contracted_meal_cost: cMeal,
-          contracted_other_allowance: cOther,
+          per_day_rate: baseRate,
+          accommodation_cost: 0,
+          meal_cost: 0,
+          other_allowance: 0,
+          contracted_per_day_rate: baseRate,
+          contracted_accommodation_cost: 0,
+          contracted_meal_cost: 0,
+          contracted_other_allowance: 0,
+          charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
+          charged_accommodation_cost: 0,
+          charged_meal_cost: 0,
+          charged_other_allowance: 0,
+          notes: ''
+        }
+      ];
+    }
 
-          charged_per_day_rate: Math.round(cRate * markupFactor * 100) / 100,
-          charged_accommodation_cost: Math.round(cAcc * markupFactor * 100) / 100,
-          charged_meal_cost: Math.round(cMeal * markupFactor * 100) / 100,
-          charged_other_allowance: Math.round(cOther * markupFactor * 100) / 100,
-          notes: existing.notes || ''
-        };
-      }
-      return nextAssignments;
-    });
+    setDailyDriverAssignments(nextAssignments);
 
     setItinerary(prevItin => prevItin.map(block => {
       if (block.type === ItineraryBlockTypes.TRAVEL) {
@@ -818,81 +818,16 @@ function PlannerWizardWorkspace() {
       }
       return block;
     }));
+
+    const payloads = Object.values(nextAssignments).flat();
+    const res = await saveTourDailyDriversAction(tourId, payloads);
+    if (!res.success) {
+      console.error("Failed to save default driver assignments:", res.error);
+    }
   };
 
   const handleUpdateDailyDriverField = (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => {
-    const driverMarkupPercent = appSettings?.diver_markup !== undefined
-      ? Number(appSettings.diver_markup)
-      : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
-    const markupFactor = 1 + (driverMarkupPercent / 100);
-
-    setDailyDriverAssignments(prev => {
-      const existing = prev[dayNum] || {
-        day_number: dayNum,
-        driver_id: '',
-        per_day_rate: 15,
-        accommodation_cost: 0,
-        meal_cost: 0,
-        other_allowance: 0,
-        contracted_per_day_rate: 15,
-        contracted_accommodation_cost: 0,
-        contracted_meal_cost: 0,
-        contracted_other_allowance: 0,
-        charged_per_day_rate: Math.round(15 * markupFactor * 100) / 100,
-        charged_accommodation_cost: 0,
-        charged_meal_cost: 0,
-        charged_other_allowance: 0,
-        notes: ''
-      };
-
-      let updated = { ...existing, [field]: value };
-
-      if (field === 'driver_id' && value) {
-        const driver = masterData.drivers?.find((d: any) => d.id === value);
-        if (driver && driver.per_day_rate !== undefined) {
-          const rate = Number(driver.per_day_rate);
-          updated.per_day_rate = rate;
-          updated.contracted_per_day_rate = rate;
-          updated.charged_per_day_rate = Math.round(rate * markupFactor * 100) / 100;
-        }
-      }
-
-      if (field === 'contracted_per_day_rate' || field === 'per_day_rate') {
-        const val = Number(value) || 0;
-        updated.per_day_rate = val;
-        updated.contracted_per_day_rate = val;
-        updated.charged_per_day_rate = Math.round(val * markupFactor * 100) / 100;
-      } else if (field === 'contracted_accommodation_cost' || field === 'accommodation_cost') {
-        const val = Number(value) || 0;
-        updated.accommodation_cost = val;
-        updated.contracted_accommodation_cost = val;
-        updated.charged_accommodation_cost = Math.round(val * markupFactor * 100) / 100;
-      } else if (field === 'contracted_meal_cost' || field === 'meal_cost') {
-        const val = Number(value) || 0;
-        updated.meal_cost = val;
-        updated.contracted_meal_cost = val;
-        updated.charged_meal_cost = Math.round(val * markupFactor * 100) / 100;
-      } else if (field === 'contracted_other_allowance' || field === 'other_allowance') {
-        const val = Number(value) || 0;
-        updated.other_allowance = val;
-        updated.contracted_other_allowance = val;
-        updated.charged_other_allowance = Math.round(val * markupFactor * 100) / 100;
-      }
-
-      return {
-        ...prev,
-        [dayNum]: updated
-      };
-    });
-
-    if (field === 'driver_id') {
-      setItinerary(prevItin => prevItin.map(block => {
-        if (block.type === ItineraryBlockTypes.TRAVEL && Number(block.dayNumber) === Number(dayNum)) {
-          return { ...block, driverId: value || undefined };
-        }
-        return block;
-      }));
-    }
+    // Left empty since we now use multi-allocation modals to manage daily drivers
   };
   const [selectedTransportBlock, setSelectedTransportBlock] = useState<any>(null);
   const [showTransportReqModal, setShowTransportReqModal] = useState(false);
@@ -1129,6 +1064,7 @@ function PlannerWizardWorkspace() {
     guides: [],
     restaurants: [],
     transportProviders: [],
+    transportVehicles: [],
     activities: []
   });
 
@@ -1202,7 +1138,7 @@ function PlannerWizardWorkspace() {
           .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
           .map(b => b.hotelId as string);
 
-        const [h, v, d, g, r, tp, act, markupRes] = await Promise.all([
+        const [h, v, d, g, r, tp, act, markupRes, vehiclesRes] = await Promise.all([
           getAssignedHotelsAction(assignedHotelIds),
           getVendorsAction(),
           getDriversAction(),
@@ -1210,15 +1146,19 @@ function PlannerWizardWorkspace() {
           getRestaurantsAction(),
           getTransportProvidersAction(),
           getActivitiesAction(),
-          getAppMarkupsAction()
+          getAppMarkupsAction(),
+          getTransportVehiclesAction()
         ]);
+        const providersList = tp.success ? tp.providers : [];
+        const vehiclesList = vehiclesRes.success ? vehiclesRes.vehicles : [];
         setMasterData({
           hotels: h.success ? h.hotels : [],
           vendors: v.success ? v.vendors : [],
           drivers: d.success ? d.drivers : [],
           guides: g.success ? g.guides : [],
           restaurants: r.success ? r.restaurants : [],
-          transportProviders: tp.success ? tp.providers : [],
+          transportProviders: providersList,
+          transportVehicles: vehiclesList,
           activities: act.success ? (act.data || (act as any).activities || []) : []
         });
         if (markupRes && markupRes.success && markupRes.markups) {
@@ -2403,12 +2343,24 @@ function PlannerWizardWorkspace() {
       }
 
       // Save daily driver assignments to database
-      const driverPayloads = Object.values(dailyDriverAssignments);
-      if (driverPayloads.length > 0) {
-        const driverSaveRes = await saveTourDailyDriversAction(tourId, driverPayloads);
-        if (!driverSaveRes.success) {
-          console.error("Warning: Failed to save tour daily drivers:", driverSaveRes.error);
-        }
+      const driverPayloads = Object.values(dailyDriverAssignments).flat();
+      const driverSaveRes = await saveTourDailyDriversAction(tourId, driverPayloads);
+      if (!driverSaveRes.success) {
+        console.error("Warning: Failed to save tour daily drivers:", driverSaveRes.error);
+      }
+
+      // Save daily transport provider assignments to database
+      const transportPayloads = Object.values(dailyTransportAssignments).flat();
+      const transportSaveRes = await saveTourDailyTransportsAction(tourId, transportPayloads);
+      if (!transportSaveRes.success) {
+        console.error("Warning: Failed to save tour daily transports:", transportSaveRes.error);
+      }
+
+      // Save daily vehicle assignments to database
+      const vehiclePayloads = Object.values(dailyVehicleAssignments).flat();
+      const vehicleSaveRes = await saveTourDailyVehiclesAction(tourId, vehiclePayloads);
+      if (!vehicleSaveRes.success) {
+        console.error("Warning: Failed to save tour daily vehicles:", vehicleSaveRes.error);
       }
 
       // Automatically create a draft version snapshot when saving progress
@@ -2954,7 +2906,8 @@ function PlannerWizardWorkspace() {
             blocksRes,
             rebuildStatusRes,
             dailyDriversRes,
-            dailyTransportsRes
+            dailyTransportsRes,
+            dailyVehiclesRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -2969,14 +2922,16 @@ function PlannerWizardWorkspace() {
             getPOBlocksAction(activeTourId),
             getTourPORebuildStatusAction(activeTourId),
             getTourDailyDriversAction(activeTourId),
-            getTourDailyTransportsAction(activeTourId)
+            getTourDailyTransportsAction(activeTourId),
+            getTourDailyVehiclesAction(activeTourId)
           ]);
 
           if (dailyDriversRes?.success && dailyDriversRes.drivers) {
-            const driverMap: Record<number, TourDailyDriverDTO> = {};
+            const driverMap: Record<number, TourDailyDriverDTO[]> = {};
             dailyDriversRes.drivers.forEach((d: TourDailyDriverDTO) => {
               if (d.day_number) {
-                driverMap[d.day_number] = d;
+                if (!driverMap[d.day_number]) driverMap[d.day_number] = [];
+                driverMap[d.day_number].push(d);
               }
             });
             setDailyDriverAssignments(driverMap);
@@ -2995,6 +2950,17 @@ function PlannerWizardWorkspace() {
               }
             });
             setDailyTransportAssignments(transportMap);
+          }
+
+          if (dailyVehiclesRes?.success && dailyVehiclesRes.vehicles) {
+            const vehicleMap: Record<number, TourDailyVehicleDTO[]> = {};
+            dailyVehiclesRes.vehicles.forEach((v: TourDailyVehicleDTO) => {
+              if (v.day_number) {
+                if (!vehicleMap[v.day_number]) vehicleMap[v.day_number] = [];
+                vehicleMap[v.day_number].push(v);
+              }
+            });
+            setDailyVehicleAssignments(vehicleMap);
           }
 
           if (tourRes.success && tourRes.data) {
@@ -3943,44 +3909,21 @@ function PlannerWizardWorkspace() {
     const numDaysInTour = touristData?.preferences?.duration_days || itinerary.reduce((max, b) => Math.max(max, Number(b.dayNumber) || 1), 1);
 
     for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
-      const driverAss = dailyDriverAssignments[dayNum];
+      const driverAssList = dailyDriverAssignments[dayNum] || [];
       const dayTravelActs = dbActivities.filter(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum && (a.activity_type === 'travel' || a.activity_type === 'driver' || a.driver_id));
 
-      let contractedTotal = 0;
-      let chargedTotal = 0;
+      const matchedActivity = dbActivities.find(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum);
+      const dateVal = matchedActivity?.tour_itineraries?.date || matchedActivity?.service_date || (touristData?.preferences?.arrival_date ? (() => {
+        try {
+          const d = new Date(touristData.preferences.arrival_date);
+          d.setDate(d.getDate() + (dayNum - 1));
+          return d.toISOString().split('T')[0];
+        } catch { return null; }
+      })() : null);
 
-      if (driverAss) {
-        contractedTotal =
-          Number(driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
-          Number(driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
-          Number(driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
-          Number(driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
-
-        chargedTotal =
-          Number(driverAss.charged_per_day_rate ?? driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
-          Number(driverAss.charged_accommodation_cost ?? driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
-          Number(driverAss.charged_meal_cost ?? driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
-          Number(driverAss.charged_other_allowance ?? driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
-      } else if (dayTravelActs.length > 0) {
-        let sumContracted = 0;
-        let sumCharged = 0;
-        dayTravelActs.forEach(act => {
-          sumContracted += Number(act.contracted_total_price ?? act.contracted_price ?? 0);
-          sumCharged += Number(act.charged_total_price ?? act.charged_unit_price ?? act.contracted_price ?? 0);
-        });
-        contractedTotal = sumContracted > 0 ? sumContracted : 15;
-        chargedTotal = sumCharged > 0 ? sumCharged : contractedTotal;
-      } else {
-        contractedTotal = 15;
-        chargedTotal = 15;
-      }
-
-      const contractedPrice = contractedTotal;
-      const chargedPrice = chargedTotal;
-
-      // Find linked PO items for driver/transport on this day
+      // Find linked PO items for driver on this day
       const linkedPOItems = purchaseOrders
-        .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'driver' || po.vendor_type === 'transport' || (po.vendor_name && po.vendor_name.toLowerCase().includes('driver'))))
+        .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'driver' || (po.vendor_name && po.vendor_name.toLowerCase().includes('driver'))))
         .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
         .filter(item => Number(item.day_number) === dayNum);
 
@@ -4008,68 +3951,140 @@ function PlannerWizardWorkspace() {
         });
       });
 
-      const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
-      const invoicedDiscrepancy = invoicedTotal - contractedTotal;
-      const margin = chargedTotal - contractedTotal;
-      const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
-      const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+      if (driverAssList.length > 0) {
+        driverAssList.forEach((driverAss, idx) => {
+          const contractedTotal =
+            Number(driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
+            Number(driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
+            Number(driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
+            Number(driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
 
-      const driverId = driverAss?.driver_id || dayTravelActs.find(a => a.driver_id)?.driver_id;
-      const driverObj = driverId ? masterData.drivers?.find((d: any) => d.id === driverId) : null;
-      let vendorName = driverObj ? (driverObj.full_name || driverObj.name || `${driverObj.first_name || ''} ${driverObj.last_name || ''}`.trim()) : 'Driver';
-      let vendorPhone = driverObj?.phone || null;
-      let vendorEmail = driverObj?.email || null;
+          const chargedTotal =
+            Number(driverAss.charged_per_day_rate ?? driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
+            Number(driverAss.charged_accommodation_cost ?? driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
+            Number(driverAss.charged_meal_cost ?? driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
+            Number(driverAss.charged_other_allowance ?? driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
 
-      if ((vendorName === 'Driver' || !vendorName) && linkedPOItems.length > 0) {
-        const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
-        if (poWithVendor) {
-          vendorName = poWithVendor.po.vendor_name;
-          vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
-          vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+          const contractedPrice = contractedTotal;
+          const chargedPrice = chargedTotal;
+
+          const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+          const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+          const margin = chargedTotal - contractedTotal;
+          const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+          const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+          const driverId = driverAss?.driver_id;
+          const driverObj = driverId ? masterData.drivers?.find((d: any) => d.id === driverId) : null;
+          let vendorName = driverObj ? (driverObj.full_name || driverObj.name || `${driverObj.first_name || ''} ${driverObj.last_name || ''}`.trim()) : 'Driver';
+          let vendorPhone = driverObj?.phone || null;
+          let vendorEmail = driverObj?.email || null;
+
+          if ((vendorName === 'Driver' || !vendorName) && linkedPOItems.length > 0) {
+            const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
+            if (poWithVendor) {
+              vendorName = poWithVendor.po.vendor_name;
+              vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
+              vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+            }
+          }
+
+          supplierPLItems.push({
+            dailyActivityId: driverAss.id || `driver-day-${dayNum}-${idx}`,
+            dayNumber: dayNum,
+            date: dateVal,
+            title: `Driver Services (Day ${dayNum})${driverAssList.length > 1 ? ` [Driver ${idx + 1}]` : ''}`,
+            vendorName,
+            vendorType: 'driver',
+            quantity: 1,
+            contractedPrice,
+            contractedTotal,
+            chargedPrice,
+            chargedTotal,
+            invoicedQty,
+            invoicedUnitPrice,
+            invoicedTotal,
+            invoicedDiscrepancy,
+            margin,
+            marginPercentage,
+            poNumber,
+            supplierInvoiceNumber,
+            supplierInvoiceCurrency,
+            supplierInvoiceRate,
+            vendorPhone,
+            vendorEmail,
+            reservationContactName: null,
+            reservationContactPhone: null,
+            reservationContactEmail: null,
+            salesContactName: null,
+            salesContactPhone: null,
+            salesContactEmail: null,
+            hasDiscrepancy
+          });
+        });
+      } else {
+        // Fallback if no drivers assigned but we have travel activities or defaults
+        let contractedTotal = 15;
+        let chargedTotal = 15;
+        if (dayTravelActs.length > 0) {
+          let sumContracted = 0;
+          let sumCharged = 0;
+          dayTravelActs.forEach(act => {
+            sumContracted += Number(act.contracted_total_price ?? act.contracted_price ?? 0);
+            sumCharged += Number(act.charged_total_price ?? act.charged_unit_price ?? act.contracted_price ?? 0);
+          });
+          contractedTotal = sumContracted > 0 ? sumContracted : 15;
+          chargedTotal = sumCharged > 0 ? sumCharged : contractedTotal;
         }
+
+        const contractedPrice = contractedTotal;
+        const chargedPrice = chargedTotal;
+
+        const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+        const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+        const margin = chargedTotal - contractedTotal;
+        const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+        const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+        const driverId = dayTravelActs.find(a => a.driver_id)?.driver_id;
+        const driverObj = driverId ? masterData.drivers?.find((d: any) => d.id === driverId) : null;
+        let vendorName = driverObj ? (driverObj.full_name || driverObj.name || `${driverObj.first_name || ''} ${driverObj.last_name || ''}`.trim()) : 'Driver';
+        let vendorPhone = driverObj?.phone || null;
+        let vendorEmail = driverObj?.email || null;
+
+        supplierPLItems.push({
+          dailyActivityId: `driver-day-${dayNum}-fallback`,
+          dayNumber: dayNum,
+          date: dateVal,
+          title: `Driver Services (Day ${dayNum})`,
+          vendorName,
+          vendorType: 'driver',
+          quantity: 1,
+          contractedPrice,
+          contractedTotal,
+          chargedPrice,
+          chargedTotal,
+          invoicedQty,
+          invoicedUnitPrice,
+          invoicedTotal,
+          invoicedDiscrepancy,
+          margin,
+          marginPercentage,
+          poNumber,
+          supplierInvoiceNumber,
+          supplierInvoiceCurrency,
+          supplierInvoiceRate,
+          vendorPhone,
+          vendorEmail,
+          reservationContactName: null,
+          reservationContactPhone: null,
+          reservationContactEmail: null,
+          salesContactName: null,
+          salesContactPhone: null,
+          salesContactEmail: null,
+          hasDiscrepancy
+        });
       }
-
-      const matchedActivity = dbActivities.find(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum);
-      const dateVal = matchedActivity?.tour_itineraries?.date || matchedActivity?.service_date || (touristData?.preferences?.arrival_date ? (() => {
-        try {
-          const d = new Date(touristData.preferences.arrival_date);
-          d.setDate(d.getDate() + (dayNum - 1));
-          return d.toISOString().split('T')[0];
-        } catch { return null; }
-      })() : null);
-
-      supplierPLItems.push({
-        dailyActivityId: driverAss?.id || `driver-day-${dayNum}`,
-        dayNumber: dayNum,
-        date: dateVal,
-        title: `Driver Services (Day ${dayNum})`,
-        vendorName,
-        vendorType: 'driver',
-        quantity: 1,
-        contractedPrice,
-        contractedTotal,
-        chargedPrice,
-        chargedTotal,
-        invoicedQty,
-        invoicedUnitPrice,
-        invoicedTotal,
-        invoicedDiscrepancy,
-        margin,
-        marginPercentage,
-        poNumber,
-        supplierInvoiceNumber,
-        supplierInvoiceCurrency,
-        supplierInvoiceRate,
-        vendorPhone,
-        vendorEmail,
-        reservationContactName: null,
-        reservationContactPhone: null,
-        reservationContactEmail: null,
-        salesContactName: null,
-        salesContactPhone: null,
-        salesContactEmail: null,
-        hasDiscrepancy
-      });
     }
 
     // 2c. Map Transport & Transfers line items (Grouped by day, matching transport-provider step)
@@ -4252,6 +4267,122 @@ function PlannerWizardWorkspace() {
           hasDiscrepancy
         });
       }
+    }
+
+    // 2d. Map Vehicle line items (Grouped by day, matching transport-vehicle step)
+    for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
+      const vehicleAssList = dailyVehicleAssignments[dayNum] || [];
+      if (vehicleAssList.length === 0) continue;
+
+      const matchedActivity = dbActivities.find(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum);
+      const dateVal = matchedActivity?.tour_itineraries?.date || matchedActivity?.service_date || (touristData?.preferences?.arrival_date ? (() => {
+        try {
+          const d = new Date(touristData.preferences.arrival_date);
+          d.setDate(d.getDate() + (dayNum - 1));
+          return d.toISOString().split('T')[0];
+        } catch { return null; }
+      })() : null);
+
+      // Find linked PO items for vehicle/fleet on this day
+      const linkedPOItems = purchaseOrders
+        .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'vehicle' || po.vendor_type === 'transport' || (po.vendor_name && po.vendor_name.toLowerCase().includes('fleet'))))
+        .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
+        .filter(item => Number(item.day_number) === dayNum);
+
+      let invoicedTotal = 0;
+      let invoicedQty = 0;
+      let poNumber: string | null = null;
+      let supplierInvoiceNumber: string | null = null;
+      let supplierInvoiceCurrency: string | null = null;
+      let supplierInvoiceRate: number | null = null;
+
+      linkedPOItems.forEach(poItem => {
+        poNumber = poItem.po.po_number || poNumber;
+        const invoices = poItem.po.invoices || [];
+        invoices.forEach((inv: any) => {
+          const invItems = inv.items || [];
+          const matchingInvItems = invItems.filter((ii: any) => ii.purchase_order_item_id === poItem.id);
+          matchingInvItems.forEach((ii: any) => {
+            const itemTotalUSD = getInvoiceItemAmountInUSD(ii, Number(inv.exchange_rate) || 1.0, inv.currency || 'USD');
+            invoicedTotal += itemTotalUSD;
+            invoicedQty += ii.quantity || 0;
+            supplierInvoiceNumber = inv.invoice_number || supplierInvoiceNumber;
+            supplierInvoiceCurrency = inv.currency || supplierInvoiceCurrency;
+            supplierInvoiceRate = Number(inv.exchange_rate) || supplierInvoiceRate;
+          });
+        });
+      });
+
+      vehicleAssList.forEach((vehicleAss, idx) => {
+        const contractedTotal =
+          Number(vehicleAss.contracted_per_day_rate ?? vehicleAss.per_day_rate ?? 0) +
+          Number(vehicleAss.contracted_excess_mileage_cost ?? vehicleAss.excess_mileage_cost ?? 0) +
+          Number(vehicleAss.contracted_other_allowance ?? vehicleAss.other_allowance ?? 0);
+
+        const chargedTotal =
+          Number(vehicleAss.charged_per_day_rate ?? vehicleAss.contracted_per_day_rate ?? vehicleAss.per_day_rate ?? 0) +
+          Number(vehicleAss.charged_excess_mileage_cost ?? vehicleAss.contracted_excess_mileage_cost ?? vehicleAss.excess_mileage_cost ?? 0) +
+          Number(vehicleAss.charged_other_allowance ?? vehicleAss.contracted_other_allowance ?? vehicleAss.other_allowance ?? 0);
+
+        const contractedPrice = contractedTotal;
+        const chargedPrice = chargedTotal;
+
+        const vId = vehicleAss?.vehicle_id;
+        const vObj = vId ? masterData.transportVehicles?.find((v: any) => v.id === vId) : null;
+        const makeModel = vObj ? [vObj.make, vObj.model].filter(Boolean).join(' ') || vObj.make_and_model || 'Vehicle' : 'Vehicle';
+        let vendorName = vObj ? `${makeModel}${vObj.vehicle_number ? ` (${vObj.vehicle_number})` : ''}` : 'Vehicle';
+
+        let vendorPhone = null;
+        let vendorEmail = null;
+
+        if (linkedPOItems.length > 0) {
+          const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
+          if (poWithVendor) {
+            vendorName = poWithVendor.po.vendor_name;
+            vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
+            vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
+          }
+        }
+
+        const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
+        const invoicedDiscrepancy = invoicedTotal - contractedTotal;
+        const margin = chargedTotal - contractedTotal;
+        const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
+        const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
+
+        supplierPLItems.push({
+          dailyActivityId: vehicleAss.id || `vehicle-day-${dayNum}-${idx}`,
+          dayNumber: dayNum,
+          date: dateVal,
+          title: `Vehicle Services (Day ${dayNum})${vehicleAssList.length > 1 ? ` [Vehicle ${idx + 1}]` : ''}`,
+          vendorName,
+          vendorType: 'travel',
+          quantity: 1,
+          contractedPrice,
+          contractedTotal,
+          chargedPrice,
+          chargedTotal,
+          invoicedQty,
+          invoicedUnitPrice,
+          invoicedTotal,
+          invoicedDiscrepancy,
+          margin,
+          marginPercentage,
+          poNumber,
+          supplierInvoiceNumber,
+          supplierInvoiceCurrency,
+          supplierInvoiceRate,
+          vendorPhone,
+          vendorEmail,
+          reservationContactName: null,
+          reservationContactPhone: null,
+          reservationContactEmail: null,
+          salesContactName: null,
+          salesContactPhone: null,
+          salesContactEmail: null,
+          hasDiscrepancy
+        });
+      });
     }
 
     supplierPLItems.sort((a, b) => {
@@ -16636,6 +16767,10 @@ ${chauffeurHtml}
                     setDefaultDriverId={setDefaultDriverId}
                     dailyDriverAssignments={dailyDriverAssignments}
                     setDailyDriverAssignments={setDailyDriverAssignments}
+                    dailyTransportAssignments={dailyTransportAssignments}
+                    setDailyTransportAssignments={setDailyTransportAssignments}
+                    dailyVehicleAssignments={dailyVehicleAssignments}
+                    setDailyVehicleAssignments={setDailyVehicleAssignments}
                     handleAssignDefaultDriverToAllDays={handleAssignDefaultDriverToAllDays}
                     handleUpdateDailyDriverField={handleUpdateDailyDriverField}
                   />
@@ -21048,8 +21183,12 @@ interface AIItineraryBuilderProps {
   setReqVehiclesLoading: React.Dispatch<React.SetStateAction<boolean>>;
   defaultDriverId: string;
   setDefaultDriverId: React.Dispatch<React.SetStateAction<string>>;
-  dailyDriverAssignments: Record<number, TourDailyDriverDTO>;
-  setDailyDriverAssignments: React.Dispatch<React.SetStateAction<Record<number, TourDailyDriverDTO>>>;
+  dailyDriverAssignments: Record<number, TourDailyDriverDTO[]>;
+  setDailyDriverAssignments: React.Dispatch<React.SetStateAction<Record<number, TourDailyDriverDTO[]>>>;
+  dailyTransportAssignments: Record<number, TourDailyTransportDTO[]>;
+  setDailyTransportAssignments: React.Dispatch<React.SetStateAction<Record<number, TourDailyTransportDTO[]>>>;
+  dailyVehicleAssignments: Record<number, TourDailyVehicleDTO[]>;
+  setDailyVehicleAssignments: React.Dispatch<React.SetStateAction<Record<number, TourDailyVehicleDTO[]>>>;
   handleAssignDefaultDriverToAllDays: (driverId: string) => void;
   handleUpdateDailyDriverField: (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => void;
 }
@@ -21117,6 +21256,10 @@ function AIItineraryBuilder({
   setDefaultDriverId,
   dailyDriverAssignments,
   setDailyDriverAssignments,
+  dailyTransportAssignments,
+  setDailyTransportAssignments,
+  dailyVehicleAssignments,
+  setDailyVehicleAssignments,
   handleAssignDefaultDriverToAllDays,
   handleUpdateDailyDriverField
 }: AIItineraryBuilderProps) {
@@ -21126,6 +21269,234 @@ function AIItineraryBuilder({
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
+
+  const [allocationModal, setAllocationModal] = useState<'drivers' | 'transports' | 'vehicles' | null>(null);
+  const [tempDrivers, setTempDrivers] = useState<TourDailyDriverDTO[]>([]);
+  const [tempTransports, setTempTransports] = useState<TourDailyTransportDTO[]>([]);
+  const [tempVehicles, setTempVehicles] = useState<TourDailyVehicleDTO[]>([]);
+  const [vehicleProviderSearch, setVehicleProviderSearch] = useState<string>('');
+
+  const openDriversModal = () => {
+    setTempDrivers(dailyDriverAssignments[activeDay] || []);
+    setAllocationModal('drivers');
+  };
+
+  const openTransportsModal = () => {
+    setTempTransports(dailyTransportAssignments[activeDay] || []);
+    setAllocationModal('transports');
+  };
+
+  const openVehiclesModal = () => {
+    setTempVehicles(dailyVehicleAssignments[activeDay] || []);
+    setVehicleProviderSearch('');
+    setAllocationModal('vehicles');
+  };
+
+  const saveDriversModal = () => {
+    setDailyDriverAssignments(prev => ({
+      ...prev,
+      [activeDay]: tempDrivers
+    }));
+    setAllocationModal(null);
+  };
+
+  const saveTransportsModal = () => {
+    setDailyTransportAssignments(prev => ({
+      ...prev,
+      [activeDay]: tempTransports
+    }));
+    setAllocationModal(null);
+  };
+
+  const saveVehiclesModal = () => {
+    setDailyVehicleAssignments(prev => ({
+      ...prev,
+      [activeDay]: tempVehicles
+    }));
+    setAllocationModal(null);
+  };
+
+  const applyDriversToAllDays = () => {
+    if (window.confirm("Are you sure you want to copy these driver assignments to all days of the trip? This will overwrite existing assignments.")) {
+      const next: Record<number, TourDailyDriverDTO[]> = {};
+      for (let d = 1; d <= durationDays; d++) {
+        next[d] = tempDrivers.map(item => ({
+          ...item,
+          day_number: d
+        }));
+      }
+      setDailyDriverAssignments(next);
+      setAllocationModal(null);
+      alert("Driver assignments applied to all days.");
+    }
+  };
+
+  const applyTransportsToAllDays = () => {
+    if (window.confirm("Are you sure you want to copy these transport provider assignments to all days of the trip? This will overwrite existing assignments.")) {
+      const next: Record<number, TourDailyTransportDTO[]> = {};
+      for (let d = 1; d <= durationDays; d++) {
+        next[d] = tempTransports.map(item => ({
+          ...item,
+          day_number: d
+        }));
+      }
+      setDailyTransportAssignments(next);
+      setAllocationModal(null);
+      alert("Transport assignments applied to all days.");
+    }
+  };
+
+  const applyVehiclesToAllDays = () => {
+    if (window.confirm("Are you sure you want to copy these vehicle assignments to all days of the trip? This will overwrite existing assignments.")) {
+      const next: Record<number, TourDailyVehicleDTO[]> = {};
+      for (let d = 1; d <= durationDays; d++) {
+        next[d] = tempVehicles.map(item => ({
+          ...item,
+          day_number: d
+        }));
+      }
+      setDailyVehicleAssignments(next);
+      setAllocationModal(null);
+      alert("Vehicle assignments applied to all days.");
+    }
+  };
+
+  const addDriverToTemp = (driverId: string) => {
+    if (!driverId) return;
+    const driverObj = masterData.drivers?.find((d: any) => d.id === driverId);
+    if (!driverObj) return;
+
+    if (tempDrivers.some(td => td.driver_id === driverId)) {
+      alert("Driver is already assigned for this day.");
+      return;
+    }
+
+    const driverMarkupPercent = appSettings?.diver_markup !== undefined
+      ? Number(appSettings.diver_markup)
+      : (Number(appSettings?.[Settings.Driver_Markup]) || Number(appSettings?.driver_markup) || 0);
+    const markupFactor = 1 + (driverMarkupPercent / 100);
+    const baseRate = Number(driverObj.per_day_rate || 15);
+
+    const newAssignment: TourDailyDriverDTO = {
+      tour_id: tourId,
+      day_number: activeDay,
+      driver_id: driverId,
+      contracted_per_day_rate: baseRate,
+      per_day_rate: baseRate,
+      contracted_accommodation_cost: 0,
+      accommodation_cost: 0,
+      contracted_meal_cost: 0,
+      meal_cost: 0,
+      contracted_other_allowance: 0,
+      other_allowance: 0,
+      charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
+      charged_accommodation_cost: 0,
+      charged_meal_cost: 0,
+      charged_other_allowance: 0,
+      notes: ''
+    };
+    setTempDrivers(prev => [...prev, newAssignment]);
+  };
+
+  const addTransportToTemp = (providerId: string) => {
+    if (!providerId) return;
+    const tpObj = masterData.transportProviders?.find((p: any) => p.id === providerId);
+    if (!tpObj) return;
+
+    if (tempTransports.some(tt => tt.transport_provider_id === providerId)) {
+      alert("Transport provider is already assigned for this day.");
+      return;
+    }
+
+    const markupPercent = Number(appSettings?.[Settings.Transport_Markup]) || 0;
+    const markupFactor = 1 + (markupPercent / 100);
+    const baseRate = 0;
+
+    const newAssignment: TourDailyTransportDTO = {
+      tour_id: tourId,
+      day_number: activeDay,
+      transport_provider_id: providerId,
+      contracted_per_day_rate: baseRate,
+      per_day_rate: baseRate,
+      contracted_excess_mileage_cost: 0,
+      excess_mileage_cost: 0,
+      contracted_other_allowance: 0,
+      other_allowance: 0,
+      distance_km: 0,
+      charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
+      charged_excess_mileage_cost: 0,
+      charged_other_allowance: 0,
+      notes: ''
+    };
+    setTempTransports(prev => [...prev, newAssignment]);
+  };
+
+  const addVehicleToTemp = (vehicleId: string) => {
+    if (!vehicleId) return;
+    const vObj = masterData.transportVehicles?.find((v: any) => v.id === vehicleId);
+    if (!vObj) return;
+
+    if (tempVehicles.some(tv => tv.vehicle_id === vehicleId)) {
+      alert("Vehicle is already assigned for this day.");
+      return;
+    }
+
+    const markupPercent = Number(appSettings?.[Settings.Transport_Markup]) || 0;
+    const markupFactor = 1 + (markupPercent / 100);
+    const baseRate = Number(vObj.day_rate || 0);
+
+    const newAssignment: TourDailyVehicleDTO = {
+      tour_id: tourId,
+      day_number: activeDay,
+      vehicle_id: vehicleId,
+      contracted_per_day_rate: baseRate,
+      per_day_rate: baseRate,
+      contracted_excess_mileage_cost: 0,
+      excess_mileage_cost: 0,
+      contracted_other_allowance: 0,
+      other_allowance: 0,
+      distance_km: 0,
+      charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
+      charged_excess_mileage_cost: 0,
+      charged_other_allowance: 0,
+      notes: ''
+    };
+    setTempVehicles(prev => [...prev, newAssignment]);
+  };
+
+  const updateTempDriverField = (index: number, field: keyof TourDailyDriverDTO, value: any) => {
+    setTempDrivers(prev => prev.map((item, idx) => {
+      if (idx !== index) return item;
+      const next = { ...item, [field]: value };
+      if (field === 'contracted_per_day_rate') next.per_day_rate = value;
+      if (field === 'contracted_accommodation_cost') next.accommodation_cost = value;
+      if (field === 'contracted_meal_cost') next.meal_cost = value;
+      if (field === 'contracted_other_allowance') next.other_allowance = value;
+      return next;
+    }));
+  };
+
+  const updateTempTransportField = (index: number, field: keyof TourDailyTransportDTO, value: any) => {
+    setTempTransports(prev => prev.map((item, idx) => {
+      if (idx !== index) return item;
+      const next = { ...item, [field]: value };
+      if (field === 'contracted_per_day_rate') next.per_day_rate = value;
+      if (field === 'contracted_excess_mileage_cost') next.excess_mileage_cost = value;
+      if (field === 'contracted_other_allowance') next.other_allowance = value;
+      return next;
+    }));
+  };
+
+  const updateTempVehicleField = (index: number, field: keyof TourDailyVehicleDTO, value: any) => {
+    setTempVehicles(prev => prev.map((item, idx) => {
+      if (idx !== index) return item;
+      const next = { ...item, [field]: value };
+      if (field === 'contracted_per_day_rate') next.per_day_rate = value;
+      if (field === 'contracted_excess_mileage_cost') next.excess_mileage_cost = value;
+      if (field === 'contracted_other_allowance') next.other_allowance = value;
+      return next;
+    }));
+  };
 
 
   const getSleepHotelForDay = (dayNum: number) => {
@@ -21710,48 +22081,66 @@ function AIItineraryBuilder({
 
     // 4. Transport Cost
     let dailyTransportCost = 0;
+    const assignedDrivers = dailyDriverAssignments[dayNum] || [];
+    const assignedTransports = dailyTransportAssignments[dayNum] || [];
+    const assignedVehicles = dailyVehicleAssignments[dayNum] || [];
 
-    if (appSettings && (chauffeurNeeded || guideNeeded)) {
-      const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
+    if (assignedDrivers.length > 0 || assignedTransports.length > 0 || assignedVehicles.length > 0) {
+      assignedDrivers.forEach(d => {
+        dailyTransportCost +=
+          Number(d.charged_per_day_rate ?? d.contracted_per_day_rate ?? d.per_day_rate ?? 0) +
+          Number(d.charged_accommodation_cost ?? d.contracted_accommodation_cost ?? d.accommodation_cost ?? 0) +
+          Number(d.charged_meal_cost ?? d.contracted_meal_cost ?? d.meal_cost ?? 0) +
+          Number(d.charged_other_allowance ?? d.contracted_other_allowance ?? d.other_allowance ?? 0);
+      });
 
-      // Calculate Vehicle & Chauffeur if chauffeurNeeded is true
-      if (chauffeurNeeded) {
-        // Vehicle Cost
-        const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
-        const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
-        const transportMarkupPercent = Number(appSettings[Settings.Transport_Markup]) || 0;
-        const transportMarkup = transportMarkupPercent / 100;
-        const vehicleCost = vehicleDayRate * (1 + transportMarkup);
+      assignedTransports.forEach(t => {
+        dailyTransportCost +=
+          Number(t.charged_per_day_rate ?? t.contracted_per_day_rate ?? t.per_day_rate ?? 0) +
+          Number(t.charged_excess_mileage_cost ?? t.contracted_excess_mileage_cost ?? t.excess_mileage_cost ?? 0) +
+          Number(t.charged_other_allowance ?? t.contracted_other_allowance ?? t.other_allowance ?? 0);
+      });
 
-        // Chauffeur Cost
-        const chauffeurDayRateKey = `${styleKey}_chauffeur_day_rate`;
-        const chauffeurDayRate = Number(appSettings[chauffeurDayRateKey]) || 0;
-        const driverMarkupPercent = appSettings[Settings.Diver_Markup] !== undefined
-          ? Number(appSettings[Settings.Diver_Markup])
-          : (Number(appSettings[Settings.Driver_Markup]) || 0);
-        const driverMarkup = driverMarkupPercent / 100;
-        const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
+      assignedVehicles.forEach(v => {
+        dailyTransportCost +=
+          Number(v.charged_per_day_rate ?? v.contracted_per_day_rate ?? v.per_day_rate ?? 0) +
+          Number(v.charged_excess_mileage_cost ?? v.contracted_excess_mileage_cost ?? v.excess_mileage_cost ?? 0) +
+          Number(v.charged_other_allowance ?? v.contracted_other_allowance ?? v.other_allowance ?? 0);
+      });
+    } else {
+      if (appSettings && (chauffeurNeeded || guideNeeded)) {
+        const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
 
-        dailyTransportCost += vehicleCost + chauffeurCost;
-      }
+        if (chauffeurNeeded) {
+          const vehicleDayRate = Number(appSettings[`${styleKey}_vehicle_day_rate`]) || 0;
+          const transportMarkupPercent = Number(appSettings[Settings.Transport_Markup]) || 0;
+          const transportMarkup = transportMarkupPercent / 100;
+          const vehicleCost = vehicleDayRate * (1 + transportMarkup);
 
-      // Calculate Guide if guideNeeded is true
-      if (guideNeeded) {
-        let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
-        if (travelStyle === TRAVEL_STYLES.REGULAR) {
-          guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
-        } else if (travelStyle === TRAVEL_STYLES.PREMIUM) {
-          guideDayRateKey = GUIDE_RATE_KEYS.REGULAR;
-        } else if (travelStyle === TRAVEL_STYLES.LUXURY || travelStyle === TRAVEL_STYLES.ULTRA_VIP) {
-          guideDayRateKey = GUIDE_RATE_KEYS.NATIONAL;
+          const chauffeurDayRate = Number(appSettings[`${styleKey}_chauffeur_day_rate`]) || 0;
+          const driverMarkupPercent = appSettings[Settings.Diver_Markup] !== undefined
+            ? Number(appSettings[Settings.Diver_Markup])
+            : (Number(appSettings[Settings.Driver_Markup]) || 0);
+          const driverMarkup = driverMarkupPercent / 100;
+          const chauffeurCost = chauffeurDayRate * (1 + driverMarkup);
+
+          dailyTransportCost += vehicleCost + chauffeurCost;
         }
 
-        const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
-        const tourGuideMarkupPercent = Number(appSettings[Settings.Tour_Guide_Markup]) || 0;
-        const tourGuideMarkup = tourGuideMarkupPercent / 100;
-        const guideCost = guideDayRate * (1 + tourGuideMarkup);
+        if (guideNeeded) {
+          let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
+          if (travelStyle === TRAVEL_STYLES.REGULAR) {
+            guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
+          } else if (travelStyle === TRAVEL_STYLES.PREMIUM) {
+            guideDayRateKey = GUIDE_RATE_KEYS.REGULAR;
+          }
+          const guideDayRate = Number(appSettings[guideDayRateKey]) || 0;
+          const tourGuideMarkupPercent = Number(appSettings[Settings.Tour_Guide_Markup]) || 0;
+          const tourGuideMarkup = tourGuideMarkupPercent / 100;
+          const guideCost = guideDayRate * (1 + tourGuideMarkup);
 
-        dailyTransportCost += guideCost;
+          dailyTransportCost += guideCost;
+        }
       }
     }
 
@@ -22977,53 +23366,6 @@ function AIItineraryBuilder({
         </div>
       )}
 
-      {/* Trip Chauffeur / Driver Bulk Assignment Banner */}
-      <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-emerald-900 text-white rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4 border border-emerald-800/40">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-xs border border-white/20 shrink-0">
-            <UserCircle className="w-6 h-6 text-emerald-200" />
-          </div>
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider text-emerald-100 flex items-center gap-2">
-              <span>Trip Chauffeur & Driver Assignment</span>
-            </h4>
-            <p className="text-[11px] text-emerald-200/80">Select a default driver for the entire trip or manage rates and allowances per day</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 shrink-0">
-          <select
-            value={defaultDriverId}
-            disabled={isLockedByOther}
-            onChange={(e) => {
-              setDefaultDriverId(e.target.value);
-              if (e.target.value) {
-                handleAssignDefaultDriverToAllDays(e.target.value);
-              }
-            }}
-            className="text-xs border border-white/30 rounded-xl px-3.5 py-2 bg-white/10 text-white font-bold backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-emerald-400 cursor-pointer disabled:opacity-50"
-          >
-            <option value="" className="text-neutral-800">Select Trip Default Driver...</option>
-            {masterData.drivers?.map((d: any) => (
-              <option key={d.id} value={d.id} className="text-neutral-800">
-                {d.first_name} {d.last_name || ''} (${Number(d.per_day_rate || 15).toFixed(2)}/day)
-              </option>
-            ))}
-          </select>
-
-          {defaultDriverId && (
-            <button
-              onClick={() => handleAssignDefaultDriverToAllDays(defaultDriverId)}
-              disabled={isLockedByOther}
-              className="px-4 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-black text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <UserCheck className="w-4 h-4" />
-              <span>Assign to All Days</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Days Tabs and Management */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-neutral-100">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -23121,174 +23463,752 @@ function AIItineraryBuilder({
           </h4>
         </div>
 
-        {/* Daily Driver Management Card */}
-        <div className="bg-white rounded-2xl border border-neutral-200/60 p-4.5 shadow-sm space-y-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 pb-3">
-            <div className="flex items-center gap-2">
+        {/* Daily Supplier Allocations Block */}
+        <div className="bg-white rounded-2xl border border-neutral-200/60 p-5 shadow-sm space-y-4">
+          <div className="border-b border-neutral-100 pb-3 flex justify-between items-center">
+            <h4 className="text-xs font-black text-neutral-800 uppercase tracking-wider flex items-center gap-2">
               <UserCircle className="w-4.5 h-4.5 text-emerald-800 shrink-0" />
-              <span className="text-xs font-black text-neutral-800 uppercase tracking-wider">Day {activeDay} Chauffeur / Driver Details</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Contracted Cost:</span>
-                <span className="text-xs font-extrabold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-lg">
-                  ${(
-                    Number(dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 0) +
-                    Number(dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0) +
-                    Number(dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0) +
-                    Number(dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0)
-                  ).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-emerald-800/60 uppercase tracking-wider">Charged Price:</span>
-                <span className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl shadow-2xs">
-                  ${(
-                    Number(dailyDriverAssignments[activeDay]?.charged_per_day_rate ?? dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 0) +
-                    Number(dailyDriverAssignments[activeDay]?.charged_accommodation_cost ?? dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0) +
-                    Number(dailyDriverAssignments[activeDay]?.charged_meal_cost ?? dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0) +
-                    Number(dailyDriverAssignments[activeDay]?.charged_other_allowance ?? dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0)
-                  ).toFixed(2)}
-                </span>
-              </div>
-            </div>
+              <span>Day {activeDay} Supplier & Resource Allocations</span>
+            </h4>
+            <span className="text-[10px] text-neutral-400 font-semibold">Assign multiple entities per day</span>
           </div>
 
-          <div className="space-y-4 pt-1">
-            <div className="w-full">
-              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Assigned Driver (Day {activeDay})</label>
-              <select
-                value={dailyDriverAssignments[activeDay]?.driver_id || ''}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Drivers Card */}
+            <div className="border border-neutral-200/60 rounded-xl p-4 flex flex-col justify-between bg-neutral-50/50 hover:bg-neutral-50 transition-all">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <UserCircle className="w-4 h-4 text-emerald-800" />
+                    <span className="text-xs font-bold text-neutral-700">Chauffeurs & Drivers</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono px-2 py-0.5 rounded-full font-bold">
+                    {(dailyDriverAssignments[activeDay] || []).length} assigned
+                  </span>
+                </div>
+                <div className="text-[11px] text-neutral-500 mb-4 min-h-[44px]">
+                  {(dailyDriverAssignments[activeDay] || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(dailyDriverAssignments[activeDay] || []).map((ass, i) => {
+                        const driverObj = masterData.drivers?.find((d: any) => d.id === ass.driver_id);
+                        return (
+                          <span key={i} className="inline-block bg-white border border-neutral-200 text-neutral-800 px-2 py-0.5 rounded-md font-medium shadow-2xs">
+                            {driverObj ? `${driverObj.first_name} ${driverObj.last_name || ''}` : 'Driver'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="italic text-neutral-400 mt-1">No driver assigned for Day {activeDay}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
                 disabled={isLockedByOther}
-                onChange={(e) => handleUpdateDailyDriverField(activeDay, 'driver_id', e.target.value)}
-                className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                onClick={openDriversModal}
+                className="w-full text-center text-xs font-black uppercase tracking-wider bg-white border border-neutral-200 hover:border-emerald-800 hover:text-emerald-800 py-2 px-3 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50"
               >
-                <option value="">No Driver Assigned for Day {activeDay}</option>
-                {masterData.drivers?.map((d: any) => (
-                  <option key={d.id} value={d.id}>
-                    {d.first_name} {d.last_name || ''} (${Number(d.per_day_rate || 15).toFixed(2)}/day)
-                  </option>
-                ))}
-              </select>
+                Manage Drivers
+              </button>
             </div>
 
-            {/* Contracted Cost Section (Buying Price) */}
-            <div className="bg-neutral-50/80 rounded-xl p-3 border border-neutral-200/50 space-y-2">
-              <span className="text-[10px] font-extrabold text-neutral-600 uppercase tracking-wider block">1. Contracted Cost (Supplier / Driver Buying Price)</span>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Contracted Rate ($)</label>
-                  <input
-                    type="number"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 15}
-                    onChange={(e) => {
-                      const val = e.target.value ? Number(e.target.value) : 0;
-                      handleUpdateDailyDriverField(activeDay, 'contracted_per_day_rate', val);
-                      handleUpdateDailyDriverField(activeDay, 'per_day_rate', val);
-                    }}
-                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
+            {/* Transport Providers Card */}
+            <div className="border border-neutral-200/60 rounded-xl p-4 flex flex-col justify-between bg-neutral-50/50 hover:bg-neutral-50 transition-all">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <UserCircle className="w-4 h-4 text-emerald-800" />
+                    <span className="text-xs font-bold text-neutral-700">Transport Providers</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono px-2 py-0.5 rounded-full font-bold">
+                    {(dailyTransportAssignments[activeDay] || []).length} assigned
+                  </span>
                 </div>
-                <div>
-                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Accommodation ($)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0}
-                    onChange={(e) => {
-                      const val = e.target.value ? Number(e.target.value) : 0;
-                      handleUpdateDailyDriverField(activeDay, 'contracted_accommodation_cost', val);
-                      handleUpdateDailyDriverField(activeDay, 'accommodation_cost', val);
-                    }}
-                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
+                <div className="text-[11px] text-neutral-500 mb-4 min-h-[44px]">
+                  {(dailyTransportAssignments[activeDay] || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(dailyTransportAssignments[activeDay] || []).map((ass, i) => {
+                        const tpObj = masterData.transportProviders?.find((p: any) => p.id === ass.transport_provider_id);
+                        return (
+                          <span key={i} className="inline-block bg-white border border-neutral-200 text-neutral-800 px-2 py-0.5 rounded-md font-medium shadow-2xs">
+                            {tpObj ? tpObj.name : 'Provider'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="italic text-neutral-400 mt-1">No transport provider assigned for Day {activeDay}</p>
+                  )}
                 </div>
-                <div>
-                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meal Cost ($)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0}
-                    onChange={(e) => {
-                      const val = e.target.value ? Number(e.target.value) : 0;
-                      handleUpdateDailyDriverField(activeDay, 'contracted_meal_cost', val);
-                      handleUpdateDailyDriverField(activeDay, 'meal_cost', val);
-                    }}
-                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
+              </div>
+              <button
+                type="button"
+                disabled={isLockedByOther}
+                onClick={openTransportsModal}
+                className="w-full text-center text-xs font-black uppercase tracking-wider bg-white border border-neutral-200 hover:border-emerald-800 hover:text-emerald-800 py-2 px-3 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                Manage Transports
+              </button>
+            </div>
+
+            {/* Vehicles Card */}
+            <div className="border border-neutral-200/60 rounded-xl p-4 flex flex-col justify-between bg-neutral-50/50 hover:bg-neutral-50 transition-all">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <UserCircle className="w-4 h-4 text-emerald-800" />
+                    <span className="text-xs font-bold text-neutral-700">Fleet & Vehicles</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono px-2 py-0.5 rounded-full font-bold">
+                    {(dailyVehicleAssignments[activeDay] || []).length} assigned
+                  </span>
                 </div>
-                <div>
-                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Allowance ($)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0}
-                    onChange={(e) => {
-                      const val = e.target.value ? Number(e.target.value) : 0;
-                      handleUpdateDailyDriverField(activeDay, 'contracted_other_allowance', val);
-                      handleUpdateDailyDriverField(activeDay, 'other_allowance', val);
-                    }}
-                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
+                <div className="text-[11px] text-neutral-500 mb-4 min-h-[44px]">
+                  {(dailyVehicleAssignments[activeDay] || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(dailyVehicleAssignments[activeDay] || []).map((ass, i) => {
+                        const vObj = masterData.transportVehicles?.find((v: any) => v.id === ass.vehicle_id);
+                        const name = vObj 
+                          ? [vObj.make_and_model || [vObj.make, vObj.model].filter(Boolean).join(' '), vObj.vehicle_number ? `(${vObj.vehicle_number})` : ''].filter(Boolean).join(' ') 
+                          : 'Vehicle';
+                        return (
+                          <span key={i} className="inline-block bg-white border border-neutral-200 text-neutral-800 px-2 py-0.5 rounded-md font-medium shadow-2xs">
+                            {name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="italic text-neutral-400 mt-1">No vehicle assigned for Day {activeDay}</p>
+                  )}
                 </div>
+              </div>
+              <button
+                type="button"
+                disabled={isLockedByOther}
+                onClick={openVehiclesModal}
+                className="w-full text-center text-xs font-black uppercase tracking-wider bg-white border border-neutral-200 hover:border-emerald-800 hover:text-emerald-800 py-2 px-3 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                Manage Vehicles
+              </button>
+            </div>
+          </div>
+        </div>
+
+      {/* 1. Drivers Modal */}
+      {allocationModal === 'drivers' && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <div>
+                <h3 className="text-sm font-black text-neutral-800 uppercase tracking-wider">Manage Chauffeurs / Drivers - Day {activeDay}</h3>
+                <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">Assign one or more drivers for this day</p>
+              </div>
+              <button
+                onClick={() => setAllocationModal(null)}
+                className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              {/* Add New Driver Form */}
+              <div className="bg-neutral-50 border border-neutral-200/60 p-4 rounded-2xl flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Add Driver</label>
+                  <select
+                    onChange={(e) => {
+                      addDriverToTemp(e.target.value);
+                      e.target.value = ''; // Reset select
+                    }}
+                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer"
+                  >
+                    <option value="">Select a driver to add...</option>
+                    {masterData.drivers?.map((d: any) => (
+                      <option key={d.id} value={d.id}>
+                        {d.first_name} {d.last_name || ''} (${Number(d.per_day_rate || 15).toFixed(2)}/day)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* List of Assigned Drivers */}
+              <div className="space-y-4">
+                {tempDrivers.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-400 italic text-xs">
+                    No drivers allocated for Day {activeDay}. Select a driver above to add.
+                  </div>
+                ) : (
+                  tempDrivers.map((driver, index) => {
+                    const driverObj = masterData.drivers?.find((d: any) => d.id === driver.driver_id);
+                    const name = driverObj ? `${driverObj.first_name} ${driverObj.last_name || ''}`.trim() : 'Driver';
+                    return (
+                      <div key={index} className="border border-neutral-200 rounded-2xl p-4.5 bg-white shadow-xs space-y-3.5 relative">
+                        <button
+                          onClick={() => setTempDrivers(prev => prev.filter((_, idx) => idx !== index))}
+                          className="absolute top-4 right-4 text-neutral-400 hover:text-red-600 transition-colors p-1.5 hover:bg-neutral-50 rounded-lg cursor-pointer"
+                          title="Remove driver assignment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-2 pr-8">
+                          <UserCircle className="w-5 h-5 text-emerald-850" />
+                          <span className="text-xs font-black text-neutral-800">{name}</span>
+                          <span className="text-[10px] text-neutral-400 font-semibold font-mono">(${Number(driver.contracted_per_day_rate ?? driver.per_day_rate ?? 0).toFixed(2)} Base Rate)</span>
+                        </div>
+
+                        {/* Contracted Cost Block */}
+                        <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/50 space-y-2">
+                          <span className="text-[9px] font-extrabold text-neutral-500 uppercase tracking-wider block">Contracted Cost (Buying Price)</span>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
+                              <input
+                                type="number"
+                                value={driver.contracted_per_day_rate ?? driver.per_day_rate ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'contracted_per_day_rate', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Accommodation ($)</label>
+                              <input
+                                type="number"
+                                value={driver.contracted_accommodation_cost ?? driver.accommodation_cost ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'contracted_accommodation_cost', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Meal Cost ($)</label>
+                              <input
+                                type="number"
+                                value={driver.contracted_meal_cost ?? driver.meal_cost ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'contracted_meal_cost', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Allowance ($)</label>
+                              <input
+                                type="number"
+                                value={driver.contracted_other_allowance ?? driver.other_allowance ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'contracted_other_allowance', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Charged Cost Block */}
+                        <div className="bg-emerald-50/30 rounded-xl p-3 border border-emerald-100 space-y-2">
+                          <span className="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider block">Charged Cost (Selling Price)</span>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
+                              <input
+                                type="number"
+                                value={driver.charged_per_day_rate ?? driver.contracted_per_day_rate ?? driver.per_day_rate ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'charged_per_day_rate', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Accommodation ($)</label>
+                              <input
+                                type="number"
+                                value={driver.charged_accommodation_cost ?? driver.contracted_accommodation_cost ?? driver.accommodation_cost ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'charged_accommodation_cost', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Meal Cost ($)</label>
+                              <input
+                                type="number"
+                                value={driver.charged_meal_cost ?? driver.contracted_meal_cost ?? driver.meal_cost ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'charged_meal_cost', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-850 uppercase tracking-wider block mb-1 font-semibold">Allowance ($)</label>
+                              <input
+                                type="number"
+                                value={driver.charged_other_allowance ?? driver.contracted_other_allowance ?? driver.other_allowance ?? 0}
+                                onChange={(e) => updateTempDriverField(index, 'charged_other_allowance', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes / Instructions</label>
+                          <input
+                            type="text"
+                            placeholder="Add notes for this driver's assignment on Day ..."
+                            value={driver.notes || ''}
+                            onChange={(e) => updateTempDriverField(index, 'notes', e.target.value)}
+                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
-            {/* Charged Price Section (Selling Price to Client / PDF) */}
-            <div className="bg-emerald-50/40 rounded-xl p-3 border border-emerald-100 space-y-2">
-              <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">2. Charged Price (Guest / Client Selling Price for Invoice & PDF)</span>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Rate ($)</label>
-                  <input
-                    type="number"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.charged_per_day_rate ?? dailyDriverAssignments[activeDay]?.contracted_per_day_rate ?? dailyDriverAssignments[activeDay]?.per_day_rate ?? 15}
-                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_per_day_rate', e.target.value ? Number(e.target.value) : 0)}
-                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Acc ($)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.charged_accommodation_cost ?? dailyDriverAssignments[activeDay]?.contracted_accommodation_cost ?? dailyDriverAssignments[activeDay]?.accommodation_cost ?? 0}
-                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_accommodation_cost', e.target.value ? Number(e.target.value) : 0)}
-                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Meals ($)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.charged_meal_cost ?? dailyDriverAssignments[activeDay]?.contracted_meal_cost ?? dailyDriverAssignments[activeDay]?.meal_cost ?? 0}
-                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_meal_cost', e.target.value ? Number(e.target.value) : 0)}
-                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-emerald-900/60 uppercase tracking-wider block mb-1">Charged Allowance ($)</label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    disabled={isLockedByOther}
-                    value={dailyDriverAssignments[activeDay]?.charged_other_allowance ?? dailyDriverAssignments[activeDay]?.contracted_other_allowance ?? dailyDriverAssignments[activeDay]?.other_allowance ?? 0}
-                    onChange={(e) => handleUpdateDailyDriverField(activeDay, 'charged_other_allowance', e.target.value ? Number(e.target.value) : 0)}
-                    className="w-full text-xs border border-emerald-200 rounded-xl px-3 py-2 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all disabled:opacity-50"
-                  />
-                </div>
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <button
+                onClick={applyDriversToAllDays}
+                disabled={tempDrivers.length === 0}
+                className="px-4 py-2 border border-emerald-850 hover:bg-emerald-50 text-emerald-850 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                Apply to All Days
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAllocationModal(null)}
+                  className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveDriversModal}
+                  className="px-5 py-2 bg-emerald-850 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                >
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 2. Transports Modal */}
+      {allocationModal === 'transports' && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <div>
+                <h3 className="text-sm font-black text-neutral-800 uppercase tracking-wider">Manage Transport Providers - Day {activeDay}</h3>
+                <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">Assign one or more transport providers for this day</p>
+              </div>
+              <button
+                onClick={() => setAllocationModal(null)}
+                className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              {/* Add New Provider Form */}
+              <div className="bg-neutral-50 border border-neutral-200/60 p-4 rounded-2xl flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Add Transport Provider</label>
+                  <select
+                    onChange={(e) => {
+                      addTransportToTemp(e.target.value);
+                      e.target.value = ''; // Reset select
+                    }}
+                    className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer"
+                  >
+                    <option value="">Select a transport provider to add...</option>
+                    {masterData.transportProviders?.map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* List of Assigned Providers */}
+              <div className="space-y-4">
+                {tempTransports.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-400 italic text-xs">
+                    No transport providers allocated for Day {activeDay}. Select a provider above to add.
+                  </div>
+                ) : (
+                  tempTransports.map((transport, index) => {
+                    const tpObj = masterData.transportProviders?.find((p: any) => p.id === transport.transport_provider_id);
+                    const name = tpObj ? tpObj.name : 'Transport Provider';
+                    return (
+                      <div key={index} className="border border-neutral-200 rounded-2xl p-4.5 bg-white shadow-xs space-y-3.5 relative">
+                        <button
+                          onClick={() => setTempTransports(prev => prev.filter((_, idx) => idx !== index))}
+                          className="absolute top-4 right-4 text-neutral-400 hover:text-red-600 transition-colors p-1.5 hover:bg-neutral-50 rounded-lg cursor-pointer"
+                          title="Remove provider assignment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-2 pr-8">
+                          <UserCircle className="w-5 h-5 text-emerald-855" />
+                          <span className="text-xs font-black text-neutral-800">{name}</span>
+                        </div>
+
+                        {/* Contracted Cost Block */}
+                        <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/50 space-y-2">
+                          <span className="text-[9px] font-extrabold text-neutral-500 uppercase tracking-wider block">Contracted Cost (Buying Price)</span>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
+                              <input
+                                type="number"
+                                value={transport.contracted_per_day_rate ?? transport.per_day_rate ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'contracted_per_day_rate', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Excess Mileage ($)</label>
+                              <input
+                                type="number"
+                                value={transport.contracted_excess_mileage_cost ?? transport.excess_mileage_cost ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'contracted_excess_mileage_cost', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Other Allowance ($)</label>
+                              <input
+                                type="number"
+                                value={transport.contracted_other_allowance ?? transport.other_allowance ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'contracted_other_allowance', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Distance (km)</label>
+                              <input
+                                type="number"
+                                value={transport.distance_km ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'distance_km', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Charged Cost Block */}
+                        <div className="bg-emerald-50/30 rounded-xl p-3 border border-emerald-100 space-y-2">
+                          <span className="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider block">Charged Cost (Selling Price)</span>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
+                              <input
+                                type="number"
+                                value={transport.charged_per_day_rate ?? transport.contracted_per_day_rate ?? transport.per_day_rate ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'charged_per_day_rate', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Excess Mileage ($)</label>
+                              <input
+                                type="number"
+                                value={transport.charged_excess_mileage_cost ?? transport.contracted_excess_mileage_cost ?? transport.excess_mileage_cost ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'charged_excess_mileage_cost', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Other Allowance ($)</label>
+                              <input
+                                type="number"
+                                value={transport.charged_other_allowance ?? transport.contracted_other_allowance ?? transport.other_allowance ?? 0}
+                                onChange={(e) => updateTempTransportField(index, 'charged_other_allowance', Number(e.target.value) || 0)}
+                                className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes / Instructions</label>
+                          <input
+                            type="text"
+                            placeholder="Add notes for this transport assignment on Day ..."
+                            value={transport.notes || ''}
+                            onChange={(e) => updateTempTransportField(index, 'notes', e.target.value)}
+                            className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <button
+                onClick={applyTransportsToAllDays}
+                disabled={tempTransports.length === 0}
+                className="px-4 py-2 border border-emerald-850 hover:bg-emerald-50 text-emerald-855 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                Apply to All Days
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAllocationModal(null)}
+                  className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveTransportsModal}
+                  className="px-5 py-2 bg-emerald-850 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Vehicles Modal */}
+      {allocationModal === 'vehicles' && (() => {
+        const allVehicles = masterData.transportVehicles || [];
+        const filteredVehicles = allVehicles.filter((v: any) => {
+          if (!vehicleProviderSearch) return true;
+          const tp = masterData.transportProviders?.find((p: any) => p.id === v.provider_id);
+          const providerName = tp ? tp.name.toLowerCase() : '';
+          const vehicleName = (v.make_and_model || [v.make, v.model].filter(Boolean).join(' ')).toLowerCase();
+          const vehicleNo = (v.vehicle_number || '').toLowerCase();
+          const query = vehicleProviderSearch.toLowerCase();
+          return providerName.includes(query) || vehicleName.includes(query) || vehicleNo.includes(query);
+        });
+
+        return (
+          <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+              {/* Modal Header */}
+              <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div>
+                  <h3 className="text-sm font-black text-neutral-800 uppercase tracking-wider">Manage Vehicles & Fleet - Day {activeDay}</h3>
+                  <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">Assign one or more vehicles for this day</p>
+                </div>
+                <button
+                  onClick={() => setAllocationModal(null)}
+                  className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                {/* Add New Vehicle Form */}
+                <div className="bg-neutral-50 border border-neutral-200/60 p-4 rounded-2xl flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Search Transport Provider / Vehicle</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search by provider name, vehicle, etc..."
+                        value={vehicleProviderSearch}
+                        onChange={(e) => setVehicleProviderSearch(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl pl-9 pr-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all"
+                      />
+                      <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Select Vehicle to Add</label>
+                    <select
+                      onChange={(e) => {
+                        addVehicleToTemp(e.target.value);
+                        e.target.value = ''; // Reset select
+                      }}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer"
+                    >
+                      <option value="">
+                        {filteredVehicles.length === 0 
+                          ? "No matching vehicles found..." 
+                          : `Select a vehicle (${filteredVehicles.length} options)...`}
+                      </option>
+                      {filteredVehicles.map((v: any) => {
+                        const tp = masterData.transportProviders?.find((p: any) => p.id === v.provider_id);
+                        const providerName = tp ? tp.name : 'Unknown Provider';
+                        const displayName = `${v.make_and_model || [v.make, v.model].filter(Boolean).join(' ')} ${v.vehicle_number ? `(${v.vehicle_number})` : ''} [${providerName}]`;
+                        return (
+                          <option key={v.id} value={v.id}>
+                            {displayName} (${Number(v.day_rate || 0).toFixed(2)}/day)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                {/* List of Assigned Vehicles */}
+                <div className="space-y-4">
+                  {tempVehicles.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-400 italic text-xs">
+                      No vehicles allocated for Day {activeDay}. Select a vehicle above to add.
+                    </div>
+                  ) : (
+                    tempVehicles.map((vehicle, index) => {
+                      const vObj = masterData.transportVehicles?.find((v: any) => v.id === vehicle.vehicle_id);
+                      const name = vObj 
+                        ? [vObj.make_and_model || [vObj.make, vObj.model].filter(Boolean).join(' '), vObj.vehicle_number ? `(${vObj.vehicle_number})` : ''].filter(Boolean).join(' ') 
+                        : 'Vehicle';
+                      return (
+                        <div key={index} className="border border-neutral-200 rounded-2xl p-4.5 bg-white shadow-xs space-y-3.5 relative">
+                          <button
+                            onClick={() => setTempVehicles(prev => prev.filter((_, idx) => idx !== index))}
+                            className="absolute top-4 right-4 text-neutral-400 hover:text-red-650 transition-colors p-1.5 hover:bg-neutral-50 rounded-lg cursor-pointer"
+                            title="Remove vehicle assignment"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+
+                          <div className="flex items-center gap-2 mb-2 pr-8">
+                            <UserCircle className="w-5 h-5 text-emerald-855" />
+                            <span className="text-xs font-black text-neutral-800">{name}</span>
+                          </div>
+
+                          {/* Contracted Cost Block */}
+                          <div className="bg-neutral-50 rounded-xl p-3 border border-neutral-200/50 space-y-2">
+                            <span className="text-[9px] font-extrabold text-neutral-500 uppercase tracking-wider block">Contracted Cost (Buying Price)</span>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div>
+                                <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.contracted_per_day_rate ?? vehicle.per_day_rate ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'contracted_per_day_rate', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Excess Mileage ($)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.contracted_excess_mileage_cost ?? vehicle.excess_mileage_cost ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'contracted_excess_mileage_cost', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Other Allowance ($)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.contracted_other_allowance ?? vehicle.other_allowance ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'contracted_other_allowance', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Distance (km)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.distance_km ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'distance_km', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Charged Cost Block */}
+                          <div className="bg-emerald-50/30 rounded-xl p-3 border border-emerald-100 space-y-2">
+                            <span className="text-[9px] font-extrabold text-emerald-800 uppercase tracking-wider block">Charged Cost (Selling Price)</span>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div>
+                                <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Rate ($)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.charged_per_day_rate ?? vehicle.contracted_per_day_rate ?? vehicle.per_day_rate ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'charged_per_day_rate', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Excess Mileage ($)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.charged_excess_mileage_cost ?? vehicle.contracted_excess_mileage_cost ?? vehicle.excess_mileage_cost ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'charged_excess_mileage_cost', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-emerald-855 uppercase tracking-wider block mb-1 font-semibold">Other Allowance ($)</label>
+                                <input
+                                  type="number"
+                                  value={vehicle.charged_other_allowance ?? vehicle.contracted_other_allowance ?? vehicle.other_allowance ?? 0}
+                                  onChange={(e) => updateTempVehicleField(index, 'charged_other_allowance', Number(e.target.value) || 0)}
+                                  className="w-full text-xs border border-emerald-250 rounded-xl px-3 py-1.5 bg-white text-emerald-950 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Notes */}
+                          <div>
+                            <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Notes / Instructions</label>
+                            <input
+                              type="text"
+                              placeholder="Add notes for this vehicle assignment on Day ..."
+                              value={vehicle.notes || ''}
+                              onChange={(e) => updateTempVehicleField(index, 'notes', e.target.value)}
+                              className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <button
+                  onClick={applyVehiclesToAllDays}
+                  disabled={tempVehicles.length === 0}
+                  className="px-4 py-2 border border-emerald-855 hover:bg-emerald-50 text-emerald-855 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  Apply to All Days
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setAllocationModal(null)}
+                    className="px-4 py-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveVehiclesModal}
+                    className="px-5 py-2 bg-emerald-855 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
         {/* Daily Cost Summary Banner */}
         {appSettings && (

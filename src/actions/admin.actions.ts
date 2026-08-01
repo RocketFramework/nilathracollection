@@ -36,6 +36,8 @@ import { TourDailyDriverService } from "@/services/tour-daily-driver.service";
 import { TourDailyDriverDTO } from "@/dtos/tour-daily-driver.dto";
 import { TourDailyTransportService } from "@/services/tour-daily-transport.service";
 import { TourDailyTransportDTO } from "@/dtos/tour-daily-transport.dto";
+import { TourDailyVehicleService } from "@/services/tour-daily-vehicle.service";
+import { TourDailyVehicleDTO } from "@/dtos/tour-daily-vehicle.dto";
 
 
 export async function getDashboardRequestsAction(filters: any, currentPage: number = 1, pageSize: number = 10) {
@@ -2775,6 +2777,28 @@ export async function saveTourDailyTransportsAction(tourId: string, assignments:
     }
 }
 
+export async function getTourDailyVehiclesAction(tourId: string) {
+    try {
+        const supabase = createAdminClient();
+        const vehicles = await TourDailyVehicleService.getDailyVehiclesByTourId(tourId, supabase);
+        return { success: true, vehicles };
+    } catch (error: any) {
+        console.error("Error fetching tour daily vehicles:", error);
+        return { success: false, error: error.message || "Failed to fetch tour daily vehicles." };
+    }
+}
+
+export async function saveTourDailyVehiclesAction(tourId: string, assignments: TourDailyVehicleDTO[]) {
+    try {
+        const supabase = createAdminClient();
+        const saved = await TourDailyVehicleService.bulkUpsertDailyVehicles(tourId, assignments, supabase);
+        return { success: true, saved };
+    } catch (error: any) {
+        console.error("Error saving tour daily vehicles:", error);
+        return { success: false, error: error.message || "Failed to save tour daily vehicles." };
+    }
+}
+
 export async function updateCustomerPaymentAction(paymentId: string, updates: Record<string, any>) {
     try {
         const payment = await CustomerInvoiceService.updateCustomerPayment(paymentId, updates);
@@ -2796,5 +2820,19 @@ export async function deleteCustomerPaymentAction(paymentId: string) {
         return { success: false, error: error.message || "Failed to delete payment." };
     }
 }
+
+export async function getTransportVehiclesAction() {
+    try {
+        const supabase = createAdminClient();
+        const { data: vehicles } = await supabase
+            .from('transport_vehicles')
+            .select('*');
+        return { success: true, vehicles };
+    } catch (error: any) {
+        console.error("Error fetching transport vehicles:", error);
+        return { success: false, error: error.message || "Failed to load transport vehicles." };
+    }
+}
+
 
 

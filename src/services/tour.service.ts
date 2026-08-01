@@ -649,7 +649,7 @@ export class TourService {
             // 2. Insert new team members
             if (tripData.travelers && tripData.travelers.length > 0) {
                 const teamRows = tripData.travelers.map(t => ({
-                    id: isUuid(t.id) ? t.id : undefined, // Keep existing UUID if valid
+                    id: isUuid(t.id) ? t.id : crypto.randomUUID(), // Keep existing UUID if valid or assign a new UUID
                     tour_id: tourId,
                     tourist_id: touristId,
                     full_name: t.fullName,
