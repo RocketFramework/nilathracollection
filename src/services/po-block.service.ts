@@ -1227,6 +1227,23 @@ export class POBlockService {
                     const transportMarkupPercent = Number(appSettingsMap['transport_markup']) || 0;
                     const markupFactor = 1 + (transportMarkupPercent / 100);
 
+                    // Fetch daily activities to calculate total distance_km per itinerary day
+                    const { data: dailyActs } = await adminSupabase
+                        .from('daily_activities')
+                        .select('itinerary_id, distance')
+                        .eq('tour_id', activeTourId);
+
+                    const dayDistanceMap: Record<string, number> = {};
+                    (dailyActs || []).forEach((act: any) => {
+                        if (act.itinerary_id && act.distance) {
+                            const rawDist = String(act.distance).replace(/[^0-9.]/g, '');
+                            const numDist = parseFloat(rawDist) || 0;
+                            if (numDist > 0) {
+                                dayDistanceMap[act.itinerary_id] = (dayDistanceMap[act.itinerary_id] || 0) + numDist;
+                            }
+                        }
+                    });
+
                     // Clear previous vehicle records for ALL itinerary days of this tour
                     await adminSupabase
                         .from('tour_itinerary_transports')
@@ -1242,6 +1259,8 @@ export class POBlockService {
 
                         const transportRows: any[] = [];
                         allItinIds.forEach(itinId => {
+                            const dayDistance = dayDistanceMap[itinId] || 0;
+
                             vehicles.forEach(v => {
                                 const detail = (vehicleDetails || []).find((vd: any) => vd.id === v.vehicle_id);
                                 const qty = Number(v.quantity) || 1;
@@ -1258,6 +1277,7 @@ export class POBlockService {
                                     vehicle_id: v.vehicle_id,
                                     contracted_per_day_rate: contractedRate,
                                     charged_per_day_rate: chargedRate,
+                                    distance_km: dayDistance,
                                     notes: v.notes || null,
                                     updated_at: new Date().toISOString()
                                 });

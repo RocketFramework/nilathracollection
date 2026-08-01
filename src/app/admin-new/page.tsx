@@ -2997,14 +2997,12 @@ function PlannerWizardWorkspace() {
             setDailyTransportAssignments(transportMap);
           }
 
-          if (touristRes.success && touristRes.data) {
-            setTouristData(touristRes.data);
-          } else {
-            console.error("Failed to load tourist relational data:", touristRes.error);
-          }
-
           if (tourRes.success && tourRes.data) {
             const fullTripData = tourRes.data.tripData as TripData;
+            const tourTravelStyle = tourRes.data.tourMsg?.travel_style;
+            if (tourTravelStyle && fullTripData.profile) {
+              fullTripData.profile.travelStyle = tourTravelStyle as TravelStyle;
+            }
             setTripData(fullTripData);
             setItinerary(sortItineraryChronologically(fullTripData.itinerary || []));
             if (fullTripData.manualSingle !== undefined) setManualSingle(fullTripData.manualSingle);
@@ -3012,7 +3010,6 @@ function PlannerWizardWorkspace() {
             if (fullTripData.manualTriple !== undefined) setManualTriple(fullTripData.manualTriple);
             if (fullTripData.manualFamily !== undefined) setManualFamily(fullTripData.manualFamily);
 
-            // Fetch any assigned hotels and restaurants to populate masterData
             const hotelIds = (fullTripData.itinerary || [])
               .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
               .map(b => b.hotelId as string);
