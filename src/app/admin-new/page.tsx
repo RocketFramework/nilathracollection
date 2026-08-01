@@ -21138,53 +21138,99 @@ function AIItineraryBuilder({
   const [tempVehicles, setTempVehicles] = useState<TourDailyVehicleDTO[]>([]);
   const [vehicleProviderSearch, setVehicleProviderSearch] = useState<string>('');
 
+  const [applyScope, setApplyScope] = useState<'current' | 'all'>('current');
+
   const openDriversModal = () => {
     setTempDrivers(dailyDriverAssignments[activeDay] || []);
+    setApplyScope('current');
     setAllocationModal('drivers');
   };
 
   const openTransportsModal = () => {
     setTempTransports(dailyTransportAssignments[activeDay] || []);
+    setApplyScope('current');
     setAllocationModal('transports');
   };
 
   const openVehiclesModal = () => {
     setTempVehicles(dailyVehicleAssignments[activeDay] || []);
     setVehicleProviderSearch('');
+    setApplyScope('current');
     setAllocationModal('vehicles');
   };
 
   const saveDriversModal = () => {
-    setDailyDriverAssignments(prev => ({
-      ...prev,
-      [activeDay]: tempDrivers
-    }));
+    if (applyScope === 'all') {
+      const next: Record<number, TourDailyDriverDTO[]> = {};
+      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
+      for (let d = 1; d <= numDays; d++) {
+        next[d] = tempDrivers.map(item => ({
+          ...item,
+          day_number: d,
+          tour_itinerary_id: undefined
+        }));
+      }
+      setDailyDriverAssignments(next);
+    } else {
+      setDailyDriverAssignments(prev => ({
+        ...prev,
+        [activeDay]: tempDrivers
+      }));
+    }
     setAllocationModal(null);
   };
 
   const saveTransportsModal = () => {
-    setDailyTransportAssignments(prev => ({
-      ...prev,
-      [activeDay]: tempTransports
-    }));
+    if (applyScope === 'all') {
+      const next: Record<number, TourDailyTransportDTO[]> = {};
+      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
+      for (let d = 1; d <= numDays; d++) {
+        next[d] = tempTransports.map(item => ({
+          ...item,
+          day_number: d,
+          tour_itinerary_id: undefined
+        }));
+      }
+      setDailyTransportAssignments(next);
+    } else {
+      setDailyTransportAssignments(prev => ({
+        ...prev,
+        [activeDay]: tempTransports
+      }));
+    }
     setAllocationModal(null);
   };
 
   const saveVehiclesModal = () => {
-    setDailyVehicleAssignments(prev => ({
-      ...prev,
-      [activeDay]: tempVehicles
-    }));
+    if (applyScope === 'all') {
+      const next: Record<number, TourDailyVehicleDTO[]> = {};
+      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
+      for (let d = 1; d <= numDays; d++) {
+        next[d] = tempVehicles.map(item => ({
+          ...item,
+          day_number: d,
+          tour_itinerary_id: undefined
+        }));
+      }
+      setDailyVehicleAssignments(next);
+    } else {
+      setDailyVehicleAssignments(prev => ({
+        ...prev,
+        [activeDay]: tempVehicles
+      }));
+    }
     setAllocationModal(null);
   };
 
   const applyDriversToAllDays = () => {
     if (window.confirm("Are you sure you want to copy these driver assignments to all days of the trip? This will overwrite existing assignments.")) {
       const next: Record<number, TourDailyDriverDTO[]> = {};
-      for (let d = 1; d <= durationDays; d++) {
+      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
+      for (let d = 1; d <= numDays; d++) {
         next[d] = tempDrivers.map(item => ({
           ...item,
-          day_number: d
+          day_number: d,
+          tour_itinerary_id: undefined
         }));
       }
       setDailyDriverAssignments(next);
@@ -21196,10 +21242,12 @@ function AIItineraryBuilder({
   const applyTransportsToAllDays = () => {
     if (window.confirm("Are you sure you want to copy these transport provider assignments to all days of the trip? This will overwrite existing assignments.")) {
       const next: Record<number, TourDailyTransportDTO[]> = {};
-      for (let d = 1; d <= durationDays; d++) {
+      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
+      for (let d = 1; d <= numDays; d++) {
         next[d] = tempTransports.map(item => ({
           ...item,
-          day_number: d
+          day_number: d,
+          tour_itinerary_id: undefined
         }));
       }
       setDailyTransportAssignments(next);
@@ -21211,10 +21259,12 @@ function AIItineraryBuilder({
   const applyVehiclesToAllDays = () => {
     if (window.confirm("Are you sure you want to copy these vehicle assignments to all days of the trip? This will overwrite existing assignments.")) {
       const next: Record<number, TourDailyVehicleDTO[]> = {};
-      for (let d = 1; d <= durationDays; d++) {
+      const numDays = Math.max(durationDays || 0, ...itinerary.map(item => item.dayNumber || 0), 5);
+      for (let d = 1; d <= numDays; d++) {
         next[d] = tempVehicles.map(item => ({
           ...item,
-          day_number: d
+          day_number: d,
+          tour_itinerary_id: undefined
         }));
       }
       setDailyVehicleAssignments(next);
@@ -23552,14 +23602,32 @@ function AIItineraryBuilder({
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-              <button
-                onClick={applyDriversToAllDays}
-                disabled={tempDrivers.length === 0}
-                className="px-4 py-2 border border-emerald-850 hover:bg-emerald-50 text-emerald-850 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                Apply to All Days
-              </button>
+            <div className="px-6 py-4 border-t border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-neutral-500">Apply assignments to:</span>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="driverApplyScope"
+                      checked={applyScope === 'current'}
+                      onChange={() => setApplyScope('current')}
+                      className="text-emerald-855 focus:ring-emerald-855"
+                    />
+                    Only Day {activeDay}
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="driverApplyScope"
+                      checked={applyScope === 'all'}
+                      onChange={() => setApplyScope('all')}
+                      className="text-emerald-855 focus:ring-emerald-855"
+                    />
+                    All Days of Tour
+                  </label>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setAllocationModal(null)}
@@ -23677,14 +23745,32 @@ function AIItineraryBuilder({
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-              <button
-                onClick={applyTransportsToAllDays}
-                disabled={tempTransports.length === 0}
-                className="px-4 py-2 border border-emerald-850 hover:bg-emerald-50 text-emerald-855 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                Apply to All Days
-              </button>
+            <div className="px-6 py-4 border-t border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-neutral-500">Apply assignments to:</span>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="transportApplyScope"
+                      checked={applyScope === 'current'}
+                      onChange={() => setApplyScope('current')}
+                      className="text-emerald-855 focus:ring-emerald-855"
+                    />
+                    Only Day {activeDay}
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="transportApplyScope"
+                      checked={applyScope === 'all'}
+                      onChange={() => setApplyScope('all')}
+                      className="text-emerald-855 focus:ring-emerald-855"
+                    />
+                    All Days of Tour
+                  </label>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setAllocationModal(null)}
@@ -23902,14 +23988,32 @@ function AIItineraryBuilder({
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-                <button
-                  onClick={applyVehiclesToAllDays}
-                  disabled={tempVehicles.length === 0}
-                  className="px-4 py-2 border border-emerald-855 hover:bg-emerald-50 text-emerald-855 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs"
-                >
-                  Apply to All Days
-                </button>
+              <div className="px-6 py-4 border-t border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50/50">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs font-bold text-neutral-500">Apply assignments to:</span>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
+                      <input
+                        type="radio"
+                        name="vehicleApplyScope"
+                        checked={applyScope === 'current'}
+                        onChange={() => setApplyScope('current')}
+                        className="text-emerald-855 focus:ring-emerald-855"
+                      />
+                      Only Day {activeDay}
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-neutral-700 font-bold cursor-pointer">
+                      <input
+                        type="radio"
+                        name="vehicleApplyScope"
+                        checked={applyScope === 'all'}
+                        onChange={() => setApplyScope('all')}
+                        className="text-emerald-855 focus:ring-emerald-855"
+                      />
+                      All Days of Tour
+                    </label>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setAllocationModal(null)}
