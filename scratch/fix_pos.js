@@ -21,15 +21,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function inspectDrivers() {
-  const tourId = "34cfc060-fd58-4c20-8b57-158feeb689d6";
-  const { data: drivers } = await supabase
-    .from('tour_itinerary_drivers')
-    .select('*, drivers(first_name, last_name, phone)')
-    .eq('tour_id', tourId);
+async function fixPOs() {
+  const res1 = await supabase.from('purchase_orders').update({
+    subtotal: 15,
+    total_amount: 15
+  }).eq('po_number', 'PO-DRI-622705');
+  console.log("Updated PO-DRI-622705:", res1.error || "Success");
 
-  console.log("=== TOUR DRIVERS ===");
-  console.log(JSON.stringify(drivers, null, 2));
+  const res2 = await supabase.from('purchase_orders').update({
+    subtotal: 15,
+    total_amount: 15
+  }).eq('po_number', 'PO-DRI-643945');
+  console.log("Updated PO-DRI-643945:", res2.error || "Success");
+
+  const res3 = await supabase.from('purchase_orders').update({
+    subtotal: 180,
+    total_amount: 180
+  }).eq('po_number', 'PO-TRA-236784');
+  console.log("Updated PO-TRA-236784:", res3.error || "Success");
 }
 
-inspectDrivers();
+fixPOs();

@@ -140,6 +140,11 @@ export class VendorBookingService {
                         });
                     }
 
+                    // Fallback to agreed_price if daily_activities subtotal evaluated to 0
+                    if (calculatedSubtotal === 0 && Number(bookingData.agreed_price) > 0) {
+                        calculatedSubtotal = Number(bookingData.agreed_price);
+                    }
+
                 } else if (bookingData.vendor_type === 'driver') {
                     // ── DRIVER PATH: Fetch daily driver records from tour_itinerary_drivers ──
                     const { data: driverRows, error: dErr } = await supabase
@@ -214,6 +219,11 @@ export class VendorBookingService {
                             });
                         }
                     }
+
+                    // Fallback to agreed_price if driver subtotal evaluated to 0
+                    if (calculatedSubtotal === 0 && Number(bookingData.agreed_price) > 0) {
+                        calculatedSubtotal = Number(bookingData.agreed_price);
+                    }
                 } else {
                     // ── NON-TRANSPORT PATH (hotel / restaurant / vendor / guide) ──
                     activities.forEach((act) => {
@@ -273,6 +283,11 @@ export class VendorBookingService {
                     });
                 }
             }
+        }
+
+        // If calculatedSubtotal is still 0 (e.g. custom PO items), use agreed_price if set
+        if (calculatedSubtotal === 0 && Number(bookingData.agreed_price) > 0) {
+            calculatedSubtotal = Number(bookingData.agreed_price);
         }
 
         const discount = bookingData.discount || 0;
@@ -357,6 +372,7 @@ export class VendorBookingService {
         else if (bookingData.vendor_type === 'vendor') poPayload.activity_vendor_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'transport_provider') poPayload.transport_provider_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'tour_guide') poPayload.guide_id = bookingData.vendor_id;
+        else if (bookingData.vendor_type === 'driver') poPayload.activity_vendor_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'restaurant') poPayload.restaurant_id = bookingData.vendor_id;
 
         const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);

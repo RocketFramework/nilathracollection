@@ -201,7 +201,7 @@ import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
-import { generateHotelPoPdf, generateTransportPoPdf } from '@/utils/po-pdf';
+import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
 
 interface StepItem {
   id: string;
@@ -1030,13 +1030,37 @@ function PlannerWizardWorkspace() {
         } as TourDailyDriverDTO);
       }
 
-      await saveTourDailyDriversAction(tourId, assignmentsToSave);
-      const res = await saveDriverDailyActivitiesAction(tourId, driverId, activitiesToSave);
+      // Preserve existing assignments for OTHER drivers from dailyDriverAssignments
+      const otherDriverPayloads: TourDailyDriverDTO[] = [];
+      Object.entries(dailyDriverAssignments).forEach(([dNumStr, assignList]) => {
+        const dNum = Number(dNumStr);
+        (assignList || []).forEach((dAss: any) => {
+          if (dAss.driver_id !== driverId) {
+            otherDriverPayloads.push({
+              tour_id: tourId,
+              day_number: dNum,
+              driver_id: dAss.driver_id,
+              contracted_per_day_rate: Number(dAss.contracted_per_day_rate ?? dAss.per_day_rate ?? 0),
+              charged_per_day_rate: Number(dAss.charged_per_day_rate ?? dAss.per_day_rate ?? 0),
+              notes: dAss.notes || ''
+            } as TourDailyDriverDTO);
+          }
+        });
+      });
+
+      const fullAssignmentsToSave = [...otherDriverPayloads, ...assignmentsToSave];
+      const res = await saveTourDailyDriversAction(tourId, fullAssignmentsToSave);
 
       if (res.success) {
-        const reloadRes = await getDriverDailyActivitiesAction(tourId);
-        if (reloadRes.success && reloadRes.activities) {
-          setDriverActivities(reloadRes.activities);
+        const reloadDriversRes = await getTourDailyDriversAction(tourId);
+        if (reloadDriversRes.success && reloadDriversRes.drivers) {
+          const groupedDrivers: Record<number, any[]> = {};
+          reloadDriversRes.drivers.forEach((dAss: any) => {
+            const dayN = Number(dAss.day_number || 1);
+            if (!groupedDrivers[dayN]) groupedDrivers[dayN] = [];
+            groupedDrivers[dayN].push(dAss);
+          });
+          setDailyDriverAssignments(groupedDrivers);
         }
         const blocksRes = await getPOBlocksAction(tourId);
         if (blocksRes.success && blocksRes.blocks) {
@@ -2823,21 +2847,14 @@ function PlannerWizardWorkspace() {
           if (!driverId) return;
 
           initialRates[driverId] = {};
+          const driverRows = dailyDriverRows.filter((r: any) => r.driver_id === driverId);
 
-          for (let idx = 0; idx < numDays; idx++) {
-            const dayNum = idx + 1;
-            let dateStr = '';
-            if (arrivalDate) {
-              try {
-                const d = new Date(arrivalDate);
-                d.setDate(d.getDate() + idx);
-                dateStr = d.toISOString().split('T')[0];
-              } catch (e) { }
-            }
+          if (driverRows.length > 0) {
+            // Populate ONLY the days present in tour_itinerary_drivers for this driver
+            driverRows.forEach((row: any) => {
+              const dayNum = Number(row.day_number);
+              if (!dayNum) return;
 
-            // Find matching row in tour_itinerary_drivers for this driver and day
-            const row = dailyDriverRows.find((r: any) => r.driver_id === driverId && Number(r.day_number) === dayNum);
-            if (row) {
               const contractedTotal =
                 Number(row.contracted_per_day_rate ?? row.per_day_rate ?? 0) +
                 Number(row.contracted_accommodation_cost ?? row.accommodation_cost ?? 0) +
@@ -2850,11 +2867,35 @@ function PlannerWizardWorkspace() {
                 Number(row.charged_meal_cost ?? row.contracted_meal_cost ?? row.meal_cost ?? 0) +
                 Number(row.charged_other_allowance ?? row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
+              const noteText = row.notes || '';
+              let rateType = 'Driver Agreement Rate';
+              if (noteText.startsWith('Rate Type: ')) {
+                rateType = noteText.replace('Rate Type: ', '');
+              } else if (noteText) {
+                rateType = noteText;
+              }
+
               initialRates[driverId][dayNum] = {
-                rateType: row.notes || 'Driver Agreement Rate',
+                rateType: rateType,
                 contractedPrice: contractedTotal,
                 chargedPrice: chargedTotal,
-                note: row.notes || ''
+                note: noteText
+              };
+            });
+          } else {
+            // If no rows in tour_itinerary_drivers yet for this driver block, initialize default rate slots
+            for (let idx = 0; idx < numDays; idx++) {
+              const dayNum = idx + 1;
+              const driver = masterData.drivers?.find((d: any) => d.id === driverId);
+              const driverDefaultRate = driver?.per_day_rate || 15;
+              const defaultRate = Number(appSettings?.regular_chauffeur_day_rate) || driverDefaultRate;
+              const defaultRateType = appSettings?.regular_chauffeur_day_rate ? 'Regular Chauffeur Rate' : 'Chauffeur Default';
+
+              initialRates[driverId][dayNum] = {
+                rateType: defaultRateType,
+                contractedPrice: defaultRate,
+                chargedPrice: defaultRate,
+                note: `Rate Type: ${defaultRateType}`
               };
             }
           }
@@ -2865,7 +2906,7 @@ function PlannerWizardWorkspace() {
     }
 
     return () => { isMounted = false; };
-  }, [currentStep?.id, poBlocks, touristData, masterData.drivers, tourId]);
+  }, [currentStep?.id, poBlocks, touristData, appSettings, masterData.drivers, tourId]);
 
   // Sync shareEditorRef on navigation/tab switch
   useEffect(() => {
@@ -4837,6 +4878,35 @@ function PlannerWizardWorkspace() {
               const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
               const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
 
+              const blockProviderId = hotel?.id || null;
+              const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+                .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+              const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+              const assignedVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+                if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+                if (blockProviderId) {
+                  const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                  const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+                  return provId === blockProviderId;
+                }
+                return false;
+              });
+
+              const savedVehicleKm = assignedVehicles.reduce((s: number, v: any) => s + (Number(v.distance_km) || 0), 0);
+              const effectiveKm = savedVehicleKm > 0 ? savedVehicleKm : totalKm;
+
+              const vehicleNames: string[] = [];
+              assignedVehicles.forEach((vAss: any) => {
+                const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                if (vObj) {
+                  const name = vObj.make_and_model || [vObj.make, vObj.model].filter(Boolean).join(' ');
+                  const vNo = vObj.vehicle_number ? `(${vObj.vehicle_number})` : '';
+                  const full = [name, vNo].filter(Boolean).join(' ');
+                  if (full && !vehicleNames.includes(full)) vehicleNames.push(full);
+                }
+              });
+              const vehicleStr = vehicleNames.length > 0 ? ` <span style="font-size:10px;color:#047857;font-weight:600;">[${vehicleNames.join(', ')}]</span>` : '';
+
               const isStayDay = totalKm === 0 || legs.every((l: any) =>
                 (l.title || '').toLowerCase().includes('driver and vehicle stays') ||
                 (l.title || '').toLowerCase().includes('vehicle and driver stays')
@@ -4846,7 +4916,7 @@ function PlannerWizardWorkspace() {
               let kmDisplay = '';
 
               if (isStayDay) {
-                routeDisplay = 'Vehicle and Driver Stays';
+                routeDisplay = `Vehicle and Driver Stays${vehicleStr}`;
                 kmDisplay = '-';
               } else {
                 const firstLeg = legs[0] as any;
@@ -4879,8 +4949,8 @@ function PlannerWizardWorkspace() {
                   if (!origin) origin = firstLeg.pickup_location || 'Origin';
                 }
 
-                routeDisplay = `${origin} &#8594; ${destination}`;
-                kmDisplay = `${Math.round(totalKm)} km`;
+                routeDisplay = `${origin} &#8594; ${destination}${vehicleStr}`;
+                kmDisplay = `${Math.round(effectiveKm)} km`;
               }
 
               return `<tr>
@@ -4981,22 +5051,12 @@ function PlannerWizardWorkspace() {
             ? `Custom Tour Package for ${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim()
             : (tripData?.clientName ? `Custom Tour for ${tripData.clientName}` : 'Custom Tour Package');
 
-          const checkInDate = guideRfqDetails?.tour?.start_date || sortedStays[0]?.service_date || sortedStays[0]?.tour_itineraries?.date || '';
-          const checkOutDate = guideRfqDetails?.tour?.end_date || sortedStays[sortedStays.length - 1]?.service_date || sortedStays[sortedStays.length - 1]?.tour_itineraries?.date || '';
+          // Extract assigned day numbers for this driver from driverStays (tour_itinerary_drivers)
+          const assignedDayNumbers = new Set(
+            sortedStays.map(s => Number(s.tour_itineraries?.day_number || s.day_number || s.dayNumber || 0)).filter(n => n > 0)
+          );
 
-          const checkInDateFormatted = formatDate(checkInDate);
-          const checkOutDateFormatted = formatDate(checkOutDate);
-          const durationDays = guideRfqDetails?.request?.duration_nights
-            ? (guideRfqDetails.request.duration_nights + 1)
-            : (guideRfqDetails?.request?.duration_days || sortedStays.length);
-
-          const adults = guideRfqDetails?.request?.adults ?? 2;
-          const children = guideRfqDetails?.request?.children ?? 0;
-          const infants = guideRfqDetails?.request?.infants ?? 0;
-          const paxDetails = `${adults} Adults${children > 0 ? `, ${children} Children` : ''}${infants > 0 ? `, ${infants} Infants` : ''}`;
-
-          let itineraryDetailsText = '';
-          const activeSleepStays = (guideRfqDetails?.sleepStays && guideRfqDetails.sleepStays.length > 0)
+          const allSleepStays = (guideRfqDetails?.sleepStays && guideRfqDetails.sleepStays.length > 0)
             ? guideRfqDetails.sleepStays
             : sortedStays.map((act: any) => ({
               day_number: act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0,
@@ -5004,13 +5064,37 @@ function PlannerWizardWorkspace() {
               location_name: act.location_name || act.locationName || 'TBD'
             }));
 
-          const rows = activeSleepStays.map((stay: any) => {
-            const displayDate = stay.date ? formatDate(stay.date) : `Day ${stay.day_number}`;
-            const location = stay.location_name || 'TBD';
+          const driverAssignedStays = assignedDayNumbers.size > 0
+            ? allSleepStays.filter((stay: any) => assignedDayNumbers.has(Number(stay.day_number || stay.tour_itineraries?.day_number || stay.dayNumber || 0)))
+            : allSleepStays;
+
+          const sortedDriverStays = [...driverAssignedStays].sort((a, b) => (Number(a.day_number || 0) - Number(b.day_number || 0)));
+
+          const firstAssignedStay = sortedDriverStays[0];
+          const lastAssignedStay = sortedDriverStays[sortedDriverStays.length - 1];
+
+          const checkInDate = firstAssignedStay?.date || sortedStays[0]?.service_date || sortedStays[0]?.tour_itineraries?.date || '';
+          const checkOutDate = lastAssignedStay?.date || sortedStays[sortedStays.length - 1]?.service_date || sortedStays[sortedStays.length - 1]?.tour_itineraries?.date || '';
+
+          const checkInDateFormatted = formatDate(checkInDate);
+          const checkOutDateFormatted = formatDate(checkOutDate);
+          const durationDays = sortedDriverStays.length || sortedStays.length;
+
+          const adults = guideRfqDetails?.request?.adults ?? 2;
+          const children = guideRfqDetails?.request?.children ?? 0;
+          const infants = guideRfqDetails?.request?.infants ?? 0;
+          const paxDetails = `${adults} Adults${children > 0 ? `, ${children} Children` : ''}${infants > 0 ? `, ${infants} Infants` : ''}`;
+
+          let itineraryDetailsText = '';
+          const rows = sortedDriverStays.map((stay: any) => {
+            const dayNum = Number(stay.day_number || stay.dayNumber || 0);
+            const itinBlock: any = itinerary.find((b: any) => Number(b.dayNumber || b.tour_itineraries?.day_number || 0) === dayNum);
+            const displayDate = stay.date ? formatDate(stay.date) : (itinBlock?.date ? formatDate(itinBlock.date) : `Day ${dayNum}`);
+            const location = stay.location_name || itinBlock?.locationName || itinBlock?.overnightLocationName || itinBlock?.title || itinBlock?.name || 'TBD';
             return `<tr>
                 <td style="border: 1px solid #E6E4E0; padding: 8px; text-align: left; font-weight: bold; width: 120px;">${displayDate}</td>
                 <td style="border: 1px solid #E6E4E0; padding: 8px; text-align: left;">
-                  <strong>Location:</strong> ${location}
+                  <strong>Day ${dayNum}:</strong> ${location}
                 </td>
             </tr>`;
           }).join('');
@@ -5022,6 +5106,7 @@ function PlannerWizardWorkspace() {
   </tbody>
 </table>`;
 
+          subject = subject.replace(/{{Driver Name}}/g, driverName);
           subject = subject.replace(/{{Tour Name}}/g, tourTitle);
           subject = subject.replace(/{{Start Date}}/g, checkInDateFormatted);
           subject = subject.replace(/{{End Date}}/g, checkOutDateFormatted);
@@ -5715,7 +5800,9 @@ function PlannerWizardWorkspace() {
           const dayNum = itin?.day_number || 1;
           const displayDate = itin?.date ? formatDate(itin.date) : `Day ${dayNum}`;
 
-          const rate = Number(row.contracted_per_day_rate ?? 0);
+          const rate = (row.contracted_per_day_rate !== undefined && row.contracted_per_day_rate !== null)
+            ? Number(row.contracted_per_day_rate)
+            : Number(row.per_day_rate ?? 0);
           const dayTotal = rate;
           driverSubtotal += dayTotal;
 
@@ -5730,9 +5817,7 @@ function PlannerWizardWorkspace() {
         driverTableRows = sortedStays.map((act: any) => {
           const dayNum = act.tour_itineraries?.day_number || act.day_number || 1;
           const displayDate = act.service_date ? formatDate(act.service_date) : `Day ${dayNum}`;
-          const rate = (act.contracted_price !== undefined && act.contracted_price !== null)
-            ? Number(act.contracted_price)
-            : Number(act.charged_unit_price ?? 0);
+          const rate = Number(act.contracted_per_day_rate ?? act.contracted_price ?? act.per_day_rate ?? 0);
           driverSubtotal += rate;
           return `<tr>
             <td style="border:1px solid #E6E4E0;padding:7px 10px;font-weight:bold;">Day ${dayNum}</td>
@@ -5820,51 +5905,7 @@ function PlannerWizardWorkspace() {
         catch { return dateStr; }
       };
 
-      // Build vehicle specs row if available
-      const vehicleSpecRows = tpReqVehicles.length > 0
-        ? tpReqVehicles.map((rv: any) => {
-          const v = rv.vehicle || {};
-          const label = [v.make_and_model || v.make || tpReq.vehicle_make || 'Vehicle', v.vehicle_type ? `(${v.vehicle_type})` : ''].filter(Boolean).join(' ');
-          const qty = rv.quantity || 1;
-          const dayRate = Number(v.day_rate) || 0;
-          return `<tr>
-              <td style="border:1px solid #E6E4E0;padding:6px 10px;">${label}</td>
-              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">${qty}</td>
-              <td style="border:1px solid #E6E4E0;padding:6px 10px;">${formatModelYear(tpReq.vehicle_model_year || '')}</td>
-              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">${dayRate > 0 ? `$${dayRate.toFixed(2)} / day` : 'As quoted'}</td>
-            </tr>`;
-        }).join('')
-        : `<tr><td colspan="4" style="border:1px solid #E6E4E0;padding:6px 10px;color:#888;">As per quotation</td></tr>`;
-
-      const vehicleSpecsHtml = `
-<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
-  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Agreed Vehicle Details</p>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
-    <thead><tr style="background-color:#EAE8E4;">
-      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Vehicle</th>
-      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;width:50px;">Qty</th>
-      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;width:90px;">Model Year</th>
-      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">Day Rate</th>
-    </tr></thead>
-    <tbody>${vehicleSpecRows}</tbody>
-  </table>
-</div>`;
-
-      // Chauffeur details block
-      const chauffeurLines: string[] = [];
-      if (tpReq.chauffeur_required !== false) chauffeurLines.push(`<li><strong>Chauffeur:</strong> Required</li>`);
-      if (tpReq.chauffeur_speak_english !== false) chauffeurLines.push(`<li><strong>English Speaking:</strong> Yes</li>`);
-      if (tpReq.chauffeur_other_languages) chauffeurLines.push(`<li><strong>Other Languages:</strong> ${tpReq.chauffeur_other_languages}</li>`);
-      if (tpReq.chauffeur_accommodation_needed) chauffeurLines.push(`<li><strong>Chauffeur Accommodation:</strong> To be arranged (cost included)</li>`);
-      if (tpReq.chauffeur_meal_needed) chauffeurLines.push(`<li><strong>Chauffeur Meals:</strong> To be arranged (cost included)</li>`);
-
-      const chauffeurHtml = chauffeurLines.length > 0 ? `
-<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
-  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Chauffeur Requirements</p>
-  <ul style="margin:0;padding-left:16px;font-size:12px;color:#333;line-height:1.7;">${chauffeurLines.join('')}</ul>
-</div>` : '';
-
-      // Group legs by day
+      // Group legs by day first for data aggregation
       const tpDayGroups: Record<string, any[]> = {};
       for (const leg of sortedStays) {
         const key = leg.service_date
@@ -5876,14 +5917,247 @@ function PlannerWizardWorkspace() {
         tpDayGroups[key].push(leg);
       }
 
+      // Aggregate assigned vehicles and drivers across all days of this PO block strictly for this provider
+      const assignedVehiclesObj: Record<string, {
+        vehicleObj: any;
+        assignedDays: number[];
+        totalDistanceKm: number;
+        contractedRateSum: number;
+        rateCount: number;
+      }> = {};
+
+      const assignedDriversObj: Record<string, {
+        driverObj: any;
+        assignedDays: number[];
+      }> = {};
+
+      const blockProviderId = hotel?.id || null;
+
+      Object.entries(tpDayGroups).forEach(([dateKey, legs]) => {
+        const first = legs[0] as any;
+        const dayNum = Number(first.tour_itineraries?.day_number || first.day_number || 1);
+
+        const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+          .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+
+        const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+        const blockDriverIds = new Set(blockTransportsForDay.map((t: any) => t.driver_id).filter(Boolean));
+
+        const dayVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+          if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+          if (blockProviderId) {
+            const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+            const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+            return provId === blockProviderId;
+          }
+          return false;
+        });
+
+        dayVehicles.forEach((vAss: any) => {
+          const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+          const vKey = vAss.vehicle_id || vAss.id || (vObj ? `${vObj.make}_${vObj.model}_${vObj.vehicle_number}` : 'veh');
+          if (!assignedVehiclesObj[vKey]) {
+            assignedVehiclesObj[vKey] = {
+              vehicleObj: vObj,
+              assignedDays: [],
+              totalDistanceKm: 0,
+              contractedRateSum: 0,
+              rateCount: 0,
+            };
+          }
+          const item = assignedVehiclesObj[vKey];
+          if (!item.assignedDays.includes(dayNum)) item.assignedDays.push(dayNum);
+          item.totalDistanceKm += (Number(vAss.distance_km) || 0);
+          if (vAss.contracted_per_day_rate) {
+            item.contractedRateSum += Number(vAss.contracted_per_day_rate);
+            item.rateCount += 1;
+          }
+        });
+
+        const dayDrivers = (dailyDriverAssignments[dayNum] || []).filter((dAss: any) => {
+          if (blockDriverIds.size > 0) return blockDriverIds.has(dAss.driver_id);
+          if (blockProviderId) {
+            const dObj = masterData.drivers?.find((md: any) => md.id === dAss.driver_id) || dAss.driver || dAss.drivers;
+            const provId = dAss.transport_provider_id || dObj?.transport_provider_id;
+            return provId === blockProviderId;
+          }
+          return false;
+        });
+
+        dayDrivers.forEach((dAss: any) => {
+          const dObj = masterData.drivers?.find((md: any) => md.id === dAss.driver_id) || dAss.driver || dAss.drivers;
+          const dKey = dAss.driver_id || dAss.id || (dObj ? `${dObj.first_name}_${dObj.last_name}` : 'dri');
+          if (!assignedDriversObj[dKey]) {
+            assignedDriversObj[dKey] = {
+              driverObj: dObj,
+              assignedDays: [],
+            };
+          }
+          const dItem = assignedDriversObj[dKey];
+          if (!dItem.assignedDays.includes(dayNum)) dItem.assignedDays.push(dayNum);
+        });
+      });
+
+      // Build rich "Agreed Vehicle Details" table rows
+      const assignedVehiclesList = Object.values(assignedVehiclesObj);
+      let vehicleSpecRows = '';
+      if (assignedVehiclesList.length > 0) {
+        vehicleSpecRows = assignedVehiclesList.map((item: any) => {
+          const v = item.vehicleObj || {};
+          const name = v.make_and_model || [v.make, v.model].filter(Boolean).join(' ') || 'Assigned Vehicle';
+          const regNo = v.vehicle_number || v.license_plate || 'N/A';
+          const type = v.vehicle_type || 'Standard';
+          const daysStr = item.assignedDays.sort((a: number, b: number) => a - b).map((d: number) => `Day ${d}`).join(', ');
+          const avgRate = item.rateCount > 0 ? item.contractedRateSum / item.rateCount : 0;
+          const rateStr = avgRate > 0 ? `$${avgRate.toFixed(2)} / day` : 'As quoted';
+          const distStr = item.totalDistanceKm > 0 ? `${Math.round(item.totalDistanceKm)} km` : '-';
+
+          return `<tr>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;font-weight:600;">${name}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;font-family:monospace;font-weight:bold;color:#1B3A2D;">${regNo}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;">${type}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">${daysStr}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">${distStr}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;font-weight:bold;">${rateStr}</td>
+          </tr>`;
+        }).join('');
+      } else if (tpReqVehicles.length > 0) {
+        vehicleSpecRows = tpReqVehicles.map((rv: any) => {
+          const v = rv.vehicle || {};
+          const label = [v.make_and_model || v.make || tpReq.vehicle_make || 'Vehicle', v.vehicle_type ? `(${v.vehicle_type})` : ''].filter(Boolean).join(' ');
+          const qty = rv.quantity || 1;
+          const dayRate = Number(v.day_rate) || 0;
+          return `<tr>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;">${label}</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;">-</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;">Qty: ${qty}</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">All Days</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">-</td>
+              <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">${dayRate > 0 ? `$${dayRate.toFixed(2)} / day` : 'As quoted'}</td>
+            </tr>`;
+        }).join('');
+      } else {
+        vehicleSpecRows = `<tr><td colspan="6" style="border:1px solid #E6E4E0;padding:6px 10px;color:#888;text-align:center;">As per quotation</td></tr>`;
+      }
+
+      const vehicleSpecsHtml = `
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Agreed Vehicle Details</p>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;">
+    <thead><tr style="background-color:#EAE8E4;">
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Vehicle Name</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Reg / License No.</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Type</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">Assigned Days</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">Est. Distance</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:right;">Contracted Rate</th>
+    </tr></thead>
+    <tbody>${vehicleSpecRows}</tbody>
+  </table>
+</div>`;
+
+      // Chauffeur & Driver assignment details block
+      const chauffeurLines: string[] = [];
+      if (tpReq.chauffeur_required !== false) chauffeurLines.push(`<li><strong>Chauffeur:</strong> Required</li>`);
+      if (tpReq.chauffeur_speak_english !== false) chauffeurLines.push(`<li><strong>English Speaking:</strong> Yes</li>`);
+      if (tpReq.chauffeur_other_languages) chauffeurLines.push(`<li><strong>Other Languages:</strong> ${tpReq.chauffeur_other_languages}</li>`);
+      if (tpReq.chauffeur_accommodation_needed) chauffeurLines.push(`<li><strong>Chauffeur Accommodation:</strong> To be arranged (cost included)</li>`);
+      if (tpReq.chauffeur_meal_needed) chauffeurLines.push(`<li><strong>Chauffeur Meals:</strong> To be arranged (cost included)</li>`);
+
+      const assignedDriversList = Object.values(assignedDriversObj);
+      let assignedDriverRowsHtml = '';
+      if (assignedDriversList.length > 0) {
+        assignedDriverRowsHtml = assignedDriversList.map((dItem: any) => {
+          const d = dItem.driverObj || {};
+          const dName = [d.first_name, d.last_name].filter(Boolean).join(' ') || 'Assigned Driver';
+          const dPhone = d.phone_number || d.phone || 'N/A';
+          const dLic = d.license_number || 'N/A';
+          const dDays = dItem.assignedDays.sort((a: number, b: number) => a - b).map((day: number) => `Day ${day}`).join(', ');
+          return `<tr>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;font-weight:600;">${dName}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;">${dPhone}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;font-family:monospace;">${dLic}</td>
+            <td style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">${dDays}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      const chauffeurHtml = `
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 16px;margin:0 0 14px;">
+  <p style="margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">Chauffeur & Driver Assignment Details</p>
+  ${assignedDriverRowsHtml ? `
+  <table style="width:100%;border-collapse:collapse;font-size:12px;color:#333;margin-bottom:10px;">
+    <thead><tr style="background-color:#EAE8E4;">
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Driver Name</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">Contact Phone</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:left;">License No.</th>
+      <th style="border:1px solid #E6E4E0;padding:6px 10px;text-align:center;">Assigned Days</th>
+    </tr></thead>
+    <tbody>${assignedDriverRowsHtml}</tbody>
+  </table>` : ''}
+  ${chauffeurLines.length > 0 ? `<ul style="margin:0;padding-left:16px;font-size:12px;color:#333;line-height:1.7;">${chauffeurLines.join('')}</ul>` : ''}
+</div>`;
+
       let tpSubtotal = 0;
       const tpRows = Object.entries(tpDayGroups)
         .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
         .map(([dateKey, legs]) => {
           const first = legs[0] as any;
-          const dayNum = first.tour_itineraries?.day_number || first.day_number || '';
+          const dayNum = Number(first.tour_itineraries?.day_number || first.day_number || 1);
           const displayDate = dateKey.startsWith('day-') ? `Day ${dayNum}` : formatDate(dateKey);
           const totalKm = legs.reduce((s: number, l: any) => s + (parseFloat(String(l.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
+
+          const blockTransportsForDay = (dailyTransportAssignments[dayNum] || [])
+            .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
+          const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
+          const blockDriverIds = new Set(blockTransportsForDay.map((t: any) => t.driver_id).filter(Boolean));
+
+          const assignedVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+            if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+            if (blockProviderId) {
+              const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+              const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+              return provId === blockProviderId;
+            }
+            return false;
+          });
+
+          const savedVehicleKm = assignedVehicles.reduce((s: number, v: any) => s + (Number(v.distance_km) || 0), 0);
+          const effectiveKm = savedVehicleKm > 0 ? savedVehicleKm : totalKm;
+
+          const vehicleNames: string[] = [];
+          assignedVehicles.forEach((vAss: any) => {
+            const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+            if (vObj) {
+              const name = vObj.make_and_model || [vObj.make, vObj.model].filter(Boolean).join(' ');
+              const vNo = vObj.vehicle_number ? `(${vObj.vehicle_number})` : '';
+              const full = [name, vNo].filter(Boolean).join(' ');
+              if (full && !vehicleNames.includes(full)) vehicleNames.push(full);
+            }
+          });
+          const vehicleStr = vehicleNames.length > 0 ? ` <br/><span style="font-size:10px;color:#047857;font-weight:600;">🚙 Vehicle: ${vehicleNames.join(', ')}</span>` : '';
+
+          // Resolve assigned driver for the day strictly for this transport provider
+          const dayDrivers = (dailyDriverAssignments[dayNum] || []).filter((dAss: any) => {
+            if (blockDriverIds.size > 0) return blockDriverIds.has(dAss.driver_id);
+            if (blockProviderId) {
+              const dObj = masterData.drivers?.find((md: any) => md.id === dAss.driver_id) || dAss.driver || dAss.drivers;
+              const provId = dAss.transport_provider_id || dObj?.transport_provider_id;
+              return provId === blockProviderId;
+            }
+            return false;
+          });
+          const driverNames: string[] = [];
+          dayDrivers.forEach((dAss: any) => {
+            const dObj = masterData.drivers?.find((md: any) => md.id === dAss.driver_id) || dAss.driver || dAss.drivers;
+            if (dObj) {
+              const dName = [dObj.first_name, dObj.last_name].filter(Boolean).join(' ');
+              const dPhone = dObj.phone_number || dObj.phone ? `(${dObj.phone_number || dObj.phone})` : '';
+              const fullD = [dName, dPhone].filter(Boolean).join(' ');
+              if (fullD && !driverNames.includes(fullD)) driverNames.push(fullD);
+            }
+          });
+          const driverStr = driverNames.length > 0 ? `<br/><span style="font-size:10px;color:#1D4ED8;font-weight:600;">👨‍✈️ Driver: ${driverNames.join(', ')}</span>` : '';
 
           const isStayDay = totalKm === 0 || legs.every((l: any) =>
             (l.title || '').toLowerCase().includes('driver and vehicle stays') ||
@@ -5894,7 +6168,7 @@ function PlannerWizardWorkspace() {
           let kmDisplay = '';
 
           if (isStayDay) {
-            routeDisplay = 'Vehicle and Driver Stays';
+            routeDisplay = `Vehicle and Driver Stays${vehicleStr}${driverStr}`;
             kmDisplay = '-';
           } else {
             const firstLeg = legs[0] as any;
@@ -5927,14 +6201,17 @@ function PlannerWizardWorkspace() {
               if (!origin) origin = firstLeg.pickup_location || 'Origin';
             }
 
-            routeDisplay = `${origin} &#8594; ${destination}`;
-            kmDisplay = `${Math.round(totalKm)} km`;
+            routeDisplay = `${origin} &#8594; ${destination}${vehicleStr}${driverStr}`;
+            kmDisplay = `${Math.round(effectiveKm)} km`;
           }
 
-          // Use the contracted total price of the legs if they have been set (e.g. from "Apply Vehicle Day Rates" or custom overrides)
-          let dayRate = legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
+          // Use contracted rate from tour_itinerary_vehicles table if set, or fall back to leg contracted_total_price / formula
+          const vehicleContractedRate = assignedVehicles.reduce(
+            (sum: number, v: any) => sum + Number(v.contracted_per_day_rate || 0), 0
+          );
+          let dayRate = vehicleContractedRate || legs.reduce((s: number, l: any) => s + (Number(l.contracted_total_price) || 0), 0);
 
-          // If no contracted total price is set, fall back to calculating from vehicle day rates + mileage surcharge
+          // If no contracted rate is set, fall back to calculating from vehicle day rates + mileage surcharge
           if (dayRate === 0) {
             let baseRate = 0;
             for (const rv of tpReqVehicles) {
@@ -5952,7 +6229,7 @@ function PlannerWizardWorkspace() {
               return sum + ((Number(v?.additional_km_rate) || 0) * (Number(trv.quantity) || 1));
             }, 0);
 
-            const totalDistance = totalKm;
+            const totalDistance = effectiveKm;
             const excessDistance = Math.max(0, totalDistance - maxMileage);
             const extraKmCost = excessDistance * extraKmRate;
             dayRate = baseRate + extraKmCost;
@@ -6126,7 +6403,28 @@ ${chauffeurHtml}
             discount: poDiscount,
             tax: poTax,
             transportRequirement: tpReq,
-            poBlockId: poBlockId || undefined
+            poBlockId: poBlockId || undefined,
+            dailyVehicleAssignments,
+            dailyDriverAssignments,
+            dailyTransportAssignments,
+            masterData
+          }
+        );
+      } else if (poVendorType === 'driver') {
+        doc = await generateDriverPoPdf(
+          hotel,
+          stays,
+          appSettings,
+          agentName,
+          touristData,
+          {
+            requireSignature: poRequireSignature,
+            signatureImage: poSignatureImage,
+            poNumber: poNum,
+            discount: poDiscount,
+            tax: poTax,
+            mealProvided: poMealProvided,
+            accommodationProvided: poAccommodationProvided
           }
         );
       } else {
@@ -6175,8 +6473,20 @@ ${chauffeurHtml}
       // is meaningless for consolidated transport POs.
       let calculatedSubtotal = 0;
       const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-      if (poVendorType === 'transport_provider') {
-        calculatedSubtotal = 0; // service computes from vehicle rates
+      if (poVendorType === 'driver') {
+        sortedStays.forEach(act => {
+          const rate = (act.contracted_per_day_rate !== undefined && act.contracted_per_day_rate !== null)
+            ? Number(act.contracted_per_day_rate)
+            : ((act.contracted_price !== undefined && act.contracted_price !== null)
+              ? Number(act.contracted_price)
+              : Number(act.per_day_rate ?? 0));
+          calculatedSubtotal += rate;
+        });
+      } else if (poVendorType === 'transport_provider') {
+        sortedStays.forEach(act => {
+          const rate = Number(act.contracted_per_day_rate ?? act.contracted_price ?? act.per_day_rate ?? 0);
+          calculatedSubtotal += rate;
+        });
       } else {
         sortedStays.forEach(act => {
           let totalQty = 0;
@@ -6262,7 +6572,28 @@ ${chauffeurHtml}
               discount: poDiscount,
               tax: poTax,
               transportRequirement: tpReq,
-              poBlockId: poBlockId || undefined
+              poBlockId: poBlockId || undefined,
+              dailyVehicleAssignments,
+              dailyDriverAssignments,
+              dailyTransportAssignments,
+              masterData
+            }
+          );
+        } else if (poVendorType === 'driver') {
+          pdfDoc = await generateDriverPoPdf(
+            selectedPoHotel,
+            selectedPoStays,
+            appSettings,
+            agentName,
+            touristData,
+            {
+              requireSignature: poRequireSignature,
+              signatureImage: poSignatureImage,
+              poNumber: poNum,
+              discount: poDiscount,
+              tax: poTax,
+              mealProvided: poMealProvided,
+              accommodationProvided: poAccommodationProvided
             }
           );
         } else {
@@ -11128,7 +11459,23 @@ ${chauffeurHtml}
                                       </span>
                                     )}
                                     {(() => {
-                                      const blockTotalValue = blockActivities.reduce((sum: number, act: any) => sum + (Number(act.contracted_total_price ?? act.charged_total_price) || 0), 0);
+                                      let blockTotalValue = 0;
+                                      const processedDays = new Set<number>();
+                                      (travelItems || []).forEach((t: any) => {
+                                        const dn = t.tour_itineraries?.day_number || t.day_number || 1;
+                                        if (processedDays.has(dn)) return;
+                                        processedDays.add(dn);
+
+                                        const bId = block.transport_provider_id || (block.name?.includes(' | ID: ') ? block.name.split(' | ID: ')[1] : null);
+                                        const bTrans = (dailyTransportAssignments[dn] || []).filter((tr: any) => !bId || tr.transport_provider_id === bId);
+                                        const bVehIds = new Set(bTrans.map((tr: any) => tr.vehicle_id).filter(Boolean));
+                                        const aVehs = (dailyVehicleAssignments[dn] || []).filter((v: any) => bVehIds.size === 0 || bVehIds.has(v.vehicle_id));
+                                        const vRate = aVehs.reduce((s: number, v: any) => s + Number(v.contracted_per_day_rate || 0), 0);
+                                        blockTotalValue += vRate || Number(t.contracted_total_price ?? t.contracted_price ?? 0);
+                                      });
+                                      if (blockTotalValue === 0) {
+                                        blockTotalValue = blockActivities.reduce((sum: number, act: any) => sum + (Number(act.contracted_total_price ?? act.charged_total_price) || 0), 0);
+                                      }
                                       return (
                                         <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
                                           <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
@@ -11658,8 +12005,37 @@ ${chauffeurHtml}
                                         .filter((t: any) => !blockProviderId || t.transport_provider_id === blockProviderId);
                                       const blockVehicleIds = new Set(blockTransportsForDay.map((t: any) => t.vehicle_id).filter(Boolean));
 
-                                      const assignedVehicles = (dailyVehicleAssignments[dayNum] || [])
-                                        .filter((v: any) => blockVehicleIds.size === 0 || blockVehicleIds.has(v.vehicle_id));
+                                      const assignedVehicles = (dailyVehicleAssignments[dayNum] || []).filter((vAss: any) => {
+                                         if (blockVehicleIds.size > 0) return blockVehicleIds.has(vAss.vehicle_id);
+                                         if (blockProviderId) {
+                                           const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                                           const provId = vAss.transport_provider_id || vObj?.transport_provider_id;
+                                           return provId === blockProviderId;
+                                         }
+                                         return false;
+                                       });
+
+                                      // Pull saved KM distance from tour_itinerary_vehicles table (assignedVehicles)
+                                      const vehicleSavedKm = assignedVehicles.reduce(
+                                        (sum: number, v: any) => sum + (Number(v.distance_km) || 0), 0
+                                      );
+                                      const effectiveDayKm = vehicleSavedKm > 0 ? vehicleSavedKm : totalDayDistance;
+
+                                      // Resolve actual vehicle names for assignedVehicles
+                                      const assignedVehicleDisplayNames: string[] = [];
+                                      assignedVehicles.forEach((vAss: any) => {
+                                        const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+                                        if (vObj) {
+                                          const makeModel = vObj.make_and_model || [vObj.make, vObj.model].filter(Boolean).join(' ');
+                                          const vNo = vObj.vehicle_number ? `(${vObj.vehicle_number})` : '';
+                                          const fullVehicleName = [makeModel, vNo].filter(Boolean).join(' ');
+                                          if (fullVehicleName && !assignedVehicleDisplayNames.includes(fullVehicleName)) {
+                                            assignedVehicleDisplayNames.push(fullVehicleName);
+                                          }
+                                        } else if (vAss.vehicle_name && !assignedVehicleDisplayNames.includes(vAss.vehicle_name)) {
+                                          assignedVehicleDisplayNames.push(vAss.vehicle_name);
+                                        }
+                                      });
 
                                       const vehicleContractedRate = assignedVehicles.reduce(
                                         (sum: number, v: any) => sum + Number(v.contracted_per_day_rate || 0), 0
@@ -11688,7 +12064,7 @@ ${chauffeurHtml}
                                           return sum + ((Number(v?.max_km_per_day) || 80) * (Number(trv.quantity) || 1));
                                         }, 0);
 
-                                        excessDistance = Math.max(0, totalDayDistance - maxMileageLimit);
+                                        excessDistance = Math.max(0, effectiveDayKm - maxMileageLimit);
 
                                         additionalMileageRate = blockVehicles.reduce((sum: number, trv: any) => {
                                           const v = trv.vehicle;
@@ -11707,8 +12083,12 @@ ${chauffeurHtml}
                                         }
                                       });
 
+                                      const vehicleTagList = assignedVehicleDisplayNames.length > 0
+                                        ? assignedVehicleDisplayNames
+                                        : distinctVehicles;
+
                                       const pathString = legs.map((t: any) => t.title || t.location_name || 'Travel Leg').join(' → ');
-                                      const isHighMileage = totalDayDistance > 150; // threshold for daily warning
+                                      const isHighMileage = effectiveDayKm > 150; // threshold for daily warning
 
                                       return (
                                         <div key={dayKey} className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -11724,9 +12104,9 @@ ${chauffeurHtml}
                                                 <span className="px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 text-[9px] font-bold rounded uppercase tracking-wider">
                                                   Transport · {legs.length} Leg{legs.length > 1 ? 's' : ''}
                                                 </span>
-                                                {distinctVehicles.length > 0 && (
-                                                  <span className="px-2 py-0.5 bg-neutral-50 border border-neutral-200 text-neutral-600 text-[9px] font-bold rounded uppercase">
-                                                    {distinctVehicles.join(', ')}
+                                                {vehicleTagList.length > 0 && (
+                                                  <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[9px] font-bold rounded uppercase">
+                                                    🚙 {vehicleTagList.join(', ')}
                                                   </span>
                                                 )}
                                               </div>
@@ -11737,9 +12117,9 @@ ${chauffeurHtml}
                                             <div className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border font-mono shadow-sm flex items-center gap-1 ${isHighMileage
                                               ? 'bg-rose-50 border-rose-200 text-rose-700 ring-1 ring-rose-500/10'
                                               : 'bg-white border-neutral-200 text-neutral-700'
-                                              }`} title={isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance'}>
+                                              }`} title={vehicleSavedKm > 0 ? 'Saved KM distance from tour_itinerary_vehicles table' : (isHighMileage ? 'Exceeds typical daily limit of 150 km' : 'Combined daily distance')}>
                                               <span>KM:</span>
-                                              <span className="font-extrabold text-xs">{totalDayDistance}</span>
+                                              <span className="font-extrabold text-xs">{effectiveDayKm}</span>
                                             </div>
 
                                             {recommendedDailyRate > 0 && (
@@ -11757,7 +12137,7 @@ ${chauffeurHtml}
                                             <div className="text-right min-w-[70px]">
                                               <span className="text-[9px] text-amber-600 uppercase block font-mono">Day Total</span>
                                               <span className="font-mono text-amber-800 font-bold text-xs">
-                                                {totalDayPrice > 0 ? `$${totalDayPrice.toFixed(2)}` : '$0.00'}
+                                                {(totalDayPrice > 0 ? totalDayPrice : recommendedDailyRate) > 0 ? `$${(totalDayPrice > 0 ? totalDayPrice : recommendedDailyRate).toFixed(2)}` : '$0.00'}
                                               </span>
                                             </div>
 
@@ -12903,10 +13283,8 @@ ${chauffeurHtml}
 
                           // Calculate block totals
                           let totalContracted = 0;
-                          let totalCharged = 0;
                           Object.values(rates).forEach((r: any) => {
                             totalContracted += r.contractedPrice || 0;
-                            totalCharged += r.chargedPrice || 0;
                           });
                           const isPickerOpen = driverPickerOpenBlockId === block.id;
                           const filteredDrivers = (masterData.drivers || []).filter((d: any) => {
@@ -12931,7 +13309,7 @@ ${chauffeurHtml}
                                     </h4>
                                     <span className="px-2.5 py-0.5 bg-violet-50 text-violet-800 border border-violet-200 text-[10px] font-extrabold rounded-full flex items-center gap-1">
                                       <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider">Total:</span>
-                                      <span className="font-mono font-bold">${(totalCharged || totalContracted || 0).toFixed(2)}</span>
+                                      <span className="font-mono font-bold">${totalContracted.toFixed(2)}</span>
                                     </span>
                                   </div>
                                   <p className="text-xs text-neutral-500">
@@ -12958,7 +13336,9 @@ ${chauffeurHtml}
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                        const driverStays = Object.entries(dailyDriverAssignments)
+                                          .flatMap(([dNum, list]) => (list || []).map((ass: any) => ({ ...ass, day_number: Number(dNum) })))
+                                          .filter((ass: any) => ass.driver_id === driverId);
                                         handleOpenRfqModal(driver, driverStays, block.id);
                                       }}
                                       disabled={isLockedByOther}
@@ -12993,7 +13373,9 @@ ${chauffeurHtml}
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const driverStays = driverActivities.filter((act: any) => act.driver_id === driverId);
+                                        const driverStays = Object.entries(dailyDriverAssignments)
+                                          .flatMap(([dNum, list]) => (list || []).map((ass: any) => ({ ...ass, day_number: Number(dNum) })))
+                                          .filter((ass: any) => ass.driver_id === driverId);
                                         if (driverStays.length === 0) {
                                           alert("Please save driver rates first before generating a Purchase Order.");
                                           return;
@@ -21230,9 +21612,29 @@ function AIItineraryBuilder({
     setAllocationModal('transports');
   };
 
+  const getDayTotalKmFromActivities = (dayNumber: number) => {
+    if (!dbActivities || dbActivities.length === 0) return 0;
+    return dbActivities
+      .filter((a: any) => {
+        const actDay = a.tour_itineraries?.day_number || a.day_number || a.dayNumber || 1;
+        return Number(actDay) === Number(dayNumber);
+      })
+      .reduce((sum: number, a: any) => {
+        const parsedDist = parseFloat(String(a.distance || '').replace(/[^\d.]/g, '')) || 0;
+        return sum + parsedDist;
+      }, 0);
+  };
+
   const openVehiclesModal = () => {
     const current = dailyVehicleAssignments[activeDay] || [];
-    setTempVehicles(current.map(v => ({ ...v, applyScope: v.applyScope || 'current' })));
+    const calculatedKm = getDayTotalKmFromActivities(activeDay);
+    setTempVehicles(current.map(v => ({
+      ...v,
+      applyScope: v.applyScope || 'current',
+      distance_km: (v.distance_km !== undefined && v.distance_km !== null && Number(v.distance_km) > 0)
+        ? Number(v.distance_km)
+        : calculatedKm
+    })));
     setVehicleProviderSearch('');
     setAllocationModal('vehicles');
   };
@@ -21449,6 +21851,8 @@ function AIItineraryBuilder({
     const markupFactor = 1 + (markupPercent / 100);
     const baseRate = Number(vObj.day_rate || 0);
 
+    const calculatedKm = getDayTotalKmFromActivities(activeDay);
+
     const newAssignment: TourDailyVehicleDTO = {
       tour_id: tourId,
       day_number: activeDay,
@@ -21459,7 +21863,7 @@ function AIItineraryBuilder({
       excess_mileage_cost: 0,
       contracted_other_allowance: 0,
       other_allowance: 0,
-      distance_km: 0,
+      distance_km: calculatedKm,
       charged_per_day_rate: Math.round(baseRate * markupFactor * 100) / 100,
       charged_excess_mileage_cost: 0,
       charged_other_allowance: 0,
@@ -23918,12 +24322,18 @@ function AIItineraryBuilder({
                   <h3 className="text-sm font-black text-neutral-800 uppercase tracking-wider">Manage Vehicles & Fleet - Day {activeDay}</h3>
                   <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">Assign one or more vehicles for this day</p>
                 </div>
-                <button
-                  onClick={() => setAllocationModal(null)}
-                  className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-50 border border-emerald-200/80 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Total Day Distance:</span>
+                    <span className="text-xs font-black text-emerald-950">{getDayTotalKmFromActivities(activeDay)} km</span>
+                  </div>
+                  <button
+                    onClick={() => setAllocationModal(null)}
+                    className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Modal Body */}
@@ -24041,10 +24451,13 @@ function AIItineraryBuilder({
                                 />
                               </div>
                               <div>
-                                <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Distance (km)</label>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Distance (km)</label>
+                                  <span className="text-[9px] font-black text-emerald-700">Calc: {getDayTotalKmFromActivities(activeDay)} km</span>
+                                </div>
                                 <input
                                   type="number"
-                                  value={vehicle.distance_km ?? 0}
+                                  value={vehicle.distance_km ?? getDayTotalKmFromActivities(activeDay)}
                                   onChange={(e) => updateTempVehicleField(index, 'distance_km', Number(e.target.value) || 0)}
                                   className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all"
                                 />

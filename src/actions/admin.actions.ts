@@ -2030,13 +2030,101 @@ export async function getGuideRfqTemplateAction() {
 export async function getDriverRfqTemplateAction() {
     try {
         const adminSupabase = createAdminClient();
-        const { data, error } = await adminSupabase
+
+        const DRIVER_RFQ_TEMPLATE_SUBJECT =
+            `Request for Quotation – Driver Services | {{Driver Name}}`;
+
+        const DRIVER_RFQ_TEMPLATE_BODY = `
+<p style="margin:0 0 14px;font-family:sans-serif;font-size:13px;color:#1B3A2D;">
+  Dear <strong>{{Driver Name}}</strong>,
+</p>
+<p style="margin:0 0 14px;font-family:sans-serif;font-size:13px;color:#333;">
+  On behalf of <strong>Nilathra Collection</strong>, we are writing to request your formal rate quotation 
+  for driver services to accompany our guest(s) for the assigned period below.
+</p>
+
+<!-- ─── Guest Occupancy ──────────────────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 4px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Guest Occupancy / Passengers
+  </p>
+  <p style="margin:0;font-family:sans-serif;font-size:13px;font-weight:600;color:#333;">
+    {{Pax}}
+  </p>
+</div>
+
+<!-- ─── Assignment Dates ────────────────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:14px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 4px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Assignment Period
+  </p>
+  <p style="margin:0;font-family:sans-serif;font-size:13px;font-weight:600;color:#333;">
+    {{Start Date}} to {{End Date}} ({{Duration}} Days)
+  </p>
+</div>
+
+<!-- ─── Itinerary / Route Schedule ───────────────────────────────────────── -->
+<div style="background-color:#F5F3EF;border:1px solid #E6E4E0;border-radius:10px;padding:16px 18px;margin:0 0 16px;">
+  <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1B3A2D;">
+    Assigned Tour Schedule & Destinations
+  </p>
+  {{Itinerary Details}}
+</div>
+
+<!-- ─── Pricing Request ──────────────────────────────────────────────────── -->
+<p style="font-family:sans-serif;font-size:13px;color:#333;margin:0 0 10px;">
+  Please reply with your best per-day rate quotation for this assignment, including any details regarding fuel, 
+  accommodation, and meal allowances if applicable.
+</p>
+<p style="font-family:sans-serif;font-size:13px;color:#333;margin:0 0 16px;">
+  We look forward to receiving your quote at your earliest convenience.
+</p>
+
+<p style="font-family:sans-serif;font-size:13px;color:#333;margin:0;">
+  Warm regards,<br />
+  <strong>{{Agent Name}}</strong><br />
+  Nilathra Collection — Concierge Operations<br />
+  <span style="color:#888;font-size:11px;">concierge@nilathra.com</span>
+</p>
+`.trim();
+
+        const { data: dbTemplate, error } = await adminSupabase
             .from('email_templates')
             .select('*')
             .eq('name', 'Request for Quote - Driver')
             .maybeSingle();
+
         if (error) throw error;
-        return { success: true, template: data };
+
+        if (!dbTemplate || !dbTemplate.body_html || !dbTemplate.body_html.includes('{{Driver Name}}')) {
+            if (dbTemplate?.id) {
+                await adminSupabase
+                    .from('email_templates')
+                    .update({
+                        subject: DRIVER_RFQ_TEMPLATE_SUBJECT,
+                        body_html: DRIVER_RFQ_TEMPLATE_BODY
+                    })
+                    .eq('id', dbTemplate.id);
+            } else {
+                await adminSupabase
+                    .from('email_templates')
+                    .insert({
+                        name: 'Request for Quote - Driver',
+                        subject: DRIVER_RFQ_TEMPLATE_SUBJECT,
+                        body_html: DRIVER_RFQ_TEMPLATE_BODY
+                    });
+            }
+            return {
+                success: true,
+                template: {
+                    name: 'Request for Quote - Driver',
+                    subject: DRIVER_RFQ_TEMPLATE_SUBJECT,
+                    body_html: DRIVER_RFQ_TEMPLATE_BODY
+                }
+            };
+        }
+
+        return { success: true, template: dbTemplate };
     } catch (error: any) {
         console.error("Error fetching Driver RFQ template:", error);
         return { success: false, error: error.message };

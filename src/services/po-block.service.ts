@@ -1109,7 +1109,6 @@ export class POBlockService {
             .delete()
             .eq('tour_id', tourId)
             .eq('activity_type', 'travel')
-            .is('transport_id', null)
             .is('vendor_id', null)
             .eq('guide_id', guideId);
             
@@ -1157,7 +1156,6 @@ export class POBlockService {
             .select('*, tour_itineraries(day_number, date)')
             .eq('tour_id', tourId)
             .eq('activity_type', 'travel')
-            .is('transport_id', null)
             .is('vendor_id', null)
             .not('driver_id', 'is', null);
         if (error) throw error;
@@ -1180,7 +1178,6 @@ export class POBlockService {
             .delete()
             .eq('tour_id', tourId)
             .eq('activity_type', 'travel')
-            .is('transport_id', null)
             .is('vendor_id', null)
             .eq('driver_id', driverId);
             
