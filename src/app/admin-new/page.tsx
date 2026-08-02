@@ -3814,7 +3814,7 @@ function PlannerWizardWorkspace() {
       return total;
     };    // 2. Map Supplier side (Daily Activities + Driver Selection assignments)
     const supplierPLItems: ProfitLossLineItem[] = dbActivities
-      .filter(da => da.activity_type !== 'driver')
+      .filter(da => da.activity_type !== 'driver' && da.activity_type !== 'travel')
       .map(da => {
         const dayNum = da.tour_itineraries?.day_number || da.day_number || 1;
 
@@ -3903,11 +3903,24 @@ function PlannerWizardWorkspace() {
             salesContactEmail = hotel.sales_email || null;
           }
         } else if (da.activity_type === 'meal') {
-          const rest = masterData.restaurants?.find((r: any) => r.id === da.restaurant_id);
+          const rest = da.restaurant_id ? masterData.restaurants?.find((r: any) => r.id === da.restaurant_id) : null;
           if (rest) {
             vendorName = rest.name;
-            vendorPhone = rest.contact_number || null;
+            vendorPhone = rest.contact_number || rest.phone || null;
             vendorEmail = rest.email || null;
+          } else if (da.hotel_id) {
+            const hotel = masterData.hotels?.find((h: any) => h.id === da.hotel_id);
+            if (hotel) {
+              vendorName = hotel.name;
+              vendorPhone = hotel.reservation_agent_contact || hotel.sales_agent_contact || hotel.phone || null;
+              vendorEmail = hotel.reservation_email || hotel.sales_email || null;
+              reservationContactName = hotel.reservation_agent_name || null;
+              reservationContactPhone = hotel.reservation_agent_contact || null;
+              reservationContactEmail = hotel.reservation_email || null;
+              salesContactName = hotel.sales_agent_name || null;
+              salesContactPhone = hotel.sales_agent_contact || null;
+              salesContactEmail = hotel.sales_email || null;
+            }
           }
         } else if (da.activity_type === 'guide') {
           const guide = masterData.guides?.find((g: any) => g.id === da.guide_id);
@@ -4151,17 +4164,12 @@ function PlannerWizardWorkspace() {
       }
     }
 
-    // 2c. Map Transport & Transfers line items (Grouped by day, matching transport-provider step)
+    // 2c. Map Transport & Transfers line items (Grouped by day, directly from tour_itinerary_transports)
     for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
-      const travelLegs = dbActivities.filter(a => a.activity_type === 'travel' && (a.tour_itineraries?.day_number || a.day_number || 1) === dayNum);
       const transportAssList = dailyTransportAssignments[dayNum] || [];
-      if (travelLegs.length === 0 && transportAssList.length === 0) continue;
+      if (transportAssList.length === 0) continue;
 
-      const pathString = travelLegs.length > 0 ? travelLegs.map(t => t.title || t.location_name || 'Travel Leg').join(' → ') : `Day ${dayNum} Transport`;
-      const totalKm = travelLegs.reduce((sum, t) => sum + (parseFloat(String(t.distance || '').replace(/[^\d.]/g, '')) || 0), 0);
-
-      const firstLeg = travelLegs[0];
-      const dateVal = firstLeg?.tour_itineraries?.date || firstLeg?.service_date || (touristData?.preferences?.arrival_date ? (() => {
+      const dateVal = (touristData?.preferences?.arrival_date ? (() => {
         try {
           const d = new Date(touristData.preferences.arrival_date);
           d.setDate(d.getDate() + (dayNum - 1));
@@ -4173,7 +4181,7 @@ function PlannerWizardWorkspace() {
       const linkedPOItems = purchaseOrders
         .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'transport' || (po.vendor_name && po.vendor_name.toLowerCase().includes('fleet'))))
         .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
-        .filter(item => Number(item.day_number) === dayNum || travelLegs.some(l => l.id === item.daily_activity_id));
+        .filter(item => Number(item.day_number) === dayNum);
 
       let invoicedTotal = 0;
       let invoicedQty = 0;
@@ -4199,77 +4207,8 @@ function PlannerWizardWorkspace() {
         });
       });
 
-      if (transportAssList.length > 0) {
-        transportAssList.forEach((transportAss, idx) => {
-          const contractedTotal = 0;
-          const chargedTotal = 0;
-
-          const contractedPrice = contractedTotal;
-          const chargedPrice = chargedTotal;
-
-          const tpId = transportAss?.transport_provider_id;
-          const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
-
-          let vendorName = tpObj ? tpObj.name : 'Transport Provider';
-          let vendorPhone = tpObj?.phone || null;
-          let vendorEmail = tpObj?.email || null;
-
-          if ((vendorName === 'Transport Provider' || !vendorName) && linkedPOItems.length > 0) {
-            const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
-            if (poWithVendor) {
-              vendorName = poWithVendor.po.vendor_name;
-              vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
-              vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
-            }
-          }
-
-          const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
-          const invoicedDiscrepancy = invoicedTotal - contractedTotal;
-          const margin = chargedTotal - contractedTotal;
-          const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
-          const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
-
-          supplierPLItems.push({
-            dailyActivityId: transportAss.id || (firstLeg ? firstLeg.id : `transport-day-${dayNum}-${idx}`),
-            dayNumber: dayNum,
-            date: dateVal,
-            title: `${pathString}${totalKm > 0 ? ` (${totalKm} km)` : ''}${transportAssList.length > 1 ? ` [Vehicle ${idx + 1}]` : ''}`,
-            vendorName,
-            vendorType: 'travel',
-            quantity: 1,
-            contractedPrice,
-            contractedTotal,
-            chargedPrice,
-            chargedTotal,
-            invoicedQty,
-            invoicedUnitPrice,
-            invoicedTotal,
-            invoicedDiscrepancy,
-            margin,
-            marginPercentage,
-            poNumber,
-            supplierInvoiceNumber,
-            supplierInvoiceCurrency,
-            supplierInvoiceRate,
-            vendorPhone,
-            vendorEmail,
-            reservationContactName: null,
-            reservationContactPhone: null,
-            reservationContactEmail: null,
-            salesContactName: null,
-            salesContactPhone: null,
-            salesContactEmail: null,
-            hasDiscrepancy
-          });
-        });
-      } else {
-        const contractedTotal = travelLegs.reduce((sum, t) => sum + (Number(t.contracted_total_price ?? t.contracted_price) || 0), 0);
-        const chargedTotal = travelLegs.reduce((sum, t) => sum + (Number(t.charged_total_price ?? t.charged_unit_price ?? t.contracted_price) || 0), 0);
-
-        const contractedPrice = contractedTotal;
-        const chargedPrice = chargedTotal;
-
-        const tpId = (dailyTransportAssignments[dayNum] || [])[0]?.transport_provider_id;
+      transportAssList.forEach((transportAss, idx) => {
+        const tpId = transportAss?.transport_provider_id;
         const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
 
         let vendorName = tpObj ? tpObj.name : 'Transport Provider';
@@ -4285,6 +4224,12 @@ function PlannerWizardWorkspace() {
           }
         }
 
+        const contractedTotal = 0;
+        const chargedTotal = 0;
+
+        const contractedPrice = contractedTotal;
+        const chargedPrice = chargedTotal;
+
         const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
         const invoicedDiscrepancy = invoicedTotal - contractedTotal;
         const margin = chargedTotal - contractedTotal;
@@ -4292,10 +4237,10 @@ function PlannerWizardWorkspace() {
         const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
 
         supplierPLItems.push({
-          dailyActivityId: firstLeg.id,
+          dailyActivityId: transportAss.id || `transport-day-${dayNum}-${idx}`,
           dayNumber: dayNum,
           date: dateVal,
-          title: `${pathString}${totalKm > 0 ? ` (${totalKm} km)` : ''}`,
+          title: `Transport Provider Services (Day ${dayNum})${transportAssList.length > 1 ? ` [Provider ${idx + 1}]` : ''}`,
           vendorName,
           vendorType: 'travel',
           quantity: 1,
@@ -4323,16 +4268,15 @@ function PlannerWizardWorkspace() {
           salesContactEmail: null,
           hasDiscrepancy
         });
-      }
+      });
     }
 
-    // 2d. Map Vehicle line items (Grouped by day, matching transport-vehicle step)
+    // 2d. Map Vehicle line items (Grouped by day, directly from tour_itinerary_vehicles)
     for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
       const vehicleAssList = dailyVehicleAssignments[dayNum] || [];
       if (vehicleAssList.length === 0) continue;
 
-      const matchedActivity = dbActivities.find(a => (a.tour_itineraries?.day_number || a.day_number) === dayNum);
-      const dateVal = matchedActivity?.tour_itineraries?.date || matchedActivity?.service_date || (touristData?.preferences?.arrival_date ? (() => {
+      const dateVal = (touristData?.preferences?.arrival_date ? (() => {
         try {
           const d = new Date(touristData.preferences.arrival_date);
           d.setDate(d.getDate() + (dayNum - 1));
@@ -16748,6 +16692,11 @@ ${chauffeurHtml}
                             else key = 'other';
 
                             const info = CATEGORY_MAP[key] || { label: 'Other Supplier Expenses', order: 7 };
+
+                            // If vendor is not linked for 'other', 'activity', or 'meal' (Meals & Dining), do not show it here
+                            if ((key === 'other' || key === 'activity' || key === 'meal') && (!item.vendorName || item.vendorName === 'No Vendor Linked')) {
+                              return;
+                            }
 
                             if (!map[key]) {
                               map[key] = {
