@@ -582,6 +582,7 @@ export interface ProfitLossSummary {
     totalSupplierPaid: number;
     netAgreedProfit: number;
     netActualProfit: number;
+    customerPaymentExchangeRate: number;
 }
 
 export interface TourDailyDriver {

@@ -45,6 +45,7 @@ import {
   ArrowLeft,
   Trash2,
   Plus,
+  Undo2,
   History,
   UserPlus,
   DollarSign,
@@ -3539,6 +3540,18 @@ function PlannerWizardWorkspace() {
   const [paymentCurrency, setPaymentCurrency] = useState<string>('USD');
   const [paymentExchangeRate, setPaymentExchangeRate] = useState<string>('1.0');
 
+  // Supplier Refund states
+  const [activePoForRefund, setActivePoForRefund] = useState<string | null>(null);
+  const [refundAmount, setRefundAmount] = useState<string>('');
+  const [refundCurrency, setRefundCurrency] = useState<string>('USD');
+  const [refundExchangeRate, setRefundExchangeRate] = useState<string>('1.0');
+  const [refundDate, setRefundDate] = useState<string>('');
+  const [refundReason, setRefundReason] = useState<string>('Customer Complaint');
+  const [refundMethod, setRefundMethod] = useState<string>('Bank Transfer');
+  const [refundRef, setRefundRef] = useState<string>('');
+  const [refundNotes, setRefundNotes] = useState<string>('');
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
+
   // Customer Invoices states
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
   const [customerAdvancePayments, setCustomerAdvancePayments] = useState<any[]>([]);
@@ -3761,6 +3774,8 @@ function PlannerWizardWorkspace() {
       setIsSendingInvoiceEmail(false);
     }
   };
+
+  const [defaultUsdLkrRate, setDefaultUsdLkrRate] = useState<number>(300);
 
   // Profit & Loss Analysis states & calculations
   const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(false);
@@ -4489,6 +4504,29 @@ function PlannerWizardWorkspace() {
     const netAgreedProfit = totalCustomerAgreed - totalSupplierAgreed;
     const netActualProfit = totalCustomerPaid - totalSupplierPaid;
 
+    // Resolve USD to LKR buying rate of the day of customer payment made
+    let customerPaymentExchangeRate = defaultUsdLkrRate > 0 ? defaultUsdLkrRate : 300;
+    const validAdvRates = (customerAdvancePayments || [])
+      .map((p: any) => Number(p.exchange_rate))
+      .filter((r: number) => r && r > 1.0);
+    if (validAdvRates.length > 0) {
+      customerPaymentExchangeRate = validAdvRates[validAdvRates.length - 1];
+    } else {
+      const validInvRates: number[] = [];
+      (customerInvoices || []).forEach((inv: any) => {
+        (inv.payments || []).forEach((p: any) => {
+          const r = Number(p.exchange_rate);
+          if (r && r > 1.0) validInvRates.push(r);
+        });
+        if (inv.exchange_rate && Number(inv.exchange_rate) > 1.0) {
+          validInvRates.push(Number(inv.exchange_rate));
+        }
+      });
+      if (validInvRates.length > 0) {
+        customerPaymentExchangeRate = validInvRates[validInvRates.length - 1];
+      }
+    }
+
     const plSummary: ProfitLossSummary = {
       totalCustomerAgreed,
       totalCustomerInvoiced,
@@ -4497,7 +4535,8 @@ function PlannerWizardWorkspace() {
       totalSupplierInvoiced,
       totalSupplierPaid,
       netAgreedProfit,
-      netActualProfit
+      netActualProfit,
+      customerPaymentExchangeRate
     };
 
     return {
@@ -4505,7 +4544,10 @@ function PlannerWizardWorkspace() {
       customerPLItems,
       plSummary
     };
-  }, [dbActivities, purchaseOrders, customerInvoices]);
+  }, [dbActivities, purchaseOrders, customerInvoices, customerAdvancePayments, defaultUsdLkrRate]);
+
+  const plRate = profitLossReport.plSummary.customerPaymentExchangeRate || defaultUsdLkrRate || 300;
+  const formatLkr = (usd: number) => `LKR ${(usd * plRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const initInvoiceItems = (po: any) => {
     if (po.items && po.items.length > 0) {
@@ -4526,8 +4568,6 @@ function PlannerWizardWorkspace() {
       setInvoiceItems([]);
     }
   };
-
-  const [defaultUsdLkrRate, setDefaultUsdLkrRate] = useState<number>(300);
 
   useEffect(() => {
     const fetchRate = async () => {
@@ -7113,6 +7153,54 @@ ${chauffeurHtml}
       }
     } catch (err: any) {
       alert("Error: " + err.message);
+    }
+  };
+
+  const handleRecordRefund = async (poId: string) => {
+    const amountVal = parseFloat(refundAmount);
+    const rateVal = parseFloat(refundExchangeRate) || 1.0;
+    if (isNaN(amountVal) || amountVal <= 0) {
+      alert("Please enter a valid refund amount.");
+      return;
+    }
+
+    // Negative amount for refund
+    const negativeAmount = -Math.abs(amountVal);
+    setIsSubmittingRefund(true);
+    try {
+      const res = await saveSupplierPaymentAction({
+        supplier_invoice_id: null,
+        purchase_order_id: poId,
+        amount: negativeAmount,
+        currency: refundCurrency,
+        exchange_rate: rateVal,
+        payment_date: refundDate || new Date().toISOString().split('T')[0],
+        payment_method: refundMethod,
+        payment_reference: refundRef ? `REFUND (${refundReason}): ${refundRef}` : `REFUND (${refundReason})`,
+        notes: refundNotes ? `Reason: ${refundReason}. ${refundNotes}` : `Reason: ${refundReason}`
+      });
+
+      if (res.success) {
+        alert("Supplier refund recorded successfully!");
+        setRefundAmount('');
+        setRefundCurrency('USD');
+        setRefundExchangeRate('1.0');
+        setRefundDate('');
+        setRefundReason('Customer Complaint');
+        setRefundMethod('Bank Transfer');
+        setRefundRef('');
+        setRefundNotes('');
+        setActivePoForRefund(null);
+        if (tourId) {
+          loadProcurementData(tourId);
+        }
+      } else {
+        alert("Failed to record refund: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error recording refund: " + err.message);
+    } finally {
+      setIsSubmittingRefund(false);
     }
   };
 
@@ -14256,8 +14344,8 @@ ${chauffeurHtml}
                             // Payments total
                             const totalPaidLkr = allPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) * Number(p.exchange_rate || 1.0)), 0);
 
-                            // Active rate for PO converted value
-                            const activeRate = invoices[0]?.exchange_rate || advPayments[0]?.exchange_rate || parseFloat(invoiceExchangeRate) || defaultUsdLkrRate;
+                            // Active rate for PO converted value (dollar buying rate of customer paid date)
+                            const activeRate = plRate;
                             const poValLkr = poCurrency === 'LKR' ? totalPoVal : totalPoVal * activeRate;
                             const balancePayableLkr = poValLkr - totalPaidLkr;
 
@@ -14332,25 +14420,48 @@ ${chauffeurHtml}
                                   <div className="flex items-center justify-between">
                                     <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wide flex items-center gap-1.5">
                                       <CircleDollarSign className="w-4 h-4 text-emerald-800" />
-                                      Advance Payments (Direct to PO)
+                                      Advance Payments & Adjustments (Direct to PO)
                                     </h4>
-                                    {activePoForAdvancePayment !== po.id && (
-                                      <button
-                                        onClick={() => {
-                                          setActivePoForAdvancePayment(po.id);
-                                          setPaymentAmount('');
-                                          setPaymentCurrency('USD');
-                                          setPaymentExchangeRate(defaultUsdLkrRate.toString());
-                                          setPaymentDate(new Date().toISOString().split('T')[0]);
-                                          setPaymentRef('');
-                                          setPaymentNotes('');
-                                        }}
-                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-850 hover:text-emerald-950 border border-neutral-250 bg-white rounded-lg transition-all shadow-sm"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        Record Advance Payment
-                                      </button>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                      {activePoForAdvancePayment !== po.id && (
+                                        <button
+                                          onClick={() => {
+                                            setActivePoForAdvancePayment(po.id);
+                                            setActivePoForRefund(null);
+                                            setPaymentAmount('');
+                                            setPaymentCurrency('USD');
+                                            setPaymentExchangeRate(plRate.toString());
+                                            setPaymentDate(new Date().toISOString().split('T')[0]);
+                                            setPaymentRef('');
+                                            setPaymentNotes('');
+                                          }}
+                                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-855 hover:text-emerald-950 border border-neutral-250 bg-white rounded-lg transition-all shadow-sm cursor-pointer"
+                                        >
+                                          <Plus className="w-3.5 h-3.5" />
+                                          Record Advance Payment
+                                        </button>
+                                      )}
+                                      {activePoForRefund !== po.id && (
+                                        <button
+                                          onClick={() => {
+                                            setActivePoForRefund(po.id);
+                                            setActivePoForAdvancePayment(null);
+                                            setRefundAmount('');
+                                            setRefundCurrency('USD');
+                                            setRefundExchangeRate(plRate.toString());
+                                            setRefundDate(new Date().toISOString().split('T')[0]);
+                                            setRefundReason('Customer Complaint');
+                                            setRefundMethod('Bank Transfer');
+                                            setRefundRef('');
+                                            setRefundNotes('');
+                                          }}
+                                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-amber-800 hover:text-amber-950 border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-lg transition-all shadow-sm cursor-pointer"
+                                        >
+                                          <Undo2 className="w-3.5 h-3.5 text-amber-700" />
+                                          Record Supplier Refund
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {activePoForAdvancePayment === po.id && (
@@ -14392,7 +14503,7 @@ ${chauffeurHtml}
                                               type="number"
                                               value={paymentExchangeRate}
                                               onChange={(e) => setPaymentExchangeRate(e.target.value)}
-                                              placeholder={defaultUsdLkrRate.toFixed(2)}
+                                              placeholder={plRate.toFixed(2)}
                                               className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                             />
                                           </div>
@@ -14527,13 +14638,152 @@ ${chauffeurHtml}
                                     </div>
                                   )}
 
+                                  {activePoForRefund === po.id && (
+                                    <div className="p-4 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-4 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                                      <div className="flex items-center justify-between">
+                                        <h5 className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                                          <Undo2 className="w-4 h-4 text-amber-700" />
+                                          Record Supplier Refund (Reduces Total Amount Paid)
+                                        </h5>
+                                        <span className="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md font-semibold">
+                                          Adjustment / Credit
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Reason for Refund</label>
+                                          <select
+                                            value={refundReason}
+                                            onChange={(e) => setRefundReason(e.target.value)}
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          >
+                                            <option value="Customer Complaint">Customer Complaint</option>
+                                            <option value="Service Issue / Poor Service">Service Issue / Poor Service</option>
+                                            <option value="Cancellation / Modification">Cancellation / Modification</option>
+                                            <option value="Overpayment Refund">Overpayment Refund</option>
+                                            <option value="Billing Correction">Billing Correction</option>
+                                            <option value="Other Adjustment">Other Adjustment</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Currency</label>
+                                          <select
+                                            value={refundCurrency}
+                                            onChange={(e) => {
+                                              setRefundCurrency(e.target.value);
+                                              if (e.target.value === 'LKR') setRefundExchangeRate('1.0');
+                                            }}
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          >
+                                            <option value="USD">USD</option>
+                                            <option value="LKR">LKR</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="GBP">GBP</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Refund Amount</label>
+                                          <input
+                                            type="number"
+                                            value={refundAmount}
+                                            onChange={(e) => setRefundAmount(e.target.value)}
+                                            placeholder="100.00"
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-bold text-amber-900"
+                                          />
+                                        </div>
+
+                                        {refundCurrency !== 'LKR' && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Exchange Rate (to LKR)</label>
+                                            <input
+                                              type="number"
+                                              value={refundExchangeRate}
+                                              onChange={(e) => setRefundExchangeRate(e.target.value)}
+                                              placeholder={plRate.toFixed(2)}
+                                              className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Date</label>
+                                          <input
+                                            type="date"
+                                            value={refundDate}
+                                            onChange={(e) => setRefundDate(e.target.value)}
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Refund Method</label>
+                                          <select
+                                            value={refundMethod}
+                                            onChange={(e) => setRefundMethod(e.target.value)}
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          >
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                            <option value="Cash">Cash</option>
+                                            <option value="Card Refund">Card Refund</option>
+                                            <option value="Credit Note">Credit Note</option>
+                                            <option value="Cheque">Cheque</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] uppercase tracking-wider text-amber-800 font-bold">Reference No / Note</label>
+                                          <input
+                                            type="text"
+                                            value={refundRef}
+                                            onChange={(e) => setRefundRef(e.target.value)}
+                                            placeholder="e.g. Refund Txn #88219"
+                                            className="w-full bg-white border border-amber-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-800 font-medium"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {refundAmount && refundCurrency !== 'LKR' && (
+                                        <p className="text-[10px] text-amber-800 font-bold">
+                                          Equivalent Amount: LKR {((parseFloat(refundAmount) || 0) * (parseFloat(refundExchangeRate) || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </p>
+                                      )}
+
+                                      <div className="flex justify-end gap-2 pt-2 border-t border-amber-200/60">
+                                        <button
+                                          type="button"
+                                          disabled={isSubmittingRefund}
+                                          onClick={() => handleRecordRefund(po.id)}
+                                          className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer disabled:opacity-50"
+                                        >
+                                          {isSubmittingRefund ? 'Saving Refund...' : 'Save Refund Record'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setActivePoForRefund(null)}
+                                          className="px-4 py-2 border border-neutral-250 text-neutral-600 bg-white hover:bg-neutral-50 rounded-xl text-xs font-bold cursor-pointer"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {advPayments.length > 0 ? (
                                     <div className="bg-white border border-neutral-200 rounded-xl p-4 shadow-sm text-xs space-y-2">
                                       <div className="divide-y divide-neutral-100">
                                         {advPayments.map((pOnPo: any) => (
-                                          <div key={pOnPo.id} className="py-2 flex justify-between items-center first:pt-0 last:pb-0">
+                                          <div key={pOnPo.id} className={`py-2 flex justify-between items-center first:pt-0 last:pb-0 ${Number(pOnPo.amount) < 0 ? 'bg-amber-50/40 -mx-2 px-2 rounded-lg' : ''}`}>
                                             <div>
-                                              <span className="font-bold text-neutral-700">{pOnPo.payment_method}</span>
+                                              <div className="flex items-center gap-1.5">
+                                                {Number(pOnPo.amount) < 0 && (
+                                                  <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-200">REFUND</span>
+                                                )}
+                                                <span className="font-bold text-neutral-700">{pOnPo.payment_method}</span>
+                                              </div>
                                               {pOnPo.payment_reference && (
                                                 <span className="text-[10px] text-neutral-450 font-mono ml-2">Ref: {pOnPo.payment_reference}</span>
                                               )}
@@ -14561,13 +14811,17 @@ ${chauffeurHtml}
                                               {pOnPo.notes && (
                                                 <span className="text-[10px] text-neutral-450 italic block mt-0.5">{pOnPo.notes}</span>
                                               )}
-                                              <span className="text-[9px] text-neutral-400 block mt-0.5">Paid on: {new Date(pOnPo.payment_date).toLocaleDateString()}</span>
+                                              <span className="text-[9px] text-neutral-400 block mt-0.5">Date: {new Date(pOnPo.payment_date).toLocaleDateString()}</span>
                                             </div>
                                             <div className="text-right flex items-center gap-3">
                                               <div>
-                                                <span className="font-bold text-neutral-855 font-mono block">{pOnPo.currency || 'USD'} {Number(pOnPo.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span className={`font-bold font-mono block ${Number(pOnPo.amount) < 0 ? 'text-amber-700' : 'text-neutral-855'}`}>
+                                                  {Number(pOnPo.amount) < 0 ? '-' : ''}{pOnPo.currency || 'USD'} {Math.abs(Number(pOnPo.amount)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </span>
                                                 {pOnPo.currency !== 'LKR' && (
-                                                  <span className="text-[9px] text-neutral-450 block font-mono">≈ LKR {(Number(pOnPo.amount) * Number(pOnPo.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                  <span className="text-[9px] text-neutral-450 block font-mono">
+                                                    ≈ {Number(pOnPo.amount) < 0 ? '-' : ''}LKR {Math.abs(Number(pOnPo.amount) * Number(pOnPo.exchange_rate || 1.0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                  </span>
                                                 )}
                                               </div>
                                               <button
@@ -14602,7 +14856,7 @@ ${chauffeurHtml}
                                           setInvoiceNumber('');
                                           setInvoiceAmount(po.total_amount.toString());
                                           setInvoiceCurrency(po.currency || 'USD');
-                                          setInvoiceExchangeRate(defaultUsdLkrRate.toString());
+                                          setInvoiceExchangeRate(plRate.toString());
                                           setInvoiceDate(new Date().toISOString().split('T')[0]);
                                           setInvoiceAttachment('');
                                           initInvoiceItems(po);
@@ -14691,7 +14945,7 @@ ${chauffeurHtml}
                                               type="number"
                                               value={invoiceExchangeRate}
                                               onChange={(e) => setInvoiceExchangeRate(e.target.value)}
-                                              placeholder={defaultUsdLkrRate.toFixed(2)}
+                                              placeholder={plRate.toFixed(2)}
                                               className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                             />
                                           </div>
@@ -14873,7 +15127,7 @@ ${chauffeurHtml}
                                           } else {
                                             // Convert payment currency using LKR as a bridge
                                             const pLkrValue = Number(p.amount) * Number(p.exchange_rate || 1.0);
-                                            const invExchangeRate = Number(inv.exchange_rate || defaultUsdLkrRate || 1.0);
+                                            const invExchangeRate = Number(inv.exchange_rate || plRate || 1.0);
                                             return sum + (pLkrValue / invExchangeRate);
                                           }
                                         }, 0);
@@ -14885,7 +15139,7 @@ ${chauffeurHtml}
                                           } else {
                                             // Convert currencies using LKR as a bridge
                                             const lkrValue = Number(p.amount) * Number(p.exchange_rate || 1.0);
-                                            const invExchangeRate = Number(inv.exchange_rate || defaultUsdLkrRate || 1.0);
+                                            const invExchangeRate = Number(inv.exchange_rate || plRate || 1.0);
                                             return sum + (lkrValue / invExchangeRate);
                                           }
                                         }, 0);
@@ -15028,7 +15282,7 @@ ${chauffeurHtml}
                                                       setPayingInvoiceId(inv.id);
                                                       setPaymentAmount(remainingInvBalance.toFixed(2));
                                                       setPaymentCurrency(inv.currency || 'USD');
-                                                      setPaymentExchangeRate(inv.exchange_rate?.toString() || defaultUsdLkrRate.toString());
+                                                      setPaymentExchangeRate(inv.exchange_rate?.toString() || plRate.toString());
                                                       setPaymentDate(new Date().toISOString().split('T')[0]);
                                                       setPaymentRef('');
                                                       setPaymentNotes('');
@@ -15080,7 +15334,7 @@ ${chauffeurHtml}
                                                           type="number"
                                                           value={paymentExchangeRate}
                                                           onChange={(e) => setPaymentExchangeRate(e.target.value)}
-                                                          placeholder={defaultUsdLkrRate.toFixed(2)}
+                                                          placeholder={plRate.toFixed(2)}
                                                           className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
                                                         />
                                                       </div>
@@ -16486,110 +16740,144 @@ ${chauffeurHtml}
                 ) : track === 'final' && currentStep.id === 'profit-loss' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
                     {/* Step Header */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
-                      <div>
-                        <h3 className="text-2xl font-serif font-bold text-neutral-800 flex items-center gap-2">
-                          <TrendingUp className="w-6 h-6 text-emerald-800" />
-                          Profit & Loss Analysis
-                        </h3>
-                        <p className="text-xs text-neutral-400 mt-1">
-                          Auditing actual revenue, vendor expenses, invoice differences, and transaction payslips.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-600 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={profitLossShowOnlyDiscrepancies}
-                            onChange={(e) => setProfitLossShowOnlyDiscrepancies(e.target.checked)}
-                            className="w-4 h-4 rounded text-emerald-800 focus:ring-emerald-800 border-neutral-350 cursor-pointer"
-                          />
-                          <span>Show Only Discrepancies / Delayed Invoices</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* Top Summary Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {/* Guest Revenue */}
-                      <div className="bg-emerald-50/20 border border-emerald-100 rounded-2xl p-5 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800">Guest Revenue</span>
-                          <CircleDollarSign className="w-4 h-4 text-emerald-700" />
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-xs text-neutral-400 block">Actual Invoiced</span>
-                          <span className="text-2xl font-extrabold text-neutral-800 font-mono">
-                            ${profitLossReport.plSummary.totalCustomerInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-neutral-500 space-y-1 border-t border-emerald-100/50 pt-2 flex flex-col">
-                          <span className="flex justify-between">
-                            <span>Contracted Total:</span>
-                            <span className="font-mono font-bold">${profitLossReport.plSummary.totalSupplierAgreed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </span>
-                          <span className="flex justify-between">
-                            <span>Charged Total:</span>
-                            <span className="font-mono font-bold">${profitLossReport.plSummary.totalCustomerAgreed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </span>
-                          <span className="flex justify-between">
-                            <span>Actual Payments:</span>
-                            <span className="font-mono font-bold text-emerald-700">${profitLossReport.plSummary.totalCustomerPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Supplier Procurement */}
-                      <div className="bg-amber-50/15 border border-amber-100 rounded-2xl p-5 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800">Supplier Expenses</span>
-                          <Receipt className="w-4 h-4 text-amber-700" />
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-xs text-neutral-400 block">Actual Invoiced</span>
-                          <span className="text-2xl font-extrabold text-neutral-800 font-mono">
-                            ${profitLossReport.plSummary.totalSupplierInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-neutral-500 space-y-1 border-t border-amber-100/50 pt-2 flex flex-col">
-                          <span className="flex justify-between">
-                            <span>Agreed Cost:</span>
-                            <span className="font-mono font-bold">${profitLossReport.plSummary.totalSupplierAgreed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </span>
-                          <span className="flex justify-between">
-                            <span>Actual Disbursements:</span>
-                            <span className="font-mono font-bold text-amber-700">${profitLossReport.plSummary.totalSupplierPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Net Margins */}
-                      <div className="bg-blue-50/15 border border-blue-100 rounded-2xl p-5 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase font-bold tracking-wider text-blue-800">Net Profit</span>
-                          <TrendingUp className="w-4 h-4 text-blue-700" />
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-xs text-neutral-400 block">Actual Net Profit</span>
-                          <span className={`text-2xl font-extrabold font-mono ${profitLossReport.plSummary.netActualProfit >= 0 ? 'text-green-700' : 'text-red-750'}`}>
-                            ${profitLossReport.plSummary.netActualProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-neutral-500 space-y-1 border-t border-blue-100/50 pt-2 flex flex-col">
-                          <span className="flex justify-between">
-                            <span>Agreed Net Profit:</span>
-                            <span className="font-mono font-bold">${profitLossReport.plSummary.netAgreedProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </span>
-                          <span className="flex justify-between">
-                            <span>Yield Rate (Actual):</span>
-                            <span className="font-mono font-bold text-blue-700">
-                              {profitLossReport.plSummary.totalCustomerPaid > 0
-                                ? ((profitLossReport.plSummary.netActualProfit / profitLossReport.plSummary.totalCustomerPaid) * 100).toFixed(1) + '%'
-                                : '0.0%'}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h3 className="text-2xl font-serif font-bold text-neutral-800 flex items-center gap-2">
+                              <TrendingUp className="w-6 h-6 text-emerald-800" />
+                              Profit & Loss Analysis
+                            </h3>
+                            <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3 py-1 rounded-xl text-xs font-bold font-mono shadow-2xs">
+                              <Coins className="w-3.5 h-3.5 text-emerald-700" />
+                              1 USD = LKR {plRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <span className="text-[10px] text-emerald-700 font-normal ml-0.5">(Customer Payment Day Rate)</span>
                             </span>
-                          </span>
+                          </div>
+                          <p className="text-xs text-neutral-400 mt-1">
+                            Auditing actual revenue, vendor expenses, invoice differences, and transaction payslips. All USD figures converted using USD/LKR buying rate of customer payment date.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-xs font-bold text-neutral-600 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={profitLossShowOnlyDiscrepancies}
+                              onChange={(e) => setProfitLossShowOnlyDiscrepancies(e.target.checked)}
+                              className="w-4 h-4 rounded text-emerald-800 focus:ring-emerald-800 border-neutral-350 cursor-pointer"
+                            />
+                            <span>Show Only Discrepancies / Delayed Invoices</span>
+                          </label>
                         </div>
                       </div>
+
+                      {/* Top Summary Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {/* Guest Revenue */}
+                        <div className="bg-emerald-50/20 border border-emerald-100 rounded-2xl p-5 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-800">Guest Revenue</span>
+                            <CircleDollarSign className="w-4 h-4 text-emerald-700" />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-neutral-400 block">Actual Invoiced</span>
+                            <span className="text-2xl font-extrabold text-neutral-800 font-mono block">
+                              ${profitLossReport.plSummary.totalCustomerInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-xs text-emerald-800 font-bold font-mono block">
+                              ≈ {formatLkr(profitLossReport.plSummary.totalCustomerInvoiced)}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-neutral-500 space-y-1.5 border-t border-emerald-100/50 pt-2 flex flex-col font-mono">
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Contracted Total:</span>
+                                <span className="font-bold">${profitLossReport.plSummary.totalSupplierAgreed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-neutral-450 text-right">≈ {formatLkr(profitLossReport.plSummary.totalSupplierAgreed)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Charged Total:</span>
+                                <span className="font-bold">${profitLossReport.plSummary.totalCustomerAgreed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-neutral-450 text-right">≈ {formatLkr(profitLossReport.plSummary.totalCustomerAgreed)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Actual Payments:</span>
+                                <span className="font-bold text-emerald-700">${profitLossReport.plSummary.totalCustomerPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-emerald-700/80 font-bold text-right">≈ {formatLkr(profitLossReport.plSummary.totalCustomerPaid)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Supplier Procurement */}
+                        <div className="bg-amber-50/15 border border-amber-100 rounded-2xl p-5 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-800">Supplier Expenses</span>
+                            <Receipt className="w-4 h-4 text-amber-700" />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-neutral-400 block">Actual Invoiced</span>
+                            <span className="text-2xl font-extrabold text-neutral-800 font-mono block">
+                              ${profitLossReport.plSummary.totalSupplierInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className="text-xs text-amber-800 font-bold font-mono block">
+                              ≈ {formatLkr(profitLossReport.plSummary.totalSupplierInvoiced)}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-neutral-500 space-y-1.5 border-t border-amber-100/50 pt-2 flex flex-col font-mono">
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Agreed Cost:</span>
+                                <span className="font-bold">${profitLossReport.plSummary.totalSupplierAgreed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-neutral-450 text-right">≈ {formatLkr(profitLossReport.plSummary.totalSupplierAgreed)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Actual Disbursements:</span>
+                                <span className="font-bold text-amber-700">${profitLossReport.plSummary.totalSupplierPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-amber-700/80 font-bold text-right">≈ {formatLkr(profitLossReport.plSummary.totalSupplierPaid)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+-                       {/* Net Margins */}
+                        <div className="bg-blue-50/15 border border-blue-100 rounded-2xl p-5 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-blue-800">Net Profit</span>
+                            <TrendingUp className="w-4 h-4 text-blue-700" />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-xs text-neutral-400 block">Actual Net Profit</span>
+                            <span className={`text-2xl font-extrabold font-mono block ${profitLossReport.plSummary.netActualProfit >= 0 ? 'text-green-700' : 'text-red-750'}`}>
+                              ${profitLossReport.plSummary.netActualProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className={`text-xs font-bold font-mono block ${profitLossReport.plSummary.netActualProfit >= 0 ? 'text-green-800' : 'text-red-700'}`}>
+                              ≈ {formatLkr(profitLossReport.plSummary.netActualProfit)}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-neutral-500 space-y-1.5 border-t border-blue-100/50 pt-2 flex flex-col font-mono">
+                            <div className="flex flex-col">
+                              <div className="flex justify-between">
+                                <span>Agreed Net Profit:</span>
+                                <span className="font-bold">${profitLossReport.plSummary.netAgreedProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <span className="text-[9px] text-neutral-450 text-right">≈ {formatLkr(profitLossReport.plSummary.netAgreedProfit)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Yield Rate (Actual):</span>
+                              <span className="font-bold text-blue-700">
+                                {profitLossReport.plSummary.totalCustomerPaid > 0
+                                  ? ((profitLossReport.plSummary.netActualProfit / profitLossReport.plSummary.totalCustomerPaid) * 100).toFixed(1) + '%'
+                                  : '0.0%'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
                       {/* Audit Status */}
                       {(() => {
@@ -16759,34 +17047,46 @@ ${chauffeurHtml}
                                   </div>
 
                                   {/* 4-Column Financial Controlling Summary Grid */}
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border border-neutral-200/80 rounded-2xl shadow-xs">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-white border border-neutral-200/80 rounded-2xl shadow-xs font-mono">
                                     <div>
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Contracted Buying Cost</span>
-                                      <span className="text-sm font-black text-neutral-800 font-mono">
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5 font-sans">Contracted Buying Cost</span>
+                                      <span className="text-sm font-black text-neutral-800 block">
                                         ${group.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Charged Selling Price</span>
-                                      <span className="text-sm font-black text-neutral-800 font-mono">
-                                        ${group.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      <span className="text-[10px] text-neutral-500 font-medium block">
+                                        ≈ {formatLkr(group.contractedTotal)}
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Net Margin ($ / %)</span>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5 font-sans">Charged Selling Price</span>
+                                      <span className="text-sm font-black text-neutral-800 block">
+                                        ${group.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                      <span className="text-[10px] text-neutral-500 font-medium block">
+                                        ≈ {formatLkr(group.chargedTotal)}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5 font-sans">Net Margin ($ / %)</span>
                                       <div className="flex items-center gap-1.5">
-                                        <span className={`text-sm font-black font-mono ${group.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
+                                        <span className={`text-sm font-black ${group.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
                                           ${group.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
-                                        <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${groupMarginPct >= 10 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                        <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md font-sans ${groupMarginPct >= 10 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                                           {groupMarginPct.toFixed(1)}%
                                         </span>
                                       </div>
+                                      <span className="text-[10px] text-neutral-500 font-medium block">
+                                        ≈ {formatLkr(group.margin)}
+                                      </span>
                                     </div>
                                     <div>
-                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5">Invoiced Supplier Total</span>
-                                      <span className="text-sm font-black text-neutral-800 font-mono">
+                                      <span className="text-[10px] font-bold text-neutral-400 uppercase block tracking-wider mb-0.5 font-sans">Invoiced Supplier Total</span>
+                                      <span className="text-sm font-black text-neutral-800 block">
                                         ${group.invoicedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                      <span className="text-[10px] text-neutral-500 font-medium block">
+                                        ≈ {formatLkr(group.invoicedTotal)}
                                       </span>
                                     </div>
                                   </div>
@@ -16853,16 +17153,19 @@ ${chauffeurHtml}
                                               </td>
                                               <td className="px-4 py-2.5 text-right font-mono text-neutral-850">
                                                 <div className="font-bold text-xs">${item.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                                <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.contractedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                <div className="text-[9px] text-neutral-500 font-medium">≈ {formatLkr(item.contractedTotal)}</div>
+                                                <div className="text-[10px] text-neutral-400 font-normal mt-0.5">Unit: ${item.contractedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({formatLkr(item.contractedPrice)})</div>
                                               </td>
                                               <td className="px-4 py-2.5 text-right font-mono text-neutral-850">
                                                 <div className="font-bold text-xs">${item.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                                                <div className="text-[10px] text-neutral-400 font-normal">Unit: ${item.chargedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                <div className="text-[9px] text-neutral-500 font-medium">≈ {formatLkr(item.chargedTotal)}</div>
+                                                <div className="text-[10px] text-neutral-400 font-normal mt-0.5">Unit: ${item.chargedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({formatLkr(item.chargedPrice)})</div>
                                               </td>
                                               <td className="px-4 py-2.5 text-right font-mono">
                                                 <div className={`font-bold text-xs ${item.margin >= 0 ? 'text-green-700' : 'text-red-750'}`}>
                                                   ${item.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </div>
+                                                <div className="text-[9px] text-neutral-500 font-medium">≈ {formatLkr(item.margin)}</div>
                                                 <div className="flex items-center justify-end gap-1 mt-0.5">
                                                   {item.marginPercentage < 10 && (
                                                     <span title="Margin below 10%">
@@ -16880,8 +17183,8 @@ ${chauffeurHtml}
                                                     <AlertCircle className="w-3 h-3" /> Pending Invoice
                                                   </span>
                                                 ) : item.invoicedDiscrepancy !== 0 ? (
-                                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title={`Agreed: $${item.contractedTotal} vs Invoiced: $${item.invoicedTotal}`}>
-                                                    <AlertCircle className="w-3 h-3" /> Invoice Diff: ${item.invoicedDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 font-mono" title={`Agreed: $${item.contractedTotal} vs Invoiced: $${item.invoicedTotal}`}>
+                                                    <AlertCircle className="w-3 h-3" /> Invoice Diff: ${item.invoicedDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })} (≈ {formatLkr(item.invoicedDiscrepancy)})
                                                   </span>
                                                 ) : (
                                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
@@ -16953,23 +17256,32 @@ ${chauffeurHtml}
                                     </div>
 
                                     {/* Numeric Comparisons */}
-                                    <div className="grid grid-cols-3 gap-6 text-right">
+                                    <div className="grid grid-cols-3 gap-6 text-right font-mono">
                                       <div>
-                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Agreed / Planner</span>
-                                        <span className="text-xs font-mono font-bold text-neutral-800">
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block font-sans">Agreed / Planner</span>
+                                        <span className="text-xs font-mono font-bold text-neutral-800 block">
                                           ${item.agreedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Billed / Invoiced</span>
-                                        <span className={`text-xs font-mono font-bold ${item.dailyActivityDiscrepancy !== 0 ? 'text-amber-600' : 'text-neutral-800'}`}>
-                                          ${item.invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        <span className="text-[9px] text-neutral-500 font-medium block">
+                                          ≈ {formatLkr(item.agreedAmount)}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block">Paid / Collected</span>
-                                        <span className={`text-xs font-mono font-bold ${item.discrepancy !== 0 ? 'text-amber-600' : 'text-neutral-800'}`}>
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block font-sans">Billed / Invoiced</span>
+                                        <span className={`text-xs font-mono font-bold block ${item.dailyActivityDiscrepancy !== 0 ? 'text-amber-600' : 'text-neutral-800'}`}>
+                                          ${item.invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                        <span className="text-[9px] text-neutral-500 font-medium block">
+                                          ≈ {formatLkr(item.invoicedAmount)}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 block font-sans">Paid / Collected</span>
+                                        <span className={`text-xs font-mono font-bold block ${item.discrepancy !== 0 ? 'text-amber-600' : 'text-neutral-800'}`}>
                                           ${item.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                        <span className="text-[9px] text-neutral-500 font-medium block">
+                                          ≈ {formatLkr(item.paidAmount)}
                                         </span>
                                       </div>
                                     </div>
@@ -16977,12 +17289,12 @@ ${chauffeurHtml}
                                     {/* Action & Status */}
                                     <div className="flex items-center gap-4">
                                       {item.dailyActivityDiscrepancy !== 0 ? (
-                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title="Consolidated invoice amount differs from plan activities sum">
-                                          Billing Diff: ${item.dailyActivityDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 font-mono" title="Consolidated invoice amount differs from plan activities sum">
+                                          Billing Diff: ${item.dailyActivityDiscrepancy.toLocaleString(undefined, { maximumFractionDigits: 2 })} (≈ {formatLkr(item.dailyActivityDiscrepancy)})
                                         </span>
                                       ) : item.discrepancy !== 0 ? (
-                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200" title="Collection does not match invoiced amount">
-                                          Uncollected: ${Math.abs(item.discrepancy).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 font-mono" title="Collection does not match invoiced amount">
+                                          Uncollected: ${Math.abs(item.discrepancy).toLocaleString(undefined, { maximumFractionDigits: 2 })} (≈ {formatLkr(Math.abs(item.discrepancy))})
                                         </span>
                                       ) : (
                                         <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-800 border border-green-200">
@@ -17012,27 +17324,29 @@ ${chauffeurHtml}
                                             <thead className="bg-neutral-50 font-bold text-neutral-400 uppercase tracking-wider text-[9px]">
                                               <tr>
                                                 <th scope="col" className="px-3 py-2">Day / Title</th>
-                                                <th scope="col" className="px-3 py-2 text-right">Agreed Customer Price (USD)</th>
+                                                <th scope="col" className="px-3 py-2 text-right">Agreed Customer Price</th>
                                               </tr>
                                             </thead>
                                             <tbody className="divide-y divide-neutral-100 text-neutral-600 font-medium">
                                               {item.linkedActivities.map((act) => (
-                                                <tr key={act.id} className="hover:bg-neutral-50/35 transition-colors">
-                                                  <td className="px-3 py-2.5">
-                                                    <span className="bg-neutral-100 text-neutral-600 px-1 py-0.2 rounded text-[9px] font-bold mr-1.5">
+                                                <tr key={act.id} className="hover:bg-neutral-50/35 transition-colors font-mono">
+                                                  <td className="px-3 py-2.5 font-sans">
+                                                    <span className="bg-neutral-100 text-neutral-600 px-1 py-0.2 rounded text-[9px] font-bold mr-1.5 font-sans">
                                                       Day {act.dayNumber}
                                                     </span>
                                                     {act.title}
                                                   </td>
-                                                  <td className="px-3 py-2.5 text-right font-mono font-bold">
-                                                    ${act.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                  <td className="px-3 py-2.5 text-right font-mono">
+                                                    <div className="font-bold text-neutral-800">${act.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                                    <div className="text-[9px] text-neutral-500 font-medium">≈ {formatLkr(act.chargedTotal)}</div>
                                                   </td>
                                                 </tr>
                                               ))}
-                                              <tr className="bg-neutral-50 font-bold border-t border-neutral-200">
-                                                <td className="px-3 py-2 text-right text-[9px] uppercase tracking-wide text-neutral-450">Sum of Activities:</td>
-                                                <td className="px-3 py-2 text-right font-mono text-neutral-800">
-                                                  ${item.dailyActivitySum.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                              <tr className="bg-neutral-50 font-bold border-t border-neutral-200 font-mono">
+                                                <td className="px-3 py-2 text-right text-[9px] uppercase tracking-wide text-neutral-450 font-sans">Sum of Activities:</td>
+                                                <td className="px-3 py-2 text-right font-mono">
+                                                  <div className="font-bold text-neutral-800">${item.dailyActivitySum.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                                  <div className="text-[9px] text-neutral-500 font-medium">≈ {formatLkr(item.dailyActivitySum)}</div>
                                                 </td>
                                               </tr>
                                             </tbody>
