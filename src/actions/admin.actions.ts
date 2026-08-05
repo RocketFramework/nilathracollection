@@ -6,7 +6,7 @@ import { AdminService, UserService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { TouristService } from "@/services/tourist.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { MasterDataService, Restaurant, TransportProvider, Vendor, Driver, TourGuide } from "@/services/master-data.service";
+import { MasterDataService, Restaurant, TransportProvider, Vendor, Driver, TourGuide, SeamlessConciergeCostItem } from "@/services/master-data.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CreateUserDTO } from "@/dtos/user-vendor.dto";
 import { FinanceService } from "@/services/finance.service";
@@ -33,6 +33,8 @@ import { AppSettingsService } from "@/services/app-settings.service";
 import { CustomerInvoiceService } from "@/services/customer-invoice.service";
 import { Settings } from "@/types/types";
 import { TourDailyDriverService } from "@/services/tour-daily-driver.service";
+import { TourConciergeService } from "@/services/tour-concierge.service";
+import { SaveTourConciergeItemDTO } from "@/dtos/tour-concierge.dto";
 import { TourDailyDriverDTO } from "@/dtos/tour-daily-driver.dto";
 import { TourDailyTransportService } from "@/services/tour-daily-transport.service";
 import { TourDailyTransportDTO } from "@/dtos/tour-daily-transport.dto";
@@ -697,6 +699,75 @@ export async function saveTourGuideAction(guide: TourGuide) {
         return { error: error.message || "Failed to save tour guide." };
     }
 }
+
+export async function getSeamlessConciergeCostItemsAction(options?: any) {
+    try {
+        const supabase = createAdminClient();
+        const { data: items, count } = await MasterDataService.getSeamlessConciergeCostItems({ ...options, client: supabase });
+        return { success: true, items, count };
+    } catch (error: any) {
+        console.error("Error fetching seamless concierge cost items:", error);
+        return { error: error.message || "Failed to load seamless concierge cost items." };
+    }
+}
+
+export async function getSeamlessConciergeCostItemAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const item = await MasterDataService.getSeamlessConciergeCostItem(id, { client: supabase });
+        return { success: true, item };
+    } catch (error: any) {
+        console.error("Error fetching seamless concierge cost item:", error);
+        return { error: error.message || "Failed to fetch seamless concierge cost item." };
+    }
+}
+
+export async function saveSeamlessConciergeCostItemAction(item: SeamlessConciergeCostItem) {
+    try {
+        const supabase = createAdminClient();
+        const savedId = await MasterDataService.saveSeamlessConciergeCostItem(item, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true, savedId };
+    } catch (error: any) {
+        console.error("Error saving seamless concierge cost item:", error);
+        return { error: error.message || "Failed to save seamless concierge cost item." };
+    }
+}
+
+export async function deleteSeamlessConciergeCostItemAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        await MasterDataService.deleteSeamlessConciergeCostItem(id, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting seamless concierge cost item:", error);
+        return { error: error.message || "Failed to delete seamless concierge cost item." };
+    }
+}
+
+export async function getTourConciergesAction(tourId: string) {
+    try {
+        const supabase = createAdminClient();
+        const items = await TourConciergeService.getTourConcierges(tourId, supabase);
+        return { success: true, items };
+    } catch (error: any) {
+        console.error("Error fetching tour concierges:", error);
+        return { success: true, items: [] };
+    }
+}
+
+export async function saveTourConciergesAction(tourId: string, items: SaveTourConciergeItemDTO[]) {
+    try {
+        const supabase = createAdminClient();
+        await TourConciergeService.saveTourConcierges(tourId, items, supabase);
+        revalidatePath("/admin-new");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error saving tour concierges:", error);
+        return { error: error.message || "Failed to save tour concierges." };
+    }
+}
 export async function getPurchaseOrdersAction(tourId: string) {
     try {
         const pos = await FinanceService.getPurchaseOrdersForTour(tourId);
@@ -751,24 +822,27 @@ export async function getItineraryDatesAction(tourId: string) {
     try {
         const adminSupabase = createAdminClient();
         
-        // Query tour_itineraries directly for day_number and date
+        // Query tour_itineraries directly for id, day_number and date
         const { data, error } = await adminSupabase
             .from('tour_itineraries')
-            .select('day_number, date')
+            .select('id, day_number, date')
             .eq('tour_id', tourId);
             
         if (error) throw error;
 
         const dateMapByDayNumber: Record<number, string> = {};
+        const dayToItinIdMap: Record<number, string> = {};
         data?.forEach(ti => {
-            if (ti.day_number && ti.date) {
-                dateMapByDayNumber[ti.day_number] = ti.date;
+            if (ti.day_number) {
+                if (ti.date) dateMapByDayNumber[ti.day_number] = ti.date;
+                if (ti.id) dayToItinIdMap[ti.day_number] = ti.id;
             }
         });
 
         return { 
             success: true, 
-            dateMapByDayNumber 
+            dateMapByDayNumber,
+            dayToItinIdMap
         };
     } catch (error: any) {
         console.error("Error fetching itinerary dates:", error);
@@ -998,12 +1072,22 @@ export async function deleteSupplierInvoiceAction(id: string) {
 }
 export async function getExchangeRateAction() {
     try {
-        const rate = await CurrencyService.getUSDTOLKR();
+        const rate = await CurrencyService.getSriLankaBankBuyingRate();
         return { success: true, rate };
     } catch (error: any) {
         return { success: false, error: error.message };
     }
 }
+
+export async function lockTourUsdBuyingRateAction(tourId: string, rate?: number) {
+    try {
+        const lockedRate = await TourService.lockTourUsdBuyingRate(tourId, rate);
+        return { success: true, rate: lockedRate };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 
 export async function getPendingApprovalsAction() {
     try {

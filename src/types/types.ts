@@ -3,6 +3,7 @@ export type TrackType = 'basic' | 'final';
 export type BasicStep = 
   | 'tourist-data' 
   | 'activity-selection' 
+  | 'concierge-config'
   | 'prepare-basic';
 
 export type PrepareBasicSubStep = 
@@ -182,3 +183,23 @@ export const VENDOR_EMAIL_STATUSES = {
   CANCELLED: 'Cancelled',
 } as const;
 export type VendorEmailStatus = typeof VENDOR_EMAIL_STATUSES[keyof typeof VENDOR_EMAIL_STATUSES];
+
+export interface TourConciergeItem {
+    id?: string;
+    tour_id: string;
+    tour_itinerary_id?: string | null;
+    concierge_cost_item_id: string;
+    quantity: number;
+    cost: number | null;
+    created_at?: string;
+    updated_at?: string;
+    cost_item?: {
+        cost_code: string;
+        title: string;
+        details?: string | null;
+        category: string;
+        default_cost: number;
+        currency: string;
+        costing_basis: string;
+    };
+}

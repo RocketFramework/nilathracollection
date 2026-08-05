@@ -10,18 +10,16 @@ envText.split('\n').forEach(line => {
   }
 });
 
-const url = envVars.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = envVars.SUPABASE_SERVICE_ROLE_KEY;
-
-const supabase = createClient(url, serviceKey);
+const supabase = createClient(envVars.NEXT_PUBLIC_SUPABASE_URL, envVars.SUPABASE_SERVICE_ROLE_KEY);
 
 async function run() {
   try {
-    const { data, error } = await supabase.from('tours').select('id, usd_lkr_buying_rate').limit(1);
+    const { data, error } = await supabase.from('seamless_concierge_cost_items').select('*').limit(5);
     if (error) {
-      console.log("Column check result:", error.message);
+      console.error("Table query error:", error.message);
     } else {
-      console.log("Column 'usd_lkr_buying_rate' is accessible on 'tours' table! Data:", data);
+      console.log("seamless_concierge_cost_items table exists! Sample rows count:", data.length);
+      console.log("Sample rows:", data);
     }
   } catch (e) {
     console.error("Error:", e.message);

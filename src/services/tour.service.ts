@@ -5,12 +5,40 @@ import { TripData, Traveler, TravelStyle } from '@/app/admin/(authenticated)/pla
 import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { RequestService } from './request.service';
+import { CurrencyService } from './currency.service';
 
 const supabase = createSupabaseClient();
 
 const isUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
 export class TourService {
+    /**
+     * Checks if a tour already has a locked USD/LKR Bank Buying Rate.
+     * If not locked, fetches the current Sri Lanka Bank USD TT Buying Rate and saves it permanently to tours.usd_lkr_buying_rate.
+     */
+    static async lockTourUsdBuyingRate(tourId: string, rate?: number): Promise<number> {
+        const supabaseAdmin = createAdminClient();
+        const { data: tour } = await supabaseAdmin
+            .from('tours')
+            .select('usd_lkr_buying_rate')
+            .eq('id', tourId)
+            .maybeSingle();
+
+        if (tour && tour.usd_lkr_buying_rate !== null && tour.usd_lkr_buying_rate !== undefined && Number(tour.usd_lkr_buying_rate) > 0) {
+            return Number(tour.usd_lkr_buying_rate);
+        }
+
+        const finalRate = (typeof rate === 'number' && rate > 0)
+            ? rate
+            : await CurrencyService.getSriLankaBankBuyingRate();
+
+        await supabaseAdmin
+            .from('tours')
+            .update({ usd_lkr_buying_rate: finalRate })
+            .eq('id', tourId);
+
+        return finalRate;
+    }
     static async createTour(dto: CreateTourDTO) {
         const { data, error } = await supabase
             .from('tours')
@@ -574,6 +602,8 @@ export class TourService {
         });
 
         // 1. SAVE BASIC RELATIONAL TOUR INFO
+        await this.lockTourUsdBuyingRate(tourId);
+
         const { data: tourData, error: tourErr } = await supabaseAdmin
             .from('tours')
             .update({

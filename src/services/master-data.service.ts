@@ -144,6 +144,21 @@ export interface Restaurant {
     payment_details?: PaymentDetails;
 }
 
+export interface SeamlessConciergeCostItem {
+    id?: string;
+    cost_code: string;
+    title: string;
+    details?: string | null;
+    category: string;
+    default_cost: number;
+    currency: string;
+    costing_basis: string;
+    is_generic?: boolean;
+    is_active?: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 // --- Helper to save Payment Details ---
 async function savePaymentDetails(details: PaymentDetails, client?: any): Promise<string | undefined> {
     const dbClient = client || supabase;
@@ -796,6 +811,81 @@ export class MasterDataService {
 
     static async deleteRestaurant(id: string) {
         const { error } = await supabase.from('restaurants').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+    }
+
+    // ==========================================
+    // Seamless Concierge Cost Items CRUD
+    // ==========================================
+    static async getSeamlessConciergeCostItems(options?: {
+        searchTerm?: string;
+        page?: number;
+        pageSize?: number;
+        sortBy?: string;
+        sortOrder?: 'asc' | 'desc';
+        client?: SupabaseClient;
+        ids?: string[];
+    }) {
+        const supabaseClient = options?.client || supabase;
+        let query = supabaseClient.from('seamless_concierge_cost_items').select('*', { count: 'exact' });
+
+        if (options?.ids && options.ids.length > 0) {
+            query = query.in('id', options.ids);
+        }
+
+        if (options?.searchTerm) {
+            query = query.or(`title.ilike.%${options.searchTerm}%,cost_code.ilike.%${options.searchTerm}%,category.ilike.%${options.searchTerm}%`);
+        }
+
+        if (options?.sortBy) {
+            query = query.order(options.sortBy, { ascending: options.sortOrder !== 'desc' });
+        } else {
+            query = query.order('cost_code');
+        }
+
+        if (options?.page !== undefined && options?.pageSize !== undefined) {
+            const from = options.page * options.pageSize;
+            const to = from + options.pageSize - 1;
+            query = query.range(from, to);
+        }
+
+        const { data, error, count } = await query;
+        if (error) throw error;
+        return { data: data as SeamlessConciergeCostItem[], count: count || 0 };
+    }
+
+    static async getSeamlessConciergeCostItem(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { data, error } = await dbClient.from('seamless_concierge_cost_items').select('*').eq('id', id).single();
+        if (error) throw error;
+        return data as SeamlessConciergeCostItem;
+    }
+
+    static async saveSeamlessConciergeCostItem(item: SeamlessConciergeCostItem, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { id, created_at, updated_at, ...itemData } = item;
+
+        const payload = {
+            ...itemData,
+            updated_at: new Date().toISOString()
+        };
+
+        let savedId = id;
+        if (id) {
+            const { error } = await dbClient.from('seamless_concierge_cost_items').update(payload).eq('id', id);
+            if (error) throw error;
+        } else {
+            const { data, error } = await dbClient.from('seamless_concierge_cost_items').insert([payload]).select().single();
+            if (error) throw error;
+            savedId = data.id;
+        }
+        return savedId;
+    }
+
+    static async deleteSeamlessConciergeCostItem(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { error } = await dbClient.from('seamless_concierge_cost_items').delete().eq('id', id);
         if (error) throw error;
         return true;
     }

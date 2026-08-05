@@ -38,7 +38,7 @@ import {
   Play,
   Settings as SettingsIcon,
   HelpCircle,
-  Map,
+  Map as MapIcon,
   ShieldCheck,
   CalendarDays,
   Loader2,
@@ -146,6 +146,11 @@ import {
   deleteSupplierPaymentAction,
   deleteSupplierInvoiceAction,
   getExchangeRateAction,
+  lockTourUsdBuyingRateAction,
+  getSeamlessConciergeCostItemsAction,
+  getTourConciergesAction,
+  saveTourConciergesAction,
+  getItineraryDatesAction,
   createVendorBookingAction,
   confirmFinalVendorBookingAction,
   cancelVendorBookingAction,
@@ -179,6 +184,8 @@ import {
   deleteDailyActivityAction,
   saveCustomHotelItemAction
 } from '@/actions/admin.actions';
+import { SaveTourConciergeItemDTO } from '@/dtos/tour-concierge.dto';
+import { MasterDataService, SeamlessConciergeCostItem } from '@/services/master-data.service';
 import {
   syncMissingActivitiesToPOBlocksAction,
   initializeDefaultBlocksAction,
@@ -2182,6 +2189,7 @@ function PlannerWizardWorkspace() {
   const [sharedEmails, setSharedEmails] = useState<TourSharedEmail[]>([]);
   const [rfqEmails, setRfqEmails] = useState<TourRfqEmail[]>([]);
   const [rfpEmails, setRfpEmails] = useState<TourRfpEmail[]>([]);
+  const [dayToItinIdMap, setDayToItinIdMap] = useState<Record<number, string>>({});
   const [expandedHotelHistory, setExpandedHotelHistory] = useState<Record<string, boolean>>({});
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
 
@@ -2534,7 +2542,14 @@ function PlannerWizardWorkspace() {
       icon: Compass
     },
     {
+      id: 'concierge-config',
+      label: 'Concierge Configuration',
+      description: 'Select applicable concierge services and adjust unit costs and quantities for the tour.',
+      icon: Sparkles
+    },
+    {
       id: 'ai-builder',
+      label: 'AI Itinerary Builder',
       label: 'AI Itinerary Builder',
       description: 'Generate a smart AI-powered skeleton draft itinerary optimized for routing.',
       icon: BrainCircuit,
@@ -2974,8 +2989,49 @@ function PlannerWizardWorkspace() {
             getTourDailyDriversAction(activeTourId),
             getTourDailyTransportsAction(activeTourId),
             getTourDailyVehiclesAction(activeTourId),
-            getTourItineraryCountAction(activeTourId)
+            getTourItineraryCountAction(activeTourId),
+            getSeamlessConciergeCostItemsAction({ pageSize: 100 }),
+            getTourConciergesAction(activeTourId)
           ]);
+
+          if (arguments.length === 0 || arguments) {
+            const concItemsRes = await getSeamlessConciergeCostItemsAction({ pageSize: 100 });
+            const savedConcRes = activeTourId ? await getTourConciergesAction(activeTourId) : { items: [] };
+            const itinDatesRes = activeTourId ? await getItineraryDatesAction(activeTourId) : { dayToItinIdMap: {} };
+
+            if (itinDatesRes?.dayToItinIdMap) {
+              setDayToItinIdMap(itinDatesRes.dayToItinIdMap);
+            }
+
+            const activeItems = concItemsRes?.success && concItemsRes.items
+              ? concItemsRes.items.filter((i: any) => i.is_active !== false)
+              : [];
+            setAvailableConciergeCostItems(activeItems);
+
+            const savedConcierges = savedConcRes?.success && savedConcRes.items ? savedConcRes.items : [];
+            const defaultPax = touristRes?.data ? (Number(touristRes.data.adults || 0) + Number(touristRes.data.children || 0)) || 1 : 1;
+
+            const conciergeMap = new Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
+            activeItems.forEach((item: any) => {
+              const saved = savedConcierges.find((s: any) => s.concierge_cost_item_id === item.id);
+              if (saved) {
+                conciergeMap.set(item.id, {
+                  selected: true,
+                  quantity: Number(saved.quantity) > 0 ? Number(saved.quantity) : defaultPax,
+                  cost: saved.cost !== null && saved.cost !== undefined ? Number(saved.cost) : Number(item.default_cost || 0),
+                  tour_itinerary_id: saved.tour_itinerary_id || null
+                });
+              } else {
+                conciergeMap.set(item.id, {
+                  selected: false,
+                  quantity: defaultPax,
+                  cost: Number(item.default_cost || 0),
+                  tour_itinerary_id: null
+                });
+              }
+            });
+            setSelectedTourConcierges(conciergeMap);
+          }
 
           if (dailyDriversRes?.success && dailyDriversRes.drivers) {
             const driverMap: Record<number, TourDailyDriverDTO[]> = {};
@@ -3021,6 +3077,9 @@ function PlannerWizardWorkspace() {
           if (tourRes.success && tourRes.data) {
             const fullTripData = tourRes.data.tripData as TripData;
             const tourTravelStyle = tourRes.data.tourMsg?.travel_style;
+            if (tourRes.data.tourMsg?.usd_lkr_buying_rate) {
+              setTourLockedBuyingRate(Number(tourRes.data.tourMsg.usd_lkr_buying_rate));
+            }
             if (tourTravelStyle && fullTripData.profile) {
               fullTripData.profile.travelStyle = tourTravelStyle as TravelStyle;
             }
@@ -3220,6 +3279,7 @@ function PlannerWizardWorkspace() {
           const localBasicSteps = [
             'tourist-data',
             'activity-selection',
+            'concierge-config',
             'ai-builder',
             'share-tourist'
           ];
@@ -3775,12 +3835,37 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  // Concierge Configuration state
+  const [availableConciergeCostItems, setAvailableConciergeCostItems] = useState<SeamlessConciergeCostItem[]>([]);
+  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { selected: boolean; quantity: number; cost: number }>>(new Map());
+  const [conciergeSearchQuery, setConciergeSearchQuery] = useState<string>('');
+  const [conciergeCategoryFilter, setConciergeCategoryFilter] = useState<string>('All');
+
   const [defaultUsdLkrRate, setDefaultUsdLkrRate] = useState<number>(300);
+  const [tourLockedBuyingRate, setTourLockedBuyingRate] = useState<number | null>(null);
 
   // Profit & Loss Analysis states & calculations
   const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(false);
 
   const profitLossReport = useMemo(() => {
+    // Helper functions for currency conversion
+    const getPaymentAmountInUSD = (p: any) => {
+      const amt = Number(p.amount) || 0;
+      if (amt === 0) return 0;
+      const currency = p.currency || 'USD';
+      if (currency === 'USD') return amt;
+      const rate = Number(p.exchange_rate);
+      const effectiveRate = (rate && rate > 1.0) ? rate : (tourLockedBuyingRate || defaultUsdLkrRate || 300);
+      return effectiveRate > 0 ? amt / effectiveRate : amt;
+    };
+
+    const getInvoiceItemAmountInUSD = (item: any, exchangeRate: number, currency: string) => {
+      const total = (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
+      if (currency === 'USD') return total;
+      if (currency === 'LKR') return exchangeRate > 0 ? total / exchangeRate : total;
+      return total;
+    };
+
     // 1. Calculate allocated customer invoice details for each activity first
     const activityCustomerBilling = new globalThis.Map<string, { invoicedUSD: number; paidUSD: number }>();
 
@@ -3788,7 +3873,7 @@ function PlannerWizardWorkspace() {
       if (inv.status === 'Cancelled') return;
       const items = inv.items || [];
       const payments = inv.payments || [];
-      const totalPaidCust = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      const totalPaidCust = payments.reduce((sum: number, p: any) => sum + getPaymentAmountInUSD(p), 0);
       const invoiceTotal = inv.amount || 1.0;
 
       items.forEach((item: any) => {
@@ -3811,23 +3896,7 @@ function PlannerWizardWorkspace() {
           });
         });
       });
-    });
-
-    // Helper functions for currency conversion
-    const getPaymentAmountInUSD = (p: any) => {
-      const amt = Number(p.amount) || 0;
-      const rate = Number(p.exchange_rate) || 1.0;
-      if (p.currency === 'USD') return amt;
-      if (p.currency === 'LKR') return rate > 0 ? amt / rate : amt;
-      return amt;
-    };
-
-    const getInvoiceItemAmountInUSD = (item: any, exchangeRate: number, currency: string) => {
-      const total = (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
-      if (currency === 'USD') return total;
-      if (currency === 'LKR') return exchangeRate > 0 ? total / exchangeRate : total;
-      return total;
-    };    // 2. Map Supplier side (Daily Activities + Driver Selection assignments)
+    });    // 2. Map Supplier side (Daily Activities + Driver Selection assignments)
     const supplierPLItems: ProfitLossLineItem[] = dbActivities
       .filter(da => da.activity_type !== 'driver' && da.activity_type !== 'travel')
       .map(da => {
@@ -4401,6 +4470,68 @@ function PlannerWizardWorkspace() {
       });
     }
 
+    // 2e. Map Concierge line items
+    if (selectedTourConcierges && availableConciergeCostItems) {
+      selectedTourConcierges.forEach((val, itemId) => {
+        if (!val.selected) return;
+        const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+        if (!costObj) return;
+
+        const costingBasis = (costObj.costing_basis || '').toLowerCase();
+        const isDailyBasis = costingBasis.includes('day') || costingBasis.includes('daily');
+        const isDaySpecific = !!val.tour_itinerary_id;
+
+        let totalQty = val.quantity || 1;
+        let dayNum = 1;
+        let title = `Concierge: ${costObj.title}`;
+
+        if (isDaySpecific) {
+          const itin = itinerary.find(it => it.id === val.tour_itinerary_id);
+          dayNum = itin?.dayIndex || 1;
+          title = `Concierge (Day ${dayNum}): ${costObj.title}`;
+        } else if (isDailyBasis) {
+          totalQty = (val.quantity || 1) * Math.max(1, numDaysInTour);
+          title = `Concierge (Daily x${numDaysInTour} days): ${costObj.title}`;
+        }
+
+        const contractedTotal = (val.cost || 0) * totalQty;
+        const chargedTotal = contractedTotal;
+
+        supplierPLItems.push({
+          dailyActivityId: `concierge-${itemId}-${val.tour_itinerary_id || 'trip'}`,
+          dayNumber: dayNum,
+          date: null,
+          title,
+          vendorName: 'Seamless Concierge',
+          vendorType: 'other',
+          quantity: totalQty,
+          contractedPrice: val.cost || 0,
+          contractedTotal,
+          chargedPrice: val.cost || 0,
+          chargedTotal,
+          invoicedQty: 0,
+          invoicedUnitPrice: 0,
+          invoicedTotal: 0,
+          invoicedDiscrepancy: -contractedTotal,
+          margin: 0,
+          marginPercentage: 0,
+          poNumber: null,
+          supplierInvoiceNumber: null,
+          supplierInvoiceCurrency: costObj.currency || 'USD',
+          supplierInvoiceRate: null,
+          vendorPhone: null,
+          vendorEmail: null,
+          reservationContactName: null,
+          reservationContactPhone: null,
+          reservationContactEmail: null,
+          salesContactName: null,
+          salesContactPhone: null,
+          salesContactEmail: null,
+          hasDiscrepancy: false
+        });
+      });
+    }
+
     supplierPLItems.sort((a, b) => {
       if (a.dayNumber !== b.dayNumber) {
         return a.dayNumber - b.dayNumber;
@@ -4414,7 +4545,7 @@ function PlannerWizardWorkspace() {
       .flatMap(inv => {
         const items = inv.items || [];
         const payments = inv.payments || [];
-        const totalPaidCust = payments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+        const totalPaidCust = payments.reduce((sum: number, p: any) => sum + getPaymentAmountInUSD(p), 0);
         const invoiceTotal = inv.amount || 1.0;
 
         return items.map((item: any) => {
@@ -4469,10 +4600,16 @@ function PlannerWizardWorkspace() {
     // 4. Summaries
     const totalCustomerAgreed = supplierPLItems.reduce((sum, item) => sum + item.chargedTotal, 0);
     const totalCustomerInvoiced = customerPLItems.reduce((sum, item) => sum + item.invoicedAmount, 0);
-    const totalCustomerPaid = customerInvoices
+
+    const invoicePaidUSD = customerInvoices
       .filter(inv => inv.status !== 'Cancelled')
       .flatMap(inv => inv.payments || [])
-      .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      .reduce((sum: number, p: any) => sum + getPaymentAmountInUSD(p), 0);
+
+    const advancePaidUSD = (customerAdvancePayments || [])
+      .reduce((sum: number, p: any) => sum + getPaymentAmountInUSD(p), 0);
+
+    const totalCustomerPaid = invoicePaidUSD + advancePaidUSD;
 
     const totalSupplierAgreed = supplierPLItems.reduce((sum, item) => sum + item.contractedTotal, 0);
     const totalSupplierInvoiced = supplierPLItems.reduce((sum, item) => sum + item.invoicedTotal, 0);
@@ -4504,26 +4641,28 @@ function PlannerWizardWorkspace() {
     const netAgreedProfit = totalCustomerAgreed - totalSupplierAgreed;
     const netActualProfit = totalCustomerPaid - totalSupplierPaid;
 
-    // Resolve USD to LKR buying rate of the day of customer payment made
-    let customerPaymentExchangeRate = defaultUsdLkrRate > 0 ? defaultUsdLkrRate : 300;
-    const validAdvRates = (customerAdvancePayments || [])
-      .map((p: any) => Number(p.exchange_rate))
-      .filter((r: number) => r && r > 1.0);
-    if (validAdvRates.length > 0) {
-      customerPaymentExchangeRate = validAdvRates[validAdvRates.length - 1];
-    } else {
-      const validInvRates: number[] = [];
-      (customerInvoices || []).forEach((inv: any) => {
-        (inv.payments || []).forEach((p: any) => {
-          const r = Number(p.exchange_rate);
-          if (r && r > 1.0) validInvRates.push(r);
+    // Resolve USD to LKR buying rate of the tour
+    let customerPaymentExchangeRate = tourLockedBuyingRate || (defaultUsdLkrRate > 0 ? defaultUsdLkrRate : 300);
+    if (!tourLockedBuyingRate) {
+      const validAdvRates = (customerAdvancePayments || [])
+        .map((p: any) => Number(p.exchange_rate))
+        .filter((r: number) => r && r > 1.0);
+      if (validAdvRates.length > 0) {
+        customerPaymentExchangeRate = validAdvRates[validAdvRates.length - 1];
+      } else {
+        const validInvRates: number[] = [];
+        (customerInvoices || []).forEach((inv: any) => {
+          (inv.payments || []).forEach((p: any) => {
+            const r = Number(p.exchange_rate);
+            if (r && r > 1.0) validInvRates.push(r);
+          });
+          if (inv.exchange_rate && Number(inv.exchange_rate) > 1.0) {
+            validInvRates.push(Number(inv.exchange_rate));
+          }
         });
-        if (inv.exchange_rate && Number(inv.exchange_rate) > 1.0) {
-          validInvRates.push(Number(inv.exchange_rate));
+        if (validInvRates.length > 0) {
+          customerPaymentExchangeRate = validInvRates[validInvRates.length - 1];
         }
-      });
-      if (validInvRates.length > 0) {
-        customerPaymentExchangeRate = validInvRates[validInvRates.length - 1];
       }
     }
 
@@ -4544,9 +4683,9 @@ function PlannerWizardWorkspace() {
       customerPLItems,
       plSummary
     };
-  }, [dbActivities, purchaseOrders, customerInvoices, customerAdvancePayments, defaultUsdLkrRate]);
+  }, [dbActivities, purchaseOrders, customerInvoices, customerAdvancePayments, defaultUsdLkrRate, tourLockedBuyingRate]);
 
-  const plRate = profitLossReport.plSummary.customerPaymentExchangeRate || defaultUsdLkrRate || 300;
+  const plRate = tourLockedBuyingRate || profitLossReport.plSummary.customerPaymentExchangeRate || defaultUsdLkrRate || 300;
   const formatLkr = (usd: number) => `LKR ${(usd * plRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const initInvoiceItems = (po: any) => {
@@ -7471,6 +7610,12 @@ ${chauffeurHtml}
 
       if (res.success) {
         alert(isAdvance ? "Advance payment recorded successfully!" : "Payment recorded successfully!");
+        if (tourId) {
+          const lockRes = await lockTourUsdBuyingRateAction(tourId);
+          if (lockRes.success && lockRes.rate) {
+            setTourLockedBuyingRate(lockRes.rate);
+          }
+        }
         setCustomerPaymentInvoiceId(null);
         setShowRecordAdvancePayment(false);
         setCustomerPaymentAmount('');
@@ -7625,6 +7770,20 @@ ${chauffeurHtml}
 
         const res = await saveTourAction(tourId, updatedTripData);
         if (res.success) {
+          if (tourId && selectedTourConcierges) {
+            const conciergePayload: SaveTourConciergeItemDTO[] = [];
+            selectedTourConcierges.forEach((val, key) => {
+              if (val.selected) {
+                conciergePayload.push({
+                  concierge_cost_item_id: key,
+                  quantity: val.quantity > 0 ? val.quantity : 1,
+                  cost: val.cost,
+                  tour_itinerary_id: val.tour_itinerary_id || null
+                });
+              }
+            });
+            await saveTourConciergesAction(tourId, conciergePayload);
+          }
           fetch('/api/debug-log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -8059,7 +8218,7 @@ ${chauffeurHtml}
                   : 'text-neutral-500 hover:text-neutral-800'
                 }`}
             >
-              <Map className="w-3.5 h-3.5" />
+              <MapIcon className="w-3.5 h-3.5" />
               1. Basic Itinerary
             </button>
             <button
@@ -9081,6 +9240,247 @@ ${chauffeurHtml}
 
                     </div>
 
+                  </div>
+                ) : track === 'basic' && currentStep.id === 'concierge-config' ? (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                    {/* Top Header Card */}
+                    <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-6 h-6 text-emerald-800" />
+                          <h3 className="text-xl font-serif font-bold text-neutral-800">Concierge Services Configuration</h3>
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-1">
+                          Select applicable concierge services for this tour package. Customize unit costs and quantities as needed.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                          {Array.from(selectedTourConcierges.values()).filter(v => v.selected).length} Selected
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Search & Category Filter */}
+                    <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-4 top-3.5 text-neutral-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={conciergeSearchQuery}
+                          onChange={(e) => setConciergeSearchQuery(e.target.value)}
+                          placeholder="Search concierge services by code, title, or category..."
+                          className="w-full pl-12 pr-4 py-3 rounded-xl border border-neutral-200 focus:outline-none focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 text-sm bg-neutral-50/30 font-medium"
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {['All', ...Array.from(new Set(availableConciergeCostItems.map(i => i.category))).filter(Boolean)].map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setConciergeCategoryFilter(cat)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                              ${conciergeCategoryFilter === cat
+                                ? 'bg-emerald-800 text-white shadow-sm'
+                                : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600'
+                              }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Concierge Items Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableConciergeCostItems
+                        .filter(item => {
+                          const matchCat = conciergeCategoryFilter === 'All' || item.category === conciergeCategoryFilter;
+                          const query = conciergeSearchQuery.toLowerCase();
+                          const matchQuery = !query || item.title.toLowerCase().includes(query) || item.cost_code.toLowerCase().includes(query) || (item.category && item.category.toLowerCase().includes(query));
+                          return matchCat && matchQuery;
+                        })
+                        .map((item) => {
+                          const state = selectedTourConcierges.get(item.id!) || {
+                            selected: false,
+                            quantity: touristData ? (Number(touristData.adults || 0) + Number(touristData.children || 0)) || 1 : 1,
+                            cost: Number(item.default_cost || 0)
+                          };
+                          const isSelected = state.selected;
+                          const itemTotal = (state.quantity || 0) * (state.cost || 0);
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={`bg-white rounded-3xl p-6 border transition-all flex flex-col justify-between gap-4 hover:shadow-md
+                                ${isSelected
+                                  ? 'border-emerald-800/40 ring-1 ring-emerald-800/20 bg-emerald-50/10'
+                                  : 'border-neutral-200 opacity-90'
+                                }`}
+                            >
+                              <div className="space-y-3">
+                                {/* Header Row */}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-mono font-bold bg-neutral-100 text-neutral-800 px-2.5 py-0.5 rounded-md border border-neutral-200">
+                                        {item.cost_code}
+                                      </span>
+                                      <span className="text-[10px] uppercase tracking-wider font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                                        {item.category}
+                                      </span>
+                                      <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md border ${
+                                        (item.costing_basis || '').toLowerCase().includes('day') || (item.costing_basis || '').toLowerCase().includes('daily')
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                          : 'bg-blue-50 text-blue-700 border-blue-200/50'
+                                      }`}>
+                                        {(item.costing_basis || '').toLowerCase().includes('day') || (item.costing_basis || '').toLowerCase().includes('daily')
+                                          ? '📅 Daily Recurring Item'
+                                          : `🌐 ${item.costing_basis}`}
+                                      </span>
+                                    </div>
+                                    <h4 className="text-base font-serif font-bold text-neutral-800 pt-1">{item.title}</h4>
+                                  </div>
+
+                                  {/* Toggle Switch */}
+                                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        const newMap = new Map(selectedTourConcierges);
+                                        newMap.set(item.id!, {
+                                          ...state,
+                                          selected: e.target.checked
+                                        });
+                                        setSelectedTourConcierges(newMap);
+                                      }}
+                                      className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-800"></div>
+                                  </label>
+                                </div>
+
+                                {/* Details Description */}
+                                {item.details && (
+                                  <p className="text-xs text-neutral-500 font-medium leading-relaxed">
+                                    {item.details}
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Editable Quantity & Cost Section */}
+                              <div className="pt-3 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                  {/* Quantity Input */}
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Quantity</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      disabled={!isSelected}
+                                      value={state.quantity}
+                                      onChange={(e) => {
+                                        const val = Math.max(1, parseFloat(e.target.value) || 1);
+                                        const newMap = new Map(selectedTourConcierges);
+                                        newMap.set(item.id!, { ...state, quantity: val });
+                                        setSelectedTourConcierges(newMap);
+                                      }}
+                                      className="w-20 px-2.5 py-1.5 text-xs font-mono font-bold text-neutral-800 border border-neutral-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-800 disabled:bg-neutral-100 disabled:opacity-50"
+                                    />
+                                  </div>
+
+                                  {/* Unit Cost Input */}
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Unit Cost ({item.currency || 'USD'})</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      disabled={!isSelected}
+                                      value={state.cost}
+                                      onChange={(e) => {
+                                        const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                        const newMap = new Map(selectedTourConcierges);
+                                        newMap.set(item.id!, { ...state, cost: val });
+                                        setSelectedTourConcierges(newMap);
+                                      }}
+                                      className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-neutral-800 border border-neutral-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-800 disabled:bg-neutral-100 disabled:opacity-50"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Line Total */}
+                                <div className="text-right">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Line Unit Cost</span>
+                                  <span className={`text-sm font-mono font-bold ${isSelected ? 'text-emerald-800' : 'text-neutral-400'}`}>
+                                    ${itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    {/* Footer Summary & Save Bar */}
+                    <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-lg flex flex-wrap items-center justify-between gap-4 sticky bottom-6 z-20">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Estimated Concierge Total:</span>
+                          {(() => {
+                            const tourDaysCount = touristData?.preferences?.duration_days || itinerary.length || 5;
+                            let totalUSD = 0;
+                            selectedTourConcierges.forEach((val, itemId) => {
+                              if (!val.selected) return;
+                              const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+                              const cb = (costObj?.costing_basis || '').toLowerCase();
+                              const isDaily = cb.includes('day') || cb.includes('daily');
+                              const lineCost = (val.quantity || 0) * (val.cost || 0);
+                              totalUSD += isDaily ? lineCost * tourDaysCount : lineCost;
+                            });
+
+                            return (
+                              <>
+                                <span className="text-xl font-mono font-extrabold text-emerald-900">
+                                  ${totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                <span className="text-xs font-mono text-neutral-400">
+                                  (≈ LKR {(totalUSD * plRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                </span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={async () => {
+                            if (tourId) {
+                              const selectedItems: SaveTourConciergeItemDTO[] = [];
+                              selectedTourConcierges.forEach((val, key) => {
+                                if (val.selected) {
+                                  selectedItems.push({
+                                    concierge_cost_item_id: key,
+                                    quantity: val.quantity > 0 ? val.quantity : 1,
+                                    cost: val.cost,
+                                    tour_itinerary_id: val.tour_itinerary_id || null
+                                  });
+                                }
+                              });
+                              await saveTourConciergesAction(tourId, selectedItems);
+                            }
+                            const aiBuilderIdx = basicSteps.findIndex(s => s.id === 'ai-builder');
+                            handleStepClick(aiBuilderIdx !== -1 ? aiBuilderIdx : 3);
+                          }}
+                          className="bg-emerald-800 hover:bg-emerald-900 text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-md hover:shadow-lg text-xs uppercase tracking-wider"
+                        >
+                          Save & Proceed to AI Builder <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'element-selection' ? (
                   <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -15598,6 +15998,8 @@ ${chauffeurHtml}
                                 setCustomerPaymentCurrency(e.target.value);
                                 if (e.target.value === 'USD') {
                                   setCustomerPaymentExchangeRate('1.0');
+                                } else if (e.target.value === 'LKR') {
+                                  setCustomerPaymentExchangeRate((tourLockedBuyingRate || defaultUsdLkrRate || 300).toString());
                                 }
                               }}
                               className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
@@ -15984,10 +16386,7 @@ ${chauffeurHtml}
                         {customerInvoices.map((inv) => {
                           const isExpanded = expandedInvoiceId === inv.id;
                           const totalPaid = (inv.payments || []).reduce((sum: number, p: any) => {
-                            const amt = Number(p.amount) || 0;
-                            const rate = Number(p.exchange_rate) || 1.0;
-                            const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
-                            return sum + usd;
+                            return sum + getPaymentAmountInUSD(p);
                           }, 0);
                           const remainingBalance = Math.max(0, inv.amount - totalPaid);
 
@@ -16219,6 +16618,8 @@ ${chauffeurHtml}
                                           setCustomerPaymentCurrency(e.target.value);
                                           if (e.target.value === 'USD') {
                                             setCustomerPaymentExchangeRate('1.0');
+                                          } else if (e.target.value === 'LKR') {
+                                            setCustomerPaymentExchangeRate((tourLockedBuyingRate || defaultUsdLkrRate || 300).toString());
                                           }
                                         }}
                                         className="w-full bg-white border border-neutral-200 rounded-xl p-2.5 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
@@ -16403,7 +16804,8 @@ ${chauffeurHtml}
                                               const pax = adults + children;
                                               const durationDays = touristData?.preferences?.duration_days ?? 5;
 
-                                              const conciergeTotal = pax * conciergeCostPerHead * durationDays;
+                                              const selectedConciergesSum = Array.from(selectedTourConcierges.values()).filter(v => v.selected).reduce((sum, c) => sum + (Number(c.cost || 0) * Number(c.quantity || 1)), 0);
+                                              const conciergeTotal = selectedTourConcierges.size > 0 ? selectedConciergesSum : (pax * conciergeCostPerHead * durationDays);
                                               const agencyFeePart = Math.max(0, item.amount - conciergeTotal);
 
                                               if (conciergeTotal > 0) {
@@ -16750,11 +17152,11 @@ ${chauffeurHtml}
                             <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3 py-1 rounded-xl text-xs font-bold font-mono shadow-2xs">
                               <Coins className="w-3.5 h-3.5 text-emerald-700" />
                               1 USD = LKR {plRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              <span className="text-[10px] text-emerald-700 font-normal ml-0.5">(Customer Payment Day Rate)</span>
+                              <span className="text-[10px] text-emerald-700 font-normal ml-0.5">({tourLockedBuyingRate ? 'Tour Locked Bank Buying Rate' : 'Sri Lanka Bank TT Buying Rate'})</span>
                             </span>
                           </div>
                           <p className="text-xs text-neutral-400 mt-1">
-                            Auditing actual revenue, vendor expenses, invoice differences, and transaction payslips. All USD figures converted using USD/LKR buying rate of customer payment date.
+                            Auditing actual revenue, vendor expenses, invoice differences, and transaction payslips. All USD figures converted using official Sri Lanka Bank USD TT buying rate.
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -17434,6 +17836,12 @@ ${chauffeurHtml}
                     handleAssignDefaultDriverToAllDays={handleAssignDefaultDriverToAllDays}
                     handleUpdateDailyDriverField={handleUpdateDailyDriverField}
                     dbActivities={dbActivities}
+                    availableConciergeCostItems={availableConciergeCostItems}
+                    selectedTourConcierges={selectedTourConcierges}
+                    setSelectedTourConcierges={setSelectedTourConcierges}
+                    conciergeSearchQuery={conciergeSearchQuery}
+                    setConciergeSearchQuery={setConciergeSearchQuery}
+                    dayToItinIdMap={dayToItinIdMap}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
                   <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
@@ -21696,6 +22104,454 @@ ${chauffeurHtml}
           );
         })()}
 
+        {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && mounted && createPortal((() => {
+          const isGlobal = isGlobalTransportReqEdit;
+          const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
+          const targetId = isGlobal ? null : selectedTransportBlock!.id;
+
+          return (
+            <div className="fixed inset-0 z-[99999] overflow-y-auto flex items-center justify-center p-4">
+              {/* Click-away backdrop overlay */}
+              <div
+                className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm"
+                onClick={() => {
+                  setShowTransportReqModal(false);
+                  setIsGlobalTransportReqEdit(false);
+                  setSelectedTransportBlock(null);
+                  setGlobalTransportReq(null);
+                  setModalTriggerRect(null);
+                  setReqShowVehiclePicker(false);
+                  setReqVehiclesLoading(false);
+                }}
+              />
+
+              <div
+                className="bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-[100000] w-full max-w-lg max-h-[90vh] relative"
+              >
+                {/* Modal Header */}
+                <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-serif font-bold text-neutral-850">
+                      {isGlobal ? 'Global Itinerary Transport Specifications' : 'Transport Specifications & Requirements'}
+                    </h3>
+                    <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                      {isGlobal ? 'Applies to all unconfigured transport blocks' : `Block: ${selectedTransportBlock?.name || 'Transport'}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowTransportReqModal(false);
+                      setIsGlobalTransportReqEdit(false);
+                      setSelectedTransportBlock(null);
+                      setGlobalTransportReq(null);
+                      setModalTriggerRect(null);
+                      setReqShowVehiclePicker(false);
+                      setReqVehiclesLoading(false);
+                    }}
+                    className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-150/50 rounded-xl transition-all cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                  {/* Scope Selector */}
+                  {!isGlobal && (
+                    <div className="bg-neutral-50/80 p-3 rounded-2xl border border-neutral-200/60 flex items-center justify-between gap-4">
+                      <span className="text-xs font-bold text-neutral-700">Apply Scope</span>
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-neutral-200 shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => setApplyScope('current')}
+                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${applyScope === 'current' ? 'bg-emerald-800 text-white shadow-xs' : 'text-neutral-500 hover:text-neutral-800'}`}
+                        >
+                          This Block Only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setApplyScope('all')}
+                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${applyScope === 'all' ? 'bg-emerald-800 text-white shadow-xs' : 'text-neutral-500 hover:text-neutral-800'}`}
+                        >
+                          All Day {selectedTransportBlock?.dayNumber} Blocks
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 1. Chauffeur & Drivers Toggle */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Chauffeur & Driver Options</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.chauffeur_required !== false}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_required: val }));
+                            else updateSelectedTransportRequirement('chauffeur_required', val);
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
+                        />
+                        <span className="text-xs font-bold text-neutral-700">Chauffeur Required</span>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
+                        <input
+                          type="checkbox"
+                          checked={reqObj.chauffeur_speak_english !== false}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_speak_english: val }));
+                            else updateSelectedTransportRequirement('chauffeur_speak_english', val);
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
+                        />
+                        <span className="text-xs font-bold text-neutral-700">English Speaking</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(reqObj.chauffeur_accommodation_needed)}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_accommodation_needed: val }));
+                            else updateSelectedTransportRequirement('chauffeur_accommodation_needed', val);
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
+                        />
+                        <span className="text-xs font-bold text-neutral-700">Driver Accommodation Needed</span>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(reqObj.chauffeur_meal_needed)}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_meal_needed: val }));
+                            else updateSelectedTransportRequirement('chauffeur_meal_needed', val);
+                          }}
+                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
+                        />
+                        <span className="text-xs font-bold text-neutral-700">Driver Meal Needed</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Other Languages Required</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. German, French, Mandarin..."
+                        value={reqObj.chauffeur_other_languages || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_other_languages: val }));
+                          else updateSelectedTransportRequirement('chauffeur_other_languages', val);
+                        }}
+                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-neutral-50/50 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 2. Vehicle Requirements & Pickers */}
+                  <div className="space-y-3 pt-2 border-t border-neutral-100">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Vehicle Specifications & Models</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReqShowVehiclePicker(!reqShowVehiclePicker);
+                          if (!reqShowVehiclePicker && reqPickedVehicles.length === 0 && selectedTransportBlock) {
+                            // Seed from existing transport requirement if present
+                            const existing = selectedTransportBlock.transport_requirement?.assigned_vehicles || [];
+                            if (existing.length > 0) setReqPickedVehicles(existing);
+                          }
+                        }}
+                        className="text-[10px] font-black text-emerald-800 hover:text-emerald-950 uppercase tracking-wider border border-emerald-200/60 bg-emerald-50/60 px-2.5 py-1 rounded-lg transition-all"
+                      >
+                        {reqShowVehiclePicker ? 'Hide Fleet Picker' : '+ Select Vehicles from Master Fleet'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Preferred Vehicle Type</label>
+                        <select
+                          value={reqObj.vehicle_type || 'SUV'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, vehicle_type: val }));
+                            else updateSelectedTransportRequirement('vehicle_type', val);
+                          }}
+                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-neutral-50/50 font-bold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                        >
+                          <option value="Sedan">Luxury Sedan</option>
+                          <option value="SUV">Luxury SUV</option>
+                          <option value="Van">Executive Van / Minibus</option>
+                          <option value="Bus">Luxury Coach Bus</option>
+                          <option value="Armored">Armored Vehicle</option>
+                          <option value="Helicopter">Helicopter / Air Transfer</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Fuel & Transmission</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={reqObj.fuel_type || 'Diesel'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, fuel_type: val }));
+                              else updateSelectedTransportRequirement('fuel_type', val);
+                            }}
+                            className="w-full text-[11px] border border-neutral-200 rounded-xl px-2 py-2 bg-neutral-50/50 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                          >
+                            <option value="Diesel">Diesel</option>
+                            <option value="Petrol">Petrol</option>
+                            <option value="Hybrid">Hybrid</option>
+                            <option value="EV">Electric (EV)</option>
+                          </select>
+
+                          <select
+                            value={reqObj.transmission_type || 'Automatic'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, transmission_type: val }));
+                              else updateSelectedTransportRequirement('transmission_type', val);
+                            }}
+                            className="w-full text-[11px] border border-neutral-200 rounded-xl px-2 py-2 bg-neutral-50/50 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                          >
+                            <option value="Automatic">Automatic</option>
+                            <option value="Manual">Manual</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Master Vehicle Fleet Search & Multi-Picker Drawer */}
+                    {reqShowVehiclePicker && (
+                      <div className="bg-neutral-50 border border-neutral-200 p-4 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-neutral-700 uppercase tracking-wider">Select Vehicles from Master Data</span>
+                          <span className="text-[10px] text-neutral-400">Filter by provider or model</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Filter vehicle make/model..."
+                            value={reqVehicleSearchMake}
+                            onChange={(e) => setReqVehicleSearchMake(e.target.value)}
+                            className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                          />
+                          <input
+                            type="number"
+                            placeholder="Min Year (e.g. 2020)..."
+                            value={reqVehicleSearchMinYear}
+                            onChange={(e) => setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value) || '' : '')}
+                            className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                          />
+                        </div>
+
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 border border-neutral-100 rounded-xl bg-white p-2">
+                          {masterData.transportVehicles?.filter((v: any) => {
+                            if (reqVehicleSearchMake && !([v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase())) return false;
+                            if (reqVehicleSearchMinYear && v.year_of_manufacture && v.year_of_manufacture < reqVehicleSearchMinYear) return false;
+                            return true;
+                          }).map((vehicle: any) => {
+                            const provider = masterData.transportProviders?.find((p: any) => p.id === vehicle.provider_id) || { name: 'Unknown Fleet Provider' };
+                            const vehicleName = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model || vehicle.vehicle_type || 'Vehicle';
+                            const alreadyPicked = reqPickedVehicles.find(pv => pv.vehicleId === vehicle.id);
+
+                            return (
+                              <div key={vehicle.id} className={`p-2 rounded-xl border text-xs transition-all ${alreadyPicked ? 'bg-emerald-50/60 border-emerald-200' : 'bg-white border-neutral-100 hover:border-neutral-200'}`}>
+                                <div className="flex items-start gap-2">
+                                  <input
+                                    type="checkbox"
+                                    id={`vpick-${vehicle.id}`}
+                                    checked={Boolean(alreadyPicked)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setReqPickedVehicles(prev => [...prev, { vehicleId: vehicle.id, vehicleName, providerName: provider.name, quantity: 1, notes: '' }]);
+                                      } else {
+                                        setReqPickedVehicles(prev => prev.filter(pv => pv.vehicleId !== vehicle.id));
+                                      }
+                                    }}
+                                    className="mt-0.5 w-3.5 h-3.5 rounded text-emerald-800 border-neutral-300 flex-shrink-0"
+                                  />
+                                  <label htmlFor={`vpick-${vehicle.id}`} className="flex-1 cursor-pointer min-w-0">
+                                    <p className="text-[11px] font-bold text-neutral-800 leading-tight">{vehicleName}</p>
+                                    <p className="text-[10px] text-neutral-400">{provider.name}{vehicle.vehicle_number ? ` \u00b7 ${vehicle.vehicle_number}` : ''}{vehicle.year_of_manufacture ? ` \u00b7 ${vehicle.year_of_manufacture}` : ''}</p>
+                                  </label>
+                                </div>
+                                {alreadyPicked && (
+                                  <div className="mt-2 ml-6 grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Qty</label>
+                                      <input
+                                        type="number" min={1}
+                                        value={alreadyPicked.quantity}
+                                        onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, quantity: parseInt(e.target.value) || 1 } : pv))}
+                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Note</label>
+                                      <input
+                                        type="text" placeholder="Optional note..."
+                                        value={alreadyPicked.notes}
+                                        onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, notes: e.target.value } : pv))}
+                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {reqPickedVehicles.length > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">{reqPickedVehicles.length} Vehicle{reqPickedVehicles.length > 1 ? 's' : ''} Selected</span>
+                        {reqPickedVehicles.map(pv => (
+                          <div key={pv.vehicleId} className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-bold text-emerald-900 truncate">{pv.vehicleName}</p>
+                              <p className="text-[10px] text-emerald-600">{pv.providerName} · Qty: {pv.quantity}{pv.notes ? ` · ${pv.notes}` : ''}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReqPickedVehicles(prev => prev.filter(x => x.vehicleId !== pv.vehicleId))}
+                              className="ml-2 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* 3. Additional Special Instructions */}
+                  <div className="space-y-1 pt-2 border-t border-neutral-100">
+                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Special Logistics Notes</label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. VIP Meet & Greet at BIA runway, baby seat required..."
+                      value={reqObj.special_instructions || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, special_instructions: val }));
+                        else updateSelectedTransportRequirement('special_instructions', val);
+                      }}
+                      className="w-full text-xs border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
+                    />
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/30">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTransportReqModal(false);
+                      setIsGlobalTransportReqEdit(false);
+                      setSelectedTransportBlock(null);
+                      setGlobalTransportReq(null);
+                      setModalTriggerRect(null);
+                      setReqShowVehiclePicker(false);
+                      setReqVehiclesLoading(false);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-all"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isGlobal) {
+                        // Apply global specs to all unconfigured or active transport blocks
+                        setItinerary(prev => prev.map(b => {
+                          if (b.type === ItineraryBlockTypes.TRAVEL) {
+                            return {
+                              ...b,
+                              transport_requirement: {
+                                ...(b.transport_requirement || {}),
+                                ...globalTransportReq,
+                                assigned_vehicles: reqPickedVehicles.length > 0 ? reqPickedVehicles : (b.transport_requirement?.assigned_vehicles || [])
+                              }
+                            };
+                          }
+                          return b;
+                        }));
+                      } else if (selectedTransportBlock) {
+                        const updatedReq = {
+                          ...(selectedTransportBlock.transport_requirement || {}),
+                          assigned_vehicles: reqPickedVehicles
+                        };
+
+                        if (applyScope === 'all') {
+                          // Apply to all transport blocks on this day
+                          const dayNum = selectedTransportBlock.dayNumber;
+                          setItinerary(prev => prev.map(b => {
+                            if (b.dayNumber === dayNum && b.type === ItineraryBlockTypes.TRAVEL) {
+                              return {
+                                ...b,
+                                transport_requirement: {
+                                  ...(b.transport_requirement || {}),
+                                  ...updatedReq
+                                }
+                              };
+                            }
+                            return b;
+                          }));
+                        } else {
+                          // Apply to current block only
+                          setItinerary(prev => prev.map(b => {
+                            if (b.id === selectedTransportBlock.id) {
+                              return {
+                                ...b,
+                                transport_requirement: updatedReq
+                              };
+                            }
+                            return b;
+                          }));
+                        }
+                      }
+
+                      setShowTransportReqModal(false);
+                      setIsGlobalTransportReqEdit(false);
+                      setSelectedTransportBlock(null);
+                      setGlobalTransportReq(null);
+                      setModalTriggerRect(null);
+
+                      // Reset picker state
+                      setReqPickedVehicles([]);
+                      setReqShowVehiclePicker(false);
+                      setReqVehicleSearchMake('');
+                      setReqVehicleSearchMinYear('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold transition-all shadow-sm"
+                  >
+                    Save Specs
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          );
+        })(), document.body)}
+
       </div>
     </div>
   );
@@ -21775,6 +22631,12 @@ interface AIItineraryBuilderProps {
   handleAssignDefaultDriverToAllDays: (driverId: string) => void;
   handleUpdateDailyDriverField: (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => void;
   dbActivities: any[];
+  availableConciergeCostItems: SeamlessConciergeCostItem[];
+  selectedTourConcierges: Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>;
+  setSelectedTourConcierges: React.Dispatch<React.SetStateAction<Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>>;
+  conciergeSearchQuery: string;
+  setConciergeSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  dayToItinIdMap?: Record<number, string>;
 }
 
 function AIItineraryBuilder({
@@ -21846,8 +22708,19 @@ function AIItineraryBuilder({
   setDailyVehicleAssignments,
   handleAssignDefaultDriverToAllDays,
   handleUpdateDailyDriverField,
-  dbActivities
+  dbActivities,
+  availableConciergeCostItems,
+  selectedTourConcierges,
+  setSelectedTourConcierges,
+  conciergeSearchQuery,
+  setConciergeSearchQuery,
+  dayToItinIdMap = {}
 }: AIItineraryBuilderProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [activeDay, setActiveDay] = useState<number>(1);
   const [editingDayField, setEditingDayField] = useState<{ dayNum: number; field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent' | 'agencyFee' } | null>(null);
   const [editingDayValue, setEditingDayValue] = useState<string>('');
@@ -21855,7 +22728,7 @@ function AIItineraryBuilder({
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [openCommentsBlockId, setOpenCommentsBlockId] = useState<string | null>(null);
 
-  const [allocationModal, setAllocationModal] = useState<'drivers' | 'transports' | 'vehicles' | null>(null);
+  const [allocationModal, setAllocationModal] = useState<'drivers' | 'transports' | 'vehicles' | 'concierges' | null>(null);
   const [tempDrivers, setTempDrivers] = useState<TourDailyDriverDTO[]>([]);
   const [tempTransports, setTempTransports] = useState<TourDailyTransportDTO[]>([]);
   const [tempVehicles, setTempVehicles] = useState<TourDailyVehicleDTO[]>([]);
@@ -21900,6 +22773,10 @@ function AIItineraryBuilder({
     })));
     setVehicleProviderSearch('');
     setAllocationModal('vehicles');
+  };
+
+  const openConciergesModal = () => {
+    setAllocationModal('concierges');
   };
 
   const saveDriversModal = async () => {
@@ -23818,22 +24695,6 @@ function AIItineraryBuilder({
               Guide Needed
             </label>
           </div>
-          {/* Chauffeur Needed checkbox */}
-          <div className="flex items-center gap-3 sm:pt-4 md:pt-5">
-            <div className="relative flex items-center">
-              <input
-                type="checkbox"
-                id="top-chauffeur-needed"
-                checked={chauffeurNeeded}
-                disabled={isLockedByOther}
-                onChange={(e) => onChauffeurNeededChange(e.target.checked)}
-                className="w-4 h-4 rounded border-neutral-300 text-emerald-800 focus:ring-emerald-800 cursor-pointer accent-emerald-800 disabled:opacity-50"
-              />
-            </div>
-            <label htmlFor="top-chauffeur-needed" className="text-xs font-bold text-neutral-700 cursor-pointer select-none">
-              Vehicle & Chauffeur
-            </label>
-          </div>
         </div>
 
         {/* Row 2: Room Configurations */}
@@ -24229,12 +25090,77 @@ function AIItineraryBuilder({
                 Manage Vehicles
               </button>
             </div>
+
+            {/* Concierge Services Card */}
+            <div className="border border-neutral-200/60 rounded-xl p-4 flex flex-col justify-between bg-neutral-50/50 hover:bg-neutral-50 transition-all">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-emerald-800" />
+                    <span className="text-xs font-bold text-neutral-700">Concierge Services</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono px-2 py-0.5 rounded-full font-bold">
+                    {(() => {
+                      const dayId = dayToItinIdMap[activeDay] || null;
+                      let dayCount = 0;
+                      let wholeTripCount = 0;
+                      selectedTourConcierges.forEach((val) => {
+                        if (val.selected) {
+                          if (val.tour_itinerary_id && dayId && val.tour_itinerary_id === dayId) dayCount++;
+                          else if (!val.tour_itinerary_id) wholeTripCount++;
+                        }
+                      });
+                      return `${dayCount} day / ${wholeTripCount} trip`;
+                    })()}
+                  </span>
+                </div>
+                <div className="text-[11px] text-neutral-500 mb-4 min-h-[44px]">
+                  {(() => {
+                    const dayId = dayToItinIdMap[activeDay] || null;
+                    const assignedForDay: { title: string; cost_code: string; qty: number }[] = [];
+                    selectedTourConcierges.forEach((val, itemId) => {
+                      if (val.selected && (val.tour_itinerary_id === dayId || !val.tour_itinerary_id)) {
+                        const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+                        if (costObj) {
+                          assignedForDay.push({
+                            title: costObj.title,
+                            cost_code: costObj.cost_code,
+                            qty: val.quantity
+                          });
+                        }
+                      }
+                    });
+
+                    return assignedForDay.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {assignedForDay.map((ass, i) => (
+                          <span key={i} className="inline-block bg-white border border-neutral-200 text-neutral-800 px-2 py-0.5 rounded-md font-medium shadow-2xs">
+                            <span className="font-mono text-[9px] text-emerald-800 mr-1">[{ass.cost_code}]</span>
+                            {ass.title} (x{ass.qty})
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="italic text-neutral-400 mt-1">No concierge assigned for Day {activeDay}</p>
+                    );
+                  })()}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isLockedByOther}
+                onClick={openConciergesModal}
+                className="w-full text-center text-xs font-black uppercase tracking-wider bg-white border border-neutral-200 hover:border-emerald-800 hover:text-emerald-800 py-2 px-3 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                Manage Concierges
+              </button>
+            </div>
           </div>
         </div>
 
       {/* 1. Drivers Modal */}
-      {allocationModal === 'drivers' && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+      {allocationModal === 'drivers' && mounted && createPortal((
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[99999] p-4">
           <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             {/* Modal Header */}
             <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
@@ -24431,11 +25357,11 @@ function AIItineraryBuilder({
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* 2. Transports Modal */}
-      {allocationModal === 'transports' && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+      {allocationModal === 'transports' && mounted && createPortal((
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[99999] p-4">
           <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             {/* Modal Header */}
             <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
@@ -24561,10 +25487,10 @@ function AIItineraryBuilder({
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* 3. Vehicles Modal */}
-      {allocationModal === 'vehicles' && (() => {
+      {allocationModal === 'vehicles' && mounted && createPortal((() => {
         const allVehicles = masterData.transportVehicles || [];
         const filteredVehicles = allVehicles.filter((v: any) => {
           if (!vehicleProviderSearch) return true;
@@ -24577,7 +25503,7 @@ function AIItineraryBuilder({
         });
 
         return (
-          <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4">
+          <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[99999] p-4">
             <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
               {/* Modal Header */}
               <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
@@ -24798,7 +25724,271 @@ function AIItineraryBuilder({
             </div>
           </div>
         );
-      })()}
+      })(), document.body)}
+
+      {/* 4. Concierges Modal */}
+      {allocationModal === 'concierges' && mounted && createPortal((() => {
+        const activeDayItinId = dayToItinIdMap[activeDay] || null;
+        const activeDayDateStr = getDayDateString(activeDay);
+
+        return (
+          <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[99999] p-4">
+            <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+              {/* Modal Header */}
+              <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+                <div>
+                  <h3 className="text-sm font-black text-neutral-800 uppercase tracking-wider">
+                    Manage Concierge Services — Day {activeDay} {activeDayDateStr ? `(${activeDayDateStr})` : ''}
+                  </h3>
+                  <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">
+                    Configure concierge items for this tour as a one-time cost or assign specifically to {activeDayDateStr ? activeDayDateStr : `Day ${activeDay}`}.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setAllocationModal(null)}
+                    className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                {/* Search & Add New Item Bar */}
+                <div className="bg-neutral-50 border border-neutral-200/60 p-4 rounded-2xl flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Search Catalog</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search concierge catalog..."
+                        value={conciergeSearchQuery}
+                        onChange={(e) => setConciergeSearchQuery(e.target.value)}
+                        className="w-full text-xs border border-neutral-200 rounded-xl pl-9 pr-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all"
+                      />
+                      <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
+                      Add Service from Catalog (Day {activeDay} {activeDayDateStr ? ` - ${activeDayDateStr}` : ''})
+                    </label>
+                    <select
+                      onChange={(e) => {
+                        const itemId = e.target.value;
+                        if (!itemId) return;
+                        const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+                        if (costObj) {
+                          const defaultPax = touristData ? (Number(touristData.adults || 0) + Number(touristData.children || 0)) || 1 : 1;
+                          const newMap = new Map(selectedTourConcierges);
+                          newMap.set(itemId, {
+                            selected: true,
+                            quantity: defaultPax,
+                            cost: Number(costObj.default_cost || 0),
+                            tour_itinerary_id: activeDayItinId || null
+                          });
+                          setSelectedTourConcierges(newMap);
+                        }
+                        e.target.value = '';
+                      }}
+                      className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer"
+                    >
+                      <option value="">+ Add service from catalog to Day {activeDay}...</option>
+                      {availableConciergeCostItems.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          [{c.cost_code}] {c.title} (${Number(c.default_cost || 0).toFixed(2)} / {c.costing_basis})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Items List */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                    Configured Concierge Items ({Array.from(selectedTourConcierges.values()).filter(v => v.selected).length} Active)
+                  </h4>
+                  
+                  {Array.from(selectedTourConcierges.entries())
+                    .filter(([itemId, val]) => {
+                      if (!val.selected) return false;
+                      if (!conciergeSearchQuery) return true;
+                      const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+                      if (!costObj) return false;
+                      const q = conciergeSearchQuery.toLowerCase();
+                      return costObj.title.toLowerCase().includes(q) || costObj.cost_code.toLowerCase().includes(q);
+                    })
+                    .map(([itemId, val]) => {
+                      const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+                      if (!costObj) return null;
+                      const isDayAssigned = Boolean(val.tour_itinerary_id && activeDayItinId && val.tour_itinerary_id === activeDayItinId);
+                      const isTripAssigned = !val.tour_itinerary_id;
+
+                      return (
+                        <div
+                          key={itemId}
+                          className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                            isDayAssigned
+                              ? 'bg-emerald-50/20 border-emerald-300 ring-1 ring-emerald-200'
+                              : isTripAssigned
+                              ? 'bg-blue-50/20 border-blue-200'
+                              : 'bg-white border-neutral-200 opacity-75'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded text-neutral-800">
+                                {costObj.cost_code}
+                              </span>
+                              <h5 className="text-sm font-bold text-neutral-800">{costObj.title}</h5>
+                              {isTripAssigned && (
+                                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                                  🌐 One Time Cost (Whole Trip)
+                                </span>
+                              )}
+                              {isDayAssigned && (
+                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  📅 Assigned to Day {activeDay} {activeDayDateStr ? `(${activeDayDateStr})` : ''}
+                                </span>
+                              )}
+                              {!isTripAssigned && !isDayAssigned && (
+                                <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                                  📅 Assigned to another Day
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newMap = new Map(selectedTourConcierges);
+                                newMap.set(itemId, { ...val, selected: false });
+                                setSelectedTourConcierges(newMap);
+                              }}
+                              className="text-red-500 hover:text-red-700 text-xs font-bold p-1 hover:bg-red-50 rounded transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          {/* Assignment Scope: Two Radio Buttons */}
+                          <div className="bg-white/80 p-3 rounded-xl border border-neutral-200/70 flex flex-wrap items-center gap-6">
+                            <span className="text-[10px] font-black uppercase text-neutral-400 tracking-wider">Assignment:</span>
+                            <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer hover:text-neutral-900">
+                              <input
+                                type="radio"
+                                name={`scope-${itemId}`}
+                                checked={!val.tour_itinerary_id}
+                                onChange={() => {
+                                  const newMap = new Map(selectedTourConcierges);
+                                  newMap.set(itemId, { ...val, tour_itinerary_id: null });
+                                  setSelectedTourConcierges(newMap);
+                                }}
+                                className="w-4 h-4 text-emerald-800 focus:ring-emerald-800 cursor-pointer"
+                              />
+                              <span>One time cost</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer hover:text-neutral-900">
+                              <input
+                                type="radio"
+                                name={`scope-${itemId}`}
+                                checked={Boolean(val.tour_itinerary_id && activeDayItinId && val.tour_itinerary_id === activeDayItinId)}
+                                onChange={() => {
+                                  const newMap = new Map(selectedTourConcierges);
+                                  newMap.set(itemId, { ...val, tour_itinerary_id: activeDayItinId || null });
+                                  setSelectedTourConcierges(newMap);
+                                }}
+                                className="w-4 h-4 text-emerald-800 focus:ring-emerald-800 cursor-pointer"
+                              />
+                              <span>
+                                Assigned to current date (Day {activeDay}{activeDayDateStr ? ` - ${activeDayDateStr}` : ''})
+                              </span>
+                            </label>
+                          </div>
+
+                          {/* Editable Quantity & Cost */}
+                          <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-neutral-100">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <label className="text-[10px] font-bold uppercase text-neutral-400">Qty:</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={val.quantity}
+                                  onChange={(e) => {
+                                    const q = Math.max(1, parseFloat(e.target.value) || 1);
+                                    const newMap = new Map(selectedTourConcierges);
+                                    newMap.set(itemId, { ...val, quantity: q });
+                                    setSelectedTourConcierges(newMap);
+                                  }}
+                                  className="w-16 text-xs font-mono font-bold border border-neutral-200 bg-white rounded-lg px-2 py-1 text-neutral-800 outline-none"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <label className="text-[10px] font-bold uppercase text-neutral-400">Cost ({costObj.currency || 'USD'}):</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={val.cost}
+                                  onChange={(e) => {
+                                    const c = Math.max(0, parseFloat(e.target.value) || 0);
+                                    const newMap = new Map(selectedTourConcierges);
+                                    newMap.set(itemId, { ...val, cost: c });
+                                    setSelectedTourConcierges(newMap);
+                                  }}
+                                  className="w-20 text-xs font-mono font-bold border border-neutral-200 bg-white rounded-lg px-2 py-1 text-neutral-800 outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="font-mono text-xs font-bold text-emerald-800">
+                              Subtotal: ${((val.quantity || 0) * (val.cost || 0)).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
+                <span className="text-xs text-neutral-500 font-medium">
+                  Concierge changes will save automatically when updating tour itinerary.
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (tourId) {
+                      const conciergePayload: SaveTourConciergeItemDTO[] = [];
+                      selectedTourConcierges.forEach((val, key) => {
+                        if (val.selected) {
+                          conciergePayload.push({
+                            concierge_cost_item_id: key,
+                            quantity: val.quantity > 0 ? val.quantity : 1,
+                            cost: val.cost,
+                            tour_itinerary_id: val.tour_itinerary_id || null
+                          });
+                        }
+                      });
+                      await saveTourConciergesAction(tourId, conciergePayload);
+                    }
+                    setAllocationModal(null);
+                  }}
+                  className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                >
+                  Save & Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })(), document.body)}
 
         {/* Daily Cost Summary Banner */}
         <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
@@ -24902,7 +26092,7 @@ function AIItineraryBuilder({
               const dayTotalObj = calculateDayTotal(activeDay);
 
               return (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {renderCostCard('Hotel Cost', 'hotel', dayTotalObj.hotel, <BedDouble className="w-4 h-4 text-amber-605 shrink-0" />)}
                   {renderCostCard('Meals', 'meals', dayTotalObj.meals, <Utensils className="w-4 h-4 text-rose-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
                   {renderCostCard(
@@ -24918,7 +26108,6 @@ function AIItineraryBuilder({
                           ? '(Guide Only)'
                           : '(Not Enabled)'
                   )}
-                  {renderCostCard('Concierge', 'concierge', dayTotalObj.concierge, <Receipt className="w-4 h-4 text-indigo-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
                   {renderCostCard('Agency Fee', 'agencyFeePercent', dayTotalObj.agencyFeePercent, <Coins className="w-4 h-4 text-emerald-600 shrink-0" />, `($${dayTotalObj.agencyFee.toFixed(2)})`)}
                 </div>
               );
@@ -25647,6 +26836,7 @@ function AIItineraryBuilder({
           dayCostOverrides={tripData?.dayCostOverrides}
           dailyDriverAssignments={dailyDriverAssignments}
           dailyVehicleAssignments={dailyVehicleAssignments}
+          tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected)}
         />
       </div>
     </div>

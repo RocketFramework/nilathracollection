@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx';
+
 export class CurrencyService {
     private static DEFAULT_RATE = 300;
 
@@ -5,6 +7,46 @@ export class CurrencyService {
     private static PRIMARY_URL = 'https://open.er-api.com/v6/latest/USD';
     // Secondary: Frankfurter (ECB data mirror) — also no key, stable TLS
     private static SECONDARY_URL = 'https://api.frankfurter.app/latest?from=USD&to=LKR';
+    // Central Bank of Sri Lanka Official Daily Rates Sheet
+    private static CBSL_EXCEL_URL = 'https://www.cbsl.gov.lk/sites/default/files/cbslweb_documents/statistics/sheets/IF_Buying_Selling_Exchange_Rates.xlsx';
+
+    /**
+     * Fetches official Sri Lanka Bank USD TT Buying Rate (Telegraphic Transfer Buying Rate).
+     * Tries Central Bank of Sri Lanka (CBSL) daily excel rates first.
+     * Falls back to open market rate adjusted by standard bank TT buying margin (~1.5% below mid-market).
+     */
+    static async getSriLankaBankBuyingRate(): Promise<number> {
+        try {
+            const res = await fetch(this.CBSL_EXCEL_URL, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                next: { revalidate: 3600 }
+            });
+
+            if (res.ok) {
+                const arrayBuffer = await res.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                const wb = XLSX.read(buffer, { type: 'buffer' });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                // Scan rows from bottom up to find the latest valid USD TT Buying rate (Col Index 2)
+                for (let i = rows.length - 1; i >= 0; i--) {
+                    const row = rows[i];
+                    if (Array.isArray(row) && typeof row[1] === 'number' && typeof row[2] === 'number' && row[2] > 50 && row[2] < 1000) {
+                        return row[2];
+                    }
+                }
+            }
+        } catch (err: any) {
+            console.warn('[CurrencyService] Failed to fetch CBSL Excel rates:', err?.message || err);
+        }
+
+        // Fallback: Get open market mid-rate and adjust for bank buying spread (~1.5%)
+        const midRate = await this.getUSDTOLKR();
+        return Number((midRate * 0.985).toFixed(2));
+    }
 
     /**
      * Fetches current USD to LKR exchange rate.
@@ -39,3 +81,4 @@ export class CurrencyService {
         return this.DEFAULT_RATE;
     }
 }
+

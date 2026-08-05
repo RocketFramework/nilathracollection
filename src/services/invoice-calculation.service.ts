@@ -36,6 +36,7 @@ export interface InvoiceCalculationParams {
   dailyDriverAssignments?: Record<number, any[]>;
   dailyVehicleAssignments?: Record<number, any[]>;
   dbActivities?: any[];
+  tourConcierges?: any[];
 }
 
 export class InvoiceCalculationService {
@@ -54,7 +55,8 @@ export class InvoiceCalculationService {
       dayCostOverrides = {},
       dailyDriverAssignments = {},
       dailyVehicleAssignments = {},
-      dbActivities = []
+      dbActivities = [],
+      tourConcierges
     } = params;
 
     const invoiceItems: InvoiceItem[] = [];
@@ -112,6 +114,13 @@ export class InvoiceCalculationService {
     let transportTotal = 0;
     let conciergeTotal = 0;
     let agencyFeeTotal = 0;
+
+    // Calculate concierge total from tourConcierges table items if passed
+    if (tourConcierges !== undefined && tourConcierges !== null) {
+      conciergeTotal = (tourConcierges || []).reduce((sum, item) => {
+        return sum + (Number(item.cost || 0) * Number(item.quantity || 1));
+      }, 0);
+    }
 
     const conciergeCostKey = `${styleKey}_concierge_cost`;
     const conciergeCostPerHead = appSettings && appSettings[conciergeCostKey] !== undefined 
@@ -171,10 +180,15 @@ export class InvoiceCalculationService {
       }
       transportTotal += dayTransportCost;
 
-      // 4. Concierge
-      const baseConciergeCost = pax * conciergeCostPerHead;
-      const conciergeCost = overrides.concierge !== undefined ? overrides.concierge : baseConciergeCost;
-      conciergeTotal += conciergeCost;
+      // 4. Concierge (only if tourConcierges was NOT passed)
+      let conciergeCost = 0;
+      if (tourConcierges === undefined || tourConcierges === null) {
+        const baseConciergeCost = pax * conciergeCostPerHead;
+        conciergeCost = overrides.concierge !== undefined ? overrides.concierge : baseConciergeCost;
+        conciergeTotal += conciergeCost;
+      } else {
+        conciergeCost = overrides.concierge !== undefined ? overrides.concierge : 0;
+      }
 
       // 5. Daily Agency Fee (applied only to hotel, meals, transport, concierge)
       const subtotalDaily = hotelCost + mealsCost + dayTransportCost + conciergeCost;

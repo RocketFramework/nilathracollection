@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin } from "lucide-react";
-import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity } from "@/services/master-data.service";
+import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin, Sparkles } from "lucide-react";
+import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity, SeamlessConciergeCostItem } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, getVendorAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, getVendorAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -13,6 +13,7 @@ import TransportProviderFormModal from "./components/TransportProviderFormModal"
 import RestaurantFormModal from "./components/RestaurantFormModal";
 import ActivityFormModal from "./components/ActivityFormModal";
 import ApprovalReviewModal from "./components/ApprovalReviewModal";
+import ConciergeCostItemFormModal from "./components/ConciergeCostItemFormModal";
 import { MasterDataApprovalsService, ApprovalRequest } from "@/services/master-data-approvals.service";
 
 const DATABASES = [
@@ -23,6 +24,7 @@ const DATABASES = [
     { id: 'transports', label: 'Transport Providers', icon: Car },
     { id: 'drivers', label: 'Drivers', icon: UserCircle },
     { id: 'guides', label: 'Tour Guides', icon: UserCircle },
+    { id: 'concierge_costs', label: 'Concierge Cost Items', icon: Sparkles },
 ];
 
 export default function MasterDataPage() {
@@ -38,6 +40,7 @@ export default function MasterDataPage() {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [guides, setGuides] = useState<TourGuide[]>([]);
     const [transports, setTransports] = useState<TransportProvider[]>([]);
+    const [conciergeCosts, setConciergeCosts] = useState<SeamlessConciergeCostItem[]>([]);
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
 
     const [loading, setLoading] = useState(true);
@@ -69,6 +72,9 @@ export default function MasterDataPage() {
     const [isRestaurantModalOpen, setIsRestaurantModalOpen] = useState(false);
     const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
+    const [isConciergeCostModalOpen, setIsConciergeCostModalOpen] = useState(false);
+    const [selectedConciergeCost, setSelectedConciergeCost] = useState<SeamlessConciergeCostItem | null>(null);
+
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
 
@@ -97,6 +103,8 @@ export default function MasterDataPage() {
             setSortBy('first_name');
         } else if (activeTab === 'activities') {
             setSortBy('activity_name');
+        } else if (activeTab === 'concierge_costs') {
+            setSortBy('cost_code');
         } else {
             setSortBy('name');
         }
@@ -126,6 +134,10 @@ export default function MasterDataPage() {
             } else if (activeTab === 'vendors' || activeTab === 'restaurants' || activeTab === 'transports') {
                 if (currentSortBy !== 'name' && currentSortBy !== 'is_suspended') {
                     currentSortBy = 'name';
+                }
+            } else if (activeTab === 'concierge_costs') {
+                if (currentSortBy !== 'cost_code' && currentSortBy !== 'title' && currentSortBy !== 'category') {
+                    currentSortBy = 'cost_code';
                 }
             }
 
@@ -181,6 +193,12 @@ export default function MasterDataPage() {
                     setGuides(res.guides);
                     setTotalCount(res.count || 0);
                 }
+            } else if (activeTab === 'concierge_costs') {
+                const res = await getSeamlessConciergeCostItemsAction(options);
+                if (res.success && res.items) {
+                    setConciergeCosts(res.items);
+                    setTotalCount(res.count || 0);
+                }
             } else if (activeTab === 'approvals') {
                 const result = await getPendingApprovalsAction();
                 if (result.success && result.data) {
@@ -219,6 +237,9 @@ export default function MasterDataPage() {
         } else if (activeTab === 'guides') {
             setSelectedGuide(null);
             setIsGuideModalOpen(true);
+        } else if (activeTab === 'concierge_costs') {
+            setSelectedConciergeCost(null);
+            setIsConciergeCostModalOpen(true);
         }
     };
 
@@ -260,6 +281,12 @@ export default function MasterDataPage() {
                 const fullItem = await MasterDataService.getTourGuide(id as string);
                 setSelectedGuide(fullItem);
                 setIsGuideModalOpen(true);
+            } else if (activeTab === 'concierge_costs') {
+                const res = await getSeamlessConciergeCostItemAction(id as string);
+                if (res.success && res.item) {
+                    setSelectedConciergeCost(res.item);
+                    setIsConciergeCostModalOpen(true);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch full details", error);
@@ -279,6 +306,7 @@ export default function MasterDataPage() {
                 else if (activeTab === 'transports') await MasterDataService.deleteTransportProvider(id as string);
                 else if (activeTab === 'drivers') await MasterDataService.deleteDriver(id as string);
                 else if (activeTab === 'guides') await MasterDataService.deleteTourGuide(id as string);
+                else if (activeTab === 'concierge_costs') await deleteSeamlessConciergeCostItemAction(id as string);
                 loadData();
             } catch (error: any) {
                 console.error("Failed to delete record:", error);
@@ -359,17 +387,17 @@ export default function MasterDataPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-neutral-50 border-b border-neutral-200 text-xs uppercase tracking-wider font-bold text-neutral-500">
-                                <th onClick={() => activeTab !== 'approvals' && toggleSort(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : (activeTab === 'activities' ? 'activity_name' : 'name'))} className={`p-4 pl-6 text-left text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
+                                <th onClick={() => activeTab !== 'approvals' && toggleSort(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : (activeTab === 'activities' ? 'activity_name' : (activeTab === 'concierge_costs' ? 'cost_code' : 'name')))} className={`p-4 pl-6 text-left text-[10px] uppercase font-black tracking-widest ${activeTab === 'approvals' ? 'text-neutral-500' : 'text-neutral-400 cursor-pointer group hover:text-brand-green'}`}>
                                     <div className="flex items-center">
-                                        {activeTab === 'approvals' ? 'Request Type' : activeTab === 'drivers' || activeTab === 'guides' ? 'Full Name' : (activeTab === 'hotels' ? 'Hotel Name' : (activeTab === 'activities' ? 'Activity Name' : 'Name'))}
-                                        {activeTab !== 'approvals' && renderSortIcon(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : (activeTab === 'activities' ? 'activity_name' : 'name'))}
+                                        {activeTab === 'approvals' ? 'Request Type' : activeTab === 'drivers' || activeTab === 'guides' ? 'Full Name' : (activeTab === 'hotels' ? 'Hotel Name' : (activeTab === 'activities' ? 'Activity Name' : (activeTab === 'concierge_costs' ? 'Cost Code & Title' : 'Name')))}
+                                        {activeTab !== 'approvals' && renderSortIcon(activeTab === 'drivers' || activeTab === 'guides' ? 'first_name' : (activeTab === 'activities' ? 'activity_name' : (activeTab === 'concierge_costs' ? 'cost_code' : 'name')))}
                                     </div>
                                 </th>
                                 <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
-                                    {activeTab === 'approvals' ? 'Entity Context' : (activeTab === 'activities' ? 'Category' : 'Type/Category')}
+                                    {activeTab === 'approvals' ? 'Entity Context' : (activeTab === 'activities' || activeTab === 'concierge_costs' ? 'Category' : 'Type/Category')}
                                 </th>
                                 <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">
-                                    {activeTab === 'approvals' ? 'Requested By' : (activeTab === 'activities' ? 'Location' : 'Details')}
+                                    {activeTab === 'approvals' ? 'Requested By' : (activeTab === 'activities' ? 'Location' : (activeTab === 'concierge_costs' ? 'Default Cost' : 'Details'))}
                                 </th>
                                 {activeTab === 'approvals' && (
                                     <th className="p-4 text-left text-[10px] uppercase font-black text-neutral-400 tracking-widest">Date</th>
@@ -636,6 +664,37 @@ export default function MasterDataPage() {
                                         </tr>
                                     ))
                                 )
+                            ) : activeTab === 'concierge_costs' ? (
+                                loading ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">Loading records...</td></tr>
+                                ) : conciergeCosts.length === 0 ? (
+                                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">No records found.</td></tr>
+                                ) : (
+                                    conciergeCosts.map(row => (
+                                        <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
+                                            <td className="p-4 pl-6 font-bold">
+                                                <span className="inline-block px-2 py-0.5 text-xs font-mono font-bold bg-neutral-100 text-neutral-800 rounded mr-2 border border-neutral-200">{row.cost_code}</span>
+                                                {row.title}
+                                            </td>
+                                            <td className="p-4 text-neutral-500 font-medium">{row.category}</td>
+                                            <td className="p-4 text-neutral-500 font-mono text-xs">
+                                                <span className="font-bold text-brand-charcoal">{row.currency} {Number(row.default_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-neutral-400 ml-1">({row.costing_basis})</span>
+                                            </td>
+                                            <td className="p-4 text-center">
+                                                <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${row.is_active !== false ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                                                    {row.is_active !== false ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 pr-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                    <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )
                             ) : (
                                 <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">Invalid category.</td></tr>
                             )}
@@ -761,6 +820,13 @@ export default function MasterDataPage() {
                     loadData();
                     // Optionally refresh other tabs data if we switch
                 }}
+            />
+            <ConciergeCostItemFormModal
+                isOpen={isConciergeCostModalOpen}
+                onClose={() => setIsConciergeCostModalOpen(false)}
+                item={selectedConciergeCost}
+                onSave={loadData}
+                userRole={userRole}
             />
         </div>
     );

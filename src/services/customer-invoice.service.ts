@@ -2,8 +2,19 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { CustomerPaymentDTO, GenerateCustomerInvoiceDTO } from '../dtos/finance.dto';
 import { DBCustomerInvoice, DBCustomerInvoiceItem } from '../types/finance';
 import { InvoiceCalculationService } from './invoice-calculation.service';
+import { TourService } from './tour.service';
 
 export class CustomerInvoiceService {
+    private static getCustomerPaymentUSD(p: any, defaultRate: number = 300): number {
+        const amt = Number(p.amount) || 0;
+        if (amt === 0) return 0;
+        if (!p.currency || p.currency === 'USD') return amt;
+
+        const rate = Number(p.exchange_rate);
+        const effectiveRate = (rate && rate > 1.0) ? rate : defaultRate;
+        return effectiveRate > 0 ? amt / effectiveRate : amt;
+    }
+
     /**
      * Preview consolidated experience category invoice items for a tour
      */
@@ -86,8 +97,8 @@ export class CustomerInvoiceService {
         const travelStyle = tour?.travel_style || touristProfile?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
         const durationDays = itineraries?.length || tour?.planner_data?.profile?.durationDays || 5;
 
-        // 6.5 Fetch tour daily drivers and vehicles
-        const [ { data: driverRows }, { data: vehicleRows } ] = await Promise.all([
+        // 6.5 Fetch tour daily drivers, vehicles, and concierges
+        const [ { data: driverRows }, { data: vehicleRows }, { data: conciergeRows } ] = await Promise.all([
             supabaseAdmin
                 .from('tour_itinerary_drivers')
                 .select('*, tour_itineraries!inner(day_number)')
@@ -95,6 +106,10 @@ export class CustomerInvoiceService {
             supabaseAdmin
                 .from('tour_itinerary_vehicles')
                 .select('*, tour_itineraries!inner(day_number)')
+                .eq('tour_id', tourId),
+            supabaseAdmin
+                .from('tour_itinerary_concierges')
+                .select('*')
                 .eq('tour_id', tourId)
         ]);
 
@@ -141,7 +156,8 @@ export class CustomerInvoiceService {
             dayCostOverrides: tour?.planner_data?.dayCostOverrides || {},
             dailyDriverAssignments,
             dailyVehicleAssignments,
-            dbActivities: activities || []
+            dbActivities: activities || [],
+            tourConcierges: conciergeRows || []
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])
@@ -223,11 +239,9 @@ export class CustomerInvoiceService {
             .eq('tour_id', dto.tour_id)
             .is('invoice_id', null);
 
+        const tourBuyingRate = Number(tour?.usd_lkr_buying_rate) || 300;
         const totalAdvancePaidUSD = (advancePayments || []).reduce((sum: number, p: any) => {
-            const amt = Number(p.amount) || 0;
-            const rate = Number(p.exchange_rate) || 1.0;
-            const usd = (p.currency === 'USD' || !p.currency) ? amt : (rate > 0 ? amt / rate : amt);
-            return sum + usd;
+            return sum + this.getCustomerPaymentUSD(p, tourBuyingRate);
         }, 0);
 
         const initialStatus = totalAdvancePaidUSD >= finalAmount ? 'Paid' : 'Pending';
@@ -358,10 +372,7 @@ export class CustomerInvoiceService {
         if (invoices && invoices.length > 0) {
             for (const inv of invoices as any[]) {
                 const totalPaidUSD = (inv.payments || []).reduce((sum: number, p: any) => {
-                    const amt = Number(p.amount) || 0;
-                    const rate = Number(p.exchange_rate) || 1.0;
-                    const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
-                    return sum + usd;
+                    return sum + this.getCustomerPaymentUSD(p, 300);
                 }, 0);
 
                 if (totalPaidUSD >= (inv.amount || 0) && inv.status !== 'Paid') {
@@ -433,15 +444,19 @@ export class CustomerInvoiceService {
 
         if (payError) throw payError;
 
+        // Automatically lock Sri Lanka Bank USD Buying rate on the tour at first payment
+        const targetTourId = dto.tour_id || (dto.invoice_id ? (await supabaseAdmin.from('customer_invoices').select('tour_id').eq('id', dto.invoice_id).single()).data?.tour_id : null);
+        if (targetTourId) {
+            const payRate = (dto.currency === 'LKR' && dto.exchange_rate && Number(dto.exchange_rate) > 0) ? Number(dto.exchange_rate) : undefined;
+            await TourService.lockTourUsdBuyingRate(targetTourId, payRate);
+        }
+
         // Fetch invoice and all related payments to tally totals if it's tied to an invoice
         if (dto.invoice_id) {
             const { data: invoice } = await supabaseAdmin.from('customer_invoices').select('amount').eq('id', dto.invoice_id).single();
             const { data: payments } = await supabaseAdmin.from('customer_payments').select('amount, currency, exchange_rate').eq('invoice_id', dto.invoice_id);
             const totalPaidUSD = (payments || []).reduce((sum: number, p: any) => {
-                const amt = Number(p.amount) || 0;
-                const rate = Number(p.exchange_rate) || 1.0;
-                const usd = (!p.currency || p.currency === 'USD') ? amt : (rate > 0 ? amt / rate : amt);
-                return sum + usd;
+                return sum + this.getCustomerPaymentUSD(p, 300);
             }, 0);
 
             if (invoice && totalPaidUSD >= invoice.amount) {
