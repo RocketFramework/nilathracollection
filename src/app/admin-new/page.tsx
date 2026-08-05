@@ -2542,17 +2542,17 @@ function PlannerWizardWorkspace() {
       icon: Compass
     },
     {
-      id: 'concierge-config',
-      label: 'Concierge Configuration',
-      description: 'Select applicable concierge services and adjust unit costs and quantities for the tour.',
-      icon: Sparkles
-    },
-    {
       id: 'ai-builder',
       label: 'AI Itinerary Builder',
       description: 'Generate a smart AI-powered skeleton draft itinerary optimized for routing.',
       icon: BrainCircuit,
       isSubStep: true
+    },
+    {
+      id: 'concierge-config',
+      label: 'Concierge Configuration',
+      description: 'Select applicable concierge services, assign one-time or date-specific support, and download proposal PDF.',
+      icon: Sparkles
     },
     {
       id: 'share-tourist',
@@ -3010,25 +3010,21 @@ function PlannerWizardWorkspace() {
             const savedConcierges = savedConcRes?.success && savedConcRes.items ? savedConcRes.items : [];
             const defaultPax = touristRes?.data ? (Number(touristRes.data.preferences?.adults || 0) + Number(touristRes.data.preferences?.children || 0)) || 1 : 1;
 
-            const conciergeMap = new Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
-            activeItems.forEach((item: any) => {
-              const saved = savedConcierges.find((s: any) => s.concierge_cost_item_id === item.id);
-              if (saved) {
-                conciergeMap.set(item.id, {
+            const conciergeMap = new Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
+            if (savedConcierges && savedConcierges.length > 0) {
+              savedConcierges.forEach((saved: any, idx: number) => {
+                const item = activeItems.find((i: any) => i.id === saved.concierge_cost_item_id);
+                const key = saved.id || `${saved.concierge_cost_item_id}_${saved.tour_itinerary_id || 'trip'}_${idx}`;
+                conciergeMap.set(key, {
+                  id: saved.id,
+                  concierge_cost_item_id: saved.concierge_cost_item_id,
                   selected: true,
                   quantity: Number(saved.quantity) > 0 ? Number(saved.quantity) : defaultPax,
-                  cost: saved.cost !== null && saved.cost !== undefined ? Number(saved.cost) : Number(item.default_cost || 0),
+                  cost: saved.cost !== null && saved.cost !== undefined ? Number(saved.cost) : Number(item?.default_cost || 0),
                   tour_itinerary_id: saved.tour_itinerary_id || null
                 });
-              } else {
-                conciergeMap.set(item.id, {
-                  selected: false,
-                  quantity: defaultPax,
-                  cost: Number(item.default_cost || 0),
-                  tour_itinerary_id: null
-                });
-              }
-            });
+              });
+            }
             setSelectedTourConcierges(conciergeMap);
           }
 
@@ -3278,8 +3274,8 @@ function PlannerWizardWorkspace() {
           const localBasicSteps = [
             'tourist-data',
             'activity-selection',
-            'concierge-config',
             'ai-builder',
+            'concierge-config',
             'share-tourist'
           ];
           const localFinalSteps = [
@@ -3836,7 +3832,7 @@ function PlannerWizardWorkspace() {
 
   // Concierge Configuration state
   const [availableConciergeCostItems, setAvailableConciergeCostItems] = useState<SeamlessConciergeCostItem[]>([]);
-  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>(new Map());
+  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>(new Map());
   const [conciergeSearchQuery, setConciergeSearchQuery] = useState<string>('');
   const [conciergeCategoryFilter, setConciergeCategoryFilter] = useState<string>('All');
 
@@ -4471,8 +4467,9 @@ function PlannerWizardWorkspace() {
 
     // 2e. Map Concierge line items
     if (selectedTourConcierges && availableConciergeCostItems) {
-      selectedTourConcierges.forEach((val, itemId) => {
+      selectedTourConcierges.forEach((val) => {
         if (!val.selected) return;
+        const itemId = val.concierge_cost_item_id;
         const costObj = availableConciergeCostItems.find(c => c.id === itemId);
         if (!costObj) return;
 
@@ -7773,12 +7770,15 @@ ${chauffeurHtml}
             const conciergePayload: SaveTourConciergeItemDTO[] = [];
             selectedTourConcierges.forEach((val, key) => {
               if (val.selected) {
-                conciergePayload.push({
-                  concierge_cost_item_id: key,
-                  quantity: val.quantity > 0 ? val.quantity : 1,
-                  cost: val.cost,
-                  tour_itinerary_id: val.tour_itinerary_id || null
-                });
+                const concItemId = val.concierge_cost_item_id || (key && !key.includes('_') && key.length === 36 ? key : null);
+                if (concItemId) {
+                  conciergePayload.push({
+                    concierge_cost_item_id: concItemId,
+                    quantity: val.quantity > 0 ? val.quantity : 1,
+                    cost: val.cost,
+                    tour_itinerary_id: val.tour_itinerary_id || null
+                  });
+                }
               }
             });
             await saveTourConciergesAction(tourId, conciergePayload);
@@ -9242,7 +9242,7 @@ ${chauffeurHtml}
                   </div>
                 ) : track === 'basic' && currentStep.id === 'concierge-config' ? (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
-                    {/* Top Header Card */}
+                    {/* Top Header Card with Download PDF */}
                     <div className="bg-white rounded-3xl p-6 border border-neutral-200 shadow-md flex flex-wrap items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
@@ -9250,12 +9250,86 @@ ${chauffeurHtml}
                           <h3 className="text-xl font-serif font-bold text-neutral-800">Concierge Services Configuration</h3>
                         </div>
                         <p className="text-xs text-neutral-500 mt-1">
-                          Select applicable concierge services for this tour package. Customize unit costs and quantities as needed.
+                          Select applicable concierge services for this tour package. Assign as a one-time whole trip cost or to specific itinerary dates.
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                          {Array.from(selectedTourConcierges.values()).filter(v => v.selected).length} Selected
+                        {/* Download Proposal PDF Button */}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (tourId) {
+                              const selectedItems: SaveTourConciergeItemDTO[] = [];
+                              selectedTourConcierges.forEach((val, key) => {
+                                if (val.selected) {
+                                  const concItemId = val.concierge_cost_item_id || (key && !key.includes('_') && key.length === 36 ? key : null);
+                                  if (concItemId) {
+                                    selectedItems.push({
+                                      concierge_cost_item_id: concItemId,
+                                      quantity: val.quantity > 0 ? val.quantity : 1,
+                                      cost: val.cost,
+                                      tour_itinerary_id: val.tour_itinerary_id || null
+                                    });
+                                  }
+                                }
+                              });
+                              await saveTourConciergesAction(tourId, selectedItems);
+                            }
+
+                            const printContent = document.getElementById('concierge-pdf-print-area')?.innerHTML;
+                            if (printContent) {
+                              const iframe = document.createElement('iframe');
+                              iframe.style.position = 'fixed';
+                              iframe.style.right = '0';
+                              iframe.style.bottom = '0';
+                              iframe.style.width = '0';
+                              iframe.style.height = '0';
+                              iframe.style.border = '0';
+                              document.body.appendChild(iframe);
+
+                              const doc = iframe.contentWindow?.document;
+                              if (doc) {
+                                const clientNameStr = touristData.profile
+                                  ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
+                                  : 'Valued Guest';
+                                doc.open();
+                                doc.write(`
+                                  <html>
+                                    <head>
+                                      <title>Itinerary Proposal PDF - ${clientNameStr}</title>
+                                      ${Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n')}
+                                      <style>
+                                        body { background: white !important; margin: 0; padding: 0; }
+                                        @page { size: A4; margin: 0; }
+                                      </style>
+                                    </head>
+                                    <body>
+                                      <div class="pdf-container">${printContent}</div>
+                                    </body>
+                                  </html>
+                                `);
+                                doc.close();
+
+                                iframe.contentWindow?.focus();
+                                setTimeout(() => {
+                                  iframe.contentWindow?.print();
+                                  setTimeout(() => {
+                                    document.body.removeChild(iframe);
+                                  }, 1000);
+                                }, 800);
+                              }
+                            } else {
+                              alert("Preparing proposal PDF preview...");
+                            }
+                          }}
+                          className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all shadow-2xs cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4 text-emerald-800" />
+                          <span>Download Proposal PDF</span>
+                        </button>
+
+                        <span className="text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl">
+                          {Array.from(selectedTourConcierges.values()).filter(v => v.selected).length} Active Assignments
                         </span>
                       </div>
                     </div>
@@ -9299,14 +9373,29 @@ ${chauffeurHtml}
                           const matchQuery = !query || item.title.toLowerCase().includes(query) || item.cost_code.toLowerCase().includes(query) || (item.category && item.category.toLowerCase().includes(query));
                           return matchCat && matchQuery;
                         })
+                        .sort((a, b) => {
+                          const aSelected = Array.from(selectedTourConcierges.values()).some(v => v.selected && v.concierge_cost_item_id === a.id);
+                          const bSelected = Array.from(selectedTourConcierges.values()).some(v => v.selected && v.concierge_cost_item_id === b.id);
+                          if (aSelected && !bSelected) return -1;
+                          if (!aSelected && bSelected) return 1;
+                          return 0;
+                        })
                         .map((item) => {
-                          const state = selectedTourConcierges.get(item.id!) || {
-                            selected: false,
-                            quantity: touristData ? (Number(touristData.preferences?.adults || 0) + Number(touristData.preferences?.children || 0)) || 1 : 1,
-                            cost: Number(item.default_cost || 0)
-                          };
-                          const isSelected = state.selected;
-                          const itemTotal = (state.quantity || 0) * (state.cost || 0);
+                          const itemAssignments = Array.from(selectedTourConcierges.entries()).filter(
+                            ([k, v]) => v.selected && v.concierge_cost_item_id === item.id
+                          );
+                          const isSelected = itemAssignments.length > 0;
+                          const primaryEntry = itemAssignments[0]?.[1];
+                          const defaultPax = touristData ? (Number(touristData.preferences?.adults || 0) + Number(touristData.preferences?.children || 0)) || 1 : 1;
+                          const quantity = primaryEntry ? primaryEntry.quantity : defaultPax;
+                          const cost = primaryEntry ? primaryEntry.cost : Number(item.default_cost || 0);
+                          const itemTotal = itemAssignments.reduce((sum, [_, e]) => sum + (e.quantity * e.cost), 0) || (quantity * cost);
+
+                          // Determine selected value for the primary dropdown
+                          let primaryDropdownValue = 'unassigned';
+                          if (primaryEntry) {
+                            primaryDropdownValue = primaryEntry.tour_itinerary_id ? primaryEntry.tour_itinerary_id : 'trip';
+                          }
 
                           return (
                             <div
@@ -9317,11 +9406,11 @@ ${chauffeurHtml}
                                   : 'border-neutral-200 opacity-90'
                                 }`}
                             >
-                              <div className="space-y-3">
+                              <div className="space-y-4">
                                 {/* Header Row */}
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                       <span className="text-xs font-mono font-bold bg-neutral-100 text-neutral-800 px-2.5 py-0.5 rounded-md border border-neutral-200">
                                         {item.cost_code}
                                       </span>
@@ -9334,30 +9423,12 @@ ${chauffeurHtml}
                                           : 'bg-blue-50 text-blue-700 border-blue-200/50'
                                       }`}>
                                         {(item.costing_basis || '').toLowerCase().includes('day') || (item.costing_basis || '').toLowerCase().includes('daily')
-                                          ? '📅 Daily Recurring Item'
+                                          ? '📅 Daily Recurring'
                                           : `🌐 ${item.costing_basis}`}
                                       </span>
                                     </div>
                                     <h4 className="text-base font-serif font-bold text-neutral-800 pt-1">{item.title}</h4>
                                   </div>
-
-                                  {/* Toggle Switch */}
-                                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={(e) => {
-                                        const newMap = new Map(selectedTourConcierges);
-                                        newMap.set(item.id!, {
-                                          ...state,
-                                          selected: e.target.checked
-                                        });
-                                        setSelectedTourConcierges(newMap);
-                                      }}
-                                      className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-800"></div>
-                                  </label>
                                 </div>
 
                                 {/* Details Description */}
@@ -9366,6 +9437,155 @@ ${chauffeurHtml}
                                     {item.details}
                                   </p>
                                 )}
+
+                                {/* Date / Scope Assignment Dropdown */}
+                                <div className="space-y-1.5 bg-neutral-50/80 p-3 rounded-2xl border border-neutral-200/60">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                                    Concierge Assignment & Scope
+                                  </label>
+                                  <select
+                                    value={primaryDropdownValue}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const newMap = new Map(selectedTourConcierges);
+                                      if (val === 'unassigned') {
+                                        // Remove all assignments for this item
+                                        Array.from(newMap.entries()).forEach(([k, v]) => {
+                                          if (v.concierge_cost_item_id === item.id) {
+                                            newMap.delete(k);
+                                          }
+                                        });
+                                      } else if (val === 'trip') {
+                                        // Set/Update single entry with tour_itinerary_id: null
+                                        Array.from(newMap.entries()).forEach(([k, v]) => {
+                                          if (v.concierge_cost_item_id === item.id) {
+                                            newMap.delete(k);
+                                          }
+                                        });
+                                        const newKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${item.id!}_trip_${Date.now()}`;
+                                        newMap.set(newKey, {
+                                          id: newKey,
+                                          concierge_cost_item_id: item.id!,
+                                          selected: true,
+                                          quantity: quantity,
+                                          cost: cost,
+                                          tour_itinerary_id: null
+                                        });
+                                      } else {
+                                        // Specific Day selected (val is itinId)
+                                        Array.from(newMap.entries()).forEach(([k, v]) => {
+                                          if (v.concierge_cost_item_id === item.id) {
+                                            newMap.delete(k);
+                                          }
+                                        });
+                                        const newKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${item.id!}_${val}_${Date.now()}`;
+                                        newMap.set(newKey, {
+                                          id: newKey,
+                                          concierge_cost_item_id: item.id!,
+                                          selected: true,
+                                          quantity: quantity,
+                                          cost: cost,
+                                          tour_itinerary_id: val
+                                        });
+                                      }
+                                      setSelectedTourConcierges(newMap);
+                                    }}
+                                    className="w-full text-xs font-bold border border-neutral-250 rounded-xl px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 cursor-pointer shadow-2xs"
+                                  >
+                                    <option value="unassigned">⚪ Disabled / Unassigned</option>
+                                    <option value="trip">🌐 One-Time Cost (Whole Trip)</option>
+                                    {Array.from(
+                                      new Set([
+                                        ...itinerary.map(b => Number(b.dayNumber)).filter(d => Boolean(d) && !isNaN(d)),
+                                        ...Array.from({ length: touristData?.preferences?.duration_days || 1 }, (_, i) => i + 1)
+                                      ])
+                                    ).sort((a, b) => a - b).map((dayNum) => {
+                                      const dayItinBlock = itinerary.find(it => Number(it.dayNumber) === dayNum);
+                                      const itinId = (dayToItinIdMap && dayToItinIdMap[dayNum]) || dayItinBlock?.id || `day_${dayNum}`;
+                                      const dateStr = (dayItinBlock as any)?.date || '';
+                                      return (
+                                        <option key={itinId} value={itinId}>
+                                          📅 Day {dayNum} {dateStr ? `(${dateStr})` : ''}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+
+                                  {/* Multi-assignment badges and + Add another date button */}
+                                  {itemAssignments.length > 0 && (
+                                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                      {itemAssignments.map(([k, v]) => {
+                                        const itinObj = itinerary.find(it => it.id === v.tour_itinerary_id);
+                                        let matchedDayNum: number | null = itinObj?.dayNumber ? Number(itinObj.dayNumber) : null;
+                                        if (!matchedDayNum && dayToItinIdMap) {
+                                          const entry = Object.entries(dayToItinIdMap).find(([_, id]) => id === v.tour_itinerary_id);
+                                          if (entry) matchedDayNum = Number(entry[0]);
+                                        }
+                                        const dayLabel = v.tour_itinerary_id
+                                          ? (matchedDayNum ? `Day ${matchedDayNum}` : 'Day Specific')
+                                          : 'Whole Trip';
+                                        return (
+                                          <span key={k} className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-200">
+                                            {dayLabel}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const newMap = new Map(selectedTourConcierges);
+                                                newMap.delete(k);
+                                                setSelectedTourConcierges(newMap);
+                                              }}
+                                              className="hover:text-red-600 font-bold ml-1 cursor-pointer"
+                                              title="Remove this assignment"
+                                            >
+                                              ×
+                                            </button>
+                                          </span>
+                                        );
+                                      })}
+
+                                      {/* Add another date option dropdown */}
+                                      <select
+                                        value=""
+                                        onChange={(e) => {
+                                          const addItinId = e.target.value;
+                                          if (!addItinId) return;
+                                          const newKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${item.id!}_${addItinId}_${Date.now()}`;
+                                          const newMap = new Map(selectedTourConcierges);
+                                          newMap.set(newKey, {
+                                            id: newKey,
+                                            concierge_cost_item_id: item.id!,
+                                            selected: true,
+                                            quantity: quantity,
+                                            cost: cost,
+                                            tour_itinerary_id: addItinId === 'trip' ? null : addItinId
+                                          });
+                                          setSelectedTourConcierges(newMap);
+                                          e.target.value = '';
+                                        }}
+                                        className="text-[10px] font-bold text-emerald-800 bg-white border border-emerald-300 rounded-lg px-2 py-0.5 cursor-pointer outline-none hover:bg-emerald-50"
+                                      >
+                                        <option value="">+ Assign also to another day...</option>
+                                        <option value="trip">🌐 Whole Trip</option>
+                                        {Array.from(
+                                          new Set([
+                                            ...itinerary.map(b => Number(b.dayNumber)).filter(d => Boolean(d) && !isNaN(d)),
+                                            ...Array.from({ length: touristData?.preferences?.duration_days || 1 }, (_, i) => i + 1)
+                                          ])
+                                        ).sort((a, b) => a - b).map((dayNum) => {
+                                          const dayItinBlock = itinerary.find(it => Number(it.dayNumber) === dayNum);
+                                          const itinId = (dayToItinIdMap && dayToItinIdMap[dayNum]) || dayItinBlock?.id || `day_${dayNum}`;
+                                          const isAlreadyAssigned = itemAssignments.some(([_, v]) => v.tour_itinerary_id === itinId);
+                                          if (isAlreadyAssigned) return null;
+                                          return (
+                                            <option key={itinId} value={itinId}>
+                                              📅 Day {dayNum}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Editable Quantity & Cost Section */}
@@ -9378,11 +9598,15 @@ ${chauffeurHtml}
                                       type="number"
                                       min="1"
                                       disabled={!isSelected}
-                                      value={state.quantity}
+                                      value={quantity}
                                       onChange={(e) => {
                                         const val = Math.max(1, parseFloat(e.target.value) || 1);
                                         const newMap = new Map(selectedTourConcierges);
-                                        newMap.set(item.id!, { ...state, quantity: val });
+                                        newMap.forEach((v, k) => {
+                                          if (v.concierge_cost_item_id === item.id! && v.selected) {
+                                            newMap.set(k, { ...v, quantity: val });
+                                          }
+                                        });
                                         setSelectedTourConcierges(newMap);
                                       }}
                                       className="w-20 px-2.5 py-1.5 text-xs font-mono font-bold text-neutral-800 border border-neutral-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-800 disabled:bg-neutral-100 disabled:opacity-50"
@@ -9397,11 +9621,15 @@ ${chauffeurHtml}
                                       step="0.01"
                                       min="0"
                                       disabled={!isSelected}
-                                      value={state.cost}
+                                      value={cost}
                                       onChange={(e) => {
                                         const val = Math.max(0, parseFloat(e.target.value) || 0);
                                         const newMap = new Map(selectedTourConcierges);
-                                        newMap.set(item.id!, { ...state, cost: val });
+                                        newMap.forEach((v, k) => {
+                                          if (v.concierge_cost_item_id === item.id! && v.selected) {
+                                            newMap.set(k, { ...v, cost: val });
+                                          }
+                                        });
                                         setSelectedTourConcierges(newMap);
                                       }}
                                       className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-neutral-800 border border-neutral-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-800 disabled:bg-neutral-100 disabled:opacity-50"
@@ -9411,7 +9639,7 @@ ${chauffeurHtml}
 
                                 {/* Line Total */}
                                 <div className="text-right">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Line Unit Cost</span>
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Line Total</span>
                                   <span className={`text-sm font-mono font-bold ${isSelected ? 'text-emerald-800' : 'text-neutral-400'}`}>
                                     ${itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
@@ -9421,6 +9649,27 @@ ${chauffeurHtml}
                             </div>
                           );
                         })}
+                    </div>
+
+                    {/* Hidden PDF template for printing */}
+                    <div id="concierge-pdf-print-area" style={{ display: 'none' }}>
+                      <ItineraryPdfTemplateNew
+                        itinerary={itinerary}
+                        touristData={touristData}
+                        travelStyle={touristData?.preferences?.travel_style || 'Luxury'}
+                        singleRoomsCount={manualSingle}
+                        doubleRoomsCount={manualDouble}
+                        tripleRoomsCount={manualTriple}
+                        familyRoomsCount={manualFamily}
+                        guideNeeded={elements.guide}
+                        chauffeurNeeded={elements.driver}
+                        appSettings={appSettings}
+                        masterData={masterData}
+                        dayCostOverrides={tripData?.dayCostOverrides}
+                        dailyDriverAssignments={dailyDriverAssignments}
+                        dailyVehicleAssignments={dailyVehicleAssignments}
+                        tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected)}
+                      />
                     </div>
 
                     {/* Footer Summary & Save Bar */}
@@ -9433,11 +9682,11 @@ ${chauffeurHtml}
                             let totalUSD = 0;
                             selectedTourConcierges.forEach((val, itemId) => {
                               if (!val.selected) return;
-                              const costObj = availableConciergeCostItems.find(c => c.id === itemId);
+                              const costObj = availableConciergeCostItems.find(c => c.id === val.concierge_cost_item_id || c.id === itemId);
                               const cb = (costObj?.costing_basis || '').toLowerCase();
                               const isDaily = cb.includes('day') || cb.includes('daily');
                               const lineCost = (val.quantity || 0) * (val.cost || 0);
-                              totalUSD += isDaily ? lineCost * tourDaysCount : lineCost;
+                              totalUSD += isDaily && !val.tour_itinerary_id ? lineCost * tourDaysCount : lineCost;
                             });
 
                             return (
@@ -9461,22 +9710,25 @@ ${chauffeurHtml}
                               const selectedItems: SaveTourConciergeItemDTO[] = [];
                               selectedTourConcierges.forEach((val, key) => {
                                 if (val.selected) {
-                                  selectedItems.push({
-                                    concierge_cost_item_id: key,
-                                    quantity: val.quantity > 0 ? val.quantity : 1,
-                                    cost: val.cost,
-                                    tour_itinerary_id: val.tour_itinerary_id || null
-                                  });
+                                  const concItemId = val.concierge_cost_item_id || (key && !key.includes('_') && key.length === 36 ? key : null);
+                                  if (concItemId) {
+                                    selectedItems.push({
+                                      concierge_cost_item_id: concItemId,
+                                      quantity: val.quantity > 0 ? val.quantity : 1,
+                                      cost: val.cost,
+                                      tour_itinerary_id: val.tour_itinerary_id || null
+                                    });
+                                  }
                                 }
                               });
                               await saveTourConciergesAction(tourId, selectedItems);
                             }
-                            const aiBuilderIdx = basicSteps.findIndex(s => s.id === 'ai-builder');
-                            handleStepClick(aiBuilderIdx !== -1 ? aiBuilderIdx : 3);
+                            const shareStepIdx = basicSteps.findIndex(s => s.id === 'share-tourist');
+                            handleStepClick(shareStepIdx !== -1 ? shareStepIdx : 4);
                           }}
-                          className="bg-emerald-800 hover:bg-emerald-900 text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-md hover:shadow-lg text-xs uppercase tracking-wider"
+                          className="bg-emerald-800 hover:bg-emerald-900 text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-md hover:shadow-lg text-xs uppercase tracking-wider cursor-pointer"
                         >
-                          Save & Proceed to AI Builder <ChevronRight className="w-4 h-4" />
+                          Save & Proceed to Share with Tourist <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -22183,8 +22435,8 @@ interface AIItineraryBuilderProps {
   handleUpdateDailyDriverField: (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => void;
   dbActivities: any[];
   availableConciergeCostItems: SeamlessConciergeCostItem[];
-  selectedTourConcierges: Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>;
-  setSelectedTourConcierges: React.Dispatch<React.SetStateAction<Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>>;
+  selectedTourConcierges: Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>;
+  setSelectedTourConcierges: React.Dispatch<React.SetStateAction<Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>>;
   conciergeSearchQuery: string;
   setConciergeSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   dayToItinIdMap?: Record<number, string>;
@@ -24641,71 +24893,6 @@ function AIItineraryBuilder({
                 Manage Vehicles
               </button>
             </div>
-
-            {/* Concierge Services Card */}
-            <div className="border border-neutral-200/60 rounded-xl p-4 flex flex-col justify-between bg-neutral-50/50 hover:bg-neutral-50 transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-emerald-800" />
-                    <span className="text-xs font-bold text-neutral-700">Concierge Services</span>
-                  </div>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono px-2 py-0.5 rounded-full font-bold">
-                    {(() => {
-                      const dayId = dayToItinIdMap[activeDay] || null;
-                      let dayCount = 0;
-                      let wholeTripCount = 0;
-                      selectedTourConcierges.forEach((val) => {
-                        if (val.selected) {
-                          if (val.tour_itinerary_id && dayId && val.tour_itinerary_id === dayId) dayCount++;
-                          else if (!val.tour_itinerary_id) wholeTripCount++;
-                        }
-                      });
-                      return `${dayCount} day / ${wholeTripCount} trip`;
-                    })()}
-                  </span>
-                </div>
-                <div className="text-[11px] text-neutral-500 mb-4 min-h-[44px]">
-                  {(() => {
-                    const dayId = dayToItinIdMap[activeDay] || null;
-                    const assignedForDay: { title: string; cost_code: string; qty: number }[] = [];
-                    selectedTourConcierges.forEach((val, itemId) => {
-                      if (val.selected && (val.tour_itinerary_id === dayId || !val.tour_itinerary_id)) {
-                        const costObj = availableConciergeCostItems.find(c => c.id === itemId);
-                        if (costObj) {
-                          assignedForDay.push({
-                            title: costObj.title,
-                            cost_code: costObj.cost_code,
-                            qty: val.quantity
-                          });
-                        }
-                      }
-                    });
-
-                    return assignedForDay.length > 0 ? (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {assignedForDay.map((ass, i) => (
-                          <span key={i} className="inline-block bg-white border border-neutral-200 text-neutral-800 px-2 py-0.5 rounded-md font-medium shadow-2xs">
-                            <span className="font-mono text-[9px] text-emerald-800 mr-1">[{ass.cost_code}]</span>
-                            {ass.title} (x{ass.qty})
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="italic text-neutral-400 mt-1">No concierge assigned for Day {activeDay}</p>
-                    );
-                  })()}
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={isLockedByOther}
-                onClick={openConciergesModal}
-                className="w-full text-center text-xs font-black uppercase tracking-wider bg-white border border-neutral-200 hover:border-emerald-800 hover:text-emerald-800 py-2 px-3 rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-              >
-                Manage Concierges
-              </button>
-            </div>
           </div>
         </div>
 
@@ -25277,269 +25464,7 @@ function AIItineraryBuilder({
         );
       })(), document.body)}
 
-      {/* 4. Concierges Modal */}
-      {allocationModal === 'concierges' && mounted && createPortal((() => {
-        const activeDayItinId = dayToItinIdMap[activeDay] || null;
-        const activeDayDateStr = getDayDateString(activeDay);
 
-        return (
-          <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-[99999] p-4">
-            <div className="bg-white rounded-3xl border border-neutral-250 shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
-              {/* Modal Header */}
-              <div className="px-6 py-4.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-                <div>
-                  <h3 className="text-sm font-black text-neutral-800 uppercase tracking-wider">
-                    Manage Concierge Services — Day {activeDay} {activeDayDateStr ? `(${activeDayDateStr})` : ''}
-                  </h3>
-                  <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">
-                    Configure concierge items for this tour as a one-time cost or assign specifically to {activeDayDateStr ? activeDayDateStr : `Day ${activeDay}`}.
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setAllocationModal(null)}
-                    className="text-neutral-400 hover:text-neutral-600 p-1.5 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6 overflow-y-auto space-y-5 flex-1">
-                {/* Search & Add New Item Bar */}
-                <div className="bg-neutral-50 border border-neutral-200/60 p-4 rounded-2xl flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">Search Catalog</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search concierge catalog..."
-                        value={conciergeSearchQuery}
-                        onChange={(e) => setConciergeSearchQuery(e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-xl pl-9 pr-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all"
-                      />
-                      <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <label className="text-[9px] font-black text-neutral-400 uppercase tracking-wider block mb-1">
-                      Add Service from Catalog (Day {activeDay} {activeDayDateStr ? ` - ${activeDayDateStr}` : ''})
-                    </label>
-                    <select
-                      onChange={(e) => {
-                        const itemId = e.target.value;
-                        if (!itemId) return;
-                        const costObj = availableConciergeCostItems.find(c => c.id === itemId);
-                        if (costObj) {
-                          const defaultPax = touristData ? (Number(touristData.preferences?.adults || 0) + Number(touristData.preferences?.children || 0)) || 1 : 1;
-                          const newMap = new Map(selectedTourConcierges);
-                          newMap.set(itemId, {
-                            selected: true,
-                            quantity: defaultPax,
-                            cost: Number(costObj.default_cost || 0),
-                            tour_itinerary_id: activeDayItinId || null
-                          });
-                          setSelectedTourConcierges(newMap);
-                        }
-                        e.target.value = '';
-                      }}
-                      className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/10 transition-all cursor-pointer"
-                    >
-                      <option value="">+ Add service from catalog to Day {activeDay}...</option>
-                      {availableConciergeCostItems.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          [{c.cost_code}] {c.title} (${Number(c.default_cost || 0).toFixed(2)} / {c.costing_basis})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Items List */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                    Configured Concierge Items ({Array.from(selectedTourConcierges.values()).filter(v => v.selected).length} Active)
-                  </h4>
-                  
-                  {Array.from(selectedTourConcierges.entries())
-                    .filter(([itemId, val]) => {
-                      if (!val.selected) return false;
-                      if (!conciergeSearchQuery) return true;
-                      const costObj = availableConciergeCostItems.find(c => c.id === itemId);
-                      if (!costObj) return false;
-                      const q = conciergeSearchQuery.toLowerCase();
-                      return costObj.title.toLowerCase().includes(q) || costObj.cost_code.toLowerCase().includes(q);
-                    })
-                    .map(([itemId, val]) => {
-                      const costObj = availableConciergeCostItems.find(c => c.id === itemId);
-                      if (!costObj) return null;
-                      const isDayAssigned = Boolean(val.tour_itinerary_id && activeDayItinId && val.tour_itinerary_id === activeDayItinId);
-                      const isTripAssigned = !val.tour_itinerary_id;
-
-                      return (
-                        <div
-                          key={itemId}
-                          className={`p-4 rounded-2xl border transition-all space-y-3 ${
-                            isDayAssigned
-                              ? 'bg-emerald-50/20 border-emerald-300 ring-1 ring-emerald-200'
-                              : isTripAssigned
-                              ? 'bg-blue-50/20 border-blue-200'
-                              : 'bg-white border-neutral-200 opacity-75'
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-bold bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded text-neutral-800">
-                                {costObj.cost_code}
-                              </span>
-                              <h5 className="text-sm font-bold text-neutral-800">{costObj.title}</h5>
-                              {isTripAssigned && (
-                                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
-                                  🌐 One Time Cost (Whole Trip)
-                                </span>
-                              )}
-                              {isDayAssigned && (
-                                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-                                  📅 Assigned to Day {activeDay} {activeDayDateStr ? `(${activeDayDateStr})` : ''}
-                                </span>
-                              )}
-                              {!isTripAssigned && !isDayAssigned && (
-                                <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
-                                  📅 Assigned to another Day
-                                </span>
-                              )}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newMap = new Map(selectedTourConcierges);
-                                newMap.set(itemId, { ...val, selected: false });
-                                setSelectedTourConcierges(newMap);
-                              }}
-                              className="text-red-500 hover:text-red-700 text-xs font-bold p-1 hover:bg-red-50 rounded transition-colors"
-                            >
-                              Remove
-                            </button>
-                          </div>
-
-                          {/* Assignment Scope: Two Radio Buttons */}
-                          <div className="bg-white/80 p-3 rounded-xl border border-neutral-200/70 flex flex-wrap items-center gap-6">
-                            <span className="text-[10px] font-black uppercase text-neutral-400 tracking-wider">Assignment:</span>
-                            <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer hover:text-neutral-900">
-                              <input
-                                type="radio"
-                                name={`scope-${itemId}`}
-                                checked={!val.tour_itinerary_id}
-                                onChange={() => {
-                                  const newMap = new Map(selectedTourConcierges);
-                                  newMap.set(itemId, { ...val, tour_itinerary_id: null });
-                                  setSelectedTourConcierges(newMap);
-                                }}
-                                className="w-4 h-4 text-emerald-800 focus:ring-emerald-800 cursor-pointer"
-                              />
-                              <span>One time cost</span>
-                            </label>
-
-                            <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer hover:text-neutral-900">
-                              <input
-                                type="radio"
-                                name={`scope-${itemId}`}
-                                checked={Boolean(val.tour_itinerary_id && activeDayItinId && val.tour_itinerary_id === activeDayItinId)}
-                                onChange={() => {
-                                  const newMap = new Map(selectedTourConcierges);
-                                  newMap.set(itemId, { ...val, tour_itinerary_id: activeDayItinId || null });
-                                  setSelectedTourConcierges(newMap);
-                                }}
-                                className="w-4 h-4 text-emerald-800 focus:ring-emerald-800 cursor-pointer"
-                              />
-                              <span>
-                                Assigned to current date (Day {activeDay}{activeDayDateStr ? ` - ${activeDayDateStr}` : ''})
-                              </span>
-                            </label>
-                          </div>
-
-                          {/* Editable Quantity & Cost */}
-                          <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-neutral-100">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-bold uppercase text-neutral-400">Qty:</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={val.quantity}
-                                  onChange={(e) => {
-                                    const q = Math.max(1, parseFloat(e.target.value) || 1);
-                                    const newMap = new Map(selectedTourConcierges);
-                                    newMap.set(itemId, { ...val, quantity: q });
-                                    setSelectedTourConcierges(newMap);
-                                  }}
-                                  className="w-16 text-xs font-mono font-bold border border-neutral-200 bg-white rounded-lg px-2 py-1 text-neutral-800 outline-none"
-                                />
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-bold uppercase text-neutral-400">Cost ({costObj.currency || 'USD'}):</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={val.cost}
-                                  onChange={(e) => {
-                                    const c = Math.max(0, parseFloat(e.target.value) || 0);
-                                    const newMap = new Map(selectedTourConcierges);
-                                    newMap.set(itemId, { ...val, cost: c });
-                                    setSelectedTourConcierges(newMap);
-                                  }}
-                                  className="w-20 text-xs font-mono font-bold border border-neutral-200 bg-white rounded-lg px-2 py-1 text-neutral-800 outline-none"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="font-mono text-xs font-bold text-emerald-800">
-                              Subtotal: ${((val.quantity || 0) * (val.cost || 0)).toFixed(2)}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
-                <span className="text-xs text-neutral-500 font-medium">
-                  Concierge changes will save automatically when updating tour itinerary.
-                </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (tourId) {
-                      const conciergePayload: SaveTourConciergeItemDTO[] = [];
-                      selectedTourConcierges.forEach((val, key) => {
-                        if (val.selected) {
-                          conciergePayload.push({
-                            concierge_cost_item_id: key,
-                            quantity: val.quantity > 0 ? val.quantity : 1,
-                            cost: val.cost,
-                            tour_itinerary_id: val.tour_itinerary_id || null
-                          });
-                        }
-                      });
-                      await saveTourConciergesAction(tourId, conciergePayload);
-                    }
-                    setAllocationModal(null);
-                  }}
-                  className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
-                >
-                  Save & Close
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })(), document.body)}
 
         {/* Daily Cost Summary Banner */}
         <div className="bg-gradient-to-tr from-neutral-50/70 to-emerald-50/20 rounded-2xl border border-neutral-200/50 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">

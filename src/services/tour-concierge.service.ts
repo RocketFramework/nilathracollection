@@ -69,8 +69,9 @@ export class TourConciergeService {
         }
 
         // 2. Insert new selected items if any
-        if (items && items.length > 0) {
-            const toInsert = items.map(item => ({
+        const validItems = (items || []).filter(item => item && Boolean(item.concierge_cost_item_id));
+        if (validItems.length > 0) {
+            const toInsert = validItems.map(item => ({
                 tour_id: tourId,
                 tour_itinerary_id: item.tour_itinerary_id || null,
                 concierge_cost_item_id: item.concierge_cost_item_id,
