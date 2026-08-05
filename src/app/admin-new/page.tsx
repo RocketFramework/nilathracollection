@@ -2403,6 +2403,28 @@ function PlannerWizardWorkspace() {
         console.error("Warning: Failed to save tour daily vehicles:", vehicleSaveRes.error);
       }
 
+      // Save concierge assignments to database
+      if (selectedTourConcierges) {
+        const selectedItems: SaveTourConciergeItemDTO[] = [];
+        selectedTourConcierges.forEach((val, key) => {
+          if (val.selected) {
+            const concItemId = val.concierge_cost_item_id || (key && !key.includes('_') && key.length === 36 ? key : null);
+            if (concItemId) {
+              selectedItems.push({
+                concierge_cost_item_id: concItemId,
+                quantity: val.quantity > 0 ? val.quantity : 1,
+                cost: val.cost,
+                tour_itinerary_id: val.tour_itinerary_id || null
+              });
+            }
+          }
+        });
+        const conciergeSaveRes = await saveTourConciergesAction(tourId, selectedItems);
+        if (!conciergeSaveRes.success) {
+          console.error("Warning: Failed to save tour concierges:", conciergeSaveRes.error);
+        }
+      }
+
       // Automatically create a draft version snapshot when saving progress
       if (track === 'basic' && currentStepObj?.id === 'ai-builder') {
         const autoLabel = `Auto-saved on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -3893,7 +3915,11 @@ function PlannerWizardWorkspace() {
       });
     });    // 2. Map Supplier side (Daily Activities + Driver Selection assignments)
     const supplierPLItems: ProfitLossLineItem[] = dbActivities
-      .filter(da => da.activity_type !== 'driver' && da.activity_type !== 'travel')
+      .filter(da => {
+        if (da.activity_type === 'driver' || da.activity_type === 'travel') return false;
+        if (da.activity_type === 'meal' && !da.hotel_id && !da.restaurant_id) return false;
+        return true;
+      })
       .map(da => {
         const dayNum = da.tour_itineraries?.day_number || da.day_number || 1;
 
@@ -3902,9 +3928,9 @@ function PlannerWizardWorkspace() {
           : (Number(da.contracted_price) || 0) * (da.quantity || 1);
         let contractedPrice = Number(da.contracted_price) || (da.quantity > 0 ? contractedTotal / da.quantity : contractedTotal);
 
-        let chargedTotal = da.charged_total_price !== undefined && da.charged_total_price !== null
+        let chargedTotal = da.charged_total_price !== undefined && da.charged_total_price !== null && Number(da.charged_total_price) > 0
           ? Number(da.charged_total_price)
-          : (Number(da.charged_unit_price) || 0) * (da.quantity || 1);
+          : (Number(da.charged_unit_price) > 0 ? Number(da.charged_unit_price) * (da.quantity || 1) : contractedTotal);
         let chargedPrice = Number(da.charged_unit_price) || (da.quantity > 0 ? chargedTotal / da.quantity : chargedTotal);
 
         // Find linked PO items
@@ -4315,38 +4341,41 @@ function PlannerWizardWorkspace() {
         const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
         const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
 
-        supplierPLItems.push({
-          dailyActivityId: transportAss.id || `transport-day-${dayNum}-${idx}`,
-          dayNumber: dayNum,
-          date: dateVal,
-          title: `Transport Provider Services (Day ${dayNum})${transportAssList.length > 1 ? ` [Provider ${idx + 1}]` : ''}`,
-          vendorName,
-          vendorType: 'travel',
-          quantity: 1,
-          contractedPrice,
-          contractedTotal,
-          chargedPrice,
-          chargedTotal,
-          invoicedQty,
-          invoicedUnitPrice,
-          invoicedTotal,
-          invoicedDiscrepancy,
-          margin,
-          marginPercentage,
-          poNumber,
-          supplierInvoiceNumber,
-          supplierInvoiceCurrency,
-          supplierInvoiceRate,
-          vendorPhone,
-          vendorEmail,
-          reservationContactName: null,
-          reservationContactPhone: null,
-          reservationContactEmail: null,
-          salesContactName: null,
-          salesContactPhone: null,
-          salesContactEmail: null,
-          hasDiscrepancy
-        });
+        // Only include standalone transport assignments if there is an invoiced amount
+        if (invoicedTotal > 0) {
+          supplierPLItems.push({
+            dailyActivityId: transportAss.id || `transport-day-${dayNum}-${idx}`,
+            dayNumber: dayNum,
+            date: dateVal,
+            title: `Transport Provider Services (Day ${dayNum})${transportAssList.length > 1 ? ` [Provider ${idx + 1}]` : ''}`,
+            vendorName,
+            vendorType: 'travel',
+            quantity: 1,
+            contractedPrice,
+            contractedTotal,
+            chargedPrice,
+            chargedTotal,
+            invoicedQty,
+            invoicedUnitPrice,
+            invoicedTotal,
+            invoicedDiscrepancy,
+            margin,
+            marginPercentage,
+            poNumber,
+            supplierInvoiceNumber,
+            supplierInvoiceCurrency,
+            supplierInvoiceRate,
+            vendorPhone,
+            vendorEmail,
+            reservationContactName: null,
+            reservationContactPhone: null,
+            reservationContactEmail: null,
+            salesContactName: null,
+            salesContactPhone: null,
+            salesContactEmail: null,
+            hasDiscrepancy
+          });
+        }
       });
     }
 
@@ -4410,10 +4439,17 @@ function PlannerWizardWorkspace() {
         const vId = vehicleAss?.vehicle_id;
         const vObj = vId ? masterData.transportVehicles?.find((v: any) => v.id === vId) : null;
         const makeModel = vObj ? [vObj.make, vObj.model].filter(Boolean).join(' ') || vObj.make_and_model || 'Vehicle' : 'Vehicle';
-        let vendorName = vObj ? `${makeModel}${vObj.vehicle_number ? ` (${vObj.vehicle_number})` : ''}` : 'Vehicle';
 
-        let vendorPhone = null;
-        let vendorEmail = null;
+        const tpId = (vehicleAss as any)?.transport_provider_id || (dailyTransportAssignments[dayNum] || [])[0]?.transport_provider_id;
+        const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
+        const providerName = tpObj?.name;
+
+        let vendorName = providerName
+          ? `${providerName} - ${makeModel}${vObj?.vehicle_number ? ` (${vObj.vehicle_number})` : ''}`
+          : (vObj ? `${makeModel}${vObj.vehicle_number ? ` (${vObj.vehicle_number})` : ''}` : 'Vehicle');
+
+        let vendorPhone = tpObj?.phone || null;
+        let vendorEmail = tpObj?.email || null;
 
         if (linkedPOItems.length > 0) {
           const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
