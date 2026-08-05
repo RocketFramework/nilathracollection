@@ -4269,117 +4269,7 @@ function PlannerWizardWorkspace() {
       }
     }
 
-    // 2c. Map Transport & Transfers line items (Grouped by day, directly from tour_itinerary_transports)
-    for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
-      const transportAssList = dailyTransportAssignments[dayNum] || [];
-      if (transportAssList.length === 0) continue;
-
-      const dateVal = (touristData?.preferences?.arrival_date ? (() => {
-        try {
-          const d = new Date(touristData.preferences.arrival_date);
-          d.setDate(d.getDate() + (dayNum - 1));
-          return d.toISOString().split('T')[0];
-        } catch { return null; }
-      })() : null);
-
-      // Find linked PO items for transport on this day
-      const linkedPOItems = purchaseOrders
-        .filter(po => po.status !== 'Cancelled' && (po.vendor_type === 'transport' || (po.vendor_name && po.vendor_name.toLowerCase().includes('fleet'))))
-        .flatMap((po: any) => (po.items || []).map((item: any) => ({ ...item, po })))
-        .filter(item => Number(item.day_number) === dayNum);
-
-      let invoicedTotal = 0;
-      let invoicedQty = 0;
-      let poNumber: string | null = null;
-      let supplierInvoiceNumber: string | null = null;
-      let supplierInvoiceCurrency: string | null = null;
-      let supplierInvoiceRate: number | null = null;
-
-      linkedPOItems.forEach(poItem => {
-        poNumber = poItem.po.po_number || poNumber;
-        const invoices = poItem.po.invoices || [];
-        invoices.forEach((inv: any) => {
-          const invItems = inv.items || [];
-          const matchingInvItems = invItems.filter((ii: any) => ii.purchase_order_item_id === poItem.id);
-          matchingInvItems.forEach((ii: any) => {
-            const itemTotalUSD = getInvoiceItemAmountInUSD(ii, Number(inv.exchange_rate) || 1.0, inv.currency || 'USD');
-            invoicedTotal += itemTotalUSD;
-            invoicedQty += ii.quantity || 0;
-            supplierInvoiceNumber = inv.invoice_number || supplierInvoiceNumber;
-            supplierInvoiceCurrency = inv.currency || supplierInvoiceCurrency;
-            supplierInvoiceRate = Number(inv.exchange_rate) || supplierInvoiceRate;
-          });
-        });
-      });
-
-      transportAssList.forEach((transportAss, idx) => {
-        const tpId = transportAss?.transport_provider_id;
-        const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
-
-        let vendorName = tpObj ? tpObj.name : 'Transport Provider';
-        let vendorPhone = tpObj?.phone || null;
-        let vendorEmail = tpObj?.email || null;
-
-        if ((vendorName === 'Transport Provider' || !vendorName) && linkedPOItems.length > 0) {
-          const poWithVendor = linkedPOItems.find(item => item.po.vendor_name);
-          if (poWithVendor) {
-            vendorName = poWithVendor.po.vendor_name;
-            vendorPhone = poWithVendor.po.vendor_phone || vendorPhone;
-            vendorEmail = poWithVendor.po.vendor_email || vendorEmail;
-          }
-        }
-
-        const contractedTotal = 0;
-        const chargedTotal = 0;
-
-        const contractedPrice = contractedTotal;
-        const chargedPrice = chargedTotal;
-
-        const invoicedUnitPrice = invoicedQty > 0 ? invoicedTotal / invoicedQty : 0;
-        const invoicedDiscrepancy = invoicedTotal - contractedTotal;
-        const margin = chargedTotal - contractedTotal;
-        const marginPercentage = chargedTotal > 0 ? (margin / chargedTotal) * 100 : 0;
-        const hasDiscrepancy = Math.abs(invoicedDiscrepancy) >= 0.05 || (contractedTotal > 0 && invoicedTotal === 0);
-
-        // Only include standalone transport assignments if there is an invoiced amount
-        if (invoicedTotal > 0) {
-          supplierPLItems.push({
-            dailyActivityId: transportAss.id || `transport-day-${dayNum}-${idx}`,
-            dayNumber: dayNum,
-            date: dateVal,
-            title: `Transport Provider Services (Day ${dayNum})${transportAssList.length > 1 ? ` [Provider ${idx + 1}]` : ''}`,
-            vendorName,
-            vendorType: 'travel',
-            quantity: 1,
-            contractedPrice,
-            contractedTotal,
-            chargedPrice,
-            chargedTotal,
-            invoicedQty,
-            invoicedUnitPrice,
-            invoicedTotal,
-            invoicedDiscrepancy,
-            margin,
-            marginPercentage,
-            poNumber,
-            supplierInvoiceNumber,
-            supplierInvoiceCurrency,
-            supplierInvoiceRate,
-            vendorPhone,
-            vendorEmail,
-            reservationContactName: null,
-            reservationContactPhone: null,
-            reservationContactEmail: null,
-            salesContactName: null,
-            salesContactPhone: null,
-            salesContactEmail: null,
-            hasDiscrepancy
-          });
-        }
-      });
-    }
-
-    // 2d. Map Vehicle line items (Grouped by day, directly from tour_itinerary_vehicles)
+    // 2c. Map Vehicle & Transport line items (Grouped by day, directly from tour_itinerary_vehicles)
     for (let dayNum = 1; dayNum <= numDaysInTour; dayNum++) {
       const vehicleAssList = dailyVehicleAssignments[dayNum] || [];
       if (vehicleAssList.length === 0) continue;
@@ -4439,14 +4329,19 @@ function PlannerWizardWorkspace() {
         const vId = vehicleAss?.vehicle_id;
         const vObj = vId ? masterData.transportVehicles?.find((v: any) => v.id === vId) : null;
         const makeModel = vObj ? [vObj.make, vObj.model].filter(Boolean).join(' ') || vObj.make_and_model || 'Vehicle' : 'Vehicle';
+        const vehicleDetail = `${makeModel}${vObj?.vehicle_number ? ` (${vObj.vehicle_number})` : ''}`;
 
-        const tpId = (vehicleAss as any)?.transport_provider_id || (dailyTransportAssignments[dayNum] || [])[0]?.transport_provider_id;
+        const dayTransports = dailyTransportAssignments[dayNum] || [];
+        const matchingTransport = dayTransports.find((t: any) => t.vehicle_id === vehicleAss.vehicle_id && t.tour_itinerary_id === vehicleAss.tour_itinerary_id)
+          || dayTransports.find((t: any) => t.vehicle_id === vehicleAss.vehicle_id)
+          || dayTransports.find((t: any) => t.tour_itinerary_id === vehicleAss.tour_itinerary_id)
+          || dayTransports[0];
+
+        const tpId = matchingTransport?.transport_provider_id;
         const tpObj = tpId ? masterData.transportProviders?.find((p: any) => p.id === tpId) : null;
         const providerName = tpObj?.name;
 
-        let vendorName = providerName
-          ? `${providerName} - ${makeModel}${vObj?.vehicle_number ? ` (${vObj.vehicle_number})` : ''}`
-          : (vObj ? `${makeModel}${vObj.vehicle_number ? ` (${vObj.vehicle_number})` : ''}` : 'Vehicle');
+        let vendorName = providerName || (vObj ? makeModel : 'Transport Provider');
 
         let vendorPhone = tpObj?.phone || null;
         let vendorEmail = tpObj?.email || null;
@@ -4470,7 +4365,7 @@ function PlannerWizardWorkspace() {
           dailyActivityId: vehicleAss.id || `vehicle-day-${dayNum}-${idx}`,
           dayNumber: dayNum,
           date: dateVal,
-          title: `Vehicle Services (Day ${dayNum})${vehicleAssList.length > 1 ? ` [Vehicle ${idx + 1}]` : ''}`,
+          title: `Vehicle Services (Day ${dayNum}) - ${vehicleDetail}${vehicleAssList.length > 1 ? ` [Vehicle ${idx + 1}]` : ''}`,
           vendorName,
           vendorType: 'travel',
           quantity: 1,
@@ -17460,7 +17355,7 @@ ${chauffeurHtml}
                       </div>
 
                       {/* Top Summary Cards */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 w-full">
                         {/* Guest Revenue */}
                         <div className="bg-emerald-50/20 border border-emerald-100 rounded-2xl p-5 shadow-sm space-y-3">
                           <div className="flex items-center justify-between">
@@ -17534,7 +17429,7 @@ ${chauffeurHtml}
                           </div>
                         </div>
 
--                       {/* Net Margins */}
+                        {/* Net Margins */}
                         <div className="bg-blue-50/15 border border-blue-100 rounded-2xl p-5 shadow-sm space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] uppercase font-bold tracking-wider text-blue-800">Net Profit</span>
