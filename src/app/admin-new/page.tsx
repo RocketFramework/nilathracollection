@@ -2550,7 +2550,6 @@ function PlannerWizardWorkspace() {
     {
       id: 'ai-builder',
       label: 'AI Itinerary Builder',
-      label: 'AI Itinerary Builder',
       description: 'Generate a smart AI-powered skeleton draft itinerary optimized for routing.',
       icon: BrainCircuit,
       isSubStep: true
@@ -2996,7 +2995,7 @@ function PlannerWizardWorkspace() {
 
           if (arguments.length === 0 || arguments) {
             const concItemsRes = await getSeamlessConciergeCostItemsAction({ pageSize: 100 });
-            const savedConcRes = activeTourId ? await getTourConciergesAction(activeTourId) : { items: [] };
+            const savedConcRes = activeTourId ? await getTourConciergesAction(activeTourId) : { success: false, items: [] };
             const itinDatesRes = activeTourId ? await getItineraryDatesAction(activeTourId) : { dayToItinIdMap: {} };
 
             if (itinDatesRes?.dayToItinIdMap) {
@@ -3009,7 +3008,7 @@ function PlannerWizardWorkspace() {
             setAvailableConciergeCostItems(activeItems);
 
             const savedConcierges = savedConcRes?.success && savedConcRes.items ? savedConcRes.items : [];
-            const defaultPax = touristRes?.data ? (Number(touristRes.data.adults || 0) + Number(touristRes.data.children || 0)) || 1 : 1;
+            const defaultPax = touristRes?.data ? (Number(touristRes.data.preferences?.adults || 0) + Number(touristRes.data.preferences?.children || 0)) || 1 : 1;
 
             const conciergeMap = new Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
             activeItems.forEach((item: any) => {
@@ -3837,28 +3836,28 @@ function PlannerWizardWorkspace() {
 
   // Concierge Configuration state
   const [availableConciergeCostItems, setAvailableConciergeCostItems] = useState<SeamlessConciergeCostItem[]>([]);
-  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { selected: boolean; quantity: number; cost: number }>>(new Map());
+  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>(new Map());
   const [conciergeSearchQuery, setConciergeSearchQuery] = useState<string>('');
   const [conciergeCategoryFilter, setConciergeCategoryFilter] = useState<string>('All');
 
   const [defaultUsdLkrRate, setDefaultUsdLkrRate] = useState<number>(300);
   const [tourLockedBuyingRate, setTourLockedBuyingRate] = useState<number | null>(null);
 
+  const getPaymentAmountInUSD = (p: any) => {
+    const amt = Number(p.amount) || 0;
+    if (amt === 0) return 0;
+    const currency = p.currency || 'USD';
+    if (currency === 'USD') return amt;
+    const rate = Number(p.exchange_rate);
+    const effectiveRate = (rate && rate > 1.0) ? rate : (tourLockedBuyingRate || defaultUsdLkrRate || 300);
+    return effectiveRate > 0 ? amt / effectiveRate : amt;
+  };
+
   // Profit & Loss Analysis states & calculations
   const [profitLossShowOnlyDiscrepancies, setProfitLossShowOnlyDiscrepancies] = useState<boolean>(false);
 
   const profitLossReport = useMemo(() => {
     // Helper functions for currency conversion
-    const getPaymentAmountInUSD = (p: any) => {
-      const amt = Number(p.amount) || 0;
-      if (amt === 0) return 0;
-      const currency = p.currency || 'USD';
-      if (currency === 'USD') return amt;
-      const rate = Number(p.exchange_rate);
-      const effectiveRate = (rate && rate > 1.0) ? rate : (tourLockedBuyingRate || defaultUsdLkrRate || 300);
-      return effectiveRate > 0 ? amt / effectiveRate : amt;
-    };
-
     const getInvoiceItemAmountInUSD = (item: any, exchangeRate: number, currency: string) => {
       const total = (Number(item.unit_price) || 0) * (Number(item.quantity) || 0);
       if (currency === 'USD') return total;
@@ -4487,7 +4486,7 @@ function PlannerWizardWorkspace() {
 
         if (isDaySpecific) {
           const itin = itinerary.find(it => it.id === val.tour_itinerary_id);
-          dayNum = itin?.dayIndex || 1;
+          dayNum = itin?.dayNumber || 1;
           title = `Concierge (Day ${dayNum}): ${costObj.title}`;
         } else if (isDailyBasis) {
           totalQty = (val.quantity || 1) * Math.max(1, numDaysInTour);
@@ -9303,7 +9302,7 @@ ${chauffeurHtml}
                         .map((item) => {
                           const state = selectedTourConcierges.get(item.id!) || {
                             selected: false,
-                            quantity: touristData ? (Number(touristData.adults || 0) + Number(touristData.children || 0)) || 1 : 1,
+                            quantity: touristData ? (Number(touristData.preferences?.adults || 0) + Number(touristData.preferences?.children || 0)) || 1 : 1,
                             cost: Number(item.default_cost || 0)
                           };
                           const isSelected = state.selected;
@@ -21674,7 +21673,7 @@ ${chauffeurHtml}
           </div>
         )}
 
-        {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && (() => {
+        {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && mounted && createPortal((() => {
           const isGlobal = isGlobalTransportReqEdit;
           const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
           const targetId = isGlobal ? null : selectedTransportBlock!.id;
@@ -21977,7 +21976,7 @@ ${chauffeurHtml}
                               max={new Date().getFullYear() + 1}
                               placeholder="e.g. 2018"
                               value={reqVehicleSearchMinYear}
-                              onChange={e => setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value) : '')}
+                              onChange={e => { setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value, 10) : ''); }}
                               className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-white text-neutral-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800 transition-all"
                             />
                           </div>
@@ -22087,454 +22086,6 @@ ${chauffeurHtml}
                       setSelectedTransportBlock(null);
                       setGlobalTransportReq(null);
                       setModalTriggerRect(null);
-                      // Reset picker state
-                      setReqPickedVehicles([]);
-                      setReqShowVehiclePicker(false);
-                      setReqVehicleSearchMake('');
-                      setReqVehicleSearchMinYear('');
-                    }}
-                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-[11px] font-bold transition-all shadow-sm"
-                  >
-                    Save Specs
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          );
-        })()}
-
-        {((showTransportReqModal && selectedTransportBlock) || (isGlobalTransportReqEdit && globalTransportReq)) && mounted && createPortal((() => {
-          const isGlobal = isGlobalTransportReqEdit;
-          const reqObj = isGlobal ? globalTransportReq : (selectedTransportBlock?.transport_requirement || {});
-          const targetId = isGlobal ? null : selectedTransportBlock!.id;
-
-          return (
-            <div className="fixed inset-0 z-[99999] overflow-y-auto flex items-center justify-center p-4">
-              {/* Click-away backdrop overlay */}
-              <div
-                className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm"
-                onClick={() => {
-                  setShowTransportReqModal(false);
-                  setIsGlobalTransportReqEdit(false);
-                  setSelectedTransportBlock(null);
-                  setGlobalTransportReq(null);
-                  setModalTriggerRect(null);
-                  setReqShowVehiclePicker(false);
-                  setReqVehiclesLoading(false);
-                }}
-              />
-
-              <div
-                className="bg-white rounded-3xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 z-[100000] w-full max-w-lg max-h-[90vh] relative"
-              >
-                {/* Modal Header */}
-                <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-                  <div className="space-y-1">
-                    <h3 className="text-base font-serif font-bold text-neutral-850">
-                      {isGlobal ? 'Global Itinerary Transport Specifications' : 'Transport Specifications & Requirements'}
-                    </h3>
-                    <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                      {isGlobal ? 'Applies to all unconfigured transport blocks' : `Block: ${selectedTransportBlock?.name || 'Transport'}`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowTransportReqModal(false);
-                      setIsGlobalTransportReqEdit(false);
-                      setSelectedTransportBlock(null);
-                      setGlobalTransportReq(null);
-                      setModalTriggerRect(null);
-                      setReqShowVehiclePicker(false);
-                      setReqVehiclesLoading(false);
-                    }}
-                    className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-150/50 rounded-xl transition-all cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Modal Body */}
-                <div className="p-6 overflow-y-auto space-y-6 flex-1">
-                  {/* Scope Selector */}
-                  {!isGlobal && (
-                    <div className="bg-neutral-50/80 p-3 rounded-2xl border border-neutral-200/60 flex items-center justify-between gap-4">
-                      <span className="text-xs font-bold text-neutral-700">Apply Scope</span>
-                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-neutral-200 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={() => setApplyScope('current')}
-                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${applyScope === 'current' ? 'bg-emerald-800 text-white shadow-xs' : 'text-neutral-500 hover:text-neutral-800'}`}
-                        >
-                          This Block Only
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setApplyScope('all')}
-                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${applyScope === 'all' ? 'bg-emerald-800 text-white shadow-xs' : 'text-neutral-500 hover:text-neutral-800'}`}
-                        >
-                          All Day {selectedTransportBlock?.dayNumber} Blocks
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 1. Chauffeur & Drivers Toggle */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Chauffeur & Driver Options</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
-                        <input
-                          type="checkbox"
-                          checked={reqObj.chauffeur_required !== false}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_required: val }));
-                            else updateSelectedTransportRequirement('chauffeur_required', val);
-                          }}
-                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
-                        />
-                        <span className="text-xs font-bold text-neutral-700">Chauffeur Required</span>
-                      </label>
-
-                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
-                        <input
-                          type="checkbox"
-                          checked={reqObj.chauffeur_speak_english !== false}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_speak_english: val }));
-                            else updateSelectedTransportRequirement('chauffeur_speak_english', val);
-                          }}
-                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
-                        />
-                        <span className="text-xs font-bold text-neutral-700">English Speaking</span>
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(reqObj.chauffeur_accommodation_needed)}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_accommodation_needed: val }));
-                            else updateSelectedTransportRequirement('chauffeur_accommodation_needed', val);
-                          }}
-                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
-                        />
-                        <span className="text-xs font-bold text-neutral-700">Driver Accommodation Needed</span>
-                      </label>
-
-                      <label className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50/50 cursor-pointer transition-all">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(reqObj.chauffeur_meal_needed)}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_meal_needed: val }));
-                            else updateSelectedTransportRequirement('chauffeur_meal_needed', val);
-                          }}
-                          className="w-4 h-4 rounded text-emerald-800 border-neutral-300 focus:ring-emerald-800 accent-emerald-800"
-                        />
-                        <span className="text-xs font-bold text-neutral-700">Driver Meal Needed</span>
-                      </label>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Other Languages Required</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. German, French, Mandarin..."
-                        value={reqObj.chauffeur_other_languages || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, chauffeur_other_languages: val }));
-                          else updateSelectedTransportRequirement('chauffeur_other_languages', val);
-                        }}
-                        className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-neutral-50/50 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 2. Vehicle Requirements & Pickers */}
-                  <div className="space-y-3 pt-2 border-t border-neutral-100">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Vehicle Specifications & Models</h4>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReqShowVehiclePicker(!reqShowVehiclePicker);
-                          if (!reqShowVehiclePicker && reqPickedVehicles.length === 0 && selectedTransportBlock) {
-                            // Seed from existing transport requirement if present
-                            const existing = selectedTransportBlock.transport_requirement?.assigned_vehicles || [];
-                            if (existing.length > 0) setReqPickedVehicles(existing);
-                          }
-                        }}
-                        className="text-[10px] font-black text-emerald-800 hover:text-emerald-950 uppercase tracking-wider border border-emerald-200/60 bg-emerald-50/60 px-2.5 py-1 rounded-lg transition-all"
-                      >
-                        {reqShowVehiclePicker ? 'Hide Fleet Picker' : '+ Select Vehicles from Master Fleet'}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Preferred Vehicle Type</label>
-                        <select
-                          value={reqObj.vehicle_type || 'SUV'}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, vehicle_type: val }));
-                            else updateSelectedTransportRequirement('vehicle_type', val);
-                          }}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3 py-2 bg-neutral-50/50 font-bold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                        >
-                          <option value="Sedan">Luxury Sedan</option>
-                          <option value="SUV">Luxury SUV</option>
-                          <option value="Van">Executive Van / Minibus</option>
-                          <option value="Bus">Luxury Coach Bus</option>
-                          <option value="Armored">Armored Vehicle</option>
-                          <option value="Helicopter">Helicopter / Air Transfer</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">Fuel & Transmission</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select
-                            value={reqObj.fuel_type || 'Diesel'}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, fuel_type: val }));
-                              else updateSelectedTransportRequirement('fuel_type', val);
-                            }}
-                            className="w-full text-[11px] border border-neutral-200 rounded-xl px-2 py-2 bg-neutral-50/50 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                          >
-                            <option value="Diesel">Diesel</option>
-                            <option value="Petrol">Petrol</option>
-                            <option value="Hybrid">Hybrid</option>
-                            <option value="EV">Electric (EV)</option>
-                          </select>
-
-                          <select
-                            value={reqObj.transmission_type || 'Automatic'}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, transmission_type: val }));
-                              else updateSelectedTransportRequirement('transmission_type', val);
-                            }}
-                            className="w-full text-[11px] border border-neutral-200 rounded-xl px-2 py-2 bg-neutral-50/50 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                          >
-                            <option value="Automatic">Automatic</option>
-                            <option value="Manual">Manual</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Master Vehicle Fleet Search & Multi-Picker Drawer */}
-                    {reqShowVehiclePicker && (
-                      <div className="bg-neutral-50 border border-neutral-200 p-4 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-neutral-700 uppercase tracking-wider">Select Vehicles from Master Data</span>
-                          <span className="text-[10px] text-neutral-400">Filter by provider or model</span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Filter vehicle make/model..."
-                            value={reqVehicleSearchMake}
-                            onChange={(e) => setReqVehicleSearchMake(e.target.value)}
-                            className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                          />
-                          <input
-                            type="number"
-                            placeholder="Min Year (e.g. 2020)..."
-                            value={reqVehicleSearchMinYear}
-                            onChange={(e) => setReqVehicleSearchMinYear(e.target.value ? parseInt(e.target.value) || '' : '')}
-                            className="text-xs border border-neutral-200 rounded-xl px-3 py-1.5 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                          />
-                        </div>
-
-                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 border border-neutral-100 rounded-xl bg-white p-2">
-                          {masterData.transportVehicles?.filter((v: any) => {
-                            if (reqVehicleSearchMake && !([v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || '').toLowerCase().includes(reqVehicleSearchMake.toLowerCase())) return false;
-                            if (reqVehicleSearchMinYear && v.year_of_manufacture && v.year_of_manufacture < reqVehicleSearchMinYear) return false;
-                            return true;
-                          }).map((vehicle: any) => {
-                            const provider = masterData.transportProviders?.find((p: any) => p.id === vehicle.provider_id) || { name: 'Unknown Fleet Provider' };
-                            const vehicleName = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.make_and_model || vehicle.vehicle_type || 'Vehicle';
-                            const alreadyPicked = reqPickedVehicles.find(pv => pv.vehicleId === vehicle.id);
-
-                            return (
-                              <div key={vehicle.id} className={`p-2 rounded-xl border text-xs transition-all ${alreadyPicked ? 'bg-emerald-50/60 border-emerald-200' : 'bg-white border-neutral-100 hover:border-neutral-200'}`}>
-                                <div className="flex items-start gap-2">
-                                  <input
-                                    type="checkbox"
-                                    id={`vpick-${vehicle.id}`}
-                                    checked={Boolean(alreadyPicked)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setReqPickedVehicles(prev => [...prev, { vehicleId: vehicle.id, vehicleName, providerName: provider.name, quantity: 1, notes: '' }]);
-                                      } else {
-                                        setReqPickedVehicles(prev => prev.filter(pv => pv.vehicleId !== vehicle.id));
-                                      }
-                                    }}
-                                    className="mt-0.5 w-3.5 h-3.5 rounded text-emerald-800 border-neutral-300 flex-shrink-0"
-                                  />
-                                  <label htmlFor={`vpick-${vehicle.id}`} className="flex-1 cursor-pointer min-w-0">
-                                    <p className="text-[11px] font-bold text-neutral-800 leading-tight">{vehicleName}</p>
-                                    <p className="text-[10px] text-neutral-400">{provider.name}{vehicle.vehicle_number ? ` \u00b7 ${vehicle.vehicle_number}` : ''}{vehicle.year_of_manufacture ? ` \u00b7 ${vehicle.year_of_manufacture}` : ''}</p>
-                                  </label>
-                                </div>
-                                {alreadyPicked && (
-                                  <div className="mt-2 ml-6 grid grid-cols-2 gap-2">
-                                    <div>
-                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Qty</label>
-                                      <input
-                                        type="number" min={1}
-                                        value={alreadyPicked.quantity}
-                                        onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, quantity: parseInt(e.target.value) || 1 } : pv))}
-                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block mb-0.5">Note</label>
-                                      <input
-                                        type="text" placeholder="Optional note..."
-                                        value={alreadyPicked.notes}
-                                        onChange={e => setReqPickedVehicles(prev => prev.map(pv => pv.vehicleId === vehicle.id ? { ...pv, notes: e.target.value } : pv))}
-                                        className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {reqPickedVehicles.length > 0 && (
-                      <div className="mt-3 space-y-1.5">
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">{reqPickedVehicles.length} Vehicle{reqPickedVehicles.length > 1 ? 's' : ''} Selected</span>
-                        {reqPickedVehicles.map(pv => (
-                          <div key={pv.vehicleId} className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-bold text-emerald-900 truncate">{pv.vehicleName}</p>
-                              <p className="text-[10px] text-emerald-600">{pv.providerName} · Qty: {pv.quantity}{pv.notes ? ` · ${pv.notes}` : ''}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setReqPickedVehicles(prev => prev.filter(x => x.vehicleId !== pv.vehicleId))}
-                              className="ml-2 p-1 text-emerald-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                  </div>
-
-                  {/* 3. Additional Special Instructions */}
-                  <div className="space-y-1 pt-2 border-t border-neutral-100">
-                    <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">Special Logistics Notes</label>
-                    <textarea
-                      rows={3}
-                      placeholder="e.g. VIP Meet & Greet at BIA runway, baby seat required..."
-                      value={reqObj.special_instructions || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (isGlobal) setGlobalTransportReq(prev => ({ ...prev, special_instructions: val }));
-                        else updateSelectedTransportRequirement('special_instructions', val);
-                      }}
-                      className="w-full text-xs border border-neutral-200 rounded-xl p-3 bg-neutral-50/50 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-800/20 focus:border-emerald-800"
-                    />
-                  </div>
-                </div>
-
-                {/* Modal Footer */}
-                <div className="p-4 border-t border-neutral-100 flex items-center justify-between bg-neutral-50/30">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowTransportReqModal(false);
-                      setIsGlobalTransportReqEdit(false);
-                      setSelectedTransportBlock(null);
-                      setGlobalTransportReq(null);
-                      setModalTriggerRect(null);
-                      setReqShowVehiclePicker(false);
-                      setReqVehiclesLoading(false);
-                    }}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-all"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isGlobal) {
-                        // Apply global specs to all unconfigured or active transport blocks
-                        setItinerary(prev => prev.map(b => {
-                          if (b.type === ItineraryBlockTypes.TRAVEL) {
-                            return {
-                              ...b,
-                              transport_requirement: {
-                                ...(b.transport_requirement || {}),
-                                ...globalTransportReq,
-                                assigned_vehicles: reqPickedVehicles.length > 0 ? reqPickedVehicles : (b.transport_requirement?.assigned_vehicles || [])
-                              }
-                            };
-                          }
-                          return b;
-                        }));
-                      } else if (selectedTransportBlock) {
-                        const updatedReq = {
-                          ...(selectedTransportBlock.transport_requirement || {}),
-                          assigned_vehicles: reqPickedVehicles
-                        };
-
-                        if (applyScope === 'all') {
-                          // Apply to all transport blocks on this day
-                          const dayNum = selectedTransportBlock.dayNumber;
-                          setItinerary(prev => prev.map(b => {
-                            if (b.dayNumber === dayNum && b.type === ItineraryBlockTypes.TRAVEL) {
-                              return {
-                                ...b,
-                                transport_requirement: {
-                                  ...(b.transport_requirement || {}),
-                                  ...updatedReq
-                                }
-                              };
-                            }
-                            return b;
-                          }));
-                        } else {
-                          // Apply to current block only
-                          setItinerary(prev => prev.map(b => {
-                            if (b.id === selectedTransportBlock.id) {
-                              return {
-                                ...b,
-                                transport_requirement: updatedReq
-                              };
-                            }
-                            return b;
-                          }));
-                        }
-                      }
-
-                      setShowTransportReqModal(false);
-                      setIsGlobalTransportReqEdit(false);
-                      setSelectedTransportBlock(null);
-                      setGlobalTransportReq(null);
-                      setModalTriggerRect(null);
-
                       // Reset picker state
                       setReqPickedVehicles([]);
                       setReqShowVehiclePicker(false);
@@ -25781,7 +25332,7 @@ function AIItineraryBuilder({
                         if (!itemId) return;
                         const costObj = availableConciergeCostItems.find(c => c.id === itemId);
                         if (costObj) {
-                          const defaultPax = touristData ? (Number(touristData.adults || 0) + Number(touristData.children || 0)) || 1 : 1;
+                          const defaultPax = touristData ? (Number(touristData.preferences?.adults || 0) + Number(touristData.preferences?.children || 0)) || 1 : 1;
                           const newMap = new Map(selectedTourConcierges);
                           newMap.set(itemId, {
                             selected: true,
