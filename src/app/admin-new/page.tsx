@@ -78,7 +78,10 @@ import {
   Pencil,
   Flag,
   Sliders,
-  RefreshCw
+  RefreshCw,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
@@ -447,6 +450,24 @@ const sortItineraryChronologically = (blocks: InternalItineraryBlock[]): Interna
 function PlannerWizardWorkspace() {
   const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
   const STORAGE_KEY = `nilathra_planner_wizard_state_${tourId}`;
+
+  // Responsive sidebar collapse state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('admin_sidebar_collapsed') === 'true';
+    }
+    return false;
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin_sidebar_collapsed', String(next));
+      }
+      return next;
+    });
+  };
 
   // Daily activities manifest states
   const [dbActivities, setDbActivities] = useState<any[]>([]);
@@ -8061,32 +8082,42 @@ ${chauffeurHtml}
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8F6F2] font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F8F6F2] font-sans overflow-hidden admin-laptop-compact">
       {/* 1. Header Toolbar */}
-      <header className="bg-white border-b border-neutral-200 px-6 py-4 flex flex-wrap items-center justify-between shadow-sm shrink-0 z-10">
-        <div className="flex items-center gap-4">
+      <header className="bg-white border-b border-neutral-200 px-4 py-2.5 sm:px-6 sm:py-3 flex flex-wrap items-center justify-between shadow-sm shrink-0 z-10 gap-3">
+        <div className="flex items-center gap-3">
+          {/* Sidebar Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="p-2 text-neutral-500 hover:text-emerald-800 hover:bg-neutral-100 rounded-xl transition-colors border border-neutral-200 shadow-sm flex items-center justify-center cursor-pointer"
+            title={isSidebarCollapsed ? "Expand Sidebar Navigation" : "Collapse Sidebar Navigation"}
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4 text-emerald-800" /> : <PanelLeftClose className="w-4 h-4 text-neutral-600" />}
+          </button>
+
           <Link
             href="/admin"
-            className="flex items-center gap-2 text-xs font-bold text-neutral-500 hover:text-emerald-800 hover:bg-neutral-50 px-3 py-2 rounded-xl transition-all border border-neutral-200 shadow-sm mr-2 group"
+            className="flex items-center gap-2 text-xs font-bold text-neutral-500 hover:text-emerald-800 hover:bg-neutral-50 px-3 py-2 rounded-xl transition-all border border-neutral-200 shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 text-neutral-400 group-hover:text-emerald-800 transition-colors" />
-            Back to Dashboard
+            <span className="hidden sm:inline">Back to Dashboard</span>
           </Link>
-          <div className="bg-brand-green/10 text-brand-green p-2 rounded-xl">
+          <div className="bg-brand-green/10 text-brand-green p-2 rounded-xl hidden sm:block">
             <SettingsIcon className="w-5 h-5 text-emerald-800" />
           </div>
           <div>
-            <h1 className="text-lg font-serif font-bold text-neutral-800 flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-serif font-bold text-neutral-800 flex items-center gap-2">
               Next-Gen Planner Wizard
-              <span className="text-[10px] font-sans font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full border border-amber-500/20 uppercase tracking-wider">
+              <span className="text-[10px] font-sans font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full border border-amber-500/20 uppercase tracking-wider hidden xs:inline-block">
                 Preview (admin-new)
               </span>
             </h1>
-            <p className="text-xs text-neutral-400">Build comprehensive client journeys through a structured relational workflow.</p>
+            <p className="text-[11px] text-neutral-400 hidden md:block">Build comprehensive client journeys through a structured relational workflow.</p>
           </div>
 
           {/* Tourist Info Panel */}
-          <div className="hidden lg:flex items-center gap-6 border-l border-neutral-200 pl-6 ml-2 animate-fade-in">
+          <div className="hidden xl:flex items-center gap-5 border-l border-neutral-200 pl-5 ml-1 animate-fade-in">
             <div className="flex flex-col gap-0.5">
               <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-extrabold font-sans">Tourist</span>
               <span className="text-xs font-bold text-neutral-850 flex items-center gap-1.5">
@@ -8115,7 +8146,7 @@ ${chauffeurHtml}
           </div>
         </div>
 
-        <div className="flex items-center gap-3 mt-2 sm:mt-0">
+        <div className="flex items-center gap-2.5">
           {track === 'final' && (
             <button
               type="button"
@@ -8128,41 +8159,41 @@ ${chauffeurHtml}
                 isLoadingGuideRates ||
                 isLoadingDriverRates
               }
-              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-emerald-800 text-xs font-bold rounded-xl border border-neutral-200 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-white hover:bg-neutral-50 text-neutral-600 hover:text-emerald-800 text-xs font-bold rounded-xl border border-neutral-200 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
               title="Refresh all workflow datasets from the database"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${(loadingBlocks || isLoadingDbActivities || isLoadingProcurement || isLoadingCustomerInvoices || isLoadingGuideRates || isLoadingDriverRates) ? 'animate-spin text-emerald-800' : 'text-neutral-400 hover:text-emerald-800'}`} />
-              <span>Refresh Data</span>
+              <span className="hidden sm:inline">Refresh Data</span>
             </button>
           )}
 
           {/* Dynamic Track Toggle */}
-          <div className="flex items-center gap-2 bg-neutral-100 p-1.5 rounded-xl border border-neutral-200">
+          <div className="flex items-center gap-1 sm:gap-2 bg-neutral-100 p-1 sm:p-1.5 rounded-xl border border-neutral-200">
             <button
               onClick={() => {
                 setTrack('basic');
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide
+              className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wide
                 ${track === 'basic'
                   ? 'bg-white text-emerald-800 shadow-sm'
                   : 'text-neutral-500 hover:text-neutral-800'
                 }`}
             >
               <MapIcon className="w-3.5 h-3.5" />
-              1. Basic Itinerary
+              <span>1. Basic</span>
             </button>
             <button
               onClick={() => {
                 setTrack('final');
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide relative
+              className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wide relative
                 ${track === 'final'
                   ? 'bg-white text-emerald-800 shadow-sm'
                   : 'text-neutral-500 hover:text-neutral-800'
                 }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              2. Final Itinerary
+              <span>2. Final</span>
               {basicCompleted && (
                 <span className="absolute -top-1 -right-1 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -8241,44 +8272,75 @@ ${chauffeurHtml}
       <div className="flex flex-1 overflow-hidden">
 
         {/* Sidebar Step Tracker */}
-        <aside className="w-80 bg-white border-r border-neutral-200 flex flex-col shrink-0 overflow-y-auto">
+        <aside className={`bg-white border-r border-neutral-200 flex flex-col shrink-0 overflow-y-auto transition-all duration-300 ${
+          isSidebarCollapsed ? 'w-16' : 'w-72 lg:w-80'
+        }`}>
           {/* Active Track Status Indicator */}
-          <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest block mb-1">
-              Active Workflow Track
-            </span>
-            <div className="flex items-center gap-2">
-              {track === 'basic' ? (
-                <>
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="text-sm font-bold text-neutral-700 font-serif">Basic Draft Stage</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
-                  <span className="text-sm font-bold text-neutral-700 font-serif">Final Booking Stage</span>
-                </>
-              )}
-            </div>
-            {/* Progress Bar */}
-            <div className="mt-4 bg-neutral-200 h-1.5 rounded-full overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'
-                  } ${(currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection' || isLoadingGuideRates || isLoadingDriverRates)
-                    ? 'animate-pulse bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600'
-                    : ''
-                  }`}
-                style={{ width: `${((activeIndex + 1) / activeSteps.length) * 100}%` }}
-              />
-            </div>
-            <div className="flex justify-between items-center mt-1.5 text-[10px] text-neutral-400 font-semibold font-mono">
-              <span>STEP {activeIndex + 1} OF {activeSteps.length}</span>
-              <span>{Math.round(((activeIndex + 1) / activeSteps.length) * 100)}% COMPLETE</span>
-            </div>
+          <div className={`border-b border-neutral-100 bg-neutral-50/50 ${isSidebarCollapsed ? 'p-2.5 text-center' : 'p-4 sm:p-5'}`}>
+            {!isSidebarCollapsed ? (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest block">
+                    Active Workflow Track
+                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    className="text-neutral-400 hover:text-neutral-700 p-1 rounded-lg hover:bg-neutral-200/50 transition-colors"
+                    title="Collapse Sidebar"
+                  >
+                    <PanelLeftClose className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {track === 'basic' ? (
+                    <>
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span className="text-sm font-bold text-neutral-700 font-serif truncate">Basic Draft Stage</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+                      <span className="text-sm font-bold text-neutral-700 font-serif truncate">Final Booking Stage</span>
+                    </>
+                  )}
+                </div>
+                {/* Progress Bar */}
+                <div className="mt-3 bg-neutral-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'
+                      } ${(currentStep?.id === 'guide-selection' || currentStep?.id === 'driver-selection' || isLoadingGuideRates || isLoadingDriverRates)
+                        ? 'animate-pulse bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600'
+                        : ''
+                      }`}
+                    style={{ width: `${((activeIndex + 1) / activeSteps.length) * 100}%` }}
+                  />
+                </div>
+                <div className="flex justify-between items-center mt-1.5 text-[10px] text-neutral-400 font-semibold font-mono">
+                  <span>STEP {activeIndex + 1} OF {activeSteps.length}</span>
+                  <span>{Math.round(((activeIndex + 1) / activeSteps.length) * 100)}% COMPLETE</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 py-1">
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className="p-1.5 text-neutral-500 hover:text-emerald-800 hover:bg-neutral-100 rounded-lg transition-colors"
+                  title="Expand Sidebar"
+                >
+                  <PanelLeftOpen className="w-4 h-4 text-emerald-800" />
+                </button>
+                <div
+                  className={`w-2.5 h-2.5 rounded-full ${track === 'basic' ? 'bg-amber-500' : 'bg-emerald-600'} animate-pulse`}
+                  title={`${track === 'basic' ? 'Basic Draft Stage' : 'Final Booking Stage'} (${Math.round(((activeIndex + 1) / activeSteps.length) * 100)}% complete)`}
+                />
+              </div>
+            )}
           </div>
 
           {/* Steps List */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className={`flex-1 space-y-1 ${isSidebarCollapsed ? 'p-2' : 'p-3 sm:p-4'}`}>
             {activeSteps.map((step, idx) => {
               const StepIcon = step.icon;
               const isActive = step.id === currentStep.id;
@@ -8288,14 +8350,17 @@ ${chauffeurHtml}
                 <button
                   key={step.id}
                   onClick={() => handleStepClick(idx)}
-                  className={`w-full flex items-start gap-3 p-3 rounded-xl transition-all text-left group
-                    ${isActive
+                  title={`${idx + 1}. ${step.label}${step.description ? `: ${step.description}` : ''}`}
+                  className={`w-full flex items-start gap-3 rounded-xl transition-all text-left group ${
+                    isSidebarCollapsed ? 'p-2 justify-center' : 'p-2.5 sm:p-3'
+                  } ${isActive
                       ? 'bg-neutral-50 border border-neutral-200 shadow-sm'
                       : 'hover:bg-neutral-50 border border-transparent'
                     }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all mt-0.5
-                    ${isActive
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                    isSidebarCollapsed ? '' : 'mt-0.5'
+                  } ${isActive
                       ? 'bg-emerald-800 border-emerald-800 text-white shadow-md scale-105'
                       : isPast
                         ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
@@ -8304,19 +8369,21 @@ ${chauffeurHtml}
                   >
                     {isPast ? <CheckCircle className="w-4 h-4" /> : <StepIcon className="w-4 h-4" />}
                   </div>
-                  <div className="overflow-hidden">
-                    <span className={`text-xs font-bold block transition-colors leading-tight
-                       ${isActive
-                        ? 'text-emerald-800'
-                        : 'text-neutral-600 group-hover:text-neutral-800'
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                    <span className="text-[10px] text-neutral-400 block truncate max-w-[190px]">
-                      {step.description}
-                    </span>
-                  </div>
+                  {!isSidebarCollapsed && (
+                    <div className="overflow-hidden">
+                      <span className={`text-xs font-bold block transition-colors leading-tight ${
+                        isActive
+                          ? 'text-emerald-800'
+                          : 'text-neutral-600 group-hover:text-neutral-800'
+                        }`}
+                      >
+                        {step.label}
+                      </span>
+                      <span className="text-[10px] text-neutral-400 block truncate max-w-[190px]">
+                        {step.description}
+                      </span>
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -8327,7 +8394,7 @@ ${chauffeurHtml}
         <div className="flex-1 flex flex-col overflow-hidden relative">
 
           {/* Main Panel Content (Step Panel) */}
-          <main id="main-scroll-container" className="flex-1 bg-[#F8F6F2] p-8 overflow-y-auto relative flex flex-col pb-24">
+          <main id="main-scroll-container" className="flex-1 bg-[#F8F6F2] p-3 sm:p-5 lg:p-6 xl:p-8 overflow-y-auto relative flex flex-col pb-24">
             <div className="w-full flex-1 flex flex-col justify-between">
 
               {/* Step Panel Details */}
@@ -8346,47 +8413,47 @@ ${chauffeurHtml}
 
                 {/* 1. Tourist Data Workspace Form (Basic Track Step 1) */}
                 {track === 'basic' && currentStep.id === 'tourist-data' ? (
-                  <div className="bg-white rounded-3xl border border-neutral-200 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-300">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl border border-neutral-200 shadow-md overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-300">
 
                     {/* Tab Navigation */}
-                    <div className="flex flex-wrap border-b border-neutral-100 bg-neutral-50/50 p-3 gap-2">
+                    <div className="flex flex-wrap border-b border-neutral-100 bg-neutral-50/50 p-2.5 sm:p-3 gap-2">
                       <button
                         onClick={() => setActiveFormTab('profile')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                        className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
                           ${activeFormTab === 'profile'
                             ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
                             : 'text-neutral-500 hover:text-neutral-800'
                           }`}
                       >
                         <User className="w-3.5 h-3.5" />
-                        1. Profile & Inquiry Lead
+                        <span>1. Profile Lead</span>
                       </button>
                       <button
                         onClick={() => setActiveFormTab('preferences')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                        className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
                           ${activeFormTab === 'preferences'
                             ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
                             : 'text-neutral-500 hover:text-neutral-800'
                           }`}
                       >
                         <Compass className="w-3.5 h-3.5" />
-                        2. Travel Preferences
+                        <span>2. Preferences</span>
                       </button>
                       <button
                         onClick={() => setActiveFormTab('team')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
+                        className={`flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wide
                           ${activeFormTab === 'team'
                             ? 'bg-white text-emerald-800 shadow-sm border border-neutral-200/60'
                             : 'text-neutral-500 hover:text-neutral-800'
                           }`}
                       >
                         <Users className="w-3.5 h-3.5" />
-                        3. Companions ({touristData.team.length})
+                        <span>3. Companions ({touristData.team.length})</span>
                       </button>
                     </div>
 
                     {/* Tab Content Panels */}
-                    <div className="p-8">
+                    <div className="p-4 sm:p-6 lg:p-8">
 
                       {/* TAB 1: Profile & Inquiry Lead */}
                       {activeFormTab === 'profile' && (
@@ -9665,7 +9732,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'element-selection' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-lg font-serif font-bold text-neutral-800">Operational Inclusions Manifest</h3>
                       <p className="text-xs text-neutral-400">Select which operational layers are active for this tour package. The navigation bar will automatically adapt.</p>
@@ -9807,7 +9874,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'po-creation' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6 flex items-center justify-between">
                       <div>
                         <h3 className="text-xl font-serif font-bold text-neutral-805 flex items-center gap-2">
@@ -10216,7 +10283,7 @@ ${chauffeurHtml}
                     )}
                   </div>
                 ) : track === 'final' && currentStep.id === 'hotel-selection' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-855 flex items-center gap-2">
                         <BedDouble className="w-5 h-5 text-emerald-805" />
@@ -10921,7 +10988,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'restaurant-selection' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Utensils className="w-5 h-5 text-emerald-800" />
@@ -11460,7 +11527,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'activity-provider' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Award className="w-5 h-5 text-emerald-800" />
@@ -11986,7 +12053,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'transport-provider' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Car className="w-5 h-5 text-emerald-800" />
@@ -13035,7 +13102,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'guide-selection' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <UserCheck className="w-5 h-5 text-emerald-800" />
@@ -13782,7 +13849,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'driver-selection' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <User className="w-5 h-5 text-emerald-800" />
@@ -14532,7 +14599,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'quote-request' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <MailQuestion className="w-5 h-5 text-emerald-800" />
@@ -14746,7 +14813,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'po-submission' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Send className="w-5 h-5 text-emerald-800" />
@@ -14891,7 +14958,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'finance-controlling' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="border-b border-neutral-100 pb-4 mb-6">
                       <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2">
                         <Receipt className="w-5 h-5 text-emerald-800" />
@@ -16129,7 +16196,7 @@ ${chauffeurHtml}
                     </div>
                   </div>
                 ) : track === 'final' && currentStep.id === 'payment-receive' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-6">
                     <div className="flex flex-wrap items-center justify-between border-b border-neutral-100 pb-4 mb-6 gap-4">
                       <div>
                         <h3 className="text-xl font-serif font-bold text-neutral-800 flex items-center gap-2 flex-wrap">
@@ -17322,7 +17389,7 @@ ${chauffeurHtml}
                     )}
                   </div>
                 ) : track === 'final' && currentStep.id === 'profit-loss' ? (
-                  <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-neutral-200 shadow-md animate-in fade-in slide-in-from-bottom-3 duration-300 space-y-8">
                     {/* Step Header */}
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-100 pb-6">
                         <div>
@@ -18026,7 +18093,7 @@ ${chauffeurHtml}
                     dayToItinIdMap={dayToItinIdMap}
                   />
                 ) : track === 'basic' && currentStep.id === 'share-tourist' ? (
-                  <div className="bg-white rounded-3xl border border-neutral-200 shadow-md p-8 space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl border border-neutral-200 shadow-md p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
                     <div>
                       <h3 className="text-xl font-serif font-bold text-neutral-800 mb-1">Share Draft Itinerary</h3>
                       <p className="text-xs text-neutral-500">

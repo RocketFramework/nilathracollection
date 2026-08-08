@@ -495,3 +495,38 @@
   .vs-table { font-size: 13px; }
   .vs-table tbody td { padding: 12px 14px; }
 }
+
+/* Laptop screen typography compact scaling for admin-new flow */
+@media (min-width: 1024px) and (max-width: 1536px) {
+  .admin-laptop-compact {
+    font-size: 13px;
+  }
+  .admin-laptop-compact .text-xs {
+    font-size: 0.7rem !important; /* ~11px */
+  }
+  .admin-laptop-compact .text-sm {
+    font-size: 0.775rem !important; /* ~12.4px */
+  }
+  .admin-laptop-compact .text-base {
+    font-size: 0.875rem !important; /* ~14px */
+  }
+  .admin-laptop-compact .text-lg {
+    font-size: 1rem !important; /* ~16px */
+  }
+  .admin-laptop-compact .text-xl {
+    font-size: 1.125rem !important; /* ~18px */
+  }
+  .admin-laptop-compact .text-2xl {
+    font-size: 1.3rem !important; /* ~20.8px */
+  }
+  .admin-laptop-compact .text-3xl {
+    font-size: 1.5rem !important; /* ~24px */
+  }
+  .admin-laptop-compact input,
+  .admin-laptop-compact select,
+  .admin-laptop-compact textarea,
+  .admin-laptop-compact button {
+    font-size: 0.75rem; /* ~12px */
+  }
+}
+
