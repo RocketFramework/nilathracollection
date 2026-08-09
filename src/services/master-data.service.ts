@@ -108,6 +108,7 @@ export interface TourGuide {
     license_id?: string;
     is_suspended?: boolean;
     has_contracted_price?: boolean;
+    daily_rate?: number;
     per_day_rate?: number;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
@@ -701,25 +702,41 @@ export class MasterDataService {
 
         const { data, error, count } = await query;
         if (error) throw error;
-        return { data: data as TourGuide[], count: count || 0 };
+        const mappedData = (data || []).map((item: any) => ({
+            ...item,
+            per_day_rate: item.daily_rate ?? item.per_day_rate ?? 20
+        }));
+        return { data: mappedData as TourGuide[], count: count || 0 };
     }
 
     static async getTourGuide(id: string) {
         const { data, error } = await supabase.from('tour_guides').select('*, payment_details(*)').eq('id', id).single();
         if (error) throw error;
-        return data as TourGuide;
+        return {
+            ...data,
+            per_day_rate: data?.daily_rate ?? data?.per_day_rate ?? 20
+        } as TourGuide;
     }
 
     static async saveTourGuide(guide: TourGuide, options?: { client?: any }) {
         const dbClient = options?.client || supabase;
-        const { payment_details, id, payment_detail_id, ...guideData } = guide;
+        const { payment_details, id, payment_detail_id, per_day_rate, daily_rate, ...guideData } = guide;
 
         let activePaymentId = payment_detail_id;
         if (payment_details) {
             activePaymentId = await savePaymentDetails(payment_details, dbClient);
         }
 
-        const payload = { ...guideData, payment_detail_id: activePaymentId };
+        const rate = daily_rate ?? per_day_rate;
+
+        const payload: Record<string, any> = {
+            ...guideData,
+            payment_detail_id: activePaymentId
+        };
+
+        if (rate !== undefined) {
+            payload.daily_rate = rate;
+        }
 
         let savedId = id;
         if (id) {

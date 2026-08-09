@@ -29,10 +29,19 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
     useEffect(() => {
         if (isOpen) {
             if (guide) {
-                setFormData({ ...guide, has_contracted_price: guide.has_contracted_price ?? true, languages: guide.languages || [], payment_details: guide.payment_details || {} });
+                const rate = guide.daily_rate ?? guide.per_day_rate ?? 20;
+                setFormData({
+                    ...guide,
+                    daily_rate: rate,
+                    per_day_rate: rate,
+                    has_contracted_price: guide.has_contracted_price ?? true,
+                    languages: guide.languages || [],
+                    payment_details: guide.payment_details || {}
+                });
             } else {
                 setFormData({
                     first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false, has_contracted_price: true,
+                    daily_rate: 20,
                     per_day_rate: 20,
                     payment_details: {}
                 });
@@ -159,7 +168,16 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                             </div>
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Per Day Rate ($)</label>
-                                <input type="number" className="w-full outline-none text-brand-charcoal font-medium" value={formData.per_day_rate ?? 20} onChange={e => handleChange('per_day_rate', e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                                <input
+                                    type="number"
+                                    className="w-full outline-none text-brand-charcoal font-medium"
+                                    value={formData.daily_rate ?? formData.per_day_rate ?? 20}
+                                    onChange={e => {
+                                        const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                        handleChange('daily_rate', val);
+                                        handleChange('per_day_rate', val);
+                                    }}
+                                />
                             </div>
                             <div className="col-span-2 mt-2 flex flex-wrap items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100 gap-4">
                                 <label className="flex items-center gap-2 cursor-pointer group">
@@ -170,7 +188,7 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                                     <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
                                     <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
-                                {formData.per_day_rate === undefined && <span className="text-[10px] text-neutral-400 font-bold uppercase ml-auto">Default: $20.00</span>}
+                                {(formData.daily_rate === undefined && formData.per_day_rate === undefined) && <span className="text-[10px] text-neutral-400 font-bold uppercase ml-auto">Default: $20.00</span>}
                             </div>
                         </div>
                     )}
