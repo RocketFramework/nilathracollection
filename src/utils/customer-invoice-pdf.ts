@@ -186,7 +186,7 @@ export const generateCustomerInvoicePdf = async (
         doc.text(splitAddr, col2X, companyY);
         companyY += (splitAddr.length * 4.5);
     } else {
-        doc.text("Nilathra Hotel Management (Pvt) Ltd", col2X, companyY);
+        doc.text("Nilathra Collection (Pvt) Ltd", col2X, companyY);
         doc.text("145/1 Vajira Rd, Colombo 00500", col2X, companyY + 4.5);
         companyY += 9;
     }

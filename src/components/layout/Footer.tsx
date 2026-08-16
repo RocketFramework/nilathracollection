@@ -41,7 +41,7 @@ export default function Footer() {
                     </p>
                     <div className="flex items-center gap-5">
                         <a
-                            href="https://www.facebook.com/profile.php?id=61588628732263"
+                            href="https://www.facebook.com/nilathracollection/"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Facebook"
@@ -50,7 +50,7 @@ export default function Footer() {
                             <Facebook size={20} />
                         </a>
                         <a
-                            href="https://www.instagram.com/nilathra/"
+                            href="https://www.instagram.com/nilathracollection/?hl=en"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Instagram"
@@ -95,7 +95,7 @@ export default function Footer() {
                             <X size={20} />
                         </a>
                         <a
-                            href="https://www.tiktok.com/@nilathratravel"
+                            href="https://www.tiktok.com/@nilathra_collection"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="TikTok"
@@ -146,7 +146,7 @@ export default function Footer() {
                     <ul className="space-y-4">
                         <li className="flex items-start gap-3">
                             <MapPin className="text-brand-gold shrink-0" size={18} />
-                            <span className="text-white/70 text-sm">Colombo, Sri Lanka</span>
+                            <span className="text-white/70 text-sm">145/1 Vajira Rd, Colombo 00500, Sri Lanka</span>
                         </li>
                         <li className="flex items-center gap-3">
                             <Phone className="text-brand-gold shrink-0" size={18} />
@@ -161,7 +161,7 @@ export default function Footer() {
             </div>
 
             <div className="max-w-7xl mx-auto pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/50 uppercase tracking-widest">
-                <p>&copy; {new Date().getFullYear()} Nilathra Collection. All Rights Reserved.</p>
+                <p>&copy; {new Date().getFullYear()} Nilathra Collection (Pvt) Ltd. All Rights Reserved.</p>
                 <div className="flex gap-8">
                     <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
                     <Link href="/terms" className="hover:text-white">Terms of Service</Link>

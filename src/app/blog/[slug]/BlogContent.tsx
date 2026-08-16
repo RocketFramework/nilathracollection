@@ -43,8 +43,8 @@ export default function BlogContent({ post }: { post: BlogPost }) {
     ];
 
     const followLinks = [
-        { icon: Facebook, url: "https://www.facebook.com/profile.php?id=61588628732263", label: "Facebook" },
-        { icon: Instagram, url: "https://www.instagram.com/nilathra/", label: "Instagram" },
+        { icon: Facebook, url: "https://www.facebook.com/nilathracollection/", label: "Facebook" },
+        { icon: Instagram, url: "https://www.instagram.com/nilathracollection/?hl=en", label: "Instagram" },
         { icon: Twitter, url: "https://x.com/nilathraC", label: "X (Twitter)" },
         { icon: Linkedin, url: "https://www.linkedin.com/company/nilathra-travels/?viewAsMember=true", label: "LinkedIn" },
         { icon: Youtube, url: "https://www.youtube.com/@nilathratravels", label: "YouTube" }

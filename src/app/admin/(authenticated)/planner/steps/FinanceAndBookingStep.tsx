@@ -205,7 +205,7 @@ const generatePoPdf = async (po: any, logoBase64?: string): Promise<string> => {
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text("Nilathra Hotel Management (Pvt) Ltd", col2X, topY + 10);
+    doc.text("Nilathra Collection (Pvt) Ltd", col2X, topY + 10);
     doc.text("Colombo, Sri Lanka", col2X, topY + 14.5);
     doc.text("Phone: +94 77 727 8282", col2X, topY + 19);
     doc.text("Email: concierge@nilathra.com", col2X, topY + 23.5);

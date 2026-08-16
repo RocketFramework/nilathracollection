@@ -50,7 +50,7 @@ export default function PrivacyPolicyPage() {
                             </p>
                             <h3 className="text-xl font-serif text-brand-green">Controller</h3>
                             <p>
-                                <strong>Nilathra Hotel Management (Pvt) Ltd</strong> (<a href="/doc/br_nilathra.pdf" target="_blank" rel="noopener noreferrer" className="text-brand-green hover:underline">view our Business Registration</a>) is the data controller and responsible for your personal data (referred to as "Nilathra Collection", "we", "us" or "our" in this privacy policy).
+                                <strong>Nilathra Collection (Pvt) Ltd</strong> (<a href="/doc/br_nilathra.pdf" target="_blank" rel="noopener noreferrer" className="text-brand-green hover:underline">view our Business Registration</a>) is the data controller and responsible for your personal data (referred to as "Nilathra Collection", "we", "us" or "our" in this privacy policy).
                             </p>
                             <p>
                                 We have appointed a Data Privacy Manager who is responsible for overseeing questions in relation to this privacy policy. If you have any questions about this privacy policy, including any requests to exercise your legal rights, please contact the Data Privacy Manager at <strong>concierge@nilathra.com</strong>.
@@ -154,7 +154,7 @@ export default function PrivacyPolicyPage() {
 
                         <div className="pt-12 border-t border-brand-charcoal/10 text-brand-charcoal/60 text-sm">
                             <p>Last Updated: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-                            <p>Nilathra Hotel Management (Pvt) Ltd | Data Privacy Management Team</p>
+                            <p>Nilathra Collection (Pvt) Ltd | Data Privacy Management Team</p>
                         </div>
                     </div>
                 </div>

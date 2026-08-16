@@ -60,7 +60,7 @@ const template = {
 </p>
 
 <p>
-  <strong>Nilathra Hotel Management (Pvt) Ltd</strong><br>
+  <strong>Nilathra Collection (Pvt) Ltd</strong><br>
   <strong>Mobile:</strong> +94 (0) 777 27 8282<br>
   <strong>Email:</strong> concierge@nilathra.com<br>
   <strong>Website:</strong> https://www.nilathra.com

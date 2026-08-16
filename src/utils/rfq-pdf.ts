@@ -220,7 +220,7 @@ export const generateHotelRfqPdf = async (
         doc.text(splitIssuer, col2X, issuerY);
         issuerY += (splitIssuer.length * 4.5);
     } else {
-        doc.text("Nilathra Hotel Management (Pvt) Ltd", col2X, issuerY);
+        doc.text("Nilathra Collection (Pvt) Ltd", col2X, issuerY);
         doc.text("145/1 Vajira Rd, Colombo 00500", col2X, issuerY + 4.5);
         issuerY += 9;
     }

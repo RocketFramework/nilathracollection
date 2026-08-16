@@ -140,7 +140,7 @@ export default function TermsOfServicePage() {
 
                         <div className="pt-12 border-t border-brand-charcoal/10 text-brand-charcoal/60 text-sm">
                             <p>Last Updated: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-                            <p>Nilathra Hotel Management (Pvt) Ltd | Website Terms of Service</p>
+                            <p>Nilathra Collection (Pvt) Ltd | Website Terms of Service</p>
                         </div>
                     </div>
                 </div>

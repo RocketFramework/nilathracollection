@@ -133,7 +133,7 @@ export default function ContactClient() {
                                     </div>
                                     <div>
                                         <p className="text-xs uppercase tracking-widest text-brand-charcoal/50 font-bold mb-1">Headquarters</p>
-                                        <p className="text-xl font-serif">Colombo, Sri Lanka</p>
+                                        <p className="text-xl font-serif">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
                                     </div>
                                 </div>
 
@@ -343,7 +343,7 @@ export default function ContactClient() {
                         <MapPin className="text-brand-gold" size={32} />
                         <div>
                             <p className="font-serif text-xl">Nilathra Collection</p>
-                            <p className="text-xs text-brand-charcoal/50 uppercase tracking-widest">Colombo, Sri Lanka</p>
+                            <p className="text-xs text-brand-charcoal/50 uppercase tracking-widest">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
                         </div>
                     </div>
                 </div>

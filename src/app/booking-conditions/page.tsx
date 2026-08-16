@@ -43,10 +43,10 @@ export default function BookingConditionsPage() {
                                 <h2 className="text-3xl font-serif m-0">Introduction</h2>
                             </div>
                             <p>
-                                Thank you for choosing Nilathra Collection. This website is owned and operated by <strong>Nilathra Hotel Management (Pvt) Ltd</strong>, a company registered in Sri Lanka and formally licensed under the <strong>Sri Lanka Tourist Development Authority (SLTDA)</strong>.
+                                Thank you for choosing Nilathra Collection. This website is owned and operated by <strong>Nilathra Collection (Pvt) Ltd</strong>, a company registered in Sri Lanka and formally being licensed under the <strong>Sri Lanka Tourist Development Authority (SLTDA)</strong>.
                             </p>
                             <p>
-                                When you make a booking for a Nilathra Collection travel experience, your contract is with Nilathra Hotel Management (Pvt) Ltd trading as Nilathra Collection. In these terms and conditions "we", "us", or "our" mean Nilathra Collection. These conditions form the basis of your contract with us; please read them carefully as they are legally binding.
+                                When you make a booking for a Nilathra Collection travel experience, your contract is with Nilathra Collection (Pvt) Ltd trading as Nilathra Collection. In these terms and conditions "we", "us", or "our" mean Nilathra Collection. These conditions form the basis of your contract with us; please read them carefully as they are legally binding.
                             </p>
                         </div>
 
@@ -131,7 +131,7 @@ export default function BookingConditionsPage() {
 
                         <div className="pt-12 border-t border-brand-charcoal/10 text-brand-charcoal/60 text-sm">
                             <p>Last Updated: {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-                            <p>Nilathra Hotel Management (Pvt) Ltd | SLTDA Registered Agency</p>
+                            <p>Nilathra Collection (Pvt) Ltd | SLTDA Registered Agency (processing)</p>
                         </div>
                     </div>
                 </div>

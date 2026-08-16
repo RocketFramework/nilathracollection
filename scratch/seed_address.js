@@ -8,7 +8,7 @@ async function seedAddress() {
     const { data, error } = await supabase
         .from('app_settings')
         .upsert([
-            { setting_key: 'address', setting_value: 'Nilathra Hotel Management (Pvt) Ltd, 145/1 Vajira Rd, Colombo 00500' }
+            { setting_key: 'address', setting_value: 'Nilathra Collection (Pvt) Ltd, 145/1 Vajira Rd, Colombo 00500' }
         ])
         .select();
 
