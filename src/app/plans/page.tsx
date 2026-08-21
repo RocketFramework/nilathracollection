@@ -76,6 +76,20 @@ const plans = [
         iconColor: "text-neutral-200",
         textColor: "text-neutral-50",
         btnColor: "bg-white text-neutral-900 hover:bg-neutral-100"
+    },
+    {
+        id: "maldives-twin",
+        title: "Ceylon & Maldives",
+        priceRange: "Bespoke",
+        description: "Seamlessly integrate Sri Lankan cultural expeditions and safaris with private overwater bungalow retreats in the Maldives.",
+        icon: Sparkles,
+        href: "/contact?plan=maldives-extension",
+        badge: "Twin-Island Extension",
+        image: "/images/maldives_luxury_villa.png",
+        color: "from-teal-950/60 via-transparent to-transparent",
+        iconColor: "text-teal-200",
+        textColor: "text-teal-50",
+        btnColor: "bg-amber-400 text-slate-950 hover:bg-white"
     }
 ];
 

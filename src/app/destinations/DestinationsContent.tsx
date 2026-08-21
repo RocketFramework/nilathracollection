@@ -121,6 +121,43 @@ export default function DestinationsContent() {
                         );
                     })}
                 </div>
+
+                {/* Maldives Regional Extension */}
+                <div className="mt-24 pt-16 border-t border-brand-charcoal/10">
+                    <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-2">
+                        <div className="relative h-[350px] lg:h-auto min-h-[300px]">
+                            <Image
+                                src="/images/maldives_luxury_villa.png"
+                                alt="Maldives Luxury Villa & Overwater Suite"
+                                fill
+                                className="object-cover"
+                            />
+                            <div className="absolute top-4 left-4 bg-brand-gold text-slate-950 px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full shadow-md">
+                                Regional Extension
+                            </div>
+                        </div>
+                        <div className="p-8 md:p-12 flex flex-col justify-center space-y-6 text-white">
+                            <div>
+                                <span className="text-brand-gold font-medium uppercase tracking-[0.2em] text-xs block mb-2">Indian Ocean Escapes</span>
+                                <h2 className="font-serif text-3xl md:text-4xl text-white">The Maldives Atolls</h2>
+                                <p className="text-slate-300 font-light text-base leading-relaxed mt-4">
+                                    Extend your Sri Lankan heritage voyage with private overwater bungalow retreats, seaplane charters, and pristine coral reef excursions in the nearby Maldives. Coordinated through our Male&apos; regional office.
+                                </p>
+                            </div>
+                            <div className="pt-2 flex flex-wrap gap-4 items-center">
+                                <Link
+                                    href="/contact?plan=maldives-extension"
+                                    className="luxury-button !bg-brand-gold !text-slate-950 hover:!bg-white text-xs uppercase font-bold tracking-widest"
+                                >
+                                    Inquire Maldives Extension
+                                </Link>
+                                <span className="text-xs text-slate-400 font-light">
+                                    Direct Male&apos; Desk: +960 931 0940
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     );

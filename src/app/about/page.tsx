@@ -27,11 +27,11 @@ const leadershipTeam = [
     },
     {
         name: "Saliya Vi",
-        role: "Head of Marketing",
+        role: "Head of Marketing & Head of Maldives Office",
         image: "/images/team/saliya-vi-marketing-v2.jpg",
-        bio: "A dynamic brand architect with 12+ years in global marketing strategy, luxury destination positioning, and high-impact digital acquisition. Saliya drives Nilathra Collection’s international visibility, spearheading marketing campaigns that connect ultra-discerning global travellers with Sri Lanka's most exclusive experiences.",
-        highlights: ["12+ Years Brand Strategy", "Luxury Tourism Marketing", "Global Partner Networks"],
-        badge: "Brand & Growth"
+        bio: "A dynamic brand architect and travel executive with 12+ years of experience in global marketing strategy and luxury hospitality management. In addition to driving Nilathra Collection’s international marketing vision, Saliya heads our Male' regional office, overseeing Maldives operations, private seaplane charters, and overwater villa retreats.",
+        highlights: ["12+ Years Brand & Regional Leadership", "Global Marketing Strategy", "Male' Office Operations"],
+        badge: "Marketing & Maldives Ops"
     },
     {
         name: "Nimali Ra",
@@ -86,7 +86,7 @@ export default function AboutPage() {
                         Nilathra Collection was born from a passion to showcase Sri Lanka in its purest, most elegant form. We believe that true luxury is not just about the finest sheets or the most expensive cars—it's about the access to authentic, soul-stirring experiences that remain etched in memory.
                     </p>
                     <p className="text-brand-charcoal/60 leading-relaxed mb-12">
-                        Based in Colombo, our team consists of local experts, historians, and hospitality veterans who understand the nuances of the island. We don't just book hotels; we curate relationships. We don't just plan routes; we curate narratives.
+                        Headquartered in Colombo with dedicated regional operations in Male&apos;, Maldives, our team consists of local experts, historians, and hospitality veterans who understand the nuances of both island nations across the Indian Ocean. We don't just book hotels; we curate relationships. We don't just plan routes; we curate narratives.
                     </p>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mt-20">

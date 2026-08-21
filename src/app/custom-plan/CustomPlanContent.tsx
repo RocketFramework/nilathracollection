@@ -352,7 +352,29 @@ export default function CustomPlanContent() {
                                         <div className="h-px bg-neutral-100 w-full" />
 
                                         <div>
-                                            <h4 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 mb-4 flex items-center gap-2"><Compass size={16} /> Optional Experiences </h4>
+                                            <h4 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 mb-4 flex items-center gap-2"><Compass size={16} /> Optional Experiences & Extensions</h4>
+                                            
+                                            {/* Maldives Twin-Island Toggle Card */}
+                                            <div className="mb-4 p-4 rounded-xl border border-brand-gold/40 bg-brand-gold/5 flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-serif text-base font-bold text-brand-green">Maldives Overwater Atoll Extension</p>
+                                                    <p className="text-xs text-neutral-500">Combine your Sri Lanka journey with luxury overwater villas & seaplane transfers in the Maldives (Male&apos; Desk handling).</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (note.includes("Maldives Extension")) {
+                                                            setNote(prev => prev.replace(" [Include Maldives Extension]", ""));
+                                                        } else {
+                                                            setNote(prev => (prev ? prev + " [Include Maldives Extension]" : "[Include Maldives Extension]"));
+                                                        }
+                                                    }}
+                                                    className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-all ${note.includes("Maldives Extension") ? 'bg-brand-green text-white' : 'bg-white border border-brand-gold text-brand-green hover:bg-brand-gold/10'}`}
+                                                >
+                                                    {note.includes("Maldives Extension") ? '✓ Extension Added' : '+ Add Maldives'}
+                                                </button>
+                                            </div>
+
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                 {optionalLocations.map(loc => {
                                                     const key = `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}`;

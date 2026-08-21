@@ -262,6 +262,25 @@ export default function HomeClient() {
         </div>
       </section>
 
+      {/* Indian Ocean Twin-Island Secondary Teaser */}
+      <section className="py-16 px-6 md:px-12 bg-slate-900 text-white border-t border-slate-800">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-3">
+            <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em]">Twin-Island Sovereignty</span>
+            <h3 className="font-serif text-2xl md:text-3xl text-white">Ceylon Heritage &amp; Maldives Overwater Escapes</h3>
+            <p className="text-slate-300 text-sm font-light max-w-2xl">
+              Combine Sri Lanka&apos;s wildlife safaris, tea estates, and ancient fortresses with private overwater villa retreats in the Maldives. Coordinated seamlessly through our Male&apos; desk.
+            </p>
+          </div>
+          <Link
+            href="/contact?plan=maldives-extension"
+            className="shrink-0 px-8 py-4 bg-brand-gold text-slate-950 font-bold uppercase tracking-widest text-xs rounded-full hover:bg-white transition-all shadow-lg"
+          >
+            Explore Maldives Extension
+          </Link>
+        </div>
+      </section>
+
       <PackagesSection />
 
       {/* SEO Rich Text Section */}
