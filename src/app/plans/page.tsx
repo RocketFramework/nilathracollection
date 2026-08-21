@@ -84,7 +84,7 @@ const plans = [
         description: "Seamlessly integrate Sri Lankan cultural expeditions and safaris with private overwater bungalow retreats in the Maldives.",
         icon: Sparkles,
         href: "/contact?plan=maldives-extension",
-        badge: "Twin-Island Extension",
+        badge: "Ceylon & Maldives",
         image: "/images/maldives_luxury_villa.png",
         color: "from-teal-950/60 via-transparent to-transparent",
         iconColor: "text-teal-200",
@@ -134,6 +134,7 @@ export default function PlansPage() {
                             // Uniform 2nd-row grid (50% each) for the first 4 cards
                             // Mixed remains full width (100%)
                             const isMixed = plan.id === "mixed";
+                            const isCustomRate = isMixed || plan.id === "maldives-twin" || plan.priceRange === "Bespoke";
                             const colSpan = isMixed ? "md:col-span-12" : "md:col-span-6";
 
                             return (
@@ -170,14 +171,18 @@ export default function PlansPage() {
                                                     <plan.icon size={24} />
                                                 </div>
                                                 <h3 className="text-sm font-black uppercase tracking-tighter text-neutral-900 px-2 leading-tight">
-                                                    {translatedPlan.title.split(' ')[0]}<br />{translatedPlan.title.split(' ')[1] || ''}
+                                                    {plan.id === "maldives-twin" ? (
+                                                        <>Ceylon &<br />Maldives</>
+                                                    ) : (
+                                                        <>{translatedPlan.title.split(' ')[0]}<br />{translatedPlan.title.slice(translatedPlan.title.indexOf(' ') + 1) || ''}</>
+                                                    )}
                                                 </h3>
                                                 <div className="mt-4 pt-4 border-t border-neutral-100 w-full px-2">
-                                                    <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">{t.cta?.from || "From"}</p>
+                                                    {!isCustomRate && <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">{t.cta?.from || "From"}</p>}
                                                     <p className={`text-lg font-black font-mono tracking-tight text-neutral-900`}>
                                                         {translatedPlan.priceRange}
                                                     </p>
-                                                    {!isMixed && <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter mt-1">{t.cta?.per_day || "Per Day"}</p>}
+                                                    {!isCustomRate && <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-tighter mt-1">{t.cta?.per_day || "Per Day"}</p>}
                                                 </div>
                                             </motion.div>
                                             {/* Ribbon fold shadow effect */}
