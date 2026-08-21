@@ -5,6 +5,7 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
+            disallow: ['/admin/', '/admin-new/', '/tourist/', '/api/'],
         },
         sitemap: 'https://www.nilathra.com/sitemap.xml',
         host: 'https://www.nilathra.com',
