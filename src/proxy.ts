@@ -18,6 +18,8 @@ export async function proxy(request: NextRequest) {
             const country = (request as any).geo?.country || '';
             if (country === 'DE' || country === 'AT' || country === 'CH') {
                 locale = 'de';
+            } else if (country === 'FR' || country === 'BE' || country === 'MC' || country === 'LU') {
+                locale = 'fr';
             } else {
                 locale = 'en';
             }

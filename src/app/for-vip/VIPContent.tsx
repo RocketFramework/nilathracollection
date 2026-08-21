@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Play, Pause, ArrowRight } from "lucide-react";
+import { Play, Pause, ArrowRight, ShieldCheck, Lock, Navigation, Clock, Crown, Sparkles, CheckCircle2 } from "lucide-react";
 
 const fadeUpVariant = {
     hidden: { opacity: 0, y: 40 },
@@ -148,6 +148,113 @@ export default function VIPContent() {
                         </Link>
                     </div>
                 </motion.div>
+            </section>
+
+            {/* 2.5 Operational Protocols & Case Studies - Real Scenarios of Sovereign Care */}
+            <section className="py-32 px-6 md:px-12 bg-neutral-900 border-t border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-gold/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-brand-green/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <motion.div
+                        variants={fadeUpVariant}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        className="text-center max-w-4xl mx-auto mb-20 space-y-6"
+                    >
+                        <span className="text-brand-gold text-xs uppercase font-semibold tracking-[0.4em] block">
+                            Operational Excellence in Action
+                        </span>
+                        <h2 className="text-4xl md:text-6xl font-serif text-white leading-tight">
+                            Protocols of Care: <span className="text-brand-gold italic">Real Operational Scenarios</span>
+                        </h2>
+                        <p className="text-neutral-400 text-lg md:text-xl font-light leading-relaxed">
+                            True VIP confidence is not built on promises, but on execution. Below are real-world operational scenarios demonstrating how our command team handles high-profile movements, privacy engineering, and emergency pivots.
+                        </p>
+                    </motion.div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        {[
+                            {
+                                code: "SCENARIO 01",
+                                title: "Charter Helicopter Dispatch & Highland Estate Transfer",
+                                context: "Executive Delegation / Weather & Time Optimization",
+                                problem: "Guest needed to bypass a 5-hour highland road journey due to tight scheduling and afternoon meetings in Nuwara Eliya.",
+                                execution: "Dispatched a chartered Bell 206/407 helicopter from Ratmalana Airport (RML) directly to a private estate helipad at Ceylon Tea Trails. Dedicated estate butler staff and private chef team were positioned and ready upon landing.",
+                                icon: Navigation,
+                                metric: "35 Min Air Transfer"
+                            },
+                            {
+                                code: "SCENARIO 02",
+                                title: "Secluded Estate Buyout & Discreet Security Perimeter",
+                                context: "High-Profile Family / 100% Privacy Mandate",
+                                problem: "Client requested absolute physical isolation and total privacy at a coastal sanctuary in Tangalle with zero outside disturbance.",
+                                execution: "Executed a complete private estate buyout with trained Close Protection Detail (CPD) managing outer gate security. In-villa dining, wellness therapies, and concierge requests were managed seamlessly through personal butler service.",
+                                icon: Lock,
+                                metric: "Total Estate Buyout"
+                            },
+                            {
+                                code: "SCENARIO 03",
+                                title: "Silk Route VIP Tarmac Greeting & Luxury SUV Escort",
+                                context: "Private Aviation Arrival / Colombo (CMB & RML)",
+                                problem: "Avoid public airport terminal lines for immediate, fast-track arrival greeting and private transfer to a boutique city residence.",
+                                execution: "Coordinated Silk Route VIP tarmac protocol with vehicle greeting at aircraft steps. Guests finalized immigration in minutes and transferred in a luxury SUV convoy (Range Rover & Land Cruiser V8) with an elite driver-guide.",
+                                icon: ShieldCheck,
+                                metric: "Silk Route Fast-Track"
+                            },
+                            {
+                                code: "SCENARIO 04",
+                                title: "\"Everything Brought To You\": In-Villa Ceylon Sapphire Viewing",
+                                context: "Gem Collector & Enthusiast / Discreet Selection",
+                                problem: "Guest requested a private viewing of rare unheated Ceylon Blue and Padparadscha Sapphires without visiting public commercial jewelry houses.",
+                                execution: "Arranged for licensed master gemologists to present a hand-curated collection of natural sapphires directly at the guest's oceanfront villa in Weligama, complete with a private tea masterclass and chef-curated seafood dinner.",
+                                icon: Sparkles,
+                                metric: "In-Villa Private Curation"
+                            }
+                        ].map((scenario, idx) => (
+                            <motion.div
+                                key={scenario.code}
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.1 }}
+                                className="bg-neutral-950/90 border border-white/10 rounded-2xl p-8 md:p-10 flex flex-col justify-between hover:border-brand-gold/50 transition-all duration-500 group shadow-2xl relative overflow-hidden"
+                            >
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-mono tracking-widest text-brand-gold bg-brand-gold/10 px-3 py-1 rounded-full border border-brand-gold/20">
+                                            {scenario.code}
+                                        </span>
+                                        <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-brand-gold group-hover:bg-brand-gold group-hover:text-black transition-colors">
+                                            <scenario.icon size={20} />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <span className="text-xs uppercase tracking-widest text-neutral-500 block mb-1">{scenario.context}</span>
+                                        <h3 className="font-serif text-2xl text-white group-hover:text-brand-gold transition-colors leading-snug">
+                                            {scenario.title}
+                                        </h3>
+                                    </div>
+
+                                    <div className="space-y-3 pt-2 text-sm text-neutral-400 font-light leading-relaxed">
+                                        <p><strong className="text-neutral-200 font-medium">The Requirement:</strong> {scenario.problem}</p>
+                                        <p><strong className="text-brand-gold font-medium">Nilathra Execution:</strong> {scenario.execution}</p>
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 mt-8 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-brand-gold">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 size={14} />
+                                        <span>Verified Protocol</span>
+                                    </div>
+                                    <span className="text-neutral-400 font-mono">{scenario.metric}</span>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
             </section>
 
             {/* 3. Symphony of Climates - Horizontal Scroll */}
