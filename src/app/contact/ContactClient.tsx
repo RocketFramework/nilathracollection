@@ -106,38 +106,78 @@ export default function ContactClient() {
                                 Our concierges are available 24/7 to assist with your inquiries. Whether it&apos;s a quick question or a detailed request for a super luxury VIP experience, we are here to provide discreet and elegant service.
                             </p>
 
-                            <div className="space-y-8">
-                                <div className="flex items-start gap-6 group">
-                                    <div className="w-12 h-12 bg-brand-sand rounded-full flex items-center justify-center group-hover:bg-brand-gold group-hover:text-white transition-all duration-500">
-                                        <Phone size={20} />
+                            <div className="space-y-10">
+                                {/* Sri Lanka Contact Hub */}
+                                <div className="bg-brand-sand/60 p-6 rounded-lg border border-brand-gold/20 space-y-4">
+                                    <div className="flex items-center gap-2 text-brand-green font-serif text-2xl font-bold">
+                                        <Globe className="text-brand-gold" size={24} />
+                                        <span>Travel to Sri Lanka</span>
+                                        <span className="text-xs bg-brand-gold/20 text-brand-green font-sans uppercase font-bold px-2 py-0.5 rounded-full ml-auto">Headquarters</span>
                                     </div>
-                                    <div>
-                                        <p className="text-xs uppercase tracking-widest text-brand-charcoal/50 font-bold mb-1">Direct Line</p>
-                                        <p className="text-xl font-serif">+94 77 727 8282</p>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                        <div className="flex items-start gap-3">
+                                            <Phone className="text-brand-gold shrink-0 mt-1" size={18} />
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Direct Line</p>
+                                                <a href="tel:+94777278282" className="text-base font-serif hover:text-brand-gold transition-colors">+94 77 727 8282</a>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3">
+                                            <Mail className="text-brand-gold shrink-0 mt-1" size={18} />
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Email Concierge</p>
+                                                <a href="mailto:concierge@nilathra.com" className="text-base font-serif hover:text-brand-gold transition-colors">concierge@nilathra.com</a>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-3 pt-1 border-t border-brand-charcoal/10">
+                                        <MapPin className="text-brand-gold shrink-0 mt-1" size={18} />
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Headquarters Address</p>
+                                            <p className="text-sm font-serif">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-start gap-6 group">
-                                    <div className="w-12 h-12 bg-brand-sand rounded-full flex items-center justify-center group-hover:bg-brand-gold group-hover:text-white transition-all duration-500">
-                                        <Mail size={20} />
+                                {/* Maldives Contact Hub */}
+                                <div className="bg-brand-sand/60 p-6 rounded-lg border border-brand-gold/20 space-y-4">
+                                    <div className="flex items-center gap-2 text-brand-green font-serif text-2xl font-bold">
+                                        <Globe className="text-brand-gold" size={24} />
+                                        <span>Travel to Maldives</span>
+                                        <span className="text-xs bg-brand-green/10 text-brand-green font-sans uppercase font-bold px-2 py-0.5 rounded-full ml-auto">Regional Office</span>
                                     </div>
-                                    <div>
-                                        <p className="text-xs uppercase tracking-widest text-brand-charcoal/50 font-bold mb-1">Email Concierge</p>
-                                        <p className="text-xl font-serif">concierge@nilathra.com</p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                        <div className="flex items-start gap-3">
+                                            <Phone className="text-brand-gold shrink-0 mt-1" size={18} />
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Direct Line</p>
+                                                <a href="tel:+9609310940" className="text-base font-serif hover:text-brand-gold transition-colors">+960 931 0940</a>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3">
+                                            <Mail className="text-brand-gold shrink-0 mt-1" size={18} />
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Email Concierge</p>
+                                                <a href="mailto:maldives@nilathra.com" className="text-base font-serif hover:text-brand-gold transition-colors">maldives@nilathra.com</a>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-3 pt-1 border-t border-brand-charcoal/10">
+                                        <MapPin className="text-brand-gold shrink-0 mt-1" size={18} />
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Maldives Office Address</p>
+                                            <p className="text-sm font-serif">H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male&apos; Maldives</p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-start gap-6 group">
-                                    <div className="w-12 h-12 bg-brand-sand rounded-full flex items-center justify-center group-hover:bg-brand-gold group-hover:text-white transition-all duration-500">
-                                        <MapPin size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs uppercase tracking-widest text-brand-charcoal/50 font-bold mb-1">Headquarters</p>
-                                        <p className="text-xl font-serif">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
-                                    </div>
-                                </div>
-
-                                <div className="pt-10 border-t border-brand-charcoal/5">
+                                <div className="pt-4 border-t border-brand-charcoal/5">
                                     <Link
                                         href="https://wa.me/94777278282"
                                         target="_blank"

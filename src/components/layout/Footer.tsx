@@ -143,20 +143,39 @@ export default function Footer() {
 
                 <div>
                     <h4 className="font-serif text-xl border-b border-brand-gold inline-block mb-6">Inquiries</h4>
-                    <ul className="space-y-4">
-                        <li className="flex items-start gap-3">
-                            <MapPin className="text-brand-gold shrink-0" size={18} />
-                            <span className="text-white/70 text-sm">145/1 Vajira Rd, Colombo 00500, Sri Lanka</span>
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <Phone className="text-brand-gold shrink-0" size={18} />
-                            <span className="text-white/70 text-sm">+94 77 727 8282</span>
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <Mail className="text-brand-gold shrink-0" size={18} />
-                            <span className="text-white/70 text-sm">concierge@nilathra.com</span>
-                        </li>
-                    </ul>
+                    <div className="space-y-6 text-xs">
+                        <div className="space-y-2">
+                            <p className="font-serif text-sm font-bold text-brand-gold uppercase tracking-wider">Sri Lanka (HQ)</p>
+                            <p className="text-white/70 flex items-start gap-2">
+                                <MapPin className="text-brand-gold shrink-0 mt-0.5" size={14} />
+                                <span>145/1 Vajira Rd, Colombo 00500, Sri Lanka</span>
+                            </p>
+                            <p className="text-white/70 flex items-center gap-2">
+                                <Phone className="text-brand-gold shrink-0" size={14} />
+                                <span>+94 77 727 8282</span>
+                            </p>
+                            <p className="text-white/70 flex items-center gap-2">
+                                <Mail className="text-brand-gold shrink-0" size={14} />
+                                <span>concierge@nilathra.com</span>
+                            </p>
+                        </div>
+
+                        <div className="space-y-2 pt-3 border-t border-white/10">
+                            <p className="font-serif text-sm font-bold text-brand-gold uppercase tracking-wider">Maldives Office</p>
+                            <p className="text-white/70 flex items-start gap-2">
+                                <MapPin className="text-brand-gold shrink-0 mt-0.5" size={14} />
+                                <span>H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male&apos; Maldives</span>
+                            </p>
+                            <p className="text-white/70 flex items-center gap-2">
+                                <Phone className="text-brand-gold shrink-0" size={14} />
+                                <span>+960 931 0940</span>
+                            </p>
+                            <p className="text-white/70 flex items-center gap-2">
+                                <Mail className="text-brand-gold shrink-0" size={14} />
+                                <span>maldives@nilathra.com</span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
