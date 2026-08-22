@@ -2,7 +2,7 @@
 
 import MainLayout from "@/components/layout/MainLayout";
 import Hero from "@/components/home/Hero";
-import { ArrowRight, Quote, Shield, Crown, Star } from "lucide-react";
+import { ArrowRight, Quote, Shield, Crown, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,6 +53,168 @@ const partnerLogos = [
   { src: "/images/logo/aitken-spense.webp", alt: "Aitken Spence", category: "Luxury Travel" },
   { src: "/images/logo/tea-drop.webp", alt: "Tea Drop", category: "Bespoke Culinary" },
 ];
+
+const testimonials = [
+  {
+    quote: "The level of discretion, precision, and luxury delivered by Nilathra is unprecedented. From our private jet handling at BIA to the exclusive tea estate buyouts, every detail was executed with sovereign excellence.",
+    name: "David Montgomery",
+    title: "Ultra VIP Traveler",
+    location: "London, UK",
+    flag: "🇬🇧",
+    image: "/images/tier_vip.avif"
+  },
+  {
+    quote: "As someone accustomed to global top-tier concierge services, Nilathra surpassed all expectations. Their handling of our family's private aviation, close-protection security detail, and Ultra High Net-Worth privacy across Sri Lanka was flawless.",
+    name: "Harrison Vance",
+    title: "Forbes-List UHNW Client",
+    location: "New York, USA",
+    flag: "🇺🇸",
+    image: "/images/srilanka_luxury_estate.png"
+  },
+  {
+    quote: "German precision meets warm island sovereignty. The logistical seamlessness with which Nilathra arranged our twin-island escape between Ceylon's highlands and Maldives overwater sanctuaries set a new standard for luxury travel.",
+    name: "Dr. Julian & Clara Von Berg",
+    title: "Private Estate & Twin-Island Guest",
+    location: "Frankfurt, Germany",
+    flag: "🇩🇪",
+    image: "/images/hotel_resplendent.avif"
+  },
+  {
+    quote: "An ultra-luxury experience defined by refined elegance and absolute privacy. Villa buyouts in Galle, bespoke private chef dining, and rare gem curations were managed with true French-level art de vivre.",
+    name: "Jean-Luc & Camille Laurent",
+    title: "Sovereign Sanctuary Guest",
+    location: "Paris, France",
+    flag: "🇫🇷",
+    image: "/images/private_chef_luxury_dining_1773073921412.avif"
+  },
+  {
+    quote: "Nilathra handled our multi-generational family retreat with unmatched royal hospitality. Tarmac VIP clearance, direct helicopter transfers, and exclusive resort buyouts made our Ceylon holiday an extraordinary VIP experience.",
+    name: "Rajesh & Sunita Singhania",
+    title: "VIP Family & Corporate Legacy Client",
+    location: "Mumbai, India",
+    flag: "🇮🇳",
+    image: "/images/colombo_morning_drone.avif"
+  }
+];
+
+function TestimonialsSection() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(() => {
+      setActiveIdx((prev) => (prev + 1) % testimonials.length);
+    }, 14000); // 14 seconds for relaxed, comfortable reading
+    return () => clearInterval(timer);
+  }, [isPaused]);
+
+  const handleNext = () => {
+    setActiveIdx((prev) => (prev + 1) % testimonials.length);
+  };
+
+  const handlePrev = () => {
+    setActiveIdx((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+  };
+
+  const current = testimonials[activeIdx];
+
+  return (
+    <section 
+      className="py-24 bg-brand-green text-white px-6 md:px-12 overflow-hidden relative"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-gold rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
+      </div>
+
+      <div className="max-w-5xl mx-auto text-center relative z-10">
+        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] mb-6 block">
+          Global Sovereign Experiences &amp; UHNW Reviews
+        </span>
+
+        <Quote className="mx-auto mb-8 text-brand-gold opacity-50" size={50} />
+
+        <div className="min-h-[220px] md:min-h-[180px] flex items-center justify-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeIdx}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-8"
+            >
+              <h2 className="font-serif text-2xl md:text-4xl leading-relaxed max-w-4xl mx-auto italic font-light">
+                &ldquo;{current.quote}&rdquo;
+              </h2>
+
+              <div className="flex flex-col items-center justify-center gap-3">
+                <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1 shadow-lg">
+                  <div className="w-full h-full rounded-full overflow-hidden relative">
+                    <Image
+                      src={current.image}
+                      alt={current.name}
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                    />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="font-medium tracking-wide text-lg text-white flex items-center justify-center gap-2">
+                    <span>{current.name}</span>
+                    <span className="text-sm">{current.flag}</span>
+                  </p>
+                  <p className="text-brand-gold text-xs uppercase tracking-[0.2em] font-semibold mt-0.5">
+                    {current.title}
+                  </p>
+                  <p className="text-white/50 text-[11px] uppercase tracking-[0.3em] font-light mt-0.5">
+                    {current.location}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Carousel controls */}
+        <div className="flex items-center justify-center gap-6 mt-12 pt-6 border-t border-white/10">
+          <button
+            onClick={handlePrev}
+            className="p-2 rounded-full border border-white/20 hover:border-brand-gold hover:text-brand-gold transition-colors"
+            aria-label="Previous review"
+          >
+            <ChevronLeft size={20} />
+          </button>
+
+          <div className="flex gap-2">
+            {testimonials.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveIdx(idx)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  idx === activeIdx ? "w-8 bg-brand-gold" : "w-2 bg-white/30 hover:bg-white/60"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={handleNext}
+            className="p-2 rounded-full border border-white/20 hover:border-brand-gold hover:text-brand-gold transition-colors"
+            aria-label="Next review"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function formatPartnerName(src: string) {
   const fileName = src.split('/').pop()?.split('.')[0] || '';
@@ -449,30 +611,7 @@ export default function HomeClient() {
       </section>
 
       {/* Testimonials / Trust Section */}
-      <section className="py-24 bg-brand-green text-white px-6 md:px-12 overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-gold rounded-full blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
-        </div>
-
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <Quote className="mx-auto mb-10 text-brand-gold opacity-50" size={60} />
-          <h2 className="font-serif text-3xl md:text-5xl leading-tight mb-12">
-            {t.home.quote}
-          </h2>
-          <div className="flex flex-col items-center justify-center gap-4">
-            <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1">
-              <div className="w-full h-full rounded-full overflow-hidden relative">
-                <Image src="/images/tier_vip.avif" alt="Client" fill className="object-cover" sizes="64px" />
-              </div>
-            </div>
-            <div className="text-center">
-              <p className="font-medium tracking-wide text-lg">David Montgomery</p>
-              <p className="text-brand-gold/70 text-xs uppercase tracking-[0.3em]">London, UK</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <TestimonialsSection />
 
       {/* CTA Final */}
       <section className="py-32 px-6 md:px-12 bg-white">
