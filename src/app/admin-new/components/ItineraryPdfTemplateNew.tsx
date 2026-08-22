@@ -305,6 +305,16 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       dayNumber: b.dayNumber
     }));
 
+    const enrichedTourConcierges = (tourConcierges || []).map((v: any) => {
+      const costObj = (masterData?.conciergeCosts || []).find((c: any) => c.id === v.concierge_cost_item_id) ||
+        v.cost_item;
+      return {
+        ...v,
+        costing_basis: v.costing_basis || v.cost_item?.costing_basis || costObj?.costing_basis || '',
+        cost_item: v.cost_item || costObj
+      };
+    });
+
     const invoiceItems = InvoiceCalculationService.calculateInvoiceItems({
       itinerary: simplifiedItinerary,
       travelStyle,
@@ -320,7 +330,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       dailyDriverAssignments: dailyDriverAssignments || {},
       dailyVehicleAssignments: dailyVehicleAssignments || {},
       dbActivities: dbActivities || [],
-      tourConcierges: tourConcierges || []
+      tourConcierges: enrichedTourConcierges
     });
 
     console.log("PDF calculation debug:", {
@@ -584,35 +594,69 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       </div>
                     </div>
 
+                  </div>
+                </div>
+
+                {/* 3.5 FINANCIAL BLUEPRINT / ESTIMATED PACKAGE COST OVERVIEW PAGE */}
+                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
+                  <div className="text-center mb-12">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Commercial Overview</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Estimated Package Cost Overview</h3>
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 space-y-8">
+                    <div className="text-center max-w-md mx-auto mb-6">
+                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                        Investment Summary
+                      </span>
+                      <p className="text-xs text-neutral-500 font-serif italic">
+                        Bespoke package cost estimation structured for {clientName} ({totalPax} Guest{totalPax > 1 ? 's' : ''} &bull; {durationDays} Days)
+                      </p>
+                    </div>
+
                     {appSettings && invoiceItems.length > 0 && grandTotal > 0 ? (
-                      <div className="mt-6 pt-4 border-t border-[#E8DFD1] space-y-2 text-xs font-sans text-neutral-600 bg-white p-4 rounded-xl border border-[#E8DFD1]/55 text-left">
-                        <div className="uppercase tracking-widest text-[9px] font-bold text-[#D4AF37] font-serif mb-2">Estimated Package Cost Overview</div>
-                        <div className="space-y-2">
-                          {invoiceItems.map((item, idx) => (
-                            <div key={idx} className="flex justify-between border-b border-neutral-100 pb-1.5 text-[10.5px]">
-                              <span className="text-neutral-400">{item.description}:</span>
-                              <span className="font-semibold text-neutral-700">${item.amount.toFixed(2)} USD</span>
+                      <div className="space-y-6">
+                        <div className="bg-white rounded-xl border border-[#E8DFD1] p-6 shadow-sm space-y-4">
+                          <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-3 flex justify-between items-center">
+                            <span>Category Description</span>
+                            <span>Estimated Cost (USD)</span>
+                          </div>
+
+                          <div className="space-y-3.5 pt-1">
+                            {invoiceItems.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center border-b border-neutral-100/80 pb-2.5 text-xs">
+                                <span className="text-neutral-700 font-medium">{item.description}</span>
+                                <span className="font-semibold text-neutral-900 font-mono text-sm">${item.amount.toFixed(2)} USD</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="border-t-2 border-[#D4AF37]/40 pt-4 mt-2 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-4 rounded-xl border border-[#E8DFD1]">
+                            <div className="flex flex-col">
+                              <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Estimated Grand Total</span>
+                              <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest">Inclusive of taxes & concierge coordination</span>
                             </div>
-                          ))}
-                          <div className="border-t border-neutral-300 pt-2 mt-1 flex justify-between items-center text-sm font-serif font-black text-neutral-900 bg-[#FAF9F6] p-2.5 rounded-lg border border-[#E8DFD1]/55">
-                            <span className="uppercase tracking-wider text-[10px] text-[#8C6D3F]">Estimated Grand Total</span>
-                            <span>${grandTotal.toFixed(2)} USD</span>
+                            <span className="text-2xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toFixed(2)} USD</span>
                           </div>
-                          <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium pt-1.5">
-                            <span>Per Head Cost (Trip Total — {totalPax} Pax):</span>
-                            <span className="font-semibold text-neutral-700">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
+                        </div>
+
+                        {/* Per Head & Per Day Analytical Breakdown */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white p-5 rounded-xl border border-[#E8DFD1] text-center space-y-1">
+                            <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block">Per Guest Investment ({totalPax} Pax)</span>
+                            <span className="font-serif text-xl font-bold text-neutral-800">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
                           </div>
-                          <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium">
-                            <span>Per Head Cost (Per Day):</span>
-                            <span className="font-semibold text-neutral-700">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
+                          <div className="bg-white p-5 rounded-xl border border-[#E8DFD1] text-center space-y-1">
+                            <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block">Per Guest Daily Investment ({durationDays} Days)</span>
+                            <span className="font-serif text-xl font-bold text-neutral-800">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
                           </div>
                         </div>
                       </div>
                     ) : (
                       hotelPriceTotal > 0 && (
-                        <div className="mt-4 pt-4 border-t border-[#E8DFD1] flex justify-between items-center text-xs font-serif font-bold text-neutral-800 bg-[#FAFAF9] p-3 rounded-lg border border-[#E8DFD1]/55">
-                          <span className="uppercase tracking-widest text-[9px] text-[#D4AF37]">Estimated Hotel Cost Summary</span>
-                          <span className="text-sm text-neutral-900 font-sans font-bold">${hotelPriceTotal.toFixed(2)} USD</span>
+                        <div className="bg-white p-6 rounded-xl border border-[#E8DFD1] flex justify-between items-center text-sm font-serif font-bold text-neutral-800">
+                          <span className="uppercase tracking-widest text-[10px] text-[#D4AF37]">Estimated Hotel Cost Summary</span>
+                          <span className="text-lg text-neutral-900 font-sans font-bold">${hotelPriceTotal.toFixed(2)} USD</span>
                         </div>
                       )
                     )}

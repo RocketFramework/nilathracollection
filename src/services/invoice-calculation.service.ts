@@ -116,9 +116,18 @@ export class InvoiceCalculationService {
     let agencyFeeTotal = 0;
 
     // Calculate concierge total from tourConcierges table items if passed
-    if (tourConcierges !== undefined && tourConcierges !== null) {
+    if (tourConcierges !== undefined && tourConcierges !== null && tourConcierges.length > 0) {
       conciergeTotal = (tourConcierges || []).reduce((sum, item) => {
-        return sum + (Number(item.cost || 0) * Number(item.quantity || 1));
+        const cost = Number(item.cost ?? item.default_cost ?? item.cost_item?.default_cost ?? 0);
+        const qty = Number(item.quantity || 1);
+        const lineCost = cost * qty;
+
+        const costingBasis = (item.costing_basis || item.cost_item?.costing_basis || '').toLowerCase();
+        const isDaily = costingBasis.includes('day') || costingBasis.includes('daily');
+        const isSpecificDay = Boolean(item.tour_itinerary_id);
+
+        const effectiveCost = isDaily && !isSpecificDay ? lineCost * durationDays : lineCost;
+        return sum + effectiveCost;
       }, 0);
     }
 
@@ -180,14 +189,14 @@ export class InvoiceCalculationService {
       }
       transportTotal += dayTransportCost;
 
-      // 4. Concierge (only if tourConcierges was NOT passed)
+      // 4. Concierge
       let conciergeCost = 0;
       if (tourConcierges === undefined || tourConcierges === null) {
         const baseConciergeCost = pax * conciergeCostPerHead;
         conciergeCost = overrides.concierge !== undefined ? overrides.concierge : baseConciergeCost;
         conciergeTotal += conciergeCost;
-      } else {
-        conciergeCost = overrides.concierge !== undefined ? overrides.concierge : 0;
+      } else if (durationDays > 0) {
+        conciergeCost = overrides.concierge !== undefined ? overrides.concierge : (conciergeTotal / durationDays);
       }
 
       // 5. Daily Agency Fee (applied only to hotel, meals, transport, concierge)

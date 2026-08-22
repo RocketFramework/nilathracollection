@@ -9666,7 +9666,14 @@ ${chauffeurHtml}
                         dayCostOverrides={tripData?.dayCostOverrides}
                         dailyDriverAssignments={dailyDriverAssignments}
                         dailyVehicleAssignments={dailyVehicleAssignments}
-                        tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected)}
+                        tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
+                          const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
+                          return {
+                            ...v,
+                            costing_basis: v.costing_basis || costObj?.costing_basis || '',
+                            cost_item: v.cost_item || costObj
+                          };
+                        })}
                       />
                     </div>
 
@@ -17053,8 +17060,16 @@ ${chauffeurHtml}
                                               const pax = adults + children;
                                               const durationDays = touristData?.preferences?.duration_days ?? 5;
 
-                                              const selectedConciergesSum = Array.from(selectedTourConcierges.values()).filter(v => v.selected).reduce((sum, c) => sum + (Number(c.cost || 0) * Number(c.quantity || 1)), 0);
-                                              const conciergeTotal = selectedTourConcierges.size > 0 ? selectedConciergesSum : (pax * conciergeCostPerHead * durationDays);
+                                              const selectedConciergesSum = Array.from(selectedTourConcierges.values()).filter(v => v.selected).reduce((sum, c) => {
+                                                 const costObj = availableConciergeCostItems.find(item => item.id === c.concierge_cost_item_id);
+                                                 const cost = Number(c.cost ?? costObj?.default_cost ?? 0);
+                                                 const qty = Number(c.quantity || 1);
+                                                 const lineCost = cost * qty;
+                                                 const cb = (costObj?.costing_basis || '').toLowerCase();
+                                                 const isDaily = cb.includes('day') || cb.includes('daily');
+                                                 return sum + (isDaily && !c.tour_itinerary_id ? lineCost * durationDays : lineCost);
+                                               }, 0);
+                                              const conciergeTotal = selectedTourConcierges.size > 0 && Array.from(selectedTourConcierges.values()).some(v => v.selected) ? selectedConciergesSum : (pax * conciergeCostPerHead * durationDays);
                                               const agencyFeePart = Math.max(0, item.amount - conciergeTotal);
 
                                               if (conciergeTotal > 0) {
@@ -26310,7 +26325,14 @@ function AIItineraryBuilder({
           dayCostOverrides={tripData?.dayCostOverrides}
           dailyDriverAssignments={dailyDriverAssignments}
           dailyVehicleAssignments={dailyVehicleAssignments}
-          tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected)}
+          tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
+            const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
+            return {
+              ...v,
+              costing_basis: v.costing_basis || costObj?.costing_basis || '',
+              cost_item: v.cost_item || costObj
+            };
+          })}
         />
       </div>
     </div>
