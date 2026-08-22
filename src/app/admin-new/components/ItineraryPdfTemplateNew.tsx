@@ -597,6 +597,81 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   </div>
                 </div>
 
+                {/* 3.4 CONCIERGES & DESTINATION SUPPORT PAGE */}
+                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
+                  <div className="text-center mb-10">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Exclusive Services</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Concierges & Destination Support</h3>
+                  </div>
+
+                  {enrichedTourConcierges && enrichedTourConcierges.length > 0 ? (
+                    <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
+                      <div className="text-center max-w-lg mx-auto mb-2">
+                        <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                          Tailored Concierge Services
+                        </span>
+                        <p className="text-xs text-neutral-500 font-serif italic">
+                          Bespoke concierge services and VIP support protocols integrated into your Ceylon journey for {clientName}.
+                        </p>
+                      </div>
+
+                      <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                        <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 flex justify-between items-center text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold">
+                          <span>Service & Category</span>
+                          <div className="flex items-center gap-12 pr-2">
+                            <span>Service Basis</span>
+                            <span>Quantity</span>
+                          </div>
+                        </div>
+
+                        <div className="divide-y divide-neutral-100">
+                          {enrichedTourConcierges.map((item: any, idx: number) => {
+                            const title = item.cost_item?.title || item.title || 'Bespoke Concierge Service';
+                            const details = item.cost_item?.details || item.details || '';
+                            const category = item.cost_item?.category || item.category || 'Support';
+                            const rawBasis = (item.costing_basis || item.cost_item?.costing_basis || 'per_service').toLowerCase();
+                            const costingBasis = rawBasis.includes('day') ? 'Per Day' : (rawBasis.includes('person') ? 'Per Guest' : 'Per Service');
+                            const qty = item.quantity || 1;
+
+                            return (
+                              <div key={idx} className="px-5 py-3.5 flex justify-between items-start text-left hover:bg-neutral-50/50 transition-colors">
+                                <div className="space-y-0.5 max-w-md">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-serif font-bold text-sm text-[#111827]">{title}</span>
+                                    <span className="text-[7.5px] font-sans uppercase tracking-[0.2em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
+                                      {category}
+                                    </span>
+                                  </div>
+                                  {details && (
+                                    <p className="text-[11px] text-neutral-500 font-sans leading-normal">
+                                      {details}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-12 text-xs font-sans text-right pt-0.5">
+                                  <span className="text-neutral-500 font-medium text-[11px] min-w-[70px]">{costingBasis}</span>
+                                  <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-0.5 rounded text-xs min-w-[50px] text-center">
+                                    {qty} {qty > 1 ? 'Pax' : 'Unit'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 text-center space-y-4">
+                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                        Complimentary Destination Support Included
+                      </span>
+                      <p className="text-xs text-neutral-600 font-serif italic max-w-md mx-auto">
+                        24/7 dedicated local concierge manager on standby, airport coordination, luxury transfer logistics, and real-time itinerary support throughout your Ceylon travel experience.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* 3.5 FINANCIAL BLUEPRINT / ESTIMATED PACKAGE COST OVERVIEW PAGE */}
                 <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
                   <div className="text-center mb-12">
@@ -909,16 +984,25 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     if (!text) return [];
                     return text
                       .split('\n')
-                      .map(line => line.trim())
-                      .filter(line => line.length > 0);
+                      .map(line => line.replace(/[\uE000-\uF8FF]/g, '').trim())
+                      .filter(line => {
+                        const cleaned = line.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+                        return /[a-zA-Z0-9]/.test(cleaned);
+                      });
                   };
 
-                  const allPolicies = isDraft
+                  const rawPolicies = isDraft
                     ? parsePolicyLines(appSettings?.[Settings.Policy_Draft] || '')
                     : [
                       ...parsePolicyLines(genericPolicyText),
                       ...parsePolicyLines(tierPolicyText)
                     ];
+
+                  const allPolicies = rawPolicies.filter(p => {
+                    if (!p) return false;
+                    const cleaned = p.replace(/[\uE000-\uF8FF]/g, '').replace(/^["'\s]+|["'\s]+$/g, '').trim();
+                    return /[a-zA-Z0-9]/.test(cleaned);
+                  });
 
                   if (allPolicies.length === 0) return null;
 
@@ -937,12 +1021,22 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                         <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-4 font-sans text-xs text-[#4B5563] leading-relaxed relative text-left">
                           <div className="absolute left-0 top-6 bottom-6 w-[2px] bg-gradient-to-b from-[#D4AF37]/20 via-[#D4AF37] to-[#D4AF37]/20"></div>
                           <ul className="space-y-3 pl-4 list-none">
-                            {allPolicies.map((policy, idx) => (
-                              <li key={idx} className="relative pl-6">
-                                <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                                <span className="font-medium text-[11.5px] text-[#374151]">{policy}</span>
-                              </li>
-                            ))}
+                            {allPolicies.map((policy, idx) => {
+                              const isHeader = policy.trim().endsWith(':');
+                              if (isHeader) {
+                                return (
+                                  <li key={idx} className="pt-2 pb-0.5 pl-0 font-serif font-bold text-xs uppercase tracking-wider text-[#8C6D3F]">
+                                    {policy}
+                                  </li>
+                                );
+                              }
+                              return (
+                                <li key={idx} className="relative pl-6">
+                                  <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                                  <span className="font-medium text-[11.5px] text-[#374151]">{policy}</span>
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       </div>
