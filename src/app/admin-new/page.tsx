@@ -2756,8 +2756,14 @@ function PlannerWizardWorkspace() {
                 agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
               }
 
+              const itineraryUrl = typeof window !== 'undefined'
+                ? `${window.location.origin}/tourist/tour/${tourId}`
+                : `https://www.nilathra.com/tourist/tour/${tourId}`;
+
               bodyHtml = bodyHtml.replace(/\[Guest Name\]/g, guestName);
               bodyHtml = bodyHtml.replace(/\[Your Name\]/g, agentName);
+              bodyHtml = bodyHtml.replace(/\[Itinerary Link\]/g, itineraryUrl);
+              bodyHtml = bodyHtml.replace(/\[Portal Link\]/g, itineraryUrl);
 
               setShareEmailBody(bodyHtml);
               setShareTemplateLoaded(cacheKey);
