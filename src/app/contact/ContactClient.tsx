@@ -140,6 +140,57 @@ export default function ContactClient() {
                                             <p className="text-sm font-serif">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
                                         </div>
                                     </div>
+
+                                    {/* Sri Lanka Dedicated Travel Agents */}
+                                    <div className="pt-4 border-t border-brand-charcoal/10">
+                                        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold mb-3">Your Sri Lanka Dedicated Agents</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
+                                                <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
+                                                    <Image
+                                                        src="/images/team/sonali.jpeg"
+                                                        alt="Sonali - Sri Lanka Travel Agent"
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                </div>
+                                                <h4 className="font-serif font-bold text-sm text-brand-green">Sonali</h4>
+                                                <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
+                                                    Passionate about Ceylon tea tasting, colonial architecture &amp; fine art photography.
+                                                </p>
+                                            </div>
+
+                                            <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
+                                                <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
+                                                    <Image
+                                                        src="/images/team/ruchika.jpeg"
+                                                        alt="Ruchika - Sri Lanka Travel Agent"
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                </div>
+                                                <h4 className="font-serif font-bold text-sm text-brand-green">Ruchika</h4>
+                                                <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
+                                                    Enthusiastic wild safari tracker, coastal wave surfer &amp; gourmet culinary guide.
+                                                </p>
+                                            </div>
+
+                                            <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
+                                                <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
+                                                    <Image
+                                                        src="/images/team/nimali.jpeg"
+                                                        alt="Nimali - Sri Lanka Travel Agent"
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                </div>
+                                                <h4 className="font-serif font-bold text-sm text-brand-green">Nimali</h4>
+                                                <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
+                                                    Dedicated to Ayurveda wellness retreats, highland tea country trekking &amp; history.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Maldives Contact Hub */}
@@ -173,6 +224,27 @@ export default function ContactClient() {
                                         <div>
                                             <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Maldives Office Address</p>
                                             <p className="text-sm font-serif">H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male&apos; Maldives</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Maldives Dedicated Travel Agent */}
+                                    <div className="pt-4 border-t border-brand-charcoal/10">
+                                        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold mb-3">Your Maldives Dedicated Agent</p>
+                                        <div className="flex items-center gap-4 bg-white/80 p-3 rounded-md border border-brand-gold/15 shadow-sm">
+                                            <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 border border-brand-gold/40">
+                                                <Image
+                                                    src="/images/team/ashee.jpeg"
+                                                    alt="Ashee - Maldives Travel Agent"
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-serif font-bold text-sm text-brand-green">Ashee</h4>
+                                                <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
+                                                    Passionate marine reef conservationist, certified deep-sea diver &amp; luxury catamaran sailing enthusiast.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
