@@ -434,28 +434,98 @@ export default function ContactClient() {
                                         >
                                             {isSubmitting ? "Delivering..." : "Deliver Inquiry"} <Send size={18} />
                                         </button>
+
+                                        {/* What Happens Next Section */}
+                                        <div className="mt-6 p-5 bg-white/80 rounded-md border border-brand-gold/30 space-y-3 text-xs text-brand-charcoal/80 leading-relaxed shadow-sm">
+                                            <p className="font-serif font-bold text-sm text-brand-green flex items-center gap-2">
+                                                <CheckCircle2 size={16} className="text-brand-gold shrink-0" /> What Happens Next?
+                                            </p>
+                                            <p>
+                                                As soon as you send this request, we will receive an instant notification and one of our dedicated travel agents will be assigned to help plan your trip. She will reach out directly to you via WhatsApp to understand your requirements and collaborate on your plan.
+                                            </p>
+                                            <p className="font-medium text-brand-green/90 italic">
+                                                The level of dedication and personal commitment you receive from your agent will be truly next-level—you will feel how different we are from the very second you get in touch with us.
+                                            </p>
+                                            <p>
+                                                If you promptly share your travel preferences (such as sea, history, nature, adventure, village life, culture) along with your preferred travel style (Luxury or VIP), we will be able to assist you with a customized plan and budget within the next 12–24 hours.
+                                            </p>
+                                            <p>
+                                                Once your draft itinerary is completed, we will provide you access to a private tourist portal where you can jointly work with us to fine-tune the tour to your exact liking.
+                                            </p>
+                                        </div>
                                     </form>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Map Placeholder */}
-            <section className="h-[400px] w-full relative bg-brand-sand">
-                <div className="absolute inset-0 grayscale opacity-40">
+            {/* Global Hubs & Indian Ocean Map Section */}
+            <section className="py-20 px-6 md:px-12 relative bg-brand-charcoal text-white overflow-hidden">
+                {/* Map Image & Vignette Overlay */}
+                <div className="absolute inset-0 grayscale opacity-20 mix-blend-luminosity">
                     <Image
                         src="/images/luxury_resort_sunset.avif"
-                        alt="Map"
+                        alt="Nilathra Global Hubs Map"
                         fill
                         className="object-cover"
                     />
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white p-6 shadow-2xl flex items-center gap-4 rounded-sm border-t-2 border-brand-gold">
-                        <MapPin className="text-brand-gold" size={32} />
-                        <div>
-                            <p className="font-serif text-xl">Nilathra Collection</p>
-                            <p className="text-xs text-brand-charcoal/50 uppercase tracking-widest">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
+                <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal via-brand-charcoal/90 to-brand-charcoal/70" />
+
+                <div className="max-w-7xl mx-auto relative z-10 space-y-12">
+                    <div className="text-center space-y-3">
+                        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] block">
+                            Sovereign Indian Ocean Presence
+                        </span>
+                        <h2 className="font-serif text-3xl md:text-5xl text-white">Our Headquarters &amp; Regional Offices</h2>
+                        <p className="text-white/60 text-sm max-w-2xl mx-auto font-light leading-relaxed">
+                            Positioned strategically across the Indian Ocean to deliver seamless Ceylon heritage journeys and Maldives overwater escapes.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                        {/* Sri Lanka Location */}
+                        <div className="bg-white/10 backdrop-blur-md p-8 rounded-md border border-brand-gold/30 hover:border-brand-gold transition-all group shadow-xl">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-brand-gold/20 rounded-full border border-brand-gold/40 text-brand-gold shrink-0 group-hover:scale-110 transition-transform">
+                                    <MapPin size={26} />
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs bg-brand-gold/30 text-brand-gold font-sans uppercase font-bold px-2.5 py-0.5 rounded-full">Headquarters</span>
+                                        <span className="text-xs text-white/50 font-serif">Colombo, Sri Lanka</span>
+                                    </div>
+                                    <h3 className="font-serif text-xl font-bold text-white">Nilathra Collection — Sri Lanka</h3>
+                                    <p className="text-sm text-white/80 font-light leading-relaxed">
+                                        145/1 Vajira Rd, Colombo 00500, Sri Lanka
+                                    </p>
+                                    <p className="text-xs text-brand-gold font-serif pt-2 font-medium tracking-wide">
+                                        Direct Line: +94 77 727 8282
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Maldives Location */}
+                        <div className="bg-white/10 backdrop-blur-md p-8 rounded-md border border-brand-gold/30 hover:border-brand-gold transition-all group shadow-xl">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-brand-gold/20 rounded-full border border-brand-gold/40 text-brand-gold shrink-0 group-hover:scale-110 transition-transform">
+                                    <MapPin size={26} />
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs bg-brand-green/50 text-brand-gold font-sans uppercase font-bold px-2.5 py-0.5 rounded-full border border-brand-gold/20">Regional Office</span>
+                                        <span className="text-xs text-white/50 font-serif">Male&apos;, Maldives</span>
+                                    </div>
+                                    <h3 className="font-serif text-xl font-bold text-white">Nilathra Collection — Maldives</h3>
+                                    <p className="text-sm text-white/80 font-light leading-relaxed">
+                                        H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male&apos; Maldives
+                                    </p>
+                                    <p className="text-xs text-brand-gold font-serif pt-2 font-medium tracking-wide">
+                                        Direct Line: +960 931 0940
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
