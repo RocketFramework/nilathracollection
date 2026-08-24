@@ -1,6 +1,9 @@
 import MainLayout from "@/components/layout/MainLayout";
 import ImperialHelicopterContent from "./ImperialHelicopterContent";
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { getDictionary } from "@/dictionaries";
+import { I18nProvider } from "@/components/I18nProvider";
 
 export const metadata: Metadata = {
     title: "Imperial Helicopter Tour | Luxury Sri Lanka Itinerary | Nilathra Collection",
@@ -31,10 +34,16 @@ export const metadata: Metadata = {
     },
 };
 
-export default function ImperialHelicopterPage() {
+export default async function ImperialHelicopterPage() {
+    const headersList = await headers();
+    const locale = headersList.get('x-locale') || 'en';
+    const dict = await getDictionary(locale);
+
     return (
-        <MainLayout>
-            <ImperialHelicopterContent />
-        </MainLayout>
+        <I18nProvider dictionary={dict}>
+            <MainLayout>
+                <ImperialHelicopterContent />
+            </MainLayout>
+        </I18nProvider>
     );
 }

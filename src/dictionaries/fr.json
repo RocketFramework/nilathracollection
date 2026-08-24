@@ -1760,8 +1760,32 @@
         "acc_suggestions": "Accommodation Suggestions",
         "inquire": "Inquire About Stay",
         "custom_itin": "Design a custom itinerary including {name} and other premium locations.",
-        "include": "Include {name} in Your Luxury Escape",
-        "specialists": "Our specialists can blend {name} with other iconic Sri Lankan destinations to create a seamless journey of discovery.",
-        "plan_my": "Plan My {name} Experience"
+        "include": "Intégrez {name} à votre escapade de luxe",
+        "specialists": "Nos spécialistes combinent {name} avec d'autres destinations emblématiques du Sri Lanka pour créer un voyage parfait.",
+        "plan_my": "Planifier mon expérience à {name}"
+    },
+    "about": {
+        "hero_subtitle": "La Collection",
+        "hero_title": "Notre Histoire",
+        "philosophy_title": "Le Luxe Pur",
+        "philosophy_p1": "La Collection Nilathra est née d'une passion : dévoiler le Sri Lanka dans sa forme la plus pure et la plus élégante. Le vrai luxe ne se résume pas aux hôtels somptueux, mais à l'accès privilégié à des expériences authentiques et inoubliables.",
+        "philosophy_p2": "Basée à Colombo avec une présence régionale à Malé, aux Maldives, notre équipe rassemble des experts locaux, historiens et passionnés. Nous ne nous contentons pas de réserver des hôtels ; nous créons des liens durables.",
+        "values": {
+            "excellence": "Excellence",
+            "excellence_sub": "Normes Mondiales",
+            "trust": "Confiance",
+            "trust_sub": "Service Fiable",
+            "personalized": "Personnalisé",
+            "personalized_sub": "Sur Mesure",
+            "expertise": "Expertise",
+            "expertise_sub": "Savoir-Faire Local"
+        },
+        "leadership_subtitle": "Direction Exécutive",
+        "leadership_title": "Notre Direction",
+        "leadership_desc": "Guidée par des décennies d'excellence d'entreprise, notre équipe dirigeante allie vision stratégique et rigueur opérationnelle pour offrir les voyages d'exception les plus fiables du Sri Lanka.",
+        "wisdom_subtitle": "Savoir Local",
+        "wisdom_title": "Au-delà des Guides",
+        "wisdom_p1": "Nos guides ne sont pas de simples accompagnateurs ; ce sont des conteurs d'histoires passionnés.",
+        "wisdom_p2": "Nous disposons d'un réseau exclusif de propriétés de charme et de villas privées, non répertoriées sur les plateformes publiques. Cette exclusivité est la pierre angulaire de l'expérience Nilathra."
     }
 }

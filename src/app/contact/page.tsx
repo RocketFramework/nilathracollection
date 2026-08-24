@@ -1,5 +1,8 @@
 import ContactClient from "./ContactClient";
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { getDictionary } from "@/dictionaries";
+import { I18nProvider } from "@/components/I18nProvider";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
@@ -53,6 +56,14 @@ export async function generateMetadata({
     };
 }
 
-export default function ContactPage() {
-    return <ContactClient />;
+export default async function ContactPage() {
+    const headersList = await headers();
+    const locale = headersList.get('x-locale') || 'en';
+    const dict = await getDictionary(locale);
+
+    return (
+        <I18nProvider dictionary={dict}>
+            <ContactClient />
+        </I18nProvider>
+    );
 }

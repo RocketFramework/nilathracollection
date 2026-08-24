@@ -1764,5 +1764,29 @@
         "include": "Bringen Sie {name} in Ihre Luxusflucht ein",
         "specialists": "Unsere Spezialisten können {name} mit anderen ikonischen Zielen auf Sri Lanka verbinden, um eine nahtlose Entdeckungsreise zu gestalten.",
         "plan_my": "Planen Sie mein {name}-Erlebnis"
+    },
+    "about": {
+        "hero_subtitle": "Die Kollektion",
+        "hero_title": "Unsere Geschichte",
+        "philosophy_title": "Luxus Ungefiltert",
+        "philosophy_p1": "Die Nilathra Collection entstand aus der Leidenschaft, Sri Lanka in seiner reinsten und elegantesten Form zu präsentieren. Wir glauben, dass wahrer Luxus nicht nur in den feinsten Stoffen oder teuersten Fahrzeugen liegt – sondern im Zugang zu authentischen, berührenden Erlebnissen, die unvergesslich bleiben.",
+        "philosophy_p2": "Mit Hauptsitz in Colombo und einer regionalen Vertretung in Male', Malediven, besteht unser Team aus lokalen Experten, Historikern und Gastronomie-Veteranen. Wir buchen nicht nur Hotels; wir pflegen Beziehungen. Wir planen nicht nur Routen; wir erschaffen Erzählungen.",
+        "values": {
+            "excellence": "Exzellenz",
+            "excellence_sub": "Weltklasse Standards",
+            "trust": "Vertrauen",
+            "trust_sub": "Zuverlässiger Service",
+            "personalized": "Personalisiert",
+            "personalized_sub": "Für Sie maßgeschneidert",
+            "expertise": "Expertise",
+            "expertise_sub": "Lokale Einblicke"
+        },
+        "leadership_subtitle": "Führungsebene",
+        "leadership_title": "Unsere Führung",
+        "leadership_desc": "Geführt von Jahrzehnten unternehmerischer Exzellenz und tiefem Branchenwissen vereint unser Führungsteam strategische Vision mit präziser operativer Ausführung.",
+        "wisdom_subtitle": "Lokales Wissen",
+        "wisdom_title": "Jenseits der Reiseführer",
+        "wisdom_p1": "Unsere Guides sind mehr als nur Navigatoren; sie sind Geschichtenerzähler. Ob eine private Führung durch Galle Fort mit einem Historiker oder eine Sonnenaufgangswanderung in den Knuckles mit einem Wildtierbiologen – Sie erleben Sri Lanka aus den Augen derer, die es am meisten lieben.",
+        "wisdom_p2": "Wir pflegen ein exklusives Netzwerk von Boutique-Anwesen und privaten Villen, die auf öffentlichen Buchungsplattformen nicht zu finden sind. Diese Exklusivität ist das Herzstück des Nilathra-Erlebnisses."
     }
 }

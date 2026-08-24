@@ -4,6 +4,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
+    // --- FAVICON FALLBACK LOGIC ---
+    if (pathname.startsWith('/favicon.ico')) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/icon.png';
+        return NextResponse.rewrite(url);
+    }
+
     // --- I18N LOGIC for Non-Admin Routes ---
     const excludedPaths = ['/admin', '/api', '/_next'];
     const isI18nPath = !excludedPaths.some(path => pathname.startsWith(path)) && !pathname.includes('.');
@@ -12,8 +19,21 @@ export async function proxy(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     let locale = request.cookies.get('NEXT_LOCALE')?.value;
 
+    const supportedLocales = ['de', 'fr', 'en'];
+    const segments = pathname.split('/').filter(Boolean);
+    let targetPathname = pathname;
+    let pathLocale: string | null = null;
+
+    if (segments.length > 0 && supportedLocales.includes(segments[0])) {
+        pathLocale = segments[0];
+        targetPathname = '/' + segments.slice(1).join('/');
+        if (targetPathname === '') targetPathname = '/';
+    }
+
     if (isI18nPath) {
-        if (!locale) {
+        if (pathLocale) {
+            locale = pathLocale;
+        } else if (!locale) {
             // Attempt to auto-detect language
             const country = (request as any).geo?.country || '';
             if (country === 'DE' || country === 'AT' || country === 'CH') {
@@ -27,11 +47,23 @@ export async function proxy(request: NextRequest) {
         requestHeaders.set('x-locale', locale || 'en');
     }
 
-    let supabaseResponse = NextResponse.next({
-        request: {
-            headers: requestHeaders,
-        }
-    });
+    let supabaseResponse: NextResponse;
+
+    if (pathLocale && targetPathname !== pathname) {
+        const url = request.nextUrl.clone();
+        url.pathname = targetPathname;
+        supabaseResponse = NextResponse.rewrite(url, {
+            request: {
+                headers: requestHeaders,
+            }
+        });
+    } else {
+        supabaseResponse = NextResponse.next({
+            request: {
+                headers: requestHeaders,
+            }
+        });
+    }
 
     if (isI18nPath && locale) {
         supabaseResponse.cookies.set('NEXT_LOCALE', locale, { path: '/', maxAge: 60 * 60 * 24 * 365 });

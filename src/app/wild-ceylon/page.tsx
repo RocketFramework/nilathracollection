@@ -1,6 +1,9 @@
 import MainLayout from "@/components/layout/MainLayout";
 import WildCeylonContent from "./WildCeylonContent";
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { getDictionary } from "@/dictionaries";
+import { I18nProvider } from "@/components/I18nProvider";
 
 export const metadata: Metadata = {
     title: "Wild Ceylon Tour | Luxury Sri Lanka Wilderness & Wildlife | Nilathra Collection",
@@ -31,10 +34,16 @@ export const metadata: Metadata = {
     },
 };
 
-export default function WildCeylonPage() {
+export default async function WildCeylonPage() {
+    const headersList = await headers();
+    const locale = headersList.get('x-locale') || 'en';
+    const dict = await getDictionary(locale);
+
     return (
-        <MainLayout>
-            <WildCeylonContent />
-        </MainLayout>
+        <I18nProvider dictionary={dict}>
+            <MainLayout>
+                <WildCeylonContent />
+            </MainLayout>
+        </I18nProvider>
     );
 }

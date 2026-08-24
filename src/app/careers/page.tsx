@@ -1,6 +1,9 @@
 import MainLayout from "@/components/layout/MainLayout";
 import CareersContent from "./CareersContent";
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { getDictionary } from "@/dictionaries";
+import { I18nProvider } from "@/components/I18nProvider";
 
 export const metadata: Metadata = {
     title: "Careers | Join the Nilathra Collection Team",
@@ -31,10 +34,16 @@ export const metadata: Metadata = {
     },
 };
 
-export default function CareersPage() {
+export default async function CareersPage() {
+    const headersList = await headers();
+    const locale = headersList.get('x-locale') || 'en';
+    const dict = await getDictionary(locale);
+
     return (
-        <MainLayout>
-            <CareersContent />
-        </MainLayout>
+        <I18nProvider dictionary={dict}>
+            <MainLayout>
+                <CareersContent />
+            </MainLayout>
+        </I18nProvider>
     );
 }
