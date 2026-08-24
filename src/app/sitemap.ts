@@ -23,6 +23,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
         { path: '/plans/compare', priority: 0.80, changeFreq: 'monthly' },
         { path: '/contact', priority: 0.80, changeFreq: 'monthly' },
         { path: '/blog', priority: 0.80, changeFreq: 'weekly' },
+        { path: '/testimonials/david-montgomery', priority: 0.85, changeFreq: 'monthly' },
+        { path: '/testimonials/dr-julian-clara-von-berg', priority: 0.85, changeFreq: 'monthly' },
         { path: '/careers', priority: 0.50, changeFreq: 'monthly' },
         { path: '/reference', priority: 0.50, changeFreq: 'monthly' },
         { path: '/booking-conditions', priority: 0.40, changeFreq: 'monthly' },

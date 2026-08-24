@@ -56,12 +56,13 @@ const partnerLogos = [
 
 const testimonials = [
   {
-    quote: "The level of discretion, precision, and luxury delivered by Nilathra is unprecedented. From our private jet handling at BIA to the exclusive tea estate buyouts, every detail was executed with sovereign excellence.",
+    quote: "From our private tea estate bungalow buyout near the factory to helicopter transfers for Sigiriya and Yala, every moment was handled seamlessly by Sonali maintaining ultra-luxury standards. All in all, it was a exceptionally well-organized trip.",
     name: "David Montgomery",
     title: "Ultra VIP Traveler",
     location: "London, UK",
     flag: "🇬🇧",
-    image: "/images/tier_vip.avif"
+    image: "/images/david_montgomery_tea_estate.webp",
+    detailUrl: "/testimonials/david-montgomery"
   },
   {
     quote: "As someone accustomed to global top-tier concierge services, Nilathra surpassed all expectations. Their handling of our family's private aviation, close-protection security detail, and Ultra High Net-Worth privacy across Sri Lanka was flawless.",
@@ -77,7 +78,8 @@ const testimonials = [
     title: "Private Estate & Twin-Island Guest",
     location: "Frankfurt, Germany",
     flag: "🇩🇪",
-    image: "/images/hotel_resplendent.avif"
+    image: "/images/dr_julian_clara_nimali.webp",
+    detailUrl: "/testimonials/dr-julian-clara-von-berg"
   },
   {
     quote: "An ultra-luxury experience defined by refined elegance and absolute privacy. Villa buyouts in Galle, bespoke private chef dining, and rare gem curations were managed with true French-level art de vivre.",
@@ -137,7 +139,7 @@ function TestimonialsSection() {
 
         <Quote className="mx-auto mb-8 text-brand-gold opacity-50" size={50} />
 
-        <div className="min-h-[220px] md:min-h-[180px] flex items-center justify-center">
+        <div className="min-h-[240px] md:min-h-[200px] flex items-center justify-center">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeIdx}
@@ -145,7 +147,7 @@ function TestimonialsSection() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.5 }}
-              className="space-y-8"
+              className="space-y-6 flex flex-col items-center justify-center"
             >
               <h2 className="font-serif text-2xl md:text-4xl leading-relaxed max-w-4xl mx-auto italic font-light">
                 &ldquo;{current.quote}&rdquo;
@@ -176,6 +178,18 @@ function TestimonialsSection() {
                   </p>
                 </div>
               </div>
+
+              {current.detailUrl && (
+                <div className="pt-2">
+                  <Link
+                    href={current.detailUrl}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-gold/15 hover:bg-brand-gold text-brand-gold hover:text-brand-green border border-brand-gold/40 rounded-full text-xs uppercase tracking-widest font-bold transition-all duration-300 shadow-md group"
+                  >
+                    <span>Read Full Trip Detail</span>
+                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
