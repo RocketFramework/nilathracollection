@@ -148,7 +148,7 @@ export default function ContactClient() {
                                             <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
                                                 <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
                                                     <Image
-                                                        src="/images/team/sonali.jpeg"
+                                                        src="/images/team/sonali.webp"
                                                         alt="Sonali - Sri Lanka Travel Agent"
                                                         fill
                                                         className="object-cover"
@@ -163,7 +163,7 @@ export default function ContactClient() {
                                             <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
                                                 <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
                                                     <Image
-                                                        src="/images/team/ruchika.jpeg"
+                                                        src="/images/team/ruchika.webp"
                                                         alt="Ruchika - Sri Lanka Travel Agent"
                                                         fill
                                                         className="object-cover"
@@ -178,7 +178,7 @@ export default function ContactClient() {
                                             <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
                                                 <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
                                                     <Image
-                                                        src="/images/team/nimali.jpeg"
+                                                        src="/images/team/nimali.webp"
                                                         alt="Nimali - Sri Lanka Travel Agent"
                                                         fill
                                                         className="object-cover"
@@ -233,7 +233,7 @@ export default function ContactClient() {
                                         <div className="flex items-center gap-4 bg-white/80 p-3 rounded-md border border-brand-gold/15 shadow-sm">
                                             <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 border border-brand-gold/40">
                                                 <Image
-                                                    src="/images/team/ashee.jpeg"
+                                                    src="/images/team/ashee.webp"
                                                     alt="Ashee - Maldives Travel Agent"
                                                     fill
                                                     className="object-cover"

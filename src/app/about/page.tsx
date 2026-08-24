@@ -12,7 +12,7 @@ const leadershipTeam = [
     {
         name: "Nirosh Li",
         role: "Managing Director",
-        image: "/images/team/nirosh-li-v2.jpg",
+        image: "/images/team/nirosh-li-v2.webp",
         bio: "With over 20 years of executive corporate leadership and strategic enterprise management across major conglomerates and hospitality investments, Nirosh steers Nilathra Collection's global vision. His expertise in executive governance, cross-border luxury partnerships, and ultra-high-net-worth client relations ensures an unparalleled standard of excellence across all island operations.",
         highlights: ["20+ Years Executive Leadership", "Strategic Corporate Governance", "Ultra-Luxury Island Buyouts"],
         badge: "Executive Leadership"
@@ -20,7 +20,7 @@ const leadershipTeam = [
     {
         name: "Wajira Di",
         role: "Chief Financial Officer",
-        image: "/images/team/wajira-di-cfo-v2.jpg",
+        image: "/images/team/wajira-di-cfo-v2.webp",
         bio: "A seasoned corporate finance strategist and Chartered Accountant with 15+ years of experience in capital allocation, global treasury management, and financial compliance across luxury hospitality assets and travel infrastructure. Wajira guarantees flawless transaction security, price integrity, and financial strength for the agency.",
         highlights: ["15+ Years Finance & Governance", "Chartered Accountant (FCA)", "VIP Financial Escrow & Audit"],
         badge: "Finance & Strategy"
@@ -28,7 +28,7 @@ const leadershipTeam = [
     {
         name: "Saliya Vi",
         role: "Head of Marketing & Head of Maldives Office",
-        image: "/images/team/saliya-vi-marketing-v2.jpg",
+        image: "/images/team/saliya-vi-marketing-v2.webp",
         bio: "A dynamic brand architect and travel executive with 12+ years of experience in global marketing strategy and luxury hospitality management. In addition to driving Nilathra Collection’s international marketing vision, Saliya heads our Male' regional office, overseeing Maldives operations, private seaplane charters, and overwater villa retreats.",
         highlights: ["12+ Years Brand & Regional Leadership", "Global Marketing Strategy", "Male' Office Operations"],
         badge: "Marketing & Maldives Ops"
@@ -36,7 +36,7 @@ const leadershipTeam = [
     {
         name: "Nimali Ra",
         role: "Head of Sales",
-        image: "/images/team/nimali-ra-v2.jpg",
+        image: "/images/team/nimali-ra-v2.webp",
         bio: "Bringing 16+ years of specialized experience in luxury travel sales, corporate guest relations, and high-value concierge management, Nimali leads our sales division. She specializes in crafting customized high-tier itineraries and maintaining seamless relationships with premier global travel advisors.",
         highlights: ["16+ Years Travel Sales", "Bespoke Itinerary Curation", "24/7 VIP Concierge Excellence"],
         badge: "Sales & Client Relations"
@@ -44,7 +44,7 @@ const leadershipTeam = [
     {
         name: "Janaka Cha",
         role: "Manager Operations",
-        image: "/images/team/janaka-cha-ops-v2.jpg",
+        image: "/images/team/janaka-cha-ops-v2.webp",
         bio: "A master of ground logistics and expedition management with 13+ years in complex fleet operations, private aviation ground handling, and VIP security protocols. Janaka leads our real-time ground operations, ensuring flawless execution, chauffeur-guide precision, and complete safety across every journey.",
         highlights: ["18+ Years Travel Operations", "Chauffeur & Fleet Management", "VIP Aviation & Ground Logistics"],
         badge: "Operations & Logistics"
