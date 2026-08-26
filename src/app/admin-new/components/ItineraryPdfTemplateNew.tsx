@@ -736,6 +736,91 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       )
                     )}
 
+                </div>
+
+                {/* 3.6 ACCOMMODATION SUMMARY PAGE */}
+                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
+                  <div className="text-center mb-12">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Accommodations</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Sanctuaries & Stay Schedule</h3>
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
+                    <div className="text-center max-w-lg mx-auto mb-2">
+                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                        Curated Hotel Portfolio
+                      </span>
+                      <p className="text-xs text-neutral-500 font-serif italic">
+                        Hand-selected luxury accommodations and room arrangements for {clientName}.
+                      </p>
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                      <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
+                        <span className="col-span-3">Night & Date</span>
+                        <span className="col-span-4">Hotel Sanctuary</span>
+                        <span className="col-span-2">Star Rating</span>
+                        <span className="col-span-3 text-right pr-2">Meal Plan</span>
+                      </div>
+
+                      <div className="divide-y divide-neutral-100">
+                        {(() => {
+                          const sleepBlocks = itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP).sort((a, b) => a.dayNumber - b.dayNumber);
+                          if (sleepBlocks.length === 0) {
+                            return (
+                              <div className="p-8 text-center text-xs text-neutral-400 font-serif italic">
+                                Accommodations are currently being finalized.
+                              </div>
+                            );
+                          }
+                          return sleepBlocks.map((block, idx) => {
+                            const hotelDetail = masterData?.hotels
+                              ? masterData.hotels.find((x: any) =>
+                                (block.hotelId && x.id === block.hotelId) ||
+                                (block.hotelName && x.name?.toLowerCase() === block.hotelName.toLowerCase()) ||
+                                (block.name && x.name?.toLowerCase() === block.name.toLowerCase())
+                              )
+                              : null;
+
+                            const hName = block.hotelName || block.name || hotelDetail?.name || 'Pending Assignment';
+                            const starClass = hotelDetail?.hotel_class || hotelDetail?.star_rating || (travelStyle === 'Ultra VIP' ? '5 Star Super Luxury' : '5 Star Luxury');
+                            const mealPlan = block.mealPlan || 'HB';
+                            const dateFormatted = getShortFormattedDate(block.dayNumber);
+
+                            return (
+                              <div key={idx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
+                                <div className="col-span-3 space-y-0.5">
+                                  <span className="font-bold text-[#111827] block">Night {String(block.dayNumber).padStart(2, '0')}</span>
+                                  <span className="text-[10px] text-neutral-500 font-sans block">{dateFormatted !== `Day ${block.dayNumber}` ? dateFormatted : `Day ${block.dayNumber}`}</span>
+                                </div>
+
+                                <div className="col-span-4 space-y-0.5">
+                                  <span className="font-serif font-bold text-sm text-[#111827] block">{hName}</span>
+                                  {block.locationName && (
+                                    <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{block.locationName}</span>
+                                  )}
+                                  {block.roomName && (
+                                    <span className="text-[10px] text-neutral-500 font-sans block font-medium">Room: {block.roomName}</span>
+                                  )}
+                                </div>
+
+                                <div className="col-span-2">
+                                  <span className="text-[10px] font-sans font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-2 py-0.5 rounded inline-block">
+                                    {starClass}
+                                  </span>
+                                </div>
+
+                                <div className="col-span-3 text-right pr-2">
+                                  <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded text-xs inline-block">
+                                    {mealPlan} Basis
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
