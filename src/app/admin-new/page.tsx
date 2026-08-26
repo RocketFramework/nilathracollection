@@ -3020,7 +3020,10 @@ function PlannerWizardWorkspace() {
             dailyDriversRes,
             dailyTransportsRes,
             dailyVehiclesRes,
-            itinCountRes
+            itinCountRes,
+            concItemsRes,
+            savedConcRes,
+            itinDatesRes
           ] = await Promise.all([
             getTouristDataAction(activeTourId),
             getTourDataAction(activeTourId),
@@ -3039,43 +3042,38 @@ function PlannerWizardWorkspace() {
             getTourDailyVehiclesAction(activeTourId),
             getTourItineraryCountAction(activeTourId),
             getSeamlessConciergeCostItemsAction({ pageSize: 100 }),
-            getTourConciergesAction(activeTourId)
+            getTourConciergesAction(activeTourId),
+            getItineraryDatesAction(activeTourId)
           ]);
 
-          if (arguments.length === 0 || arguments) {
-            const concItemsRes = await getSeamlessConciergeCostItemsAction({ pageSize: 100 });
-            const savedConcRes = activeTourId ? await getTourConciergesAction(activeTourId) : { success: false, items: [] };
-            const itinDatesRes = activeTourId ? await getItineraryDatesAction(activeTourId) : { dayToItinIdMap: {} };
-
-            if (itinDatesRes?.dayToItinIdMap) {
-              setDayToItinIdMap(itinDatesRes.dayToItinIdMap);
-            }
-
-            const activeItems = concItemsRes?.success && concItemsRes.items
-              ? concItemsRes.items.filter((i: any) => i.is_active !== false)
-              : [];
-            setAvailableConciergeCostItems(activeItems);
-
-            const savedConcierges = savedConcRes?.success && savedConcRes.items ? savedConcRes.items : [];
-            const defaultPax = touristRes?.data ? (Number(touristRes.data.preferences?.adults || 0) + Number(touristRes.data.preferences?.children || 0)) || 1 : 1;
-
-            const conciergeMap = new Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
-            if (savedConcierges && savedConcierges.length > 0) {
-              savedConcierges.forEach((saved: any, idx: number) => {
-                const item = activeItems.find((i: any) => i.id === saved.concierge_cost_item_id);
-                const key = saved.id || `${saved.concierge_cost_item_id}_${saved.tour_itinerary_id || 'trip'}_${idx}`;
-                conciergeMap.set(key, {
-                  id: saved.id,
-                  concierge_cost_item_id: saved.concierge_cost_item_id,
-                  selected: true,
-                  quantity: Number(saved.quantity) > 0 ? Number(saved.quantity) : defaultPax,
-                  cost: saved.cost !== null && saved.cost !== undefined ? Number(saved.cost) : Number(item?.default_cost || 0),
-                  tour_itinerary_id: saved.tour_itinerary_id || null
-                });
-              });
-            }
-            setSelectedTourConcierges(conciergeMap);
+          if (itinDatesRes?.dayToItinIdMap) {
+            setDayToItinIdMap(itinDatesRes.dayToItinIdMap);
           }
+
+          const activeItems = concItemsRes?.success && concItemsRes.items
+            ? concItemsRes.items.filter((i: any) => i.is_active !== false)
+            : [];
+          setAvailableConciergeCostItems(activeItems);
+
+          const savedConcierges = savedConcRes?.success && savedConcRes.items ? savedConcRes.items : [];
+          const defaultPax = touristRes?.data ? (Number(touristRes.data.preferences?.adults || 0) + Number(touristRes.data.preferences?.children || 0)) || 1 : 1;
+
+          const conciergeMap = new Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
+          if (savedConcierges && savedConcierges.length > 0) {
+            savedConcierges.forEach((saved: any, idx: number) => {
+              const item = activeItems.find((i: any) => i.id === saved.concierge_cost_item_id);
+              const key = saved.id || `${saved.concierge_cost_item_id}_${saved.tour_itinerary_id || 'trip'}_${idx}`;
+              conciergeMap.set(key, {
+                id: saved.id,
+                concierge_cost_item_id: saved.concierge_cost_item_id,
+                selected: true,
+                quantity: Number(saved.quantity) > 0 ? Number(saved.quantity) : defaultPax,
+                cost: saved.cost !== null && saved.cost !== undefined ? Number(saved.cost) : Number(item?.default_cost || 0),
+                tour_itinerary_id: saved.tour_itinerary_id || null
+              });
+            });
+          }
+          setSelectedTourConcierges(conciergeMap);
 
           if (dailyDriversRes?.success && dailyDriversRes.drivers) {
             const driverMap: Record<number, TourDailyDriverDTO[]> = {};
@@ -3142,30 +3140,29 @@ function PlannerWizardWorkspace() {
             const hotelIds = (fullTripData.itinerary || [])
               .filter(b => b.type === ItineraryBlockTypes.SLEEP && b.hotelId)
               .map(b => b.hotelId as string);
-            if (hotelIds.length > 0) {
-              getAssignedHotelsAction(hotelIds).then(hRes => {
-                if (hRes.success && hRes.hotels) {
-                  setMasterData((prev: any) => {
-                    const existingIds = new Set(prev.hotels.map((h: any) => h.id));
-                    const newHotels = hRes.hotels.filter((h: any) => !existingIds.has(h.id));
-                    return { ...prev, hotels: [...prev.hotels, ...newHotels] };
-                  });
-                }
-              });
-            }
 
             const restaurantIds = (fullTripData.itinerary || [])
               .filter(b => b.type === ItineraryBlockTypes.MEAL && b.restaurantId)
               .map(b => b.restaurantId as string);
-            if (restaurantIds.length > 0) {
-              getAssignedRestaurantsAction(restaurantIds).then(rRes => {
-                if (rRes.success && rRes.restaurants) {
-                  setMasterData((prev: any) => {
-                    const existingIds = new Set(prev.restaurants.map((r: any) => r.id));
-                    const newRestaurants = rRes.restaurants.filter((r: any) => !existingIds.has(r.id));
-                    return { ...prev, restaurants: [...prev.restaurants, ...newRestaurants] };
-                  });
-                }
+
+            if (hotelIds.length > 0 || restaurantIds.length > 0) {
+              Promise.all([
+                hotelIds.length > 0 ? getAssignedHotelsAction(hotelIds) : Promise.resolve({ success: false, hotels: [] }),
+                restaurantIds.length > 0 ? getAssignedRestaurantsAction(restaurantIds) : Promise.resolve({ success: false, restaurants: [] })
+              ]).then(([hRes, rRes]) => {
+                setMasterData((prev: any) => {
+                  const existingHotelIds = new Set(prev.hotels.map((h: any) => h.id));
+                  const newHotels = (hRes.success && hRes.hotels ? hRes.hotels : []).filter((h: any) => !existingHotelIds.has(h.id));
+
+                  const existingRestIds = new Set(prev.restaurants.map((r: any) => r.id));
+                  const newRestaurants = (rRes.success && rRes.restaurants ? rRes.restaurants : []).filter((r: any) => !existingRestIds.has(r.id));
+
+                  return {
+                    ...prev,
+                    hotels: [...prev.hotels, ...newHotels],
+                    restaurants: [...prev.restaurants, ...newRestaurants]
+                  };
+                });
               });
             }
 

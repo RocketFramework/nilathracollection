@@ -1,7 +1,7 @@
 "use server";
 import sharp from "sharp";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { AdminService, UserService } from "@/services/user.service";
 import { TourService } from "@/services/tour.service";
 import { TouristService } from "@/services/tourist.service";
@@ -508,10 +508,77 @@ export async function deleteHotelAction(id: string) {
         return { error: error.message || "Failed to delete hotel." };
     }
 }
+const getCachedRestaurantsInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getRestaurants({ client: supabase });
+    },
+    ['master-data-restaurants'],
+    { revalidate: 60, tags: ['master-data-restaurants'] }
+);
+
+const getCachedVendorsInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getVendors({ client: supabase });
+    },
+    ['master-data-vendors'],
+    { revalidate: 60, tags: ['master-data-vendors'] }
+);
+
+const getCachedTransportProvidersInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getTransportProviders({ client: supabase });
+    },
+    ['master-data-transport-providers'],
+    { revalidate: 60, tags: ['master-data-transport-providers'] }
+);
+
+const getCachedActivitiesInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getActivities({ client: supabase });
+    },
+    ['master-data-activities'],
+    { revalidate: 60, tags: ['master-data-activities'] }
+);
+
+const getCachedDriversInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getDrivers({ client: supabase });
+    },
+    ['master-data-drivers'],
+    { revalidate: 60, tags: ['master-data-drivers'] }
+);
+
+const getCachedTourGuidesInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getTourGuides({ client: supabase });
+    },
+    ['master-data-tour-guides'],
+    { revalidate: 60, tags: ['master-data-tour-guides'] }
+);
+
+const getCachedSeamlessConciergeItemsInternal = unstable_cache(
+    async () => {
+        const supabase = createAdminClient();
+        return MasterDataService.getSeamlessConciergeCostItems({ pageSize: 100, client: supabase });
+    },
+    ['master-data-concierge-items'],
+    { revalidate: 60, tags: ['master-data-concierge-items'] }
+);
+
 export async function getRestaurantsAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const { data: restaurants, count } = await MasterDataService.getRestaurants({ ...options, client: supabase });
+        if (options && Object.keys(options).length > 0) {
+            const supabase = createAdminClient();
+            const { data: restaurants, count } = await MasterDataService.getRestaurants({ ...options, client: supabase });
+            return { success: true, restaurants, count };
+        }
+        const { data: restaurants, count } = await getCachedRestaurantsInternal();
         return { success: true, restaurants, count };
     } catch (error: any) {
         console.error("Error fetching restaurants:", error);
@@ -566,8 +633,12 @@ export async function deleteRestaurantAction(id: string) {
 
 export async function getVendorsAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const { data: vendors, count } = await MasterDataService.getVendors({ ...options, client: supabase });
+        if (options && Object.keys(options).length > 0) {
+            const supabase = createAdminClient();
+            const { data: vendors, count } = await MasterDataService.getVendors({ ...options, client: supabase });
+            return { success: true, vendors, count };
+        }
+        const { data: vendors, count } = await getCachedVendorsInternal();
         return { success: true, vendors, count };
     } catch (error: any) {
         console.error("Error fetching vendors:", error);
@@ -600,8 +671,12 @@ export async function getVendorAction(id: string) {
 
 export async function getTransportProvidersAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const { data: providers, count } = await MasterDataService.getTransportProviders({ ...options, client: supabase });
+        if (options && Object.keys(options).length > 0) {
+            const supabase = createAdminClient();
+            const { data: providers, count } = await MasterDataService.getTransportProviders({ ...options, client: supabase });
+            return { success: true, providers, count };
+        }
+        const { data: providers, count } = await getCachedTransportProvidersInternal();
         return { success: true, providers, count };
     } catch (error: any) {
         console.error("Error fetching transport providers:", error);
@@ -633,8 +708,12 @@ export async function refreshPlannerCacheAction() {
 
 export async function getActivitiesAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const result = await MasterDataService.getActivities({ ...options, client: supabase });
+        if (options && Object.keys(options).length > 0) {
+            const supabase = createAdminClient();
+            const result = await MasterDataService.getActivities({ ...options, client: supabase });
+            return { success: true, data: result.data, count: result.count };
+        }
+        const result = await getCachedActivitiesInternal();
         return { success: true, data: result.data, count: result.count };
     } catch (error: any) {
         console.error("Error fetching activities:", error);
@@ -656,8 +735,12 @@ export async function saveActivityAction(activityData: any) {
 
 export async function getDriversAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const { data: drivers, count } = await MasterDataService.getDrivers({ ...options, client: supabase });
+        if (options && Object.keys(options).length > 0) {
+            const supabase = createAdminClient();
+            const { data: drivers, count } = await MasterDataService.getDrivers({ ...options, client: supabase });
+            return { success: true, drivers, count };
+        }
+        const { data: drivers, count } = await getCachedDriversInternal();
         return { success: true, drivers, count };
     } catch (error: any) {
         console.error("Error fetching drivers:", error);
@@ -679,8 +762,12 @@ export async function saveDriverAction(driver: Driver) {
 
 export async function getTourGuidesAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const { data: guides, count } = await MasterDataService.getTourGuides({ ...options, client: supabase });
+        if (options && Object.keys(options).length > 0) {
+            const supabase = createAdminClient();
+            const { data: guides, count } = await MasterDataService.getTourGuides({ ...options, client: supabase });
+            return { success: true, guides, count };
+        }
+        const { data: guides, count } = await getCachedTourGuidesInternal();
         return { success: true, guides, count };
     } catch (error: any) {
         console.error("Error fetching guides:", error);
@@ -702,8 +789,12 @@ export async function saveTourGuideAction(guide: TourGuide) {
 
 export async function getSeamlessConciergeCostItemsAction(options?: any) {
     try {
-        const supabase = createAdminClient();
-        const { data: items, count } = await MasterDataService.getSeamlessConciergeCostItems({ ...options, client: supabase });
+        if (options && Object.keys(options).filter(k => k !== 'pageSize').length > 0) {
+            const supabase = createAdminClient();
+            const { data: items, count } = await MasterDataService.getSeamlessConciergeCostItems({ ...options, client: supabase });
+            return { success: true, items, count };
+        }
+        const { data: items, count } = await getCachedSeamlessConciergeItemsInternal();
         return { success: true, items, count };
     } catch (error: any) {
         console.error("Error fetching seamless concierge cost items:", error);
