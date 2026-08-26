@@ -773,7 +773,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       const sleepBlock = dayBlocks.find(b => b.type === ItineraryBlockTypes.SLEEP);
 
                       return (
-                        <div key={dayNum} className="print-avoid-break space-y-6">
+                        <div key={dayNum} className="print-page-break space-y-6">
 
                           {/* Centered Day Header with Day, Weather, and stay details */}
                           <div className="text-center flex flex-col items-center">
