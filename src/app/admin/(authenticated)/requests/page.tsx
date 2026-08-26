@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Package, MapPin, Search, Filter, Phone, Calendar, DollarSign, Plane, User, Info, Loader2 } from "lucide-react";
+import { Package, MapPin, Search, Filter, Phone, Calendar, DollarSign, Plane, User, Info, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { createTourAction, getDashboardRequestsAction } from "@/actions/admin.actions";
 import { REQUEST_STATUSES } from "@/types/types";
+import CreateRequestModal from "@/components/admin/CreateRequestModal";
 
 export default function AdminRequests() {
     const [userRole, setUserRole] = useState<'admin' | 'agent' | null>(null);
@@ -16,6 +17,7 @@ export default function AdminRequests() {
     const [requests, setRequests] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreatingTour, setIsCreatingTour] = useState<string | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalRequests, setTotalRequests] = useState(0);
@@ -160,6 +162,13 @@ export default function AdminRequests() {
                     </h1>
                     <p className="text-[#6B7280] mt-1">Manage and filter all incoming travel requests.</p>
                 </div>
+                <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center gap-2 bg-brand-gold text-white px-5 py-3 rounded-xl font-bold text-xs shadow-sm hover:bg-[#B3932F] hover:shadow-md transition-all shrink-0"
+                >
+                    <Plus size={16} />
+                    <span>Create Request</span>
+                </button>
             </div>
 
             <div className="flex flex-col gap-6 w-full">
@@ -466,6 +475,12 @@ export default function AdminRequests() {
                     )}
                 </div>
             </div>
+
+            <CreateRequestModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={fetchRequests}
+            />
         </div>
     );
 }
