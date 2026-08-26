@@ -26,6 +26,7 @@ export interface ItineraryEvent {
   roomCategory?: string;
   mealPlan?: string;
   rateUsd?: number;
+  description?: string;
 }
 
 export interface ItineraryDay {

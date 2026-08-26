@@ -53,6 +53,10 @@ RULES:
 9. Recommend a rateUsd for 'sleep' events (number representing room rate per night in USD) according to the travelStyle guidelines above, adjusting the rate based on the Travel Dates and Season (Peak Season commands maximum rates, Off-Peak Season has discounted rates).
 10. Recommend a realistic roomCategory for 'sleep' events suitable for the chosen hotelName and travelStyle (e.g., "Deluxe Ocean View", "Junior Suite", "Superior Double", "Luxury Villa", "Classic Room").
 11. Predict and recommend the typical weather/temperature (e.g., "Sunny 29°C", "Passing Showers 27°C", "Mist & Cool 16°C") in the "weather" field for each day, taking into account the travel date/month and the district/location of that day.
+12. Generate a custom "description" / note for EACH event matching the requested travelStyle:
+    - For 'Ultra VIP' & 'Luxury': Use opulent, bespoke tone (e.g., "Discreet VIP check-in with signature Ceylon welcome high-tea & exploring at leisure", "Private guided VIP tour with exclusive access").
+    - For 'Premium' & 'Regular': skip description
+13. For all 'travel' (transfer) events of 'Ultra VIP' & 'Luxury' types, provide a unique, non-repeating luxury refreshment in the "description" field suitable for Ceylon transfers (e.g., "Chilled Fresh King Coconut & Roasted Cashews", "Ceylon Spiced Iced Tea & Artisanal Shortbread", "Sparkling Botanical Infusion & Tropical Fruit Skewers", "Iced Passionfruit Spritzer & Gourmet Nuts"). Ensure multiple travel legs do NOT share the same refreshment.
 `;
 
         if (customRules) {
@@ -79,7 +83,8 @@ RULES:
            "hotelName": "string", (only for type=sleep, recommend a real hotel matching travelStyle and location)
            "roomCategory": "string", (only for type=sleep, recommend a realistic room category/type for the hotel)
            "mealPlan": "string (MUST always be 'HB')", (only for type=sleep)
-           "rateUsd": number (only for type=sleep, recommend room night rate in USD as a number)
+           "rateUsd": number, (only for type=sleep, recommend room night rate in USD as a number)
+           "description": "string (engaging description/note for events, or unique transfer refreshment for Ultra VIP & Luxury travel events)"
          }
       ],
       "utilization": 0.8,

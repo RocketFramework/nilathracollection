@@ -23762,6 +23762,8 @@ function AIItineraryBuilder({
             }
           }
 
+          const eventNote = event.description || '';
+
           const block: InternalItineraryBlock = {
             id: generateUUID(),
             dayNumber: day.day,
@@ -23780,7 +23782,7 @@ function AIItineraryBuilder({
             imageUrl: '',
             confirmationStatus: 'Pending',
             paymentStatus: 'Pending',
-            internalNotes: '',
+            internalNotes: eventNote,
             distance: event.distance || '',
             comments: [],
             // Bind location data
@@ -23795,6 +23797,17 @@ function AIItineraryBuilder({
           generatedBlocks.push(block);
         });
       });
+
+      const CEYLON_REFRESHMENT_POOL = [
+        "Chilled Fresh King Coconut & Roasted Cashews",
+        "Ceylon Spiced Iced Tea & Artisanal Shortbread",
+        "Sparkling Botanical Infusion & Fresh Tropical Fruit Skewers",
+        "Iced Passionfruit Spritzer & Gourmet Ceylon Nuts",
+        "Chilled Fresh Mango Juice & Ceylon Cinnamon Biscuits",
+        "Herbal Infused Iced Tea & Roasted Cardamom Almonds"
+      ];
+      let travelCount = 0;
+      const isLuxuryOrVip = travelStyle === 'Ultra VIP' || travelStyle === 'Luxury';
 
       // Post-process itinerary to automatically insert travel blocks and compute distances
       const postProcessedBlocks: InternalItineraryBlock[] = [];
@@ -23819,6 +23832,10 @@ function AIItineraryBuilder({
 
       nonDropped.forEach((block, index) => {
         if (block.type === ItineraryBlockTypes.TRAVEL) {
+          travelCount++;
+          if (isLuxuryOrVip && !block.internalNotes) {
+            block.internalNotes = CEYLON_REFRESHMENT_POOL[(travelCount - 1) % CEYLON_REFRESHMENT_POOL.length];
+          }
           // If a travel block is generated, resolve its destination coordinates from itself or lookahead
           let destLat = block.lat;
           let destLng = block.lng;
@@ -23851,6 +23868,8 @@ function AIItineraryBuilder({
               const hasPrecedingTravel = prevInProcessed && prevInProcessed.type === ItineraryBlockTypes.TRAVEL;
 
               if (!hasPrecedingTravel) {
+                travelCount++;
+                const refr = isLuxuryOrVip ? CEYLON_REFRESHMENT_POOL[(travelCount - 1) % CEYLON_REFRESHMENT_POOL.length] : '';
                 // Insert an auto-generated travel block
                 const travelDuration = Math.max(0.5, Math.round((dist / 35) * 2) / 2); // 35 km/h avg speed
                 const travelBlock: InternalItineraryBlock = {
@@ -23868,7 +23887,7 @@ function AIItineraryBuilder({
                   imageUrl: '',
                   confirmationStatus: 'Pending',
                   paymentStatus: 'Pending',
-                  internalNotes: 'Auto-generated travel block due to location change',
+                  internalNotes: refr,
                   comments: [],
                   locationName: block.locationName || '',
                   lat: block.lat,
