@@ -500,22 +500,23 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/35 pointer-events-none z-10"></div>
           <div className="absolute inset-[36px] border border-[#D4AF37]/10 pointer-events-none z-10"></div>
 
-          {/* Full-width Logo Color Stripe across the cover page width */}
+          {/* Full-width Logo Color Stripe matching exact logo color (#222f65) */}
           <div
             style={{
               position: "absolute",
-              top: "22mm",
+              top: "16mm",
               left: 0,
               right: 0,
-              height: "75px",
-              backgroundColor: "#061712",
-              borderTop: "1px solid rgba(212, 175, 55, 0.45)",
-              borderBottom: "1px solid rgba(212, 175, 55, 0.45)",
+              height: "140px",
+              backgroundColor: "#222f65",
+              borderTop: "1.5px solid rgba(212, 175, 55, 0.6)",
+              borderBottom: "1.5px solid rgba(212, 175, 55, 0.6)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              padding: "6px 0",
               zIndex: 10,
-              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.25)",
+              boxShadow: "0 6px 20px rgba(0, 0, 0, 0.35)",
               WebkitPrintColorAdjust: "exact",
               printColorAdjust: "exact"
             }}
@@ -524,22 +525,21 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
               src={getAbsoluteUrl("/images/nilathra_logo-02.png")}
               alt="Nilathra Collection"
               style={{
-                height: "48px",
+                height: "128px",
                 width: "auto",
-                maxHeight: "100%",
-                objectFit: "contain",
-                filter: "brightness(200%)"
+                maxWidth: "85%",
+                objectFit: "contain"
               }}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 style="font-family: serif; color: white; text-transform: uppercase; letter-spacing: 0.35em; font-size: 1.5rem; margin: 0;">NILATHRA</h1>');
+                e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 style="font-family: serif; color: white; text-transform: uppercase; letter-spacing: 0.35em; font-size: 2.2rem; margin: 0;">NILATHRA</h1>');
               }}
             />
           </div>
 
           {/* Header Subtitle Area */}
-          <div className="z-10 text-center flex flex-col items-center mt-24">
-            <span className="text-[#D4AF37] text-[9px] tracking-[0.5em] uppercase font-light">
+          <div className="z-10 text-center flex flex-col items-center mt-36">
+            <span className="text-[#D4AF37] text-[10px] tracking-[0.5em] uppercase font-light">
               The Collection
             </span>
             <div className="w-16 h-[1px] bg-[#D4AF37]/40 mt-4 mb-2"></div>
