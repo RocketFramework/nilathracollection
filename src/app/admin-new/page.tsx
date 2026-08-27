@@ -9653,7 +9653,7 @@ ${chauffeurHtml}
                     </div>
 
                     {/* Hidden PDF template for printing */}
-                    <div id="concierge-pdf-print-area" style={{ display: 'none' }}>
+                    <div id="concierge-pdf-print-area" style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
                       <ItineraryPdfTemplateNew
                         itinerary={itinerary}
                         touristData={touristData}
@@ -23184,11 +23184,13 @@ function AIItineraryBuilder({
         doc.write(`
           <html>
             <head>
+              <base href="${window.location.origin}/" />
               <title>Itinerary PDF - ${clientName}</title>
               ${Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n')}
               <style>
                 body { background: white !important; margin: 0; padding: 0; }
                 @page { size: A4; margin: 0; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
               </style>
             </head>
             <body>
@@ -23198,14 +23200,25 @@ function AIItineraryBuilder({
         `);
         doc.close();
 
-        // Wait for styles/images to render before printing
-        iframe.contentWindow?.focus();
-        setTimeout(() => {
-          iframe.contentWindow?.print();
+        // Wait for all images inside doc to finish loading before printing
+        const imgs = Array.from(doc.querySelectorAll('img'));
+        const imgPromises = imgs.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        });
+
+        Promise.all(imgPromises).then(() => {
           setTimeout(() => {
-            document.body.removeChild(iframe);
-          }, 1000);
-        }, 800);
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+          }, 300);
+        });
       }
     } else {
       alert("Error: PDF content not prepared.");
@@ -23469,17 +23482,7 @@ function AIItineraryBuilder({
       } else if (da?.charged_total_price !== undefined && da?.charged_total_price !== null && Number(da.charged_total_price) > 0 && qty > 0) {
         unitPrice = Number(da.charged_total_price) / qty;
       } else {
-        // Fallback for records without agreedPrice: calculate default rate from settings
-        const styleKey = (TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury');
-        const mType = b.mealType || (b as any).meal_type || (b.name?.toLowerCase().includes('breakfast') ? 'Breakfast' : b.name?.toLowerCase().includes('dinner') ? 'Dinner' : 'Lunch');
-        const settingKey = `${styleKey}_${mType.toLowerCase()}_cost`;
-        const baseCost = appSettings && appSettings[settingKey] !== undefined
-          ? Number(appSettings[settingKey])
-          : (mType === 'Breakfast' ? 15 : mType === 'Dinner' ? 35 : 25);
-        const markupPercent = appSettings && appSettings['restaurant_markup'] !== undefined
-          ? Number(appSettings['restaurant_markup'])
-          : 10;
-        unitPrice = baseCost * (1 + markupPercent / 100);
+        unitPrice = 0;
       }
 
       return sum + (unitPrice * qty);
@@ -24525,7 +24528,13 @@ function AIItineraryBuilder({
                 id="top-guide-needed"
                 checked={guideNeeded}
                 disabled={isLockedByOther}
-                onChange={(e) => onGuideNeededChange(e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  onGuideNeededChange(checked);
+                  if (!checked) {
+                    setTripData(prev => prev ? { ...prev, defaultGuideId: undefined } : prev);
+                  }
+                }}
                 className="w-4 h-4 rounded border-neutral-300 text-emerald-800 focus:ring-emerald-800 cursor-pointer accent-emerald-800 disabled:opacity-50"
               />
             </div>
@@ -26330,7 +26339,7 @@ function AIItineraryBuilder({
       </div>
 
       {/* Hidden PDF template container for printing */}
-      <div style={{ display: 'none' }}>
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
         <ItineraryPdfTemplateNew
           ref={printRef}
           itinerary={itinerary}

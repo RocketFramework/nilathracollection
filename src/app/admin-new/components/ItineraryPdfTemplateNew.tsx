@@ -45,6 +45,13 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     tourConcierges
   }, ref) => {
 
+    const getAbsoluteUrl = (path: string) => {
+      if (typeof window !== 'undefined' && path && path.startsWith('/')) {
+        return `${window.location.origin}${path}`;
+      }
+      return path;
+    };
+
     const clientName = touristData.profile
       ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
       : 'Valued Guest';
@@ -355,6 +362,35 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       return sum + daySleepBlocks.reduce((s, b) => s + (Number(b.agreedPrice) || 0), 0);
     }, 0);
 
+    // Select activity cover images (prioritize itinerary images if available, else pool)
+    const coverImagesPool = [
+      '/images/activities/nine_arch_bridge_visit.jpeg',
+      '/images/activities/whale_watching_mirissa.jpeg',
+      '/images/activities/scenic_hill_country_drive.jpeg',
+      '/images/activities/colombo_galle_coastal_train.jpeg',
+      '/images/activities/jeep_safari_udawalawe_national_park.jpeg',
+      '/images/activities/wilpattu_park_saffari.jpeg',
+      '/images/activities/swimming_with_whales.jpeg',
+      '/images/activities/dolphin_watch_kalpitiya.jpeg'
+    ];
+
+    const coverImages = React.useMemo(() => {
+      const itinImages = itinerary
+        .map(b => b.imageUrl)
+        .filter((url): url is string => Boolean(url && url !== 'none'));
+
+      const combined = Array.from(new Set([...itinImages, ...coverImagesPool]));
+      const strToHash = clientName + (arrivalDate || '');
+      const hash = strToHash.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+      const shuffled = [...combined].sort((a, b) => {
+        const hA = (a + hash).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+        const hB = (b + hash).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+        return (hA % 100) - (hB % 100);
+      });
+      return shuffled.slice(0, 4);
+    }, [itinerary, clientName, arrivalDate]);
+
     return (
       <div
         ref={ref}
@@ -393,7 +429,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           }
         `}} />
 
-        {/* 1. COVER PAGE - Premium Emerald and Gold Theme */}
+        {/* 1. COVER PAGE - Premium Emerald and Gold Theme with Background Images */}
         <div
           className="print-page-break flex flex-col items-center justify-between p-12 box-border relative overflow-hidden"
           style={{
@@ -403,27 +439,110 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
             padding: "30mm 20mm"
           }}
         >
-          {/* Subtle gold frames */}
-          <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/35 pointer-events-none"></div>
-          <div className="absolute inset-[36px] border border-[#D4AF37]/10 pointer-events-none"></div>
-
-          {/* Header Area */}
-          <div className="z-10 text-center flex flex-col items-center mt-8">
-            <div className="mb-4">
-              <img
-                src="/images/nilathra_logo-02.png"
-                alt="Nilathra Collection"
-                className="w-48 opacity-90 relative z-10 filter brightness-200"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-3xl font-serif text-white uppercase tracking-[0.35em] mb-2">NILATHRA</h1>');
+          {/* Background Activity Image Grid */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gridTemplateRows: "1fr 1fr",
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 1
+            }}
+          >
+            {coverImages.map((imgSrc, idx) => (
+              <div
+                key={idx}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  overflow: "hidden",
+                  border: "0.5px solid rgba(212, 175, 55, 0.25)"
                 }}
-              />
-            </div>
+              >
+                <img
+                  src={imgSrc}
+                  alt="Sri Lanka Activity"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    filter: "brightness(0.75) contrast(1.1)"
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Luxury Soft Radial Vignette Overlay */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "radial-gradient(circle at center, rgba(10, 37, 29, 0.35) 0%, rgba(10, 37, 29, 0.75) 100%)",
+              pointerEvents: "none",
+              zIndex: 2
+            }}
+          />
+
+          {/* Subtle gold frames */}
+          <div className="absolute inset-8 border-[0.5px] border-[#D4AF37]/35 pointer-events-none z-10"></div>
+          <div className="absolute inset-[36px] border border-[#D4AF37]/10 pointer-events-none z-10"></div>
+
+          {/* Full-width Logo Color Stripe across the cover page width */}
+          <div
+            style={{
+              position: "absolute",
+              top: "22mm",
+              left: 0,
+              right: 0,
+              height: "75px",
+              backgroundColor: "#061712",
+              borderTop: "1px solid rgba(212, 175, 55, 0.45)",
+              borderBottom: "1px solid rgba(212, 175, 55, 0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.25)",
+              WebkitPrintColorAdjust: "exact",
+              printColorAdjust: "exact"
+            }}
+          >
+            <img
+              src={getAbsoluteUrl("/images/nilathra_logo-02.png")}
+              alt="Nilathra Collection"
+              style={{
+                height: "48px",
+                width: "auto",
+                maxHeight: "100%",
+                objectFit: "contain",
+                filter: "brightness(200%)"
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 style="font-family: serif; color: white; text-transform: uppercase; letter-spacing: 0.35em; font-size: 1.5rem; margin: 0;">NILATHRA</h1>');
+              }}
+            />
+          </div>
+
+          {/* Header Subtitle Area */}
+          <div className="z-10 text-center flex flex-col items-center mt-24">
             <span className="text-[#D4AF37] text-[9px] tracking-[0.5em] uppercase font-light">
               The Collection
             </span>
-            <div className="w-16 h-[1px] bg-[#D4AF37]/40 mt-6 mb-2"></div>
+            <div className="w-16 h-[1px] bg-[#D4AF37]/40 mt-4 mb-2"></div>
           </div>
 
           {/* Central Title Block */}
@@ -706,6 +825,13 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             ))}
                           </div>
 
+                          {invoiceItems.length > 1 && (
+                            <div className="flex justify-between items-center pt-2 px-1 text-xs font-semibold text-neutral-600">
+                              <span className="uppercase tracking-wider text-[10px] text-neutral-500 font-sans">Subtotal (Direct Services)</span>
+                              <span className="font-mono text-sm text-neutral-800">${invoiceItems.filter(i => !i.description.includes('Tax &')).reduce((sum, i) => sum + i.amount, 0).toFixed(2)} USD</span>
+                            </div>
+                          )}
+
                           <div className="border-t-2 border-[#D4AF37]/40 pt-4 mt-2 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-4 rounded-xl border border-[#E8DFD1]">
                             <div className="flex flex-col">
                               <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Estimated Grand Total</span>
@@ -736,6 +862,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       )
                     )}
 
+                  </div>
                 </div>
 
                 {/* 3.6 ACCOMMODATION SUMMARY PAGE */}
@@ -1005,9 +1132,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                   {(() => {
                                     const hasNotes = Boolean(block.internalNotes && block.internalNotes.trim());
                                     const hasDistance = Boolean(block.distance);
-                                    const hasSleepPrice = block.type === ItineraryBlockTypes.SLEEP && block.agreedPrice !== undefined && !block.hotelId;
 
-                                    if (!hasNotes && !hasDistance && !hasSleepPrice) return null;
+                                    if (!hasNotes && !hasDistance) return null;
 
                                     return (
                                       <div className="py-0.5 text-xs text-neutral-500 flex flex-wrap gap-4 justify-between items-start leading-relaxed">
@@ -1016,19 +1142,12 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                           {hasNotes ? block.internalNotes : null}
                                         </div>
 
-                                        {/* Distance & sleep specific price */}
-                                        {(hasDistance || hasSleepPrice) && (
+                                        {/* Distance */}
+                                        {hasDistance && (
                                           <div className="flex flex-col items-end shrink-0 space-y-0.5 text-[9.5px]">
-                                            {hasDistance && (
-                                              <span className="font-semibold text-neutral-500">
-                                                Distance: {block.distance}
-                                              </span>
-                                            )}
-                                            {hasSleepPrice && (
-                                              <span className="font-extrabold text-neutral-800">
-                                                Calculated Price: ${Number(block.agreedPrice ?? 0).toFixed(2)} USD
-                                              </span>
-                                            )}
+                                            <span className="font-semibold text-neutral-500">
+                                              Distance: {block.distance}
+                                            </span>
                                           </div>
                                         )}
                                       </div>

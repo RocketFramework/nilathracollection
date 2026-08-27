@@ -69,9 +69,12 @@ export class InvoiceCalculationService {
       : 15;
 
     // --- Calculate base transport rates ---
+    const isGuideActive = Boolean(guideNeeded) && (guideNeeded as any) !== 'false';
+    const isChauffeurActive = Boolean(chauffeurNeeded) && (chauffeurNeeded as any) !== 'false';
+
     let baseDailyTransportCost = 0;
-    if (appSettings && (chauffeurNeeded || guideNeeded)) {
-      if (chauffeurNeeded) {
+    if (appSettings && (isChauffeurActive || isGuideActive)) {
+      if (isChauffeurActive) {
         const vehicleDayRateKey = `${styleKey}_vehicle_day_rate`;
         const vehicleDayRate = Number(appSettings[vehicleDayRateKey]) || 0;
         const transportMarkupPercent = Number(appSettings[Settings.Transport_Markup]) || 0;
@@ -89,7 +92,7 @@ export class InvoiceCalculationService {
         baseDailyTransportCost += vehicleCost + chauffeurCost;
       }
 
-      if (guideNeeded) {
+      if (isGuideActive) {
         let guideDayRateKey: string = GUIDE_RATE_KEYS.NATIONAL;
         if (travelStyle === TRAVEL_STYLES.REGULAR) {
           guideDayRateKey = GUIDE_RATE_KEYS.LOCATION;
@@ -115,9 +118,10 @@ export class InvoiceCalculationService {
     let conciergeTotal = 0;
     let agencyFeeTotal = 0;
 
-    // Calculate concierge total from tourConcierges table items if passed
+    // Calculate concierge total from tourConcierges table items if passed and has items
+    let hasCustomConcierge = false;
     if (tourConcierges !== undefined && tourConcierges !== null && tourConcierges.length > 0) {
-      conciergeTotal = (tourConcierges || []).reduce((sum, item) => {
+      const calculatedCustomConcierge = (tourConcierges || []).reduce((sum, item) => {
         const cost = Number(item.cost ?? item.default_cost ?? item.cost_item?.default_cost ?? 0);
         const qty = Number(item.quantity || 1);
         const lineCost = cost * qty;
@@ -129,6 +133,11 @@ export class InvoiceCalculationService {
         const effectiveCost = isDaily && !isSpecificDay ? lineCost * durationDays : lineCost;
         return sum + effectiveCost;
       }, 0);
+
+      if (calculatedCustomConcierge > 0) {
+        conciergeTotal = calculatedCustomConcierge;
+        hasCustomConcierge = true;
+      }
     }
 
     const conciergeCostKey = `${styleKey}_concierge_cost`;
@@ -155,21 +164,20 @@ export class InvoiceCalculationService {
       const hotelCost = overrides.hotel !== undefined ? overrides.hotel : baseHotelCost;
       hotelTotal += hotelCost;
 
-      // 2. Meals (only include meals with assigned restaurant_id or hotel_id)
+      // 2. Meals (only include explicit meal costs from dbActivities, itinerary agreedPrice, or overrides)
       let baseMealsCost = 0;
       if (dbActivities && dbActivities.length > 0) {
         const dayMealActs = dbActivities.filter(da => {
           const actDay = da.tour_itineraries?.day_number || da.day_number || da.dayNumber || 1;
           const actType = da.activity_type || da.type || '';
-          const hasVendor = Boolean(da.restaurant_id || da.hotel_id || da.vendor_id || da.restaurantId || da.hotelId || da.vendorId);
-          return actType === 'meal' && Number(actDay) === Number(d) && hasVendor;
+          return actType === 'meal' && Number(actDay) === Number(d);
         });
-        baseMealsCost = dayMealActs.reduce((sum, da) => sum + (Number(da.charged_total_price) || 0), 0);
+        baseMealsCost = dayMealActs.reduce((sum, da) => sum + (Number(da.charged_total_price ?? da.agreedPrice ?? da.total_price ?? 0)), 0);
       } else {
-        const dayMealBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'meal' && Boolean((b as any).restaurantId || (b as any).hotelId || (b as any).vendorId));
+        const dayMealBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'meal');
         baseMealsCost = dayMealBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
       }
-      const mealsCost = baseMealsCost;
+      const mealsCost = overrides.meals !== undefined ? overrides.meals : baseMealsCost;
       mealsTotal += mealsCost;
 
       // 3. Transport
@@ -187,19 +195,32 @@ export class InvoiceCalculationService {
       } else {
         dayTransportCost = baseDailyTransportCost;
       }
-      transportTotal += dayTransportCost;
 
-      // 4. Concierge
-      let conciergeCost = 0;
-      if (tourConcierges === undefined || tourConcierges === null) {
-        const baseConciergeCost = pax * conciergeCostPerHead;
-        conciergeCost = overrides.concierge !== undefined ? overrides.concierge : baseConciergeCost;
-        conciergeTotal += conciergeCost;
-      } else if (durationDays > 0) {
-        conciergeCost = overrides.concierge !== undefined ? overrides.concierge : (conciergeTotal / durationDays);
+      // Fallback transport cost using KM rate if dayTransportCost is still 0
+      if (dayTransportCost === 0) {
+        const kmRateKey = `${styleKey}_vehicle_km_rate`;
+        const kmRate = Number(appSettings?.[kmRateKey]) || 0.50;
+        const dayBlocks = itinerary.filter(b => b.dayNumber === d);
+        const dayKm = dayBlocks.reduce((sum, b) => {
+          if (!(b as any).distance) return sum;
+          const parsed = parseFloat((b as any).distance.toString().replace(/[^\d.]/g, ''));
+          return sum + (isNaN(parsed) ? 0 : parsed);
+        }, 0);
+        dayTransportCost = dayKm * kmRate;
       }
 
-      // 5. Daily Agency Fee (applied only to hotel, meals, transport, concierge)
+      if (overrides.transport !== undefined) {
+        dayTransportCost = overrides.transport;
+      }
+      transportTotal += dayTransportCost;
+
+      // 4. Concierge (only include explicit custom concierges or overrides)
+      let conciergeCost = overrides.concierge !== undefined ? overrides.concierge : 0;
+      if (hasCustomConcierge && overrides.concierge === undefined && durationDays > 0) {
+        conciergeCost = conciergeTotal / durationDays;
+      }
+
+      // 5. Daily Agency Fee (applied to hotel, meals, transport, concierge)
       const subtotalDaily = hotelCost + mealsCost + dayTransportCost + conciergeCost;
       baseSubtotalTotal += subtotalDaily;
       const feePercent = overrides.agencyFeePercent !== undefined ? overrides.agencyFeePercent : serviceFeePercent;
@@ -207,22 +228,29 @@ export class InvoiceCalculationService {
       agencyFeeTotal += dayAgencyFee;
     }
 
-    // --- CATEGORY 1: ACCOMMODATION & MEALS ---
-    const sleepMealTotal = hotelTotal + mealsTotal;
-    const sleepMealBlocks = itinerary.filter(b => b.type === 'sleep' || b.type === 'meal');
-    if (sleepMealTotal > 0 || sleepMealBlocks.length > 0) {
+    // --- CATEGORY 1: ACCOMMODATION ---
+    if (hotelTotal > 0 || sleepBlocks.length > 0) {
       const description = nights > 0 
-        ? `Luxury Accommodation & Bespoke Dining throughout (${nights} Night${nights > 1 ? 's' : ''})`
-        : "Luxury Accommodation & Bespoke Dining throughout";
+        ? `Luxury Accommodation throughout (${nights} Night${nights > 1 ? 's' : ''})`
+        : "Luxury Accommodation throughout";
       invoiceItems.push({
         description,
-        amount: sleepMealTotal,
-        dailyActivityIds: sleepMealBlocks.map(b => b.id).filter(Boolean) as string[]
+        amount: hotelTotal,
+        dailyActivityIds: sleepBlocks.map(b => b.id).filter(Boolean) as string[]
       });
     }
 
-    // --- CATEGORY 2: PRIVATE TRANSFERS (TRANSPORT) ---
-    // Add custom train blocks or explicit travel blocks if they have custom agreed prices
+    // --- CATEGORY 2: DINING & MEALS ---
+    const mealBlocks = itinerary.filter(b => b.type === 'meal');
+    if (mealsTotal > 0) {
+      invoiceItems.push({
+        description: "Bespoke Dining & Culinary Experiences",
+        amount: mealsTotal,
+        dailyActivityIds: mealBlocks.map(b => b.id).filter(Boolean) as string[]
+      });
+    }
+
+    // --- CATEGORY 3: PRIVATE TRANSFERS & TRANSPORT ---
     const trainBlocks = itinerary.filter(b => b.type === 'train');
     const trainTotal = trainBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
 
@@ -234,13 +262,13 @@ export class InvoiceCalculationService {
       if (b.id) dailyActivityIdsTransport.push(b.id);
     });
 
-    if (transportTotal > 0 || travelBlocks.length > 0) {
-      let description = "Chauffeur-driven transfers throughout";
-      if (chauffeurNeeded && guideNeeded) {
+    if (transportTotal > 0 || travelBlocks.length > 0 || isChauffeurActive || isGuideActive) {
+      let description = "Private Transfers & Transport Logistics throughout";
+      if (isChauffeurActive && isGuideActive) {
         description = "Private Chauffeur-driven transfers & National Guide services throughout";
-      } else if (chauffeurNeeded) {
-        description = "Chauffeur-driven transfers throughout";
-      } else if (guideNeeded) {
+      } else if (isChauffeurActive) {
+        description = "Private Chauffeur-driven transfers throughout";
+      } else if (isGuideActive) {
         description = "National Guide services throughout";
       } else if (trainTotal > 0) {
         description = "Private transfers & train travel throughout";
@@ -253,9 +281,21 @@ export class InvoiceCalculationService {
       });
     }
 
-    // --- CATEGORY 3: EXPERIENCES ---
+    // --- CATEGORY 4: CURATED ACTIVITIES & EXPERIENCES ---
     const experienceBlocks = itinerary.filter(b => b.type === 'activity' || b.type === 'custom');
-    const experienceTotal = experienceBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+    const itineraryActTotal = experienceBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+    
+    let dbActTotal = 0;
+    if (dbActivities && dbActivities.length > 0) {
+      const actItems = dbActivities.filter(da => {
+        const actType = da.activity_type || da.type || '';
+        return actType !== 'meal' && actType !== 'sleep' && actType !== 'travel';
+      });
+      dbActTotal = actItems.reduce((sum, da) => sum + (Number(da.charged_total_price ?? da.total_price ?? 0)), 0);
+    }
+
+    const experienceTotal = Math.max(itineraryActTotal, dbActTotal);
+
     if (experienceTotal > 0 || experienceBlocks.length > 0) {
       invoiceItems.push({
         description: "Curated Activities & Experiences throughout",
@@ -264,7 +304,7 @@ export class InvoiceCalculationService {
       });
     }
 
-    // --- CATEGORY 4: FLIGHTS ---
+    // --- CATEGORY 5: FLIGHTS ---
     if (flightsQuotedSeparately) {
       invoiceItems.push({
         description: flightsQuotedPrice > 0 ? "International Airfare — Booked & Confirmed" : "International airfare excluded",
@@ -273,7 +313,7 @@ export class InvoiceCalculationService {
       });
     }
 
-    // --- CATEGORY 5: CONCIERGE & SUPPORT ---
+    // --- CATEGORY 6: CONCIERGE & SUPPORT ---
     if (conciergeTotal > 0) {
       invoiceItems.push({
         description: "Bespoke Concierge & Destination Support",
@@ -282,7 +322,7 @@ export class InvoiceCalculationService {
       });
     }
 
-    // --- CATEGORY 6: SERVICE FEE ---
+    // --- CATEGORY 7: TAX & SERVICE FEE ---
     const serviceFeeAmount = customServiceFee !== undefined 
       ? customServiceFee 
       : agencyFeeTotal;
