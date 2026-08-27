@@ -951,6 +951,214 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   </div>
                 </div>
 
+                {/* 3.7 PRIVATE TRANSPORT & CHAUFFEUR LOGISTICS PAGE */}
+                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
+                  <div className="text-center mb-12">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Transport & Chauffeur</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Private Vehicles & Chauffeur Logistics</h3>
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
+                    <div className="text-center max-w-lg mx-auto mb-2">
+                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                        Private Fleet & Logistics
+                      </span>
+                      <p className="text-xs text-neutral-500 font-serif italic">
+                        Private vehicle specification, comfort amenities, and dedicated chauffeur logistics assigned for {clientName}.
+                      </p>
+                    </div>
+
+                    {(() => {
+                      // Collect assigned vehicles and drivers
+                      const assignedVehicleList: any[] = [];
+                      const assignedDriverList: any[] = [];
+                      const processedVehIds = new Set<string>();
+                      const processedDrvIds = new Set<string>();
+
+                      if (dailyVehicleAssignments) {
+                        Object.values(dailyVehicleAssignments).flat().forEach((ass: any) => {
+                          const vId = ass.vehicle_id || ass.vehicleId;
+                          const vObj = masterData?.transportVehicles?.find((mv: any) => mv.id === vId) || ass.vehicles || ass.vehicle;
+                          if (vObj && vId && !processedVehIds.has(vId)) {
+                            processedVehIds.add(vId);
+                            assignedVehicleList.push(vObj);
+                          } else if (ass.vehicle_name && !processedVehIds.has(ass.vehicle_name)) {
+                            processedVehIds.add(ass.vehicle_name);
+                            assignedVehicleList.push({ name: ass.vehicle_name, license_plate: ass.registration_number });
+                          }
+                        });
+                      }
+
+                      if (dailyDriverAssignments) {
+                        Object.values(dailyDriverAssignments).flat().forEach((ass: any) => {
+                          const dId = ass.driver_id || ass.driverId;
+                          const dObj = masterData?.drivers?.find((md: any) => md.id === dId) || ass.driver;
+                          if (dObj && dId && !processedDrvIds.has(dId)) {
+                            processedDrvIds.add(dId);
+                            assignedDriverList.push(dObj);
+                          } else if (ass.driver_name && !processedDrvIds.has(ass.driver_name)) {
+                            processedDrvIds.add(ass.driver_name);
+                            assignedDriverList.push({ first_name: ass.driver_name, phone: ass.phone });
+                          }
+                        });
+                      }
+
+                      itinerary.filter(b => b.type === 'travel' || b.type === 'train').forEach(block => {
+                        if (block.driverId && masterData?.drivers && !processedDrvIds.has(block.driverId)) {
+                          const dObj = masterData.drivers.find((d: any) => d.id === block.driverId);
+                          if (dObj) {
+                            processedDrvIds.add(block.driverId);
+                            assignedDriverList.push(dObj);
+                          }
+                        }
+                        if (block.vehicleId && masterData?.transportVehicles && !processedVehIds.has(block.vehicleId)) {
+                          const vObj = masterData.transportVehicles.find((v: any) => v.id === block.vehicleId);
+                          if (vObj) {
+                            processedVehIds.add(block.vehicleId);
+                            assignedVehicleList.push(vObj);
+                          }
+                        }
+                      });
+
+                      // Fallback vehicle category description if none explicitly bound yet
+                      const vehicleCategoryName = totalPax <= 2 
+                        ? 'Luxury Air-Conditioned Executive Sedan (Toyota Premier / Mercedes Class)'
+                        : totalPax <= 4
+                          ? 'Luxury Air-Conditioned Mini-Van (Toyota KDH Luxury VIP Edition)'
+                          : 'Luxury Executive Passenger Coach / VIP Van';
+
+                      return (
+                        <div className="space-y-6">
+                          {/* Vehicles Table */}
+                          <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                            <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
+                              <span className="col-span-4">Vehicle Category & Model</span>
+                              <span className="col-span-3">Reg. / License Plate</span>
+                              <span className="col-span-2">Capacity</span>
+                              <span className="col-span-3 text-right pr-2">Comfort & Amenities</span>
+                            </div>
+
+                            <div className="divide-y divide-neutral-100">
+                              {assignedVehicleList.length > 0 ? (
+                                assignedVehicleList.map((veh, vIdx) => {
+                                  const vName = veh.name || veh.model || veh.vehicle_name || 'Executive Private Vehicle';
+                                  const vPlate = veh.license_plate || veh.registration_number || veh.plate_number || 'Assigned Fleet';
+                                  const vCap = veh.seating_capacity ? `${veh.seating_capacity} Seats` : `${totalPax + 2} Seats Capacity`;
+                                  const vType = veh.vehicle_type || veh.type || 'Fully Air-Conditioned';
+
+                                  return (
+                                    <div key={vIdx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
+                                      <div className="col-span-4 space-y-0.5">
+                                        <span className="font-serif font-bold text-sm text-[#111827] block">{vName}</span>
+                                        <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{vType}</span>
+                                      </div>
+                                      <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
+                                        {vPlate}
+                                      </div>
+                                      <div className="col-span-2 text-xs font-semibold text-neutral-600">
+                                        {vCap}
+                                      </div>
+                                      <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
+                                        Air-Conditioned, Chilled Water, Wi-Fi
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="px-5 py-4 grid grid-cols-12 items-center text-left text-xs">
+                                  <div className="col-span-4 space-y-0.5">
+                                    <span className="font-serif font-bold text-sm text-[#111827] block">{vehicleCategoryName}</span>
+                                    <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">Dedicated Private Fleet</span>
+                                  </div>
+                                  <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
+                                    Assigned Executive Vehicle
+                                  </div>
+                                  <div className="col-span-2 text-xs font-semibold text-neutral-600">
+                                    {totalPax} Guests + Luggage
+                                  </div>
+                                  <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
+                                    A/C, Chilled Towels, Refreshments
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Chauffeur / Driver Table */}
+                          <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                            <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
+                              <span className="col-span-4">Chauffeur / Driver Name</span>
+                              <span className="col-span-3">Contact Phone</span>
+                              <span className="col-span-2">Service Period</span>
+                              <span className="col-span-3 text-right pr-2">Licensing & Languages</span>
+                            </div>
+
+                            <div className="divide-y divide-neutral-100">
+                              {assignedDriverList.length > 0 ? (
+                                assignedDriverList.map((drv, dIdx) => {
+                                  const dName = drv.first_name ? `${drv.first_name} ${drv.last_name || ''}`.trim() : (drv.driver_name || drv.name || 'Private Chauffeur');
+                                  const dPhone = drv.phone || drv.contact_number || 'Direct Operational Hotline';
+                                  const dLangs = Array.isArray(drv.languages) ? drv.languages.join(', ') : (drv.languages || 'English Speaking');
+
+                                  return (
+                                    <div key={dIdx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
+                                      <div className="col-span-4 space-y-0.5">
+                                        <span className="font-serif font-bold text-sm text-[#111827] block">{dName}</span>
+                                        <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">National Tourist Chauffeur</span>
+                                      </div>
+                                      <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
+                                        {dPhone}
+                                      </div>
+                                      <div className="col-span-2 text-xs font-semibold text-neutral-600">
+                                        Days 01 to {durationDays}
+                                      </div>
+                                      <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
+                                        {dLangs} &bull; SLTDA Certified
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="px-5 py-4 grid grid-cols-12 items-center text-left text-xs">
+                                  <div className="col-span-4 space-y-0.5">
+                                    <span className="font-serif font-bold text-sm text-[#111827] block">Dedicated National Tourist Chauffeur</span>
+                                    <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">Professional Chauffeur Service</span>
+                                  </div>
+                                  <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
+                                    Provided at Airport Arrival
+                                  </div>
+                                  <div className="col-span-2 text-xs font-semibold text-neutral-600">
+                                    Full Trip Duration ({durationDays} Days)
+                                  </div>
+                                  <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
+                                    English Speaking &bull; Tourist Board Licensed
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Transport Inclusions Footer Box */}
+                          <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-4 rounded-xl text-left flex flex-wrap justify-between items-center gap-4 text-[10.5px] text-[#8C6D3F] font-medium">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                              <span>Fuel, Express Highway Tolls & Parking Included</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                              <span>Chauffeur Meals & Night Accommodation Covered</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                              <span>Unlimited Mileage for Itinerary Program</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
                 {/* 4. CHRONOLOGY - DAY-BY-DAY TIMELINE */}
                 <div className="px-16 py-12 max-w-[850px] mx-auto">
                   <div className="text-center mb-12">
