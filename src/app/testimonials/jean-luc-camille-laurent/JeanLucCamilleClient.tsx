@@ -272,9 +272,14 @@ export default function JeanLucCamilleClient() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 bg-brand-green/5 px-4 py-3 rounded-full border border-brand-green/10">
-                <ShieldCheck size={20} className="text-brand-green" />
-                <span className="text-xs text-brand-green font-medium">Verified Ultra VIP Review</span>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-3 bg-brand-green/5 px-4 py-3 rounded-full border border-brand-green/10">
+                  <ShieldCheck size={20} className="text-brand-green" />
+                  <span className="text-xs text-brand-green font-medium">Verified Ultra VIP Review</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-brand-gold bg-brand-gold/10 border border-brand-gold/20 px-3 py-2 rounded-full font-bold">
+                  <span>NDA Written Release #SL-2026-VIP-773</span>
+                </div>
               </div>
             </div>
           </motion.div>

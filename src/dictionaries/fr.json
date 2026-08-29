@@ -1833,5 +1833,93 @@
         "wisdom_title": "Au-delà des Guides",
         "wisdom_p1": "Nos guides ne sont pas de simples accompagnateurs ; ce sont des conteurs d'histoires passionnés.",
         "wisdom_p2": "Nous disposons d'un réseau exclusif de propriétés de charme et de villas privées, non répertoriées sur les plateformes publiques. Cette exclusivité est la pierre angulaire de l'expérience Nilathra."
+    },
+    "testimonials": {
+        "subtitle": "Expériences Souveraines Globales & Avis UHNW",
+        "nda_title": "Discrétion Souveraine & Charte NDA Stricte",
+        "nda_badge": "Protocole de Confidentialité UHNW",
+        "nda_quote": "Plus de 95 % des voyages Ultra-VIP et Souverains de Nilathra Collection sont régis par des accords de confidentialité stricts (NDA). Afin de préserver la vie privée, la sécurité et l'anonymat total de nos clients figurant au classement Forbes, membres de familles royales et personnalités de haut rang, nous ne publions jamais les identités, listes de vol ni avis sans autorisation écrite préalable. Les expériences présentées ci-dessous sont publiées avec accord écrit.",
+        "nda_peer_note": "Vérification confidentielle disponible pour les Family Offices & Conseillers",
+        "nda_request": "Demander une référence NDA",
+        "read_full": "Lire le témoignage complet",
+        "items": [
+            {
+                "quote": "De la privatisation complète de notre bungalow de plantation de thé aux transferts en hélicoptère vers Sigiriya et Yala, chaque moment a été géré de main de maître par Sonali selon les standards d'ultra-luxe les plus exigeants.",
+                "name": "David Montgomery",
+                "title": "Voyageur Ultra VIP",
+                "location": "Londres, Royaume-Uni"
+            },
+            {
+                "quote": "Habitué aux services de conciergerie haut de gamme dans le monde entier, Nilathra a dépassé toutes nos attentes. La prise en charge de notre aviation privée, du service de protection rapprochée et de notre confidentialité UHNW au Sri Lanka était irréprochable.",
+                "name": "Harrison Vance",
+                "title": "Client UHNW Classement Forbes",
+                "location": "New York, États-Unis"
+            },
+            {
+                "quote": "La précision allemande s'allie à la chaleureuse souveraineté insulaire. La fluidité logistique avec laquelle Nilathra a orchestré notre séjour bi-insulaire entre les montagnes de Ceylan et les villas sur pilotis des Maldives a établi un nouveau standard.",
+                "name": "Dr. Julian & Clara Von Berg",
+                "title": "Invités Domaine Privé & Bi-Insulaire",
+                "location": "Francfort, Allemagne"
+            },
+            {
+                "quote": "Une expérience d'ultra-luxe définie par l'élégance raffinée et une intimité absolue. Privatisation de villas à Galle, chef privé sur mesure et sélections de gemmes rares orchestrées avec un véritable art de vivre à la française.",
+                "name": "Jean-Luc & Camille Laurent",
+                "title": "Invités Sanctuaire Souverain",
+                "location": "Paris, France"
+            },
+            {
+                "quote": "Nilathra a géré notre séjour familial multigénérationnel avec une hospitalité royale inégalée. Accès VIP sur le tarmac, hélicoptères privés et privatisation de resorts ont fait de notre voyage une expérience VIP d'exception.",
+                "name": "Rajesh & Sunita Singhania",
+                "title": "Clients VIP Famille & Entreprise",
+                "location": "Mumbai, Inde"
+            }
+        ]
+    },
+    "contact": {
+        "subtitle": "Contactez-Nous",
+        "title_prefix": "Concevons Votre",
+        "title_highlight": "Voyage d'Exception",
+        "description": "Nos concierges sont disponibles 24/7 pour répondre à vos demandes. Qu'il s'agisse d'une simple question ou d'une demande détaillée pour un séjour ultra-luxe VIP, nous vous garantissons un service discret et raffiné.",
+        "sl_hub_title": "Voyager au Sri Lanka",
+        "sl_hub_badge": "Siège Social",
+        "direct_line": "Ligne Directe",
+        "email_concierge": "E-mail Conciergerie",
+        "hq_address_title": "Adresse du Siège Social",
+        "hq_address": "145/1 Vajira Rd, Colombo 00500, Sri Lanka",
+        "sl_agents_title": "Vos Conseillères Dédiées au Sri Lanka",
+        "sonali_bio": "Passionnée par les dégustations de thé de Ceylan, l'architecture coloniale et la photographie d'art.",
+        "ruchika_bio": "Guide passionné de safaris sauvages, de surf côtier et d'expériences gastronomiques.",
+        "nimali_bio": "Spécialiste des retraites bien-être Ayurvéda, des randonnées dans le pays du thé et de l'histoire.",
+        "mv_hub_title": "Voyager aux Maldives",
+        "mv_hub_badge": "Bureau Régional",
+        "mv_address_title": "Adresse du Bureau aux Maldives",
+        "mv_address": "H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Malé Maldives",
+        "mv_agent_title": "Votre Conseillère Dédiée aux Maldives",
+        "ashee_bio": "Passionnée de conservation des récifs marins, plongeuse certifiée et adepte des croisières en catamaran de luxe.",
+        "whatsapp_btn": "Contactez-nous sur WhatsApp",
+        "form_title": "Envoyer une Demande Privée",
+        "full_name": "Nom Complet",
+        "email_address": "Adresse E-mail",
+        "phone_number": "Numéro de Téléphone",
+        "departure_country": "Pays de Départ",
+        "start_date": "Date de Départ Souhaitée",
+        "duration": "Durée (Jours)",
+        "party_composition": "Composition du Groupe",
+        "adults": "Adultes",
+        "children": "Enfants",
+        "infants": "Bébés",
+        "estimated_budget": "Budget Estimé (USD)",
+        "inquiry_type": "Type de Demande",
+        "message": "Message",
+        "btn_submitting": "Envoi en cours...",
+        "btn_submit": "Envoyer la Demande",
+        "next_title": "Que se passe-t-il ensuite ?",
+        "next_p1": "Dès l'envoi de votre demande, nous recevons une notification instantanée et l'une de nos conseillères vous est attribuée. Elle vous contactera directement via WhatsApp pour comprendre vos besoins et élaborer votre projet.",
+        "next_p2": "Le niveau de dévouement et d'engagement personnel de votre conseillère sera exceptionnel — vous ressentirez notre différence dès le premier échange.",
+        "next_p3": "En nous partageant vos préférences de voyage (mer, histoire, nature, aventure, culture) ainsi que votre style souhaité (Luxe ou VIP), nous vous transmettrons une proposition sur mesure sous 12 à 24 heures.",
+        "next_p4": "Une fois l'ébauche de votre itinéraire finalisée, nous vous donnerons accès à un portail privé pour affiner le voyage ensemble selon vos souhaits.",
+        "hubs_subtitle": "Présence dans l'Océan Indien",
+        "hubs_title": "Notre Siège Social & Nos Bureaux Régionaux",
+        "hubs_desc": "Idéalement positionnés dans l'Océan Indien pour offrir des séjours d'exception combinant Ceylan et les Maldives."
     }
 }

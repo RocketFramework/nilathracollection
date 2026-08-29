@@ -2,7 +2,7 @@
 
 import MainLayout from "@/components/layout/MainLayout";
 import Hero from "@/components/home/Hero";
-import { ArrowRight, Quote, Shield, Crown, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Quote, Shield, Crown, Star, ChevronLeft, ChevronRight, Lock, ShieldCheck, FileKey } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -101,26 +101,42 @@ const testimonials = [
 ];
 
 function TestimonialsSection() {
+  const { dictionary } = useTranslation();
+  const t = dictionary?.testimonials || {};
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Fallback testimonials array
+  const defaultList = testimonials;
+
+  const currentDictItem = t.items && t.items[activeIdx] ? t.items[activeIdx] : null;
+  const currentFallback = defaultList[activeIdx % defaultList.length];
+
+  const currentQuote = currentDictItem?.quote || currentFallback.quote;
+  const currentName = currentDictItem?.name || currentFallback.name;
+  const currentTitle = currentDictItem?.title || currentFallback.title;
+  const currentLocation = currentDictItem?.location || currentFallback.location;
+  const currentFlag = currentFallback.flag;
+  const currentImage = currentFallback.image;
+  const currentDetailUrl = currentFallback.detailUrl;
+
+  const totalCount = t.items?.length || defaultList.length;
 
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % testimonials.length);
-    }, 14000); // 14 seconds for relaxed, comfortable reading
+      setActiveIdx((prev) => (prev + 1) % totalCount);
+    }, 14000);
     return () => clearInterval(timer);
-  }, [isPaused]);
+  }, [isPaused, totalCount]);
 
   const handleNext = () => {
-    setActiveIdx((prev) => (prev + 1) % testimonials.length);
+    setActiveIdx((prev) => (prev + 1) % totalCount);
   };
 
   const handlePrev = () => {
-    setActiveIdx((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+    setActiveIdx((prev) => (prev - 1 + totalCount) % totalCount);
   };
-
-  const current = testimonials[activeIdx];
 
   return (
     <section 
@@ -134,9 +150,37 @@ function TestimonialsSection() {
       </div>
 
       <div className="max-w-5xl mx-auto text-center relative z-10">
-        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] mb-6 block">
-          Global Sovereign Experiences &amp; UHNW Reviews
+        <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">
+          {t.subtitle || "Global Sovereign Experiences & UHNW Reviews"}
         </span>
+
+        {/* Confidentiality & NDA Charter Notice Banner */}
+        <div className="mb-12 max-w-4xl mx-auto bg-white/5 border border-brand-gold/30 p-6 rounded-md text-left text-xs md:text-sm text-white/80 space-y-3 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-brand-gold/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2.5 text-brand-gold font-bold uppercase tracking-wider text-xs">
+              <Lock size={16} />
+              <span>{t.nda_title || "Sovereign Discretion & Strict NDA Charter"}</span>
+            </div>
+            <span className="text-[10px] text-brand-gold/80 uppercase tracking-widest font-semibold px-2.5 py-0.5 rounded bg-brand-gold/10 border border-brand-gold/20">
+              {t.nda_badge || "UHNW Privacy Protocol"}
+            </span>
+          </div>
+          <p className="font-serif italic font-light text-white/90 leading-relaxed">
+            &ldquo;{t.nda_quote || "Over 95% of Nilathra Collection's Ultra-VIP and Sovereign journeys operate under strict Non-Disclosure Agreements (NDAs). To preserve the privacy, security, and total anonymity of our Forbes-list, royal, and high-profile clientele, we never publish guest identities, flight manifests, or reviews without explicit written authorization. The select experiences featured below are published with prior written authorization."}&rdquo;
+          </p>
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 text-[11px] text-white/60 font-sans border-t border-white/5">
+            <span className="flex items-center gap-1.5 text-brand-gold/90 font-medium">
+              <ShieldCheck size={14} /> {t.nda_peer_note || "Confidential Peer Verification Available for Family Offices & Advisors"}
+            </span>
+            <Link 
+              href="/contact?topic=nda-reference-request" 
+              className="text-brand-gold hover:text-white underline underline-offset-4 tracking-wider uppercase text-[10px] font-bold transition-colors"
+            >
+              {t.nda_request || "Request NDA Peer Reference"} &rarr;
+            </Link>
+          </div>
+        </div>
 
         <Quote className="mx-auto mb-8 text-brand-gold opacity-50" size={50} />
 
@@ -151,46 +195,41 @@ function TestimonialsSection() {
               className="space-y-6 flex flex-col items-center justify-center"
             >
               <h2 className="font-serif text-2xl md:text-4xl leading-relaxed max-w-4xl mx-auto italic font-light">
-                &ldquo;{current.quote}&rdquo;
+                &ldquo;{currentQuote}&rdquo;
               </h2>
 
               <div className="flex flex-col items-center justify-center gap-3">
                 <div className="w-16 h-16 rounded-full border-2 border-brand-gold p-1 shadow-lg">
                   <div className="w-full h-full rounded-full overflow-hidden relative">
                     <Image
-                      src={current.image}
-                      alt={current.name}
+                      src={currentImage}
+                      alt={currentName}
                       fill
                       className="object-cover"
                       sizes="64px"
                     />
                   </div>
                 </div>
-                <div className="text-center">
-                  <p className="font-medium tracking-wide text-lg text-white flex items-center justify-center gap-2">
-                    <span>{current.name}</span>
-                    <span className="text-sm">{current.flag}</span>
-                  </p>
-                  <p className="text-brand-gold text-xs uppercase tracking-[0.2em] font-semibold mt-0.5">
-                    {current.title}
-                  </p>
-                  <p className="text-white/50 text-[11px] uppercase tracking-[0.3em] font-light mt-0.5">
-                    {current.location}
-                  </p>
-                </div>
-              </div>
 
-              {current.detailUrl && (
-                <div className="pt-2">
-                  <Link
-                    href={current.detailUrl}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-gold/15 hover:bg-brand-gold text-brand-gold hover:text-brand-green border border-brand-gold/40 rounded-full text-xs uppercase tracking-widest font-bold transition-all duration-300 shadow-md group"
-                  >
-                    <span>Read Full Trip Detail</span>
-                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </Link>
+                <div>
+                  <h3 className="font-serif text-lg md:text-xl text-white font-bold flex items-center justify-center gap-2">
+                    {currentName} <span className="text-base">{currentFlag}</span>
+                  </h3>
+                  <p className="text-brand-gold text-xs uppercase tracking-widest font-semibold mt-1">
+                    {currentTitle} &bull; {currentLocation}
+                  </p>
                 </div>
-              )}
+
+                {currentDetailUrl && (
+                  <Link
+                    href={currentDetailUrl}
+                    className="inline-flex items-center gap-2 mt-2 px-5 py-2 rounded-full bg-brand-gold/20 hover:bg-brand-gold text-brand-gold hover:text-brand-green border border-brand-gold/40 text-xs uppercase tracking-widest font-bold transition-all duration-300 shadow-md"
+                  >
+                    <span>{t.read_full || "Read Full Journey & Testimonial"}</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                )}
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>

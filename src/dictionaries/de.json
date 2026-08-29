@@ -1834,5 +1834,93 @@
         "wisdom_title": "Jenseits der Reiseführer",
         "wisdom_p1": "Unsere Guides sind mehr als nur Navigatoren; sie sind Geschichtenerzähler. Ob eine private Führung durch Galle Fort mit einem Historiker oder eine Sonnenaufgangswanderung in den Knuckles mit einem Wildtierbiologen – Sie erleben Sri Lanka aus den Augen derer, die es am meisten lieben.",
         "wisdom_p2": "Wir pflegen ein exklusives Netzwerk von Boutique-Anwesen und privaten Villen, die auf öffentlichen Buchungsplattformen nicht zu finden sind. Diese Exklusivität ist das Herzstück des Nilathra-Erlebnisses."
+    },
+    "testimonials": {
+        "subtitle": "Globale Souveräne Erfahrungen & UHNW-Bewertungen",
+        "nda_title": "Souveräne Diskretion & Strikte NDA-Charta",
+        "nda_badge": "UHNW-Datenschutzprotokoll",
+        "nda_quote": "Über 95 % aller Ultra-VIP- und Souveränitätsreisen der Nilathra Collection unterliegen strengen Geheimhaltungsvereinbarungen (NDAs). Um Privatsphäre, Sicherheit und vollständige Anonymität unserer Forbes-Listen-, königlichen und hochrangigen Kunden zu wahren, veröffentlichen wir Gastidentitäten, Flugdaten oder Bewertungen niemals ohne ausdrückliche schriftliche Genehmigung. Die unten aufgeführten Erfahrungen werden mit schriftlicher Zustimmung veröffentlicht.",
+        "nda_peer_note": "Vertrauliche Peer-Verifizierung für Family Offices & Berater verfügbar",
+        "nda_request": "NDA-Referenz anfordern",
+        "read_full": "Vollständigen Erfahrungsbericht lesen",
+        "items": [
+            {
+                "quote": "Von unserer privaten Tee-Anwesen-Bungalow-Privatisierung nahe der Fabrik bis hin zu Helikopter-Transfers nach Sigiriya und Yala wurde jeder Moment von Sonali unter Einhaltung höchster Ultra-Luxus-Standards perfekt organisiert.",
+                "name": "David Montgomery",
+                "title": "Ultra VIP Reisender",
+                "location": "London, UK"
+            },
+            {
+                "quote": "Als jemand, der an globale Top-Concierge-Dienste gewohnt ist, hat Nilathra alle Erwartungen übertroffen. Die Abwicklung unserer privaten Luftfahrt, des Personenschutzes und unserer UHNW-Diskretion in Sri Lanka war makellos.",
+                "name": "Harrison Vance",
+                "title": "Forbes-Listen UHNW Kunde",
+                "location": "New York, USA"
+            },
+            {
+                "quote": "Deutsche Präzision trifft auf warme Insel-Souveränität. Die logistische Perfektion, mit der Nilathra unsere Zwei-Insel-Auszeit zwischen Ceylons Hochland und den Malediven organisierte, setzt neue Maßstäbe für Luxusreisen.",
+                "name": "Dr. Julian & Clara Von Berg",
+                "title": "Privat-Anwesen & Zwei-Insel-Gäste",
+                "location": "Frankfurt, Deutschland"
+            },
+            {
+                "quote": "Ein Ultra-Luxus-Erlebnis, definiert durch raffinierte Eleganz und absolute Privatsphäre. Villen-Privatisierungen in Galle, eigener Chefkoch und seltene Edelstein-Kurationen wurden mit echter französischer Art de vivre gestaltet.",
+                "name": "Jean-Luc & Camille Laurent",
+                "title": "Souveräne Villen-Gäste",
+                "location": "Paris, Frankreich"
+            },
+            {
+                "quote": "Nilathra hat unsere Mehrgenerationen-Familienreise mit beispielloser königlicher Gastfreundschaft betreut. VIP-Rollfeld-Clearance, direkte Helikopter-Transfers und exklusive Resort-Privatisierungen machten unseren Urlaub unvergesslich.",
+                "name": "Rajesh & Sunita Singhania",
+                "title": "VIP-Familien- & Firmenkunde",
+                "location": "Mumbai, Indien"
+            }
+        ]
+    },
+    "contact": {
+        "subtitle": "Kontakt Aufnehmen",
+        "title_prefix": "Gestalten wir Ihre",
+        "title_highlight": "Unvergessliche Reise",
+        "description": "Unsere Concierges stehen Ihnen rund um die Uhr zur Verfügung. Ob eine kurze Frage oder eine detaillierte Anfrage für ein Super-Luxus-VIP-Erlebnis – wir bieten Ihnen diskreten und eleganten Service.",
+        "sl_hub_title": "Reisen nach Sri Lanka",
+        "sl_hub_badge": "Hauptquartier",
+        "direct_line": "Direkte Hotline",
+        "email_concierge": "E-Mail Concierge",
+        "hq_address_title": "Adresse des Hauptquartiers",
+        "hq_address": "145/1 Vajira Rd, Colombo 00500, Sri Lanka",
+        "sl_agents_title": "Ihre persönlichen Beraterinnen für Sri Lanka",
+        "sonali_bio": "Begeistert von Ceylon-Teeverkostungen, Kolonialarchitektur & Kunstfotografie.",
+        "ruchika_bio": "Leidenschaftlicher Wildsafari-Fährtenleser, Küstensurfer & Gourmet-Kulinarik-Guide.",
+        "nimali_bio": "Spezialisiert auf Ayurveda-Wellness-Retreats, Tee-Reisen & Geschichte.",
+        "mv_hub_title": "Reisen auf die Malediven",
+        "mv_hub_badge": "Regionalbüro",
+        "mv_address_title": "Adresse des Malediven-Büros",
+        "mv_address": "H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male' Malediven",
+        "mv_agent_title": "Ihre persönliche Beraterin für die Malediven",
+        "ashee_bio": "Engagierte Riff-Naturschützerin, zertifizierte Tiefseetaucherin & Katamaran-Liebhaberin.",
+        "whatsapp_btn": "Sofort über WhatsApp kontaktieren",
+        "form_title": "Private Anfrage Senden",
+        "full_name": "Vollständiger Name",
+        "email_address": "E-Mail-Adresse",
+        "phone_number": "Telefonnummer",
+        "departure_country": "Abreiseland",
+        "start_date": "Voraussichtliches Startdatum",
+        "duration": "Dauer (Tage)",
+        "party_composition": "Zusammensetzung der Gruppe",
+        "adults": "Erwachsene",
+        "children": "Kinder",
+        "infants": "Kleinkinder",
+        "estimated_budget": "Geschätztes Budget (USD)",
+        "inquiry_type": "Art der Anfrage",
+        "message": "Nachricht",
+        "btn_submitting": "Wird übermittelt...",
+        "btn_submit": "Anfrage Absenden",
+        "next_title": "Was passiert als Nächstes?",
+        "next_p1": "Sobald Sie diese Anfrage senden, erhalten wir eine sofortige Benachrichtigung und eine unserer persönlichen Reiseberaterinnen wird Ihnen zugewiesen. Sie wird sich direkt über WhatsApp mit Ihnen in Verbindung setzen, um Ihre Wünsche zu besprechen.",
+        "next_p2": "Das Niveau an Hingabe und persönlicher Betreuung durch Ihre Beraterin ist einzigartig – Sie werden ab der ersten Sekunde spüren, was uns unterscheidet.",
+        "next_p3": "Wenn Sie uns Ihre Reisevorlieben (wie Meer, Geschichte, Natur, Abenteuer, Kultur) sowie Ihren bevorzugten Reisestil (Luxus oder VIP) mitteilen, erstellen wir Ihnen innerhalb von 12–24 Stunden einen maßgeschneiderten Plan samt Budget.",
+        "next_p4": "Sobald der erste Entwurf steht, erhalten Sie Zugang zu einem privaten Kundenportal, wo Sie die Reise gemeinsam mit uns bis ins kleinste Detail verfeinern können.",
+        "hubs_subtitle": "Präsenz im Indischen Ozean",
+        "hubs_title": "Unser Hauptquartier & Regionalbüros",
+        "hubs_desc": "Strategisch im Indischen Ozean positioniert, um nahtlose Ceylon-Kulturreisen und Malediven-Erlebnisse zu bieten."
     }
 }

@@ -9,8 +9,12 @@ import Image from "next/image";
 import { submitInquiryAction } from "@/actions/contact.actions";
 import { logPageViewAction } from "@/actions/log.actions";
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import { useTranslation } from "@/components/I18nProvider";
 
 export default function ContactClient() {
+    const { dictionary } = useTranslation();
+    const c = dictionary?.contact || {};
+
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -100,10 +104,12 @@ export default function ContactClient() {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
                         <div>
-                            <span className="section-subtitle">Get In Touch</span>
-                            <h1 className="section-title !text-6xl mb-8">Let&apos;s Design Your <span className="text-brand-gold italic">Legacy Journey</span>.</h1>
+                            <span className="section-subtitle">{c.subtitle || "Get In Touch"}</span>
+                            <h1 className="section-title !text-6xl mb-8">
+                                {c.title_prefix || "Let's Design Your"} <span className="text-brand-gold italic">{c.title_highlight || "Legacy Journey"}</span>.
+                            </h1>
                             <p className="text-brand-charcoal/60 text-lg font-light leading-relaxed mb-12">
-                                Our concierges are available 24/7 to assist with your inquiries. Whether it&apos;s a quick question or a detailed request for a super luxury VIP experience, we are here to provide discreet and elegant service.
+                                {c.description || "Our concierges are available 24/7 to assist with your inquiries. Whether it's a quick question or a detailed request for a super luxury VIP experience, we are here to provide discreet and elegant service."}
                             </p>
 
                             <div className="space-y-10">
@@ -111,15 +117,15 @@ export default function ContactClient() {
                                 <div className="bg-brand-sand/60 p-6 rounded-lg border border-brand-gold/20 space-y-4">
                                     <div className="flex items-center gap-2 text-brand-green font-serif text-2xl font-bold">
                                         <Globe className="text-brand-gold" size={24} />
-                                        <span>Travel to Sri Lanka</span>
-                                        <span className="text-xs bg-brand-gold/20 text-brand-green font-sans uppercase font-bold px-2 py-0.5 rounded-full ml-auto">Headquarters</span>
+                                        <span>{c.sl_hub_title || "Travel to Sri Lanka"}</span>
+                                        <span className="text-xs bg-brand-gold/20 text-brand-green font-sans uppercase font-bold px-2 py-0.5 rounded-full ml-auto">{c.sl_hub_badge || "Headquarters"}</span>
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                                         <div className="flex items-start gap-3">
                                             <Phone className="text-brand-gold shrink-0 mt-1" size={18} />
                                             <div>
-                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Direct Line</p>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.direct_line || "Direct Line"}</p>
                                                 <a href="tel:+94777278282" className="text-base font-serif hover:text-brand-gold transition-colors">+94 77 727 8282</a>
                                             </div>
                                         </div>
@@ -127,7 +133,7 @@ export default function ContactClient() {
                                         <div className="flex items-start gap-3">
                                             <Mail className="text-brand-gold shrink-0 mt-1" size={18} />
                                             <div>
-                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Email Concierge</p>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.email_concierge || "Email Concierge"}</p>
                                                 <a href="mailto:concierge@nilathra.com" className="text-base font-serif hover:text-brand-gold transition-colors">concierge@nilathra.com</a>
                                             </div>
                                         </div>
@@ -136,14 +142,14 @@ export default function ContactClient() {
                                     <div className="flex items-start gap-3 pt-1 border-t border-brand-charcoal/10">
                                         <MapPin className="text-brand-gold shrink-0 mt-1" size={18} />
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Headquarters Address</p>
-                                            <p className="text-sm font-serif">145/1 Vajira Rd, Colombo 00500, Sri Lanka</p>
+                                            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.hq_address_title || "Headquarters Address"}</p>
+                                            <p className="text-sm font-serif">{c.hq_address || "145/1 Vajira Rd, Colombo 00500, Sri Lanka"}</p>
                                         </div>
                                     </div>
 
                                     {/* Sri Lanka Dedicated Travel Agents */}
                                     <div className="pt-4 border-t border-brand-charcoal/10">
-                                        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold mb-3">Your Sri Lanka Dedicated Agents</p>
+                                        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold mb-3">{c.sl_agents_title || "Your Sri Lanka Dedicated Agents"}</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div className="bg-white/80 p-3 rounded-md border border-brand-gold/15 flex flex-col items-center text-center shadow-sm">
                                                 <div className="relative w-16 h-16 rounded-full overflow-hidden mb-2 border border-brand-gold/40 shrink-0">
@@ -155,8 +161,11 @@ export default function ContactClient() {
                                                     />
                                                 </div>
                                                 <h4 className="font-serif font-bold text-sm text-brand-green">Sonali</h4>
+                                                <a href="mailto:sonali@nilathra.com" className="text-[11px] font-sans text-brand-gold hover:underline font-semibold block mt-0.5">
+                                                    sonali@nilathra.com
+                                                </a>
                                                 <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
-                                                    Passionate about Ceylon tea tasting, colonial architecture &amp; fine art photography.
+                                                    {c.sonali_bio || "Passionate about Ceylon tea tasting, colonial architecture & fine art photography."}
                                                 </p>
                                             </div>
 
@@ -170,8 +179,11 @@ export default function ContactClient() {
                                                     />
                                                 </div>
                                                 <h4 className="font-serif font-bold text-sm text-brand-green">Ruchika</h4>
+                                                <a href="mailto:ruchika@nilathra.com" className="text-[11px] font-sans text-brand-gold hover:underline font-semibold block mt-0.5">
+                                                    ruchika@nilathra.com
+                                                </a>
                                                 <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
-                                                    Enthusiastic wild safari tracker, coastal wave surfer &amp; gourmet culinary guide.
+                                                    {c.ruchika_bio || "Enthusiastic wild safari tracker, coastal wave surfer & gourmet culinary guide."}
                                                 </p>
                                             </div>
 
@@ -185,8 +197,11 @@ export default function ContactClient() {
                                                     />
                                                 </div>
                                                 <h4 className="font-serif font-bold text-sm text-brand-green">Nimali</h4>
+                                                <a href="mailto:nimali@nilathra.com" className="text-[11px] font-sans text-brand-gold hover:underline font-semibold block mt-0.5">
+                                                    nimali@nilathra.com
+                                                </a>
                                                 <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
-                                                    Dedicated to Ayurveda wellness retreats, highland tea country trekking &amp; history.
+                                                    {c.nimali_bio || "Dedicated to Ayurveda wellness retreats, highland tea country trekking & history."}
                                                 </p>
                                             </div>
                                         </div>
@@ -197,15 +212,15 @@ export default function ContactClient() {
                                 <div className="bg-brand-sand/60 p-6 rounded-lg border border-brand-gold/20 space-y-4">
                                     <div className="flex items-center gap-2 text-brand-green font-serif text-2xl font-bold">
                                         <Globe className="text-brand-gold" size={24} />
-                                        <span>Travel to Maldives</span>
-                                        <span className="text-xs bg-brand-green/10 text-brand-green font-sans uppercase font-bold px-2 py-0.5 rounded-full ml-auto">Regional Office</span>
+                                        <span>{c.mv_hub_title || "Travel to Maldives"}</span>
+                                        <span className="text-xs bg-brand-green/10 text-brand-green font-sans uppercase font-bold px-2 py-0.5 rounded-full ml-auto">{c.mv_hub_badge || "Regional Office"}</span>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                                         <div className="flex items-start gap-3">
                                             <Phone className="text-brand-gold shrink-0 mt-1" size={18} />
                                             <div>
-                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Direct Line</p>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.direct_line || "Direct Line"}</p>
                                                 <a href="tel:+9609310940" className="text-base font-serif hover:text-brand-gold transition-colors">+960 931 0940</a>
                                             </div>
                                         </div>
@@ -213,7 +228,7 @@ export default function ContactClient() {
                                         <div className="flex items-start gap-3">
                                             <Mail className="text-brand-gold shrink-0 mt-1" size={18} />
                                             <div>
-                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Email Concierge</p>
+                                                <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.email_concierge || "Email Concierge"}</p>
                                                 <a href="mailto:maldives@nilathra.com" className="text-base font-serif hover:text-brand-gold transition-colors">maldives@nilathra.com</a>
                                             </div>
                                         </div>
@@ -222,14 +237,14 @@ export default function ContactClient() {
                                     <div className="flex items-start gap-3 pt-1 border-t border-brand-charcoal/10">
                                         <MapPin className="text-brand-gold shrink-0 mt-1" size={18} />
                                         <div>
-                                            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">Maldives Office Address</p>
-                                            <p className="text-sm font-serif">H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male&apos; Maldives</p>
+                                            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold">{c.mv_address_title || "Maldives Office Address"}</p>
+                                            <p className="text-sm font-serif">{c.mv_address || "H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male' Maldives"}</p>
                                         </div>
                                     </div>
 
                                     {/* Maldives Dedicated Travel Agent */}
                                     <div className="pt-4 border-t border-brand-charcoal/10">
-                                        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold mb-3">Your Maldives Dedicated Agent</p>
+                                        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/50 font-bold mb-3">{c.mv_agent_title || "Your Maldives Dedicated Agent"}</p>
                                         <div className="flex items-center gap-4 bg-white/80 p-3 rounded-md border border-brand-gold/15 shadow-sm">
                                             <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 border border-brand-gold/40">
                                                 <Image
@@ -241,8 +256,11 @@ export default function ContactClient() {
                                             </div>
                                             <div>
                                                 <h4 className="font-serif font-bold text-sm text-brand-green">Ashee</h4>
+                                                <a href="mailto:ashee@nilathra.com" className="text-[11px] font-sans text-brand-gold hover:underline font-semibold block mt-0.5">
+                                                    ashee@nilathra.com
+                                                </a>
                                                 <p className="text-[11px] text-brand-charcoal/70 leading-snug mt-1">
-                                                    Passionate marine reef conservationist, certified deep-sea diver &amp; luxury catamaran sailing enthusiast.
+                                                    {c.ashee_bio || "Passionate marine reef conservationist, certified deep-sea diver & luxury catamaran sailing enthusiast."}
                                                 </p>
                                             </div>
                                         </div>
@@ -255,7 +273,7 @@ export default function ContactClient() {
                                         target="_blank"
                                         className="flex items-center gap-4 text-brand-green font-bold tracking-widest uppercase hover:text-brand-gold transition-colors"
                                     >
-                                        <MessageCircle fill="currentColor" size={24} className="text-green-500" /> WhatsApp Us Instantly
+                                        <MessageCircle fill="currentColor" size={24} className="text-green-500" /> {c.whatsapp_btn || "WhatsApp Us Instantly"}
                                     </Link>
                                 </div>
                             </div>
@@ -266,11 +284,11 @@ export default function ContactClient() {
                                 <Globe size={300} />
                             </div>
 
-                            <h3 className="font-serif text-3xl text-brand-green mb-10 relative z-10">Send a Private Inquiry</h3>
+                            <h3 className="font-serif text-3xl text-brand-green mb-10 relative z-10">{c.form_title || "Send a Private Inquiry"}</h3>
                                     <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Full Name</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.full_name || "Full Name"}</label>
                                                 <input
                                                     type="text"
                                                     required
@@ -280,7 +298,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Email Address</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.email_address || "Email Address"}</label>
                                                 <input
                                                     type="email"
                                                     required
@@ -293,7 +311,7 @@ export default function ContactClient() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Phone Number</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.phone_number || "Phone Number"}</label>
                                                 <PhoneInput
                                                     required={true}
                                                     value={form.phone}
@@ -303,7 +321,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Departure Country</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.departure_country || "Departure Country"}</label>
                                                 <input
                                                     type="text"
                                                     required
@@ -316,7 +334,7 @@ export default function ContactClient() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Expected Start Date</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.start_date || "Expected Start Date"}</label>
                                                 <input
                                                     type="date"
                                                     required
@@ -326,7 +344,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Duration (Days)</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.duration || "Duration (Days)"}</label>
                                                 <input
                                                     type="number"
                                                     min={1}
@@ -339,7 +357,7 @@ export default function ContactClient() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Party Composition</label>
+                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.party_composition || "Party Composition"}</label>
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div className="relative">
                                                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] text-brand-charcoal/30 uppercase font-bold pl-1">A</span>
@@ -349,7 +367,7 @@ export default function ContactClient() {
                                                         value={form.adults}
                                                         onChange={e => setForm({ ...form, adults: parseInt(e.target.value) || 0 })}
                                                         className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 pl-6 outline-none focus:border-brand-gold transition-colors"
-                                                        placeholder="Adults"
+                                                        placeholder={c.adults || "Adults"}
                                                     />
                                                 </div>
                                                 <div className="relative">
@@ -360,7 +378,7 @@ export default function ContactClient() {
                                                         value={form.children}
                                                         onChange={e => setForm({ ...form, children: parseInt(e.target.value) || 0 })}
                                                         className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 pl-6 outline-none focus:border-brand-gold transition-colors"
-                                                        placeholder="Children"
+                                                        placeholder={c.children || "Children"}
                                                     />
                                                 </div>
                                                 <div className="relative">
@@ -371,7 +389,7 @@ export default function ContactClient() {
                                                         value={form.infants}
                                                         onChange={e => setForm({ ...form, infants: parseInt(e.target.value) || 0 })}
                                                         className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 pl-6 outline-none focus:border-brand-gold transition-colors"
-                                                        placeholder="Infants"
+                                                        placeholder={c.infants || "Infants"}
                                                     />
                                                 </div>
                                             </div>
@@ -379,7 +397,7 @@ export default function ContactClient() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Estimated Budget (USD)</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.estimated_budget || "Estimated Budget (USD)"}</label>
                                                 <input
                                                     type="number"
                                                     min={500}
@@ -391,7 +409,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Inquiry Type</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.inquiry_type || "Inquiry Type"}</label>
                                                 <select
                                                     value={form.inquiryType}
                                                     onChange={e => setForm({ ...form, inquiryType: e.target.value })}
@@ -414,7 +432,7 @@ export default function ContactClient() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">Message</label>
+                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.message || "Message"}</label>
                                             <textarea
                                                 rows={4}
                                                 required
@@ -432,25 +450,25 @@ export default function ContactClient() {
                                             disabled={isSubmitting}
                                             className="luxury-button w-full flex items-center justify-center gap-4 !bg-brand-charcoal hover:!bg-brand-green disabled:opacity-50 transition-all"
                                         >
-                                            {isSubmitting ? "Delivering..." : "Deliver Inquiry"} <Send size={18} />
+                                            {isSubmitting ? (c.btn_submitting || "Delivering...") : (c.btn_submit || "Deliver Inquiry")} <Send size={18} />
                                         </button>
 
                                         {/* What Happens Next Section */}
                                         <div className="mt-6 p-5 bg-white/80 rounded-md border border-brand-gold/30 space-y-3 text-xs text-brand-charcoal/80 leading-relaxed shadow-sm">
                                             <p className="font-serif font-bold text-sm text-brand-green flex items-center gap-2">
-                                                <CheckCircle2 size={16} className="text-brand-gold shrink-0" /> What Happens Next?
+                                                <CheckCircle2 size={16} className="text-brand-gold shrink-0" /> {c.next_title || "What Happens Next?"}
                                             </p>
                                             <p>
-                                                As soon as you send this request, we will receive an instant notification and one of our dedicated travel agents will be assigned to help plan your trip. She will reach out directly to you via WhatsApp to understand your requirements and collaborate on your plan.
+                                                {c.next_p1 || "As soon as you send this request, we will receive an instant notification and one of our dedicated travel agents will be assigned to help plan your trip. She will reach out directly to you via WhatsApp to understand your requirements and collaborate on your plan."}
                                             </p>
                                             <p className="font-medium text-brand-green/90 italic">
-                                                The level of dedication and personal commitment you receive from your agent will be truly next-level—you will feel how different we are from the very second you get in touch with us.
+                                                {c.next_p2 || "The level of dedication and personal commitment you receive from your agent will be truly next-level—you will feel how different we are from the very second you get in touch with us."}
                                             </p>
                                             <p>
-                                                If you promptly share your travel preferences (such as sea, history, nature, adventure, village life, culture) along with your preferred travel style (Luxury or VIP), we will be able to assist you with a customized plan and budget within the next 12–24 hours.
+                                                {c.next_p3 || "If you promptly share your travel preferences (such as sea, history, nature, adventure, village life, culture) along with your preferred travel style (Luxury or VIP), we will be able to assist you with a customized plan and budget within the next 12–24 hours."}
                                             </p>
                                             <p>
-                                                Once your draft itinerary is completed, we will provide you access to a private tourist portal where you can jointly work with us to fine-tune the tour to your exact liking.
+                                                {c.next_p4 || "Once your draft itinerary is completed, we will provide you access to a private tourist portal where you can jointly work with us to fine-tune the tour to your exact liking."}
                                             </p>
                                         </div>
                                     </form>
@@ -475,11 +493,11 @@ export default function ContactClient() {
                 <div className="max-w-7xl mx-auto relative z-10 space-y-12">
                     <div className="text-center space-y-3">
                         <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.4em] block">
-                            Sovereign Indian Ocean Presence
+                            {c.hubs_subtitle || "Sovereign Indian Ocean Presence"}
                         </span>
-                        <h2 className="font-serif text-3xl md:text-5xl text-white">Our Headquarters &amp; Regional Offices</h2>
+                        <h2 className="font-serif text-3xl md:text-5xl text-white">{c.hubs_title || "Our Headquarters & Regional Offices"}</h2>
                         <p className="text-white/60 text-sm max-w-2xl mx-auto font-light leading-relaxed">
-                            Positioned strategically across the Indian Ocean to deliver seamless Ceylon heritage journeys and Maldives overwater escapes.
+                            {c.hubs_desc || "Positioned strategically across the Indian Ocean to deliver seamless Ceylon heritage journeys and Maldives overwater escapes."}
                         </p>
                     </div>
 
@@ -492,15 +510,15 @@ export default function ContactClient() {
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs bg-brand-gold/30 text-brand-gold font-sans uppercase font-bold px-2.5 py-0.5 rounded-full">Headquarters</span>
+                                        <span className="text-xs bg-brand-gold/30 text-brand-gold font-sans uppercase font-bold px-2.5 py-0.5 rounded-full">{c.sl_hub_badge || "Headquarters"}</span>
                                         <span className="text-xs text-white/50 font-serif">Colombo, Sri Lanka</span>
                                     </div>
                                     <h3 className="font-serif text-xl font-bold text-white">Nilathra Collection — Sri Lanka</h3>
                                     <p className="text-sm text-white/80 font-light leading-relaxed">
-                                        145/1 Vajira Rd, Colombo 00500, Sri Lanka
+                                        {c.hq_address || "145/1 Vajira Rd, Colombo 00500, Sri Lanka"}
                                     </p>
                                     <p className="text-xs text-brand-gold font-serif pt-2 font-medium tracking-wide">
-                                        Direct Line: +94 77 727 8282
+                                        {c.direct_line || "Direct Line"}: +94 77 727 8282
                                     </p>
                                 </div>
                             </div>
@@ -514,15 +532,15 @@ export default function ContactClient() {
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs bg-brand-green/50 text-brand-gold font-sans uppercase font-bold px-2.5 py-0.5 rounded-full border border-brand-gold/20">Regional Office</span>
+                                        <span className="text-xs bg-brand-green/50 text-brand-gold font-sans uppercase font-bold px-2.5 py-0.5 rounded-full border border-brand-gold/20">{c.mv_hub_badge || "Regional Office"}</span>
                                         <span className="text-xs text-white/50 font-serif">Male&apos;, Maldives</span>
                                     </div>
                                     <h3 className="font-serif text-xl font-bold text-white">Nilathra Collection — Maldives</h3>
                                     <p className="text-sm text-white/80 font-light leading-relaxed">
-                                        H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male&apos; Maldives
+                                        {c.mv_address || "H.Crimson Light, 2-A, Lonuziyaaraiy Magu, Male' Maldives"}
                                     </p>
                                     <p className="text-xs text-brand-gold font-serif pt-2 font-medium tracking-wide">
-                                        Direct Line: +960 931 0940
+                                        {c.direct_line || "Direct Line"}: +960 931 0940
                                     </p>
                                 </div>
                             </div>
