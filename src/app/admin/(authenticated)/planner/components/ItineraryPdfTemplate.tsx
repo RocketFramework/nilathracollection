@@ -202,7 +202,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                         
                         <div className="flex flex-col items-center">
                             <div className="mb-4">
-                                <img src="/images/nilathra_logo-02.png" alt="Nilathra Collection" className="w-48 opacity-90 relative z-10 filter brightness-200" onError={(e) => {
+                                <img src="/images/nilathra_logo-02.webp" alt="Nilathra Collection" className="w-48 opacity-90 relative z-10 filter brightness-200" onError={(e) => {
                                     e.currentTarget.style.display = 'none';
                                     e.currentTarget.parentElement?.insertAdjacentHTML('afterbegin', '<h1 class="text-2xl font-serif text-white uppercase tracking-[0.4em] text-center">Nilathra</h1>');
                                 }} />
@@ -799,7 +799,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
 
                                         <div className="mt-16 pt-8 border-t border-[#E5E7EB] text-center pb-8 break-inside-avoid">
                                             <div className="mb-6">
-                                                <img src="/images/nilathra_logo-02.png" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                                                <img src="/images/nilathra_logo-02.webp" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
                                             </div>
                                             <div className="flex justify-center items-center gap-8 text-[8px] uppercase tracking-[0.2em]">
                                                 <a href="https://www.nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>

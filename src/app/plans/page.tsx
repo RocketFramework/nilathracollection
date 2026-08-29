@@ -85,7 +85,7 @@ const plans = [
         icon: Sparkles,
         href: "/contact?plan=maldives-extension",
         badge: "Ceylon & Maldives",
-        image: "/images/maldives_luxury_villa.png",
+        image: "/images/maldives_luxury_villa.webp",
         color: "from-teal-950/60 via-transparent to-transparent",
         iconColor: "text-teal-200",
         textColor: "text-teal-50",

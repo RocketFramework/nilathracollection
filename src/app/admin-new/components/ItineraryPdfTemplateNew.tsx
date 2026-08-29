@@ -364,14 +364,14 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
     // Select activity cover images (prioritize itinerary images if available, else pool)
     const coverImagesPool = [
-      '/images/activities/nine_arch_bridge_visit.jpeg',
-      '/images/activities/whale_watching_mirissa.jpeg',
-      '/images/activities/scenic_hill_country_drive.jpeg',
-      '/images/activities/colombo_galle_coastal_train.jpeg',
-      '/images/activities/jeep_safari_udawalawe_national_park.jpeg',
-      '/images/activities/wilpattu_park_saffari.jpeg',
-      '/images/activities/swimming_with_whales.jpeg',
-      '/images/activities/dolphin_watch_kalpitiya.jpeg'
+      '/images/activities/nine_arch_bridge_visit.webp',
+      '/images/activities/whale_watching_mirissa.webp',
+      '/images/activities/scenic_hill_country_drive.webp',
+      '/images/activities/colombo_galle_coastal_train.webp',
+      '/images/activities/jeep_safari_udawalawe_national_park.webp',
+      '/images/activities/wilpattu_park_saffari.webp',
+      '/images/activities/swimming_with_whales.webp',
+      '/images/activities/dolphin_watch_kalpitiya.webp'
     ];
 
     const coverImages = React.useMemo(() => {
@@ -522,7 +522,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
             }}
           >
             <img
-              src={getAbsoluteUrl("/images/nilathra_logo-02.png")}
+              src={getAbsoluteUrl("/images/nilathra_logo-02.webp")}
               alt="Nilathra Collection"
               style={{
                 height: "128px",
@@ -1455,7 +1455,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                       <div className="mt-16 pt-8 border-t border-[#E8DFD1]/55 text-center pb-8 break-inside-avoid max-w-[850px] mx-auto">
                         <div className="mb-6">
-                          <img src="/images/nilathra_logo-02.png" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
+                          <img src="/images/nilathra_logo-02.webp" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
                         </div>
                         <div className="flex justify-center items-center gap-8 text-[8px] uppercase tracking-[0.2em] font-sans">
                           <a href="https://www.nilathra.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#D4AF37] border-b border-[#D4AF37]/30 pb-1">Privacy Policy</a>

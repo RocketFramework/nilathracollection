@@ -1766,11 +1766,11 @@
         "plan_my": "Planen Sie mein {name}-Erlebnis"
     },
     "about": {
-        "hero_subtitle": "Die Kollektion",
-        "hero_title": "Unsere Geschichte",
-        "philosophy_title": "Luxus Ungefiltert",
-        "philosophy_p1": "Die Nilathra Collection entstand aus der Leidenschaft, Sri Lanka in seiner reinsten und elegantesten Form zu präsentieren. Wir glauben, dass wahrer Luxus nicht nur in den feinsten Stoffen oder teuersten Fahrzeugen liegt – sondern im Zugang zu authentischen, berührenden Erlebnissen, die unvergesslich bleiben.",
-        "philosophy_p2": "Mit Hauptsitz in Colombo und einer regionalen Vertretung in Male', Malediven, besteht unser Team aus lokalen Experten, Historikern und Gastronomie-Veteranen. Wir buchen nicht nur Hotels; wir pflegen Beziehungen. Wir planen nicht nur Routen; wir erschaffen Erzählungen.",
+        "hero_subtitle": "Vom stillen Experten zur meisterhaften Unabhängigkeit",
+        "hero_title": "Erbe & Evolution",
+        "philosophy_title": "Der Schritt ins Rampenlicht",
+        "philosophy_p1": "Jahrelang agierte unser Team hinter den Kulissen als vertrauter lokaler Durchführungspartner renommierter internationaler Ultra-Luxus-Reiseveranstalter. Unter deren Banner lieferten wir stillschweigend kompromisslose Reisedetails für High-Net-Worth (HNW) und Ultra-High-Net-Worth (UHNW) Personen in ganz Sri Lanka – meisterten VIP-Luftfahrt, Anwesen-Buyouts, Personenschutz-Logistik und maßgeschneiderte Kulinarik.",
+        "philosophy_p2": "Nach Jahren stummer Exzellenz haben wir nun den Schritt aus dem Schatten gewagt, um die Nilathra Collection als vollständig unabhängige Destination Management Company (DMC) zu etablieren. Exklusiv auf Luxus- und Ultra-Luxus-Reisen fokussiert, bieten wir unseren weltweiten Gästen ab sofort direkten Zugang, tiefgreifende lokale Verbindungen und erstklassige Standards.",
         "values": {
             "excellence": "Exzellenz",
             "excellence_sub": "Weltklasse Standards",
@@ -1781,6 +1781,52 @@
             "expertise": "Expertise",
             "expertise_sub": "Lokale Einblicke"
         },
+        "evolution_subtitle": "Der unabhängige Unterschied",
+        "evolution_title": "Unsere Evolution & Pfeiler",
+        "evolution_desc": "Aufgebaut auf jahrzehntelanger Erfahrung in der Betreuung vermögender internationaler Klientel, eliminiert unser unabhängiges Modell Zwischenhändler und garantiert ungestörten Zugang.",
+        "evolution_pillars": [
+            {
+                "title": "Bewährtes lokales Erbe",
+                "desc": "Jahrelange Erfahrung als ausführende Kraft für führende internationale Ultra-Luxus-Reisemarken."
+            },
+            {
+                "title": "Direkter exklusiver Zugang",
+                "desc": "Ungefilterte Beziehungen zu privaten Anwesenbesitzern, Hubschrauber-Betreibern und nicht gelisteten Villen."
+            },
+            {
+                "title": "Unvergleichliche Diskretion",
+                "desc": "Strikte NDA-Protokolle, gepanzerte B6/B7-Transportoptionen und VIP-Rollfeld-Begleitung."
+            },
+            {
+                "title": "Zwei-Insel-Masterpläne",
+                "desc": "Eigenes Hauptquartier in Colombo und Male'-Büro für nahtlose Sri Lanka & Malediven Reiserouten."
+            }
+        ],
+        "scarcity_subtitle": "Kompakte Kapazität & VIP-Garantien",
+        "scarcity_title": "Bewusste Exklusivität & Servicestandards",
+        "scarcity_desc": "Wir streben nicht danach, der größte Reiseveranstalter in Sri Lanka zu sein – wir entscheiden uns dafür, der raffinierteste zu sein. Durch strikte Begrenzung unserer monatlichen Reisezahlen und perfekte Anpassung an Ihre Zeitzone erhält jeder Gast kompromisslose Betreuung.",
+        "scarcity_cards": [
+            {
+                "metric": "Max. 12–15 Reisen / Monat",
+                "title": "Strikte Kapazitätsgrenze",
+                "desc": "Wir begrenzen monatliche Masterpläne bewusst, damit unsere Führungskräfte 100 % Echtzeit-Fokus auf jeden einzelnen Gast richten können."
+            },
+            {
+                "metric": "24/7 Globale Zeitzonen-Sync",
+                "title": "Ihre Zeitzone ist unsere Arbeitszeit",
+                "desc": "Egal ob es Mittag in New York, London oder Frankfurt ist – oder Mitternacht in Colombo – unsere Concierges und Einsatzleiter sind wach, aktiv und koordinieren in Echtzeit."
+            },
+            {
+                "metric": "$10.000 – $100.000+",
+                "title": "Souveränes Investment-Level",
+                "desc": "Konzipiert für Spitzenluxus ($$$$$), bestehend aus vollen Anwesen-Privatisierungen, Helikopter-Safaris und eigenem Personal."
+            },
+            {
+                "metric": "1 : 1 Betreuung durch Führungskräfte",
+                "title": "Ungeteilter Fokus der Senior-Leiter",
+                "desc": "Direkter 1:1 Draht zu leitenden Managern wie Nimali, Sonali und Janaka – niemals ein automatisierter Callcenter-Dienst."
+            }
+        ],
         "leadership_subtitle": "Führungsebene",
         "leadership_title": "Unsere Führung",
         "leadership_desc": "Geführt von Jahrzehnten unternehmerischer Exzellenz und tiefem Branchenwissen vereint unser Führungsteam strategische Vision mit präziser operativer Ausführung.",

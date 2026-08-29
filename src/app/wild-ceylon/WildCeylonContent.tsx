@@ -836,7 +836,7 @@ export default function WildCeylonContent() {
                         <h2 className="section-title">Signature Lodge Portfolio</h2>
                         <div className="hotel-grid">
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/shangri-la-hotel-colombo.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/shangri-la-hotel-colombo.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Shangri-La Colombo</h3>
@@ -852,7 +852,7 @@ export default function WildCeylonContent() {
                             </div>
                             
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/heritance-kandalama.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/heritance-kandalama.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Heritance Kandalama</h3>
@@ -868,7 +868,7 @@ export default function WildCeylonContent() {
                             </div>
 
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/wild-coast-tented-lodge.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/wild-coast-tented-lodge.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Wild Coast Tented Lodge</h3>

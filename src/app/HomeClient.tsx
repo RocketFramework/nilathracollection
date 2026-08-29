@@ -70,7 +70,7 @@ const testimonials = [
     title: "Forbes-List UHNW Client",
     location: "New York, USA",
     flag: "🇺🇸",
-    image: "/images/srilanka_luxury_estate.png"
+    image: "/images/srilanka_luxury_estate.webp"
   },
   {
     quote: "German precision meets warm island sovereignty. The logistical seamlessness with which Nilathra arranged our twin-island escape between Ceylon's highlands and Maldives overwater sanctuaries set a new standard for luxury travel.",
@@ -87,7 +87,8 @@ const testimonials = [
     title: "Sovereign Sanctuary Guest",
     location: "Paris, France",
     flag: "🇫🇷",
-    image: "/images/private_chef_luxury_dining_1773073921412.avif"
+    image: "/images/jean_luc_nimali.webp",
+    detailUrl: "/testimonials/jean-luc-camille-laurent"
   },
   {
     quote: "Nilathra handled our multi-generational family retreat with unmatched royal hospitality. Tarmac VIP clearance, direct helicopter transfers, and exclusive resort buyouts made our Ceylon holiday an extraordinary VIP experience.",

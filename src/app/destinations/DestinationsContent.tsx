@@ -127,7 +127,7 @@ export default function DestinationsContent() {
                     <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-2">
                         <div className="relative h-[350px] lg:h-auto min-h-[300px]">
                             <Image
-                                src="/images/maldives_luxury_villa.png"
+                                src="/images/maldives_luxury_villa.webp"
                                 alt="Maldives Luxury Villa & Overwater Suite"
                                 fill
                                 className="object-cover"

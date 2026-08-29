@@ -631,7 +631,7 @@ function PlannerWizardWorkspace() {
 
   // Digital Signature PO states
   const [poRequireSignature, setPoRequireSignature] = useState(false);
-  const [poSignatureImage, setPoSignatureImage] = useState<string>('/images/bogus_signature.png');
+  const [poSignatureImage, setPoSignatureImage] = useState<string>('/images/bogus_signature.webp');
   const [uploadedSignatureName, setUploadedSignatureName] = useState<string>('');
 
   // Checkboxes for special requests
@@ -5615,7 +5615,7 @@ function PlannerWizardWorkspace() {
     setPoVendorType(vType);
     setPoEmailTo(hotel?.reservation_email || hotel?.email || '');
     setPoRequireSignature(false);
-    setPoSignatureImage('/images/bogus_signature.png');
+    setPoSignatureImage('/images/bogus_signature.webp');
     setUploadedSignatureName('');
     setShowPoHtml(false);
     setPoAttachPdf(vType === 'hotel' ? true : false);

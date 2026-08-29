@@ -18,7 +18,7 @@ export const blogPosts: BlogPost[] = [
         author: "Nilathra Concierge",
         category: "Ultra VIP",
         readingTime: "5 min read",
-        image: "/images/vip_family_arrival_bia.png",
+        image: "/images/vip_family_arrival_bia.webp",
         excerpt: "Experience Sri Lanka—the ancient Taprobane—as the ultimate luxury destination curated for ultra-VIP travelers. A journey reserved for those who seek something truly exceptional.",
         content: `
 # Welcome to Taprobane: The Ultimate Ultra-VIP Sri Lankan Escape
@@ -917,7 +917,7 @@ So let us be honest with you, the way your travel agent likely never will be.
 
 Here is the fundamental truth about the Maldives luxury experience: it is, at its core, a room. A magnificent room, no question — perched over turquoise water, with a butler who remembers your name and a pool you never have to share. But it is a room. And the island it sits on is, in most cases, a sandbar that you cannot leave without a boat or a seaplane.
 
-![Luxury Overwater Villa in the Maldives](/images/maldives_luxury_villa.png)
+![Luxury Overwater Villa in the Maldives](/images/maldives_luxury_villa.webp)
 
 Sri Lanka, by contrast, is a world. A 65,000 square kilometre world with ancient civilisations, cloud-piercing mountains, equatorial jungles, colonial coastal towns, working tea estates, leopard-stalked national parks, and some of the most extraordinary private villas on the planet. The experiential surface area of Sri Lanka is incomparably greater.
 
@@ -926,7 +926,7 @@ Sri Lanka, by contrast, is a world. A 65,000 square kilometre world with ancient
 
 When you stay at one of our private estate buyouts in Tangalle or an exclusive hilltop retreat in Ella, you are not merely occupying luxury accommodation — you are inhabiting a landscape. You wake up to the sound of the jungle, or the ocean, or the wind through a tea plantation, depending on where your journey has taken you. That is a fundamentally different proposition.
 
-![Luxury Private Hill Country Estate in Sri Lanka](/images/srilanka_luxury_estate.png)
+![Luxury Private Hill Country Estate in Sri Lanka](/images/srilanka_luxury_estate.webp)
 
 ---
 

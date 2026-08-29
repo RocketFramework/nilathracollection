@@ -1765,11 +1765,11 @@
         "plan_my": "Plan My {name} Experience"
     },
     "about": {
-        "hero_subtitle": "The Collection",
-        "hero_title": "Our Story",
-        "philosophy_title": "Luxury Unfiltered",
-        "philosophy_p1": "Nilathra Collection was born from a passion to showcase Sri Lanka in its purest, most elegant form. We believe that true luxury is not just about the finest sheets or the most expensive cars—it's about the access to authentic, soul-stirring experiences that remain etched in memory.",
-        "philosophy_p2": "Headquartered in Colombo with dedicated regional operations in Male', Maldives, our team consists of local experts, historians, and hospitality veterans who understand the nuances of both island nations across the Indian Ocean. We don't just book hotels; we curate relationships. We don't just plan routes; we curate narratives.",
+        "hero_subtitle": "From Silent Mastery to Sovereign Leadership",
+        "hero_title": "Our Legacy & Evolution",
+        "philosophy_title": "Stepping Out into the Light",
+        "philosophy_p1": "For years, our team operated behind the scenes as the trusted local execution engine and ground partner for renowned international ultra-luxury tour operators. Working under their banner, we quietly delivered uncompromised travel experiences for High-Net-Worth (HNW) and Ultra-High-Net-Worth (UHNW) individuals across Sri Lanka—mastering VIP aviation, estate buyouts, close-protection security, and bespoke culinary programming.",
+        "philosophy_p2": "Having perfected the art of ultra-luxury island travel over years of silent excellence, we have stepped out from under the shadow to establish Nilathra Collection as a fully independent Destination Management Company (DMC). Focused exclusively on luxury and ultra-luxury tours, we now bring our insider access, deep local relationships, and sovereign standards directly to our global clientele.",
         "values": {
             "excellence": "Excellence",
             "excellence_sub": "Global Standards",
@@ -1780,6 +1780,52 @@
             "expertise": "Expertise",
             "expertise_sub": "Local Insight"
         },
+        "evolution_subtitle": "The Independent Difference",
+        "evolution_title": "Our Evolution & Pillars",
+        "evolution_desc": "Built on decades of handling high-net-worth global clientele, our independent model eliminates middle-man friction and guarantees uncompromised access.",
+        "evolution_pillars": [
+            {
+                "title": "Proven Local Heritage",
+                "desc": "Years of experience serving as the execution engine for premier international ultra-luxury tour brands."
+            },
+            {
+                "title": "Direct Sovereign Access",
+                "desc": "Unfiltered relationships with private estate owners, helipad operators, and unlisted coastal villas."
+            },
+            {
+                "title": "Unmatched Discretion",
+                "desc": "Strict NDA protocols, B6/B7 armored transport options, and private tarmac escort clearance."
+            },
+            {
+                "title": "Twin-Island Masterplans",
+                "desc": "Dedicated Colombo headquarters and Male' desk for seamless Sri Lanka & Maldives dual escapes."
+            }
+        ],
+        "scarcity_subtitle": "Controlled Volume & VIP Guarantees",
+        "scarcity_title": "Deliberate Scarcity & Service Standards",
+        "scarcity_desc": "We do not aspire to be the largest tour operator in Sri Lanka—we choose to be the most refined. By strictly limiting our active journey intake and aligning with your time zone, every traveler receives undivided executive stewardship.",
+        "scarcity_cards": [
+            {
+                "metric": "Max 12–15 Journeys / Month",
+                "title": "Strict Operation Intake Cap",
+                "desc": "We deliberately limit active monthly masterplans so senior directors maintain 100% real-time focus on every single traveler."
+            },
+            {
+                "metric": "24/7 Global Time-Zone Sync",
+                "title": "Your Time Zone is Our Working Hour",
+                "desc": "Whether it is midday in New York, London, or Paris—or midnight in Colombo—our concierges and ground directors are awake, active, and coordinating in real time."
+            },
+            {
+                "metric": "$10,000 – $100,000+",
+                "title": "Sovereign Investment Floor",
+                "desc": "Engineered strictly for top-tier luxury ($$$$$), featuring full colonial estate buyouts, helicopter safaris, and dedicated private staff."
+            },
+            {
+                "metric": "1 : 1 Executive Stewardship",
+                "title": "Undivided Senior Director Focus",
+                "desc": "Direct 1:1 access to senior travel leaders like Nimali, Sonali, and Janaka—never an automated call center or third-party delay."
+            }
+        ],
         "leadership_subtitle": "Executive Steering",
         "leadership_title": "Our Leadership",
         "leadership_desc": "Guided by decades of corporate excellence and deep travel industry mastery, our leadership team combines strategic vision with meticulous operational focus to deliver Sri Lanka's most trusted luxury journeys.",

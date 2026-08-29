@@ -1765,11 +1765,11 @@
         "plan_my": "Planifier mon expérience à {name}"
     },
     "about": {
-        "hero_subtitle": "La Collection",
-        "hero_title": "Notre Histoire",
-        "philosophy_title": "Le Luxe Pur",
-        "philosophy_p1": "La Collection Nilathra est née d'une passion : dévoiler le Sri Lanka dans sa forme la plus pure et la plus élégante. Le vrai luxe ne se résume pas aux hôtels somptueux, mais à l'accès privilégié à des expériences authentiques et inoubliables.",
-        "philosophy_p2": "Basée à Colombo avec une présence régionale à Malé, aux Maldives, notre équipe rassemble des experts locaux, historiens et passionnés. Nous ne nous contentons pas de réserver des hôtels ; nous créons des liens durables.",
+        "hero_subtitle": "De la maîtrise discrète au leadership souverain",
+        "hero_title": "Notre Héritage & Évolution",
+        "philosophy_title": "Entrée dans la Lumière",
+        "philosophy_p1": "Pendant des années, notre équipe a opéré en coulisses en tant que partenaire d'exécution local de confiance pour de grands voyagistes internationaux d'ultra-luxe. Sous leur enseigne, nous avons orchestré avec discrétion des voyages d'exception pour une clientèle HNW et UHNW à travers le Sri Lanka — maîtrisant l'aviation VIP, la privatisation de domaines, la sécurité et la haute gastronomie.",
+        "philosophy_p2": "Après des années d'excellence silencieuse, nous avons franchi le pas pour établir Nilathra Collection comme une Destination Management Company (DMC) totalement indépendante. Axés exclusivement sur les voyages de luxe et d'ultra-luxe, nous offrons désormais à nos clients internationaux un accès direct à notre réseau exclusif et à nos standards élevés.",
         "values": {
             "excellence": "Excellence",
             "excellence_sub": "Normes Mondiales",
@@ -1780,6 +1780,52 @@
             "expertise": "Expertise",
             "expertise_sub": "Savoir-Faire Local"
         },
+        "evolution_subtitle": "La Différence Indépendante",
+        "evolution_title": "Notre Évolution & Nos Piliers",
+        "evolution_desc": "Forgée par des années de prise en charge d'une clientèle internationale exigeante, notre approche indépendante élimine les intermédiaires et garantit un accès privilégié sans compromis.",
+        "evolution_pillars": [
+            {
+                "title": "Héritage Local Éprouvé",
+                "desc": "Des années d'expérience en tant que moteur opérationnel des plus grandes marques de voyage ultra-luxe."
+            },
+            {
+                "title": "Accès Direct & Privilégié",
+                "desc": "Relations directes avec les propriétaires de domaines privés, opérateurs d'héliport et villas exclusives."
+            },
+            {
+                "title": "Discrétion Absolue",
+                "desc": "Protocole NDA strict, options de transport blindé B6/B7 et accueil personnalisé sur le tarmac."
+            },
+            {
+                "title": "Masterplans Bi-Insulaires",
+                "desc": "Siège social à Colombo et bureau dédié à Malé pour des séjours fluides combinant Sri Lanka et Maldives."
+            }
+        ],
+        "scarcity_subtitle": "Capacité Contrôlée & Garanties VIP",
+        "scarcity_title": "Rareté Délibérée & Standards de Service",
+        "scarcity_desc": "Nous ne cherchons pas à être le plus grand voyagiste du Sri Lanka — nous choisissons d'être le plus raffiné. En limitant strictement notre capacité mensuelle et en nous alignant sur votre fuseau horaire, chaque voyageur bénéficie d'une attention totale.",
+        "scarcity_cards": [
+            {
+                "metric": "Max 12–15 Voyages / Mois",
+                "title": "Limite Stricte de Capacité",
+                "desc": "Nous limitons délibérément le nombre de voyages actifs afin que nos directeurs conservent un suivi en temps réel irréprochable pour chaque hôte."
+            },
+            {
+                "metric": "Synchro 24/7 Fuseau Horaire",
+                "title": "Votre Fuseau Horaire est Notre Heure de Travail",
+                "desc": "Qu'il soit midi à New York, Londres ou Paris — ou minuit à Colombo —, nos concierges et directeurs d'opérations sont éveillés et actifs en temps réel."
+            },
+            {
+                "metric": "10 000 $ – 100 000 $+",
+                "title": "Seuil d'Investissement Souverain",
+                "desc": "Conçu exclusivement pour le très haut de gamme ($$$$$), incluant la privatisation complète de domaines, hélicoptères et personnel privé."
+            },
+            {
+                "metric": "Supervision 1:1 par la Direction",
+                "title": "Focus Total des Responsables Seniors",
+                "desc": "Accès direct 1:1 aux responsables seniors comme Nimali, Sonali et Janaka — sans intermédiaire ni centre d'appels automatisé."
+            }
+        ],
         "leadership_subtitle": "Direction Exécutive",
         "leadership_title": "Notre Direction",
         "leadership_desc": "Guidée par des décennies d'excellence d'entreprise, notre équipe dirigeante allie vision stratégique et rigueur opérationnelle pour offrir les voyages d'exception les plus fiables du Sri Lanka.",

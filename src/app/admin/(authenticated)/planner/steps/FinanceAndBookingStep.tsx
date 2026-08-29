@@ -428,7 +428,7 @@ export function FinanceAndBookingStep({
     const editorRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        getBase64ImageFromUrl('/images/nilathra_logo-02.png')
+        getBase64ImageFromUrl('/images/nilathra_logo-02.webp')
             .then(base64 => setLogoBase64(base64))
             .catch(err => console.error("Error loading logo for PO PDF:", err));
 

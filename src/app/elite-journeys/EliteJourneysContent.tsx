@@ -704,7 +704,7 @@ export default function EliteJourneysContent() {
                         <h2 className="section-title">Signature Hotel Portfolio</h2>
                         <div className="hotel-grid">
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/shangri-la-colombo.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/shangri-la-colombo.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Shangri-La Colombo</h3>
@@ -719,7 +719,7 @@ export default function EliteJourneysContent() {
                                 </div>
                             </div>
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/jetwing-villuyana.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/jetwing-villuyana.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Jetwing Vil Uyana</h3>
@@ -763,7 +763,7 @@ export default function EliteJourneysContent() {
                                 </div>
                             </div>
                             <div className="hotel-card reveal">
-                                <div className="hotel-img" style={{ backgroundImage: "url('/images/amangalla-galle.jpg')" }}></div>
+                                <div className="hotel-img" style={{ backgroundImage: "url('/images/amangalla-galle.webp')" }}></div>
                                 <div className="hotel-body">
                                     <div className="hotel-stars">★★★★★</div>
                                     <h3 className="hotel-name">Amangalla</h3>
@@ -783,7 +783,7 @@ export default function EliteJourneysContent() {
                         <h2 className="section-title">Your Private Transport</h2>
                         <div className="flex flex-col md:flex-row items-center gap-12 bg-white p-8 md:p-12 rounded-xl shadow-[0_4px_20px_rgba(12,35,64,0.03)] border border-neutral-100 reveal">
                             <div className="w-full md:w-1/2 flex justify-center">
-                                <img src="/images/elite-suv.png" alt="Toyota Prado 150" className="w-full max-w-md h-auto object-contain drop-shadow-2xl" />
+                                <img src="/images/elite-suv.webp" alt="Toyota Prado 150" className="w-full max-w-md h-auto object-contain drop-shadow-2xl" />
                             </div>
                             <div className="w-full md:w-1/2">
                                 <h3 className="text-3xl font-serif text-[#0C2340] mb-4">Toyota Prado 150</h3>
