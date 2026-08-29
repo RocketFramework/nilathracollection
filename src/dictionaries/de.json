@@ -1367,9 +1367,38 @@
         "culinary_tag": "Kulinarische Meisterschaft",
         "culinary_title": "Ein Festmahl für Könige",
         "culinary_desc": "Verwöhnen Sie Ihren Gaumen. Genießen Sie handverlesene, einheimische Delikatessen voller einzigartiger Inselgewürze, zubereitet von weltbekannten Köchen.",
-        "cta_title": "Ihr Thabrobana erwartet Sie",
-        "cta_desc": "Das ultimative Reiseprivileg.",
-        "cta_btn": "Beginnen Sie den Design-Prozess"
+        "cta_title": "Ihr Thabrobana Erwartet Sie",
+        "cta_desc": "Das ultimative Reisesupremat.",
+        "cta_btn": "Anfrage an das VIP-Desk",
+        "nda_charter_badge": "Souveräne Diskretion & Strikte NDA-Charta",
+        "nda_charter_title": "UHNW-Datenschutzgarantie & Protokoll",
+        "nda_charter_desc": "Über 95 % aller Ultra-VIP-Reisen der Nilathra Collection unterliegen strengen Geheimhaltungsvereinbarungen (NDAs). Um Privatsphäre, Sicherheit und vollständige Anonymität unserer Kunden zu wahren, veröffentlichen wir Daten oder Identitäten niemals ohne schriftliche Genehmigung.",
+        "nda_charter_btn": "Vertrauliche NDA-Referenz Anfordern",
+        "scarcity_subtitle": "Kontrollierte Kapazität & Investment-Standard",
+        "scarcity_title": "Bewusste Exklusivität & Servicestandards",
+        "scarcity_desc": "Wir streben nicht danach, ein Massenveranstalter zu sein – wir entscheiden uns dafür, der raffinierteste zu sein. Durch strikte Begrenzung unserer monatlichen Reisezahlen erhält jeder VIP 100 % ungeteilte Betreuung.",
+        "scarcity_cards": [
+            {
+                "metric": "Max. 12–15 Reisen / Monat",
+                "title": "Strikte Kapazitätsgrenze",
+                "desc": "Kontrolliertes Volumen garantiert 100 % Fokus der Geschäftsführung auf jede Reise."
+            },
+            {
+                "metric": "24/7 Zeitzonen-Sync",
+                "title": "Ihre Zeitzone ist unsere Arbeitszeit",
+                "desc": "Ob Mittag in New York, London oder Frankfurt – oder Mitternacht in Colombo – unsere Leiter koordinieren in Echtzeit."
+            },
+            {
+                "metric": "$10.000 – $100.000+",
+                "title": "Souveränes Investment-Level",
+                "desc": "Konzipiert für Spitzenluxus ($$$$$), bestehend aus Anwesen-Privatisierungen, Helikopter-Safaris und eigenem Personal."
+            },
+            {
+                "metric": "1 : 1 Betreuung durch Führungskräfte",
+                "title": "Direkter Zugang zur Geschäftsführung",
+                "desc": "Direkter Draht zu leitenden Beratern (Nirosh, Nimali, Sonali, Janaka) – ohne Callcenter."
+            }
+        ]
     },
     "plans_overview": {
         "compare": {

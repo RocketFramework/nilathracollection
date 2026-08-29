@@ -1366,6 +1366,35 @@
         "culinary_tag": "Culinary Mastery",
         "culinary_title": "A Feast Fit For Kings",
         "culinary_desc": "Elevate your palate. Savor hand-picked native delicacies bursting with unique island spices, prepared by world-renowned executive chefs in exclusive settings.",
+        "nda_charter_badge": "Discrétion Souveraine & Charte NDA Stricte",
+        "nda_charter_title": "Garantie & Protocole de Confidentialité UHNW",
+        "nda_charter_desc": "Plus de 95 % des voyages Ultra-VIP de Nilathra Collection sont régis par des accords de confidentialité stricts (NDA). Afin de préserver la sécurité et l'anonymat total de notre clientèle, nous ne publions aucune identité sans accord écrit.",
+        "nda_charter_btn": "Demander une Référence NDA Confidentielle",
+        "scarcity_subtitle": "Capacité Contrôlée & Standards d'Investissement",
+        "scarcity_title": "Rareté Délibérée & Normes de Service",
+        "scarcity_desc": "Nous ne cherchons pas à être un opérateur de masse — nous choisissons d'être le plus raffiné. En limitant nos voyages mensuels, chaque hôte VIP bénéficie d'un suivi exclusif par la direction.",
+        "scarcity_cards": [
+            {
+                "metric": "Max 12–15 Voyages / Mois",
+                "title": "Limite Stricte de Capacité",
+                "desc": "Un volume maîtrisé garantissant un suivi à 100 % en temps réel par nos directeurs."
+            },
+            {
+                "metric": "Synchro 24/7 Fuseau Horaire",
+                "title": "Votre Fuseau Horaire est Notre Heure de Travail",
+                "desc": "Qu'il soit midi à New York, Londres ou Paris — ou minuit à Colombo —, nos directeurs sont éveillés et actifs."
+            },
+            {
+                "metric": "10 000 $ – 100 000 $+",
+                "title": "Seuil d'Investissement Souverain",
+                "desc": "Conçu pour le très haut de gamme ($$$$$), incluant la privatisation de domaines, hélicoptères et personnel privé."
+            },
+            {
+                "metric": "Supervision 1:1 par la Direction",
+                "title": "Accès Direct aux Responsables",
+                "desc": "Ligne directe avec nos responsables seniors (Nirosh, Nimali, Sonali, Janaka) — aucun intermédiaire."
+            }
+        ],
         "cta_title": "Your Thabrobana Awaits",
         "cta_desc": "The ultimate travel privilege.",
         "cta_btn": "Begin The Design"
