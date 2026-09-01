@@ -189,6 +189,51 @@ export default function CustomPlanContent() {
                 }).filter(Boolean)
             ];
 
+            // Extract all selected activities details
+            const chosenActivities = activities.filter(a => selectedActivities.includes(a.id));
+
+            // Build detailed note text to preserve custom plan choices and itinerary details
+            const noteSections: string[] = [];
+
+            if (note && note.trim()) {
+                noteSections.push(`User Note:\n${note.trim()}`);
+            }
+
+            if (chosenActivities.length > 0) {
+                const activityLines = chosenActivities.map(a => `- ${a.activity_name} (${a.category} • ${a.location_name})`);
+                noteSections.push(`Selected Activities:\n${activityLines.join('\n')}`);
+            }
+
+            if (destinations.length > 0) {
+                const destLines = destinations.map(d => `- ${d}`);
+                noteSections.push(`Selected Destinations & Stops:\n${destLines.join('\n')}`);
+            }
+
+            if (routeResult) {
+                const summaryLines = [
+                    `- Duration: ${routeResult.totalDays} Days`,
+                    `- Estimated Distance: ${routeResult.totalDistance} km`,
+                    `- Estimated Cost: LKR ${routeResult.totalCost.toLocaleString()}`,
+                    `- Optimization Score: ${routeResult.optimizationScore}%`,
+                ];
+
+                const dayScheduleLines: string[] = [];
+                routeResult.plan.forEach(day => {
+                    dayScheduleLines.push(`Day ${day.day} (${day.weather || 'Clear skies'}):`);
+                    day.events.forEach(ev => {
+                        const loc = ev.locationName ? ` @ ${ev.locationName}` : '';
+                        dayScheduleLines.push(`  • ${ev.startTime} - ${ev.endTime}: ${ev.name} [${ev.type}]${loc}`);
+                    });
+                    if (day.recommendation) {
+                        dayScheduleLines.push(`  Note: ${day.recommendation}`);
+                    }
+                });
+
+                noteSections.push(`AI Generated Itinerary Summary:\n${summaryLines.join('\n')}\n\nDay-by-Day Schedule:\n${dayScheduleLines.join('\n')}`);
+            }
+
+            const fullNote = noteSections.join('\n\n').trim();
+
             // Submit Request
             const res = await submitPlanRequestAction({
                 name,
@@ -197,7 +242,9 @@ export default function CustomPlanContent() {
                 request_type: 'custom-plan',
                 destinations,
                 adults: parseInt(travelers) || 2,
-                note: note || undefined,
+                note: fullNote || undefined,
+                duration_nights: routeResult?.totalDays || Math.max(3, Math.ceil(chosenActivities.length / 2)),
+                budget: routeResult?.totalCost || undefined,
             });
 
             if (!res.success) {
