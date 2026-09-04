@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         { path: '/destinations', priority: 0.90, changeFreq: 'weekly' },
         { path: '/plans', priority: 0.90, changeFreq: 'weekly' },
         { path: '/about', priority: 0.85, changeFreq: 'monthly' },
+        { path: '/about/leadership', priority: 0.85, changeFreq: 'monthly' },
         { path: '/elite-journeys', priority: 0.85, changeFreq: 'monthly' },
         { path: '/imperial-helicopter', priority: 0.85, changeFreq: 'monthly' },
         { path: '/wild-ceylon', priority: 0.85, changeFreq: 'monthly' },
