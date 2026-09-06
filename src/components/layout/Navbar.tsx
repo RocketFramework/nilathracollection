@@ -111,22 +111,24 @@ export default function Navbar() {
                                         {/* Dropdown Menu */}
                                         <div
                                             className={cn(
-                                                "absolute top-full left-0 mt-1 w-48 rounded-md shadow-xl bg-slate-900/95 backdrop-blur-lg border border-slate-700/60 p-2 transition-all duration-300 transform origin-top-left z-50",
+                                                "absolute top-full left-0 pt-2 w-48 transition-all duration-300 transform origin-top-left z-50",
                                                 activeDropdown === link.name
                                                     ? "opacity-100 scale-100 pointer-events-auto"
                                                     : "opacity-0 scale-95 pointer-events-none"
                                             )}
                                         >
-                                            {link.subLinks.map((subItem) => (
-                                                <Link
-                                                    key={subItem.name}
-                                                    href={subItem.href}
-                                                    className="block px-4 py-2.5 text-xs font-medium tracking-wider uppercase text-slate-200 hover:text-brand-gold hover:bg-white/10 rounded transition-colors"
-                                                    onClick={() => setActiveDropdown(null)}
-                                                >
-                                                    {subItem.name}
-                                                </Link>
-                                            ))}
+                                            <div className="rounded-md shadow-xl bg-slate-900/95 backdrop-blur-lg border border-slate-700/60 p-2">
+                                                {link.subLinks.map((subItem) => (
+                                                    <Link
+                                                        key={subItem.name}
+                                                        href={subItem.href}
+                                                        className="block px-4 py-2.5 text-xs font-medium tracking-wider uppercase text-slate-200 hover:text-brand-gold hover:bg-white/10 rounded transition-colors"
+                                                        onClick={() => setActiveDropdown(null)}
+                                                    >
+                                                        {subItem.name}
+                                                    </Link>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 );
