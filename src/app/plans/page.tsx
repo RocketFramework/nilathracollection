@@ -23,7 +23,7 @@ const plans = [
     },
     {
         id: "luxury",
-        title: "Luxury",
+        title: "Ceylon Luxury",
         priceRange: "$650",
         description: "5-star signature resorts, premium SUV transport, and dedicated personalized itinerary management.",
         icon: Gem,
@@ -37,7 +37,7 @@ const plans = [
     },
     {
         id: "premium",
-        title: "Premium",
+        title: "Ceylon Premium",
         priceRange: "$350",
         description: "Reputable 3-4 star hotels, reliable sedan or van transport, and essential curated local experiences.",
         icon: Sparkles,
@@ -51,7 +51,7 @@ const plans = [
     },
     {
         id: "regular",
-        title: "Regular",
+        title: "Ceylon Regular",
         priceRange: "$80",
         description: "Authentic 3-star guesthouses, homestays, and flexible budget transport for the savvy explorer.",
         icon: Check,
@@ -129,7 +129,7 @@ export default function PlansPage() {
                     {/* Plans Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
                         {plans.map((plan, idx) => {
-                            const translatedPlan = t.packages.items.find((item: any) => item.id === plan.id) || plan;
+                            const translatedPlan = t.packages.items?.find((item: any) => item.id === plan.id) || plan;
 
                             // Uniform 2nd-row grid (50% each) for the first 4 cards
                             // Mixed remains full width (100%)
@@ -174,7 +174,14 @@ export default function PlansPage() {
                                                     {plan.id === "maldives-twin" ? (
                                                         <>Ceylon &<br />Maldives</>
                                                     ) : (
-                                                        <>{translatedPlan.title.split(' ')[0]}<br />{translatedPlan.title.slice(translatedPlan.title.indexOf(' ') + 1) || ''}</>
+                                                        (() => {
+                                                            const title = translatedPlan.title;
+                                                            const spaceIdx = title.indexOf(' ');
+                                                            if (spaceIdx === -1) {
+                                                                return <>Ceylon<br />{title}</>;
+                                                            }
+                                                            return <>{title.slice(0, spaceIdx)}<br />{title.slice(spaceIdx + 1)}</>;
+                                                        })()
                                                     )}
                                                 </h3>
                                                 <div className="mt-4 pt-4 border-t border-neutral-100 w-full px-2">

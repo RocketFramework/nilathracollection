@@ -17,7 +17,18 @@ const NavLinks: NavItem[] = [
     { name: "Home", href: "/" },
     { name: "For VIP", href: "/for-vip" },
     { name: "Destinations", href: "/destinations" },
-    { name: "Packages", href: "/plans" },
+    {
+        name: "Packages",
+        href: "/plans",
+        subLinks: [
+            { name: "All", href: "https://www.nilathra.com/plans" },
+            { name: "Ultra VIP", href: "https://www.nilathra.com/plans/ultra-vip" },
+            { name: "Luxury", href: "https://www.nilathra.com/plans/luxury" },
+            { name: "Premium", href: "https://www.nilathra.com/plans/premium" },
+            { name: "Regular", href: "https://www.nilathra.com/plans/regular" },
+            { name: "Mixed", href: "https://www.nilathra.com/custom-plan" },
+        ],
+    },
     { name: "Blog", href: "/blog" },
     {
         name: "About Us",
@@ -35,7 +46,7 @@ export default function Navbar() {
     const isHeroPage = pathname === "/" || pathname === "/for-vip";
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
+    const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -83,8 +94,8 @@ export default function Navbar() {
                                     <div
                                         key={link.name}
                                         className="relative group py-2"
-                                        onMouseEnter={() => setAboutDropdownOpen(true)}
-                                        onMouseLeave={() => setAboutDropdownOpen(false)}
+                                        onMouseEnter={() => setActiveDropdown(link.name)}
+                                        onMouseLeave={() => setActiveDropdown(null)}
                                     >
                                         <Link
                                             href={link.href}
@@ -101,7 +112,7 @@ export default function Navbar() {
                                         <div
                                             className={cn(
                                                 "absolute top-full left-0 mt-1 w-48 rounded-md shadow-xl bg-slate-900/95 backdrop-blur-lg border border-slate-700/60 p-2 transition-all duration-300 transform origin-top-left z-50",
-                                                aboutDropdownOpen
+                                                activeDropdown === link.name
                                                     ? "opacity-100 scale-100 pointer-events-auto"
                                                     : "opacity-0 scale-95 pointer-events-none"
                                             )}
@@ -111,7 +122,7 @@ export default function Navbar() {
                                                     key={subItem.name}
                                                     href={subItem.href}
                                                     className="block px-4 py-2.5 text-xs font-medium tracking-wider uppercase text-slate-200 hover:text-brand-gold hover:bg-white/10 rounded transition-colors"
-                                                    onClick={() => setAboutDropdownOpen(false)}
+                                                    onClick={() => setActiveDropdown(null)}
                                                 >
                                                     {subItem.name}
                                                 </Link>
