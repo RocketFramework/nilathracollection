@@ -2,6 +2,7 @@
 
 import MainLayout from "@/components/layout/MainLayout";
 import Hero from "@/components/home/Hero";
+import AccreditationSection from "@/components/home/AccreditationSection";
 import { ArrowRight, Quote, Shield, Crown, Star, ChevronLeft, ChevronRight, Lock, ShieldCheck, FileKey } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -430,6 +431,9 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+
+      {/* Official Government & Tourism Board Accreditation */}
+      <AccreditationSection />
 
       {/* The Nilathra Standard - New SEO Section */}
       <section className="py-24 px-6 md:px-12 bg-logo-blue text-white">
