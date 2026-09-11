@@ -1200,7 +1200,15 @@
                     "type": "Charme der Ostküste",
                     "desc": "Tiefseehäfen, Walbeobachtung und unberührte östliche Schönheit."
                 }
-            ]
+            ],
+            "maldives": {
+                "badge": "Regionale Erweiterung",
+                "subtitle": "Reisen im Indischen Ozean",
+                "title": "Die Malediven-Atolle",
+                "desc": "Erweitern Sie Ihre Sri Lanka Kulturreise mit privaten Überwasser-Bungalow-Refugien, Wasserflugzeug-Chartas und unberührten Korallenriff-Exkursionen auf den nahegelegenen Malediven. Koordiniert durch unser Regionalbüro in Male'.",
+                "btn": "Malediven-Erweiterung Anfragen",
+                "desk": "Direkt-Desk Male': +960 931 0940"
+            }
         },
         "colombo": {
             "subtitle": "Urbanes Meisterwerk",

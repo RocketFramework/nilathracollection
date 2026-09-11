@@ -1199,7 +1199,15 @@
                     "type": "East Coast Charm",
                     "desc": "Deep-sea harbors, whale watching, and untouched eastern beauty."
                 }
-            ]
+            ],
+            "maldives": {
+                "badge": "Regional Extension",
+                "subtitle": "Indian Ocean Escapes",
+                "title": "The Maldives Atolls",
+                "desc": "Extend your Sri Lankan heritage voyage with private overwater bungalow retreats, seaplane charters, and pristine coral reef excursions in the nearby Maldives. Coordinated through our Male' regional office.",
+                "btn": "Inquire Maldives Extension",
+                "desk": "Direct Male' Desk: +960 931 0940"
+            }
         },
         "colombo": {
             "subtitle": "Urban Masterpiece",

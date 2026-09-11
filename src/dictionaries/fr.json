@@ -1196,10 +1196,18 @@
                 {
                     "slug": "trincomalee",
                     "name": "Trincomalee",
-                    "type": "East Coast Charm",
-                    "desc": "Deep-sea harbors, whale watching, and untouched eastern beauty."
+                    "type": "Charme de la Côte Est",
+                    "desc": "Ports en eau profonde, observation des baleines et beauté préservée de l'est."
                 }
-            ]
+            ],
+            "maldives": {
+                "badge": "Extension Régionale",
+                "subtitle": "Évasions dans l'Océan Indien",
+                "title": "Les Atolls des Maldives",
+                "desc": "Prolongez votre voyage au Sri Lanka avec des séjours privatifs en bungalow sur pilotis, des vols en hydravion et des excursions dans les atolls des Maldives. Coordonnés depuis notre bureau de Malé.",
+                "btn": "Demander l'Extension Maldives",
+                "desk": "Bureau Direct Malé : +960 931 0940"
+            }
         },
         "colombo": {
             "subtitle": "Urban Masterpiece",
