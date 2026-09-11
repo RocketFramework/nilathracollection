@@ -30,7 +30,23 @@ export const metadata: Metadata = {
     },
 };
 
-const leadershipTeam = [
+const staticTeamDetails: Record<string, { image: string; highlightsExtra?: any[] }> = {
+    "Nirosh Li": {
+        image: "/images/team/nirosh-li-v2.webp",
+        highlightsExtra: [
+            null,
+            { link: "https://lk.linkedin.com/in/nirosh" },
+            { linkText: "Kaveri Resorts & Spa, Sigiriya", link: "https://www.kaveriresot.com" }
+        ]
+    },
+    "Wajira Di": { image: "/images/team/wajira-di-cfo-v2.webp" },
+    "Saliya Vi": { image: "/images/team/saliya-vi-marketing-v2.webp" },
+    "Nimali Ra": { image: "/images/team/nimali-ra-v2.webp" },
+    "Janaka Cha": { image: "/images/team/janaka-cha-ops-v2.webp" },
+    "Mahasen Ka": { image: "/images/team/mahasen-ka.webp" }
+};
+
+const fallbackLeadershipTeam = [
     {
         name: "Nirosh Li",
         role: "Managing Director",
@@ -97,6 +113,35 @@ export default async function LeadershipPage() {
     const locale = headersList.get('x-locale') || 'en';
     const dict = await getDictionary(locale);
     const ab = dict?.about || {};
+    const pageData = ab.leadership_page || {};
+
+    const rawTeam = Array.isArray(pageData.team) && pageData.team.length > 0
+        ? pageData.team
+        : fallbackLeadershipTeam;
+
+    const leadershipTeam = rawTeam.map((m: any) => {
+        const extra = staticTeamDetails[m.name] || { image: "/images/hero_sigiriya_breakfast.avif" };
+        const processedHighlights = (m.highlights || []).map((h: any, idx: number) => {
+            const extraItem = extra.highlightsExtra ? extra.highlightsExtra[idx] : null;
+            if (extraItem) {
+                return {
+                    label: typeof h === 'string' ? h : h.label,
+                    link: extraItem.link,
+                    linkText: extraItem.linkText
+                };
+            }
+            return h;
+        });
+
+        return {
+            name: m.name,
+            role: m.role,
+            image: extra.image,
+            bio: m.bio,
+            highlights: processedHighlights,
+            badge: m.badge
+        };
+    });
 
     return (
         <I18nProvider dictionary={dict}>
@@ -127,7 +172,7 @@ export default async function LeadershipPage() {
 
                     <div className="max-w-7xl mx-auto relative z-10">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {leadershipTeam.map((member) => (
+                            {leadershipTeam.map((member: any) => (
                                 <div
                                     key={member.name}
                                     className="bg-slate-800/80 border border-slate-700/60 rounded-xl overflow-hidden shadow-2xl flex flex-col hover:border-brand-gold/50 transition-all duration-300 group"
@@ -162,7 +207,7 @@ export default async function LeadershipPage() {
                                         </div>
 
                                         <div className="pt-4 border-t border-slate-700/60 space-y-2">
-                                            {member.highlights.map((item, i) => {
+                                            {member.highlights.map((item: any, i: number) => {
                                                 const isObj = typeof item === 'object' && item !== null;
                                                 const label = isObj ? item.label : item;
                                                 const linkText = isObj ? item.linkText : null;
@@ -212,27 +257,27 @@ export default async function LeadershipPage() {
                 <section className="py-20 px-6 md:px-12 bg-[#F7F5F0] border-t border-brand-charcoal/5">
                     <div className="max-w-5xl mx-auto text-center space-y-8">
                         <span className="text-brand-gold text-xs font-bold uppercase tracking-[0.3em] block">
-                            Direct Senior Accountability
+                            {pageData.stewardship_badge || "Direct Senior Accountability"}
                         </span>
                         <h2 className="font-serif text-3xl md:text-5xl text-brand-green">
-                            Undivided Senior Director Stewardship
+                            {pageData.stewardship_title || "Undivided Senior Director Stewardship"}
                         </h2>
                         <p className="text-brand-charcoal/70 text-base md:text-lg font-light leading-relaxed max-w-3xl mx-auto">
-                            Unlike traditional mass travel agencies, every journey curated by Nilathra Collection is supervised directly by our senior leadership team. You have direct 1:1 access to our ground directors—ensuring zero call-center delays and total transparency at every touchpoint.
+                            {pageData.stewardship_desc || "Unlike traditional mass travel agencies, every journey curated by Nilathra Collection is supervised directly by our senior leadership team. You have direct 1:1 access to our ground directors—ensuring zero call-center delays and total transparency at every touchpoint."}
                         </p>
                         <div className="pt-4 flex flex-wrap items-center justify-center gap-6">
                             <Link
                                 href="/custom-plan"
                                 className="luxury-button bg-brand-green text-white hover:bg-brand-green/90 text-sm inline-flex items-center gap-2"
                             >
-                                <span>Plan Your Journey With Us</span>
+                                <span>{pageData.cta_plan || "Plan Your Journey With Us"}</span>
                                 <ArrowRight size={16} />
                             </Link>
                             <Link
                                 href="/about"
                                 className="text-sm font-medium uppercase tracking-widest text-brand-green hover:text-brand-gold transition-colors"
                             >
-                                Explore Our Legacy & Pillars →
+                                {pageData.cta_legacy || "Explore Our Legacy & Pillars →"}
                             </Link>
                         </div>
                     </div>

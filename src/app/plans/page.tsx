@@ -211,7 +211,7 @@ export default function PlansPage() {
                                                 href={plan.href}
                                                 className={`w-fit px-12 py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] ${plan.btnColor}`}
                                             >
-                                                explore journey <ArrowRight size={16} />
+                                                {t.packages.explore_journey || "explore journey"} <ArrowRight size={16} />
                                             </Link>
                                         </div>
                                     </div>

@@ -100,718 +100,715 @@
         "title": "L'Art du Voyage",
         "desc": "Sélectionnez le niveau d'exclusivité idéal pour votre odyssée au Sri Lanka. Chaque collection est méticuleusement conçue pour vous offrir une expérience inégalée.",
         "learn_more": "En Savoir Plus",
+        "explore_journey": "Explorer le Voyage",
+        "badge": "Nos Formules de Voyage",
+        "desc_1": "Sélectionnez le niveau d'exclusivité idéal pour votre odyssée au Sri Lanka.",
+        "desc_2": "Chaque collection est méticuleusement conçue pour vous offrir une expérience inégalée.",
         "items": [
             {
+                "id": "ultra-vip",
+                "badge": "Le Sommet",
                 "title": "Ultra VIP",
-                "subtitle": "The Sovereignty Collection",
-                "description": "Reserved for the world's most discerning travelers. Absolute privacy, bespoke luxury, and peerless security.",
-                "features": [
-                    "Private Jet-Side Arrival & Tarmac Clearance",
-                    "Standby Helicopter for Trip Duration",
-                    "24/7 Close Protection Detail (CPD)",
-                    "Private Estate Buyouts & 1:1 Staffing",
-                    "Absolute NDA & Identity Protection"
-                ]
+                "priceRange": "$15 000",
+                "description": "Le sommet absolu du luxe. Accueil privé au pied de l'avion, protection rapprochée 24/7 et hélicoptères en stand-by."
             },
             {
-                "title": "Luxury Collection",
-                "subtitle": "The Sapphire Collection",
-                "description": "Exceptional 5-star elegance. Hand-picked signature resorts, elite guidance, and curated gastronomy.",
-                "features": [
-                    "Iconic Signature 5-Star Resorts",
-                    "Private Premium SUV & Elite Chauffeur",
-                    "Daily Signature Half-Board (HB) Dining",
-                    "Curated Cultural Tours & Private Access",
-                    "Daily Ayurvedic/Balinese Spa Sessions"
-                ]
+                "id": "luxury",
+                "badge": "Confort Exquis",
+                "title": "Ceylan Luxe",
+                "priceRange": "$650",
+                "description": "Resorts 5 étoiles d'exception, transport en SUV premium et gestion de voyage sur mesure par un directeur dédié."
             },
             {
-                "title": "Premium Plan",
-                "subtitle": "The Emerald Collection",
-                "description": "Reliable, well-organized excellence. Experience the island's beauty with 3-4 star curated excellence.",
-                "features": [
-                    "Hand-picked 3-4 Star Signature Hotels",
-                    "Private AC Sedan/Van & Expert Driver",
-                    "Daily Half-Board (HB) Dining Selection",
-                    "Guided Tours of Major Historic Sites",
-                    "Entrance Fees to National Parks Included"
-                ]
+                "id": "premium",
+                "badge": "Style Raffiné",
+                "title": "Ceylan Premium",
+                "priceRange": "$350",
+                "description": "Hôtels 3-4 étoiles sélectionnés, transferts en berline ou van climatisé et expériences locales incontournables."
             },
             {
-                "title": "Mixed Collection",
-                "subtitle": "Total Fluidity",
-                "description": "Your journey, your way. Mix and match tiers across destinations to create your bespoke escape.",
-                "features": [
-                    "Flexible Tier Mixing per Destination",
-                    "Dynamic Pacing (Activity vs. Serenity)",
-                    "Combined Jet & Ground Transport",
-                    "Bespoke Masterplans around Your Persona",
-                    "Unified Proposal at Multiple Points"
-                ]
+                "id": "regular",
+                "badge": "Valeur Authentique",
+                "title": "Ceylan Essentiel",
+                "priceRange": "$80",
+                "description": "Maisons d'hôtes 3 étoiles authentiques et transports flexibles pour l'explorateur avisé."
+            },
+            {
+                "id": "mixed",
+                "badge": "Assemblage Sur Mesure",
+                "title": "Collection Mixte",
+                "priceRange": "Flexible",
+                "description": "Une combinaison personnalisée de différentes gammes au fil de votre parcours pour une liberté totale."
+            },
+            {
+                "id": "maldives-twin",
+                "badge": "Ceylan & Maldives",
+                "title": "Ceylan & Maldives",
+                "priceRange": "Sur Mesure",
+                "description": "Associez les safaris et cités anciennes du Sri Lanka aux villas privatives sur pilotis des Maldives."
             }
         ],
         "ultraVip": {
-            "badge": "The Ultimate Experience",
+            "badge": "L'Expérience Ultime",
             "title": "Ultra VIP",
-            "desc_1": "Reserved for the world's most discerning travelers.",
-            "desc_2": "A realm of absolute privacy, bespoke luxury, and peerless security.",
+            "desc_1": "Réservé aux voyageurs les plus exigeants de la planète.",
+            "desc_2": "Un monde de confidentialité absolue, de luxe sur mesure et de sécurité inégalée.",
             "quote": {
-                "sig": "Signature Quote",
-                "sig_det": "7 Nights · 2 Travelers",
-                "daily": "Daily Allocation",
-                "daily_det": "Per Person / Per Day"
+                "sig": "Devis Signature",
+                "sig_det": "7 Nuits · 2 Voyageurs",
+                "daily": "Allocation Journalière",
+                "daily_det": "Par Personne / Par Jour"
             },
             "choose": {
-                "badge": "Choose Your Journey",
-                "title": "Our Ultra VIP Journeys",
-                "desc": "Two distinct pathways, one standard of absolute excellence. Select the journey that resonates with your vision.",
-                "route_gold": "The Gold Route",
-                "route_sig": "Nilathra Signature Journey"
+                "badge": "Choisissez Votre Voyage",
+                "title": "Nos Voyages Ultra VIP",
+                "desc": "Deux itinéraires distincts, une même exigence d'excellence absolue. Sélectionnez le parcours qui résonne avec votre vision.",
+                "route_gold": "La Route d'Or",
+                "route_sig": "Itinéraire Signature Nilathra"
             },
             "gold": {
-                "desc": "A perfectly orchestrated sequence of luxury, privacy, and speed. From the moment you touch down to your final departure, every transition is seamless.",
+                "desc": "Une séquence parfaitement orchestrée alliant luxe, confidentialité et rapidité. De votre atterrissage à votre départ final, chaque transition est fluide et invisible.",
                 "phase": "Phase",
                 "itinerary": [
                     {
-                        "title": "Jet-Side Arrival: Elite",
-                        "description": "Direct jet-side greeting with private concierge and traditional welcome ceremony. Skip the terminal entirely as your security team escorts you.",
-                        "details": "Jet-Side Tarmac Clearance & Host"
+                        "title": "Arrivée Jet-Side : Élite",
+                        "description": "Accueil personnalisé directement au pied de l'avion par votre concierge privé et cérémonie de bienvenue traditionnelle. Évitez les terminaux grâce à votre équipe de sécurité.",
+                        "details": "Accès Piste & Accueil Dédié"
                     },
                     {
-                        "title": "Armored Command Transit",
-                        "description": "24/7 Close Protection Detail (CPD) with armored SUV escort for all ground movements between flight segments.",
-                        "details": "Permanent Armed/Unarmed Security Detail"
+                        "title": "Transit en Véhicule Blindé",
+                        "description": "Protection rapprochée permanente (CPD 24/7) avec escorte en SUV blindé pour tous vos déplacements terrestres.",
+                        "details": "Sécurité Rapprochée Armée / Discrète"
                     },
                     {
-                        "title": "Total Aerial Domain",
-                        "description": "A dedicated helicopter and crew remain on standby for the duration of your trip, ensuring travel at the speed of thought.",
-                        "details": "Dedicated Standby Helicopter Fleet"
+                        "title": "Domaine Aérien Exclusif",
+                        "description": "Un hélicoptère dédié avec son équipage reste en attente pendant toute la durée de votre séjour, garantissant des déplacements instantanés.",
+                        "details": "Flotte d'Hélicoptères en Permanence"
                     },
                     {
-                        "title": "Sovereign Sanctuary",
-                        "description": "Total buyout of a private island or estate. 1:1 staff-to-guest ratio including private physician, chef, and master butler.",
-                        "details": "Private Estate Buyout"
+                        "title": "Sanctuaire Souverain",
+                        "description": "Privatisation totale d'un domaine ou d'une île privée. Ratio de 1 pour 1 (personnel/hôte) incluant médecin privé, chef et majordome.",
+                        "details": "Privatisation Complète de Domaine"
                     },
                     {
-                        "title": "Exclusive Masterclasses",
-                        "description": "Private sessions with world-renowned gemologists, spiritual masters, and culinary legends in absolute seclusion.",
-                        "details": "Bespoke Expert Access & Curation"
+                        "title": "Ateliers Exclusifs",
+                        "description": "Sessions privées avec des gemmologues de renommée mondiale, des maîtres spirituels et des chefs étoilés en toute intimité.",
+                        "details": "Accès Privilégié & Curation Sur Mesure"
                     },
                     {
-                        "title": "Zero-Trace Departure",
-                        "description": "Direct-to-aircraft tarmac departure. Every protocol designed to ensure your transition is unseen and unmatched.",
-                        "details": "Tactical Tarmac-to-Tarmac Exit"
+                        "title": "Départ Sans Trace",
+                        "description": "Embarquement direct sur piste. Chaque protocole est conçu pour garantir un départ fluide, discret et sans égal.",
+                        "details": "Sortie Tactique de Piste à Piste"
                     }
                 ]
             },
             "signature": {
-                "desc": "Seven days. Seven extraordinary chapters. One island, experienced in its entirety at the highest level.",
-                "day": "Day",
-                "highlights": "Highlights",
-                "stay": "Stay",
+                "desc": "Sept jours. Sept chapitres extraordinaires. Une île vécue dans sa totalité au plus haut niveau de raffinement.",
+                "day": "Jour",
+                "highlights": "Points Forts",
+                "stay": "Hébergement",
                 "itinerary": [
                     {
-                        "title": "VIP Arrival in Colombo",
+                        "title": "Arrivée VIP à Colombo",
                         "location": "Colombo",
-                        "experience": "Your journey begins the moment your aircraft lands.",
+                        "experience": "Votre voyage d'exception commence dès l'atterrissage de votre appareil.",
                         "highlights": [
-                            "Jet-side greeting",
-                            "Fast-track immigration",
-                            "Private luxury SUV transfer",
-                            "Champagne welcome"
+                            "Accueil au pied de l'avion",
+                            "Formalités d'immigration prioritaires",
+                            "Transfert en SUV de luxe privatise",
+                            "Accueil au champagne"
                         ],
-                        "stay": "Ultra-luxury city hotel or private suite",
+                        "stay": "Hôtel urbain ultra-luxe ou suite présidentielle",
                         "optional": [
-                            "Private rooftop dinner",
-                            "Colombo night skyline tour",
-                            "Personal concierge planning the week"
+                            "Dîner privé sur toit-terrasse",
+                            "Visite nocturne de Colombo",
+                            "Concierge personnel pour orchestrer le séjour"
                         ],
-                        "note": "Recover from travel and feel immediately cared for."
+                        "note": "Reposez-vous du voyage et savourez une prise en charge immédiate."
                     },
                     {
-                        "title": "Helicopter to the Ancient Kingdom",
-                        "location": "Sigiriya Rock Fortress",
-                        "experience": "An aerial journey over jungles and ancient reservoirs to the kingdom of Sigiriya.",
+                        "title": "Hélicoptère vers le Royaume Antique",
+                        "location": "Citadelle de Sigiriya",
+                        "experience": "Un survol majestueux des jungles et anciens réservoirs vers le royaume suspendu de Sigiriya.",
                         "highlights": [
-                            "Private helicopter transfer from Colombo",
-                            "Aerial view of jungles and reservoirs",
-                            "Private guided visit with archaeology expert",
-                            "Professional photography session"
+                            "Transfert privé en hélicoptère depuis Colombo",
+                            "Vues aériennes imprenables sur la jungle",
+                            "Visite guidée privée avec un expert archéologue",
+                            "Séance photo professionnelle"
                         ],
-                        "stay": "Luxury jungle resort or private villa",
+                        "stay": "Resort de luxe en jungle ou villa privée",
                         "optional": [
-                            "Sunset cocktails overlooking the rock",
-                            "Fine dining experience"
+                            "Cocktails au coucher du soleil face au rocher",
+                            "Expérience gastronomique raffinée"
                         ],
                         "note": ""
                     },
                     {
-                        "title": "Wild Sri Lanka Safari",
-                        "location": "Wilpattu National Park",
-                        "experience": "A private safari experience in one of Asia's most pristine national parks.",
+                        "title": "Safari Privé dans le Sri Lanka Sauvage",
+                        "location": "Parc National de Wilpattu",
+                        "experience": "Une expérience de safari privé au cœur de l'un des parcs nationaux les plus préservés d'Asie.",
                         "highlights": [
-                            "Private luxury safari vehicle",
-                            "Top wildlife tracker",
-                            "Possible sightings: Leopards, Elephants, Sloth bears",
-                            "Afternoon spa and relaxation"
+                            "Véhicule de safari privé ultra-confort",
+                            "Meilleur pisteur de faune sauvage",
+                            "Observation privilégiée : Léopards, Éléphants, Ours",
+                            "Après-midi détente et spa"
                         ],
-                        "stay": "Luxury jungle camp",
+                        "stay": "Camp de luxe sous tentes en pleine nature",
                         "optional": [
-                            "Private bush dinner in the jungle",
-                            "Lantern-lit dining under the stars"
+                            "Dîner privé en brousse au cœur de la jungle",
+                            "Repas aux lanternes sous les étoiles"
                         ],
-                        "note": "A very memorable luxury moment."
+                        "note": "Un moment d'exception mémorable au plus près de la nature."
                     },
                     {
-                        "title": "Into the Tea Mountains",
+                        "title": "Au Cœur des Montagnes de Thé",
                         "location": "Nuwara Eliya",
-                        "experience": "A serene ascent into the misty highlands, where tea reigns supreme.",
+                        "experience": "Une ascension sereine vers les hautes terres brumeuses où le thé est roi.",
                         "highlights": [
-                            "Scenic helicopter or luxury train experience",
-                            "Private tea estate visit",
-                            "Tea tasting with plantation experts",
-                            "Walk through misty tea hills"
+                            "Voyage panoramique en hélicoptère ou train de luxe",
+                            "Visite privée d'un domaine de thé",
+                            "Dégustation avec des experts planteurs",
+                            "Promenade dans les collines verdoyantes"
                         ],
-                        "stay": "Luxury tea estate bungalow",
+                        "stay": "Bungalow colonial de luxe sur domaine d'exception",
                         "optional": [
-                            "Fireplace dinner with fine wine pairing"
+                            "Dîner au coin du feu avec accords mets et vins"
                         ],
-                        "note": "A completely different landscape — cool, lush, and timeless."
+                        "note": "Un changement de décor saisissant — frais, verdoyant et intemporel."
                     },
                     {
-                        "title": "Scenic Highlands & Culture",
+                        "title": "Hautes Terres & Splendeurs Culturelles",
                         "location": "Ella",
-                        "experience": "The highlands in all their glory, before transitioning toward the coast.",
+                        "experience": "Toute la majesté du pays du thé avant votre descente vers le littoral.",
                         "highlights": [
-                            "Visit the iconic Nine Arches Bridge",
-                            "Scenic hike through tea plantations",
-                            "Private picnic with mountain views",
-                            "Helicopter transfer to the south coast"
+                            "Visite du célèbrissime Nine Arches Bridge",
+                            "Randonnée panoramique à travers les plantations",
+                            "Pique-nique privé avec vue sur les montagnes",
+                            "Transfert en hélicoptère vers la côte sud"
                         ],
-                        "stay": "Luxury boutique mountain property",
+                        "stay": "Propriété de montagne de charme et de luxe",
                         "optional": [],
-                        "note": "Where the trip transitions from adventure to relaxation."
+                        "note": "Transition parfaite entre aventure et détente côtière."
                     },
                     {
-                        "title": "Luxury Beach Escape",
+                        "title": "Évasion de Luxe au Bord de l'Océan",
                         "location": "Tangalle",
-                        "experience": "Slow luxury on the southern coast — the art of doing nothing, perfectly.",
+                        "experience": "Le grand luxe au fil de l'eau sur la côte sud — l'art du farniente porté à son apogée.",
                         "highlights": [
-                            "Private beach villa",
-                            "Oceanfront spa treatments",
-                            "Optional whale watching excursion",
-                            "Private candlelight dinner on the beach"
+                            "Villa privée au bord de l'eau",
+                            "Soins spa face à l'océan",
+                            "Excursion privée d'observation des baleines",
+                            "Dîner aux chandelles sur la plage"
                         ],
-                        "stay": "Private beach villa",
+                        "stay": "Villa de plage privatise",
                         "optional": [
-                            "Live acoustic music",
-                            "Chef-curated fresh seafood menu"
+                            "Concert acoustique privé",
+                            "Menu de fruits de mer élaboré par votre chef"
                         ],
-                        "note": "This day is about slow luxury."
+                        "note": "Une journée dédiée au luxe contemplatif."
                     },
                     {
-                        "title": "Ocean & Departure",
+                        "title": "Océan & Départ Souverain",
                         "location": "Weligama",
-                        "experience": "A final morning on the water before your sovereign departure.",
+                        "experience": "Une dernière matinée sur l'océan avant votre départ souverain.",
                         "highlights": [
-                            "Private yacht cruise",
-                            "Dolphin or whale spotting",
-                            "Helicopter transfer back to Colombo",
-                            "VIP airport departure assistance"
+                            "Croisière privée en yacht",
+                            "Observation des dauphins et baleines",
+                            "Transfert en hélicoptère vers Colombo",
+                            "Assistance VIP complète lors du départ"
                         ],
                         "stay": "",
                         "optional": [],
-                        "note": "End of journey."
+                        "note": "Fin du voyage."
                     }
                 ],
                 "estimate": {
-                    "badge": "Estimated Ultra-VIP Price",
-                    "price": "$35,000",
-                    "sub": "Per Person",
+                    "badge": "Tarif Ultra-VIP Estimé",
+                    "price": "35 000 €",
+                    "sub": "Par Personne",
                     "cols": [
                         {
-                            "label": "Varies by",
+                            "label": "Varie selon",
                             "items": [
-                                "Helicopter hours",
-                                "Hotel category",
-                                "Villa buyouts"
+                                "Heures d'hélicoptère",
+                                "Catégorie des hébergements",
+                                "Privatisation des villas"
                             ]
                         },
                         {
-                            "label": "Private experiences",
+                            "label": "Expériences privées",
                             "items": [
-                                "Whale watching",
-                                "Private bush dinners",
-                                "Photography sessions"
+                                "Observation des baleines",
+                                "Dîners privés en brousse",
+                                "Séances de photographie"
                             ]
                         },
                         {
-                            "label": "Ideal for",
+                            "label": "Idéal pour",
                             "items": [
                                 "Couples",
-                                "Families",
-                                "Small exclusive groups"
+                                "Familles",
+                                "Groupes restreints exclusifs"
                             ]
                         }
                     ]
                 }
             },
             "philosophy": {
-                "badge": "Total Anonymity Guaranteed",
-                "title": "Privacy Architecture",
-                "desc": "Our Ultra VIP tier is a fortified private domain. Beyond luxury, we provide a \"Zero-Trace\" security architecture designed for high-profile individuals requiring absolute seclusion.",
+                "badge": "Anonymat Total Garanti",
+                "title": "Architecture de Confidentialité",
+                "desc": "Notre offre Ultra VIP constitue un domaine privé entièrement sécurisé. Au-delà du luxe, nous mettons en place une architecture de sécurité « Zero-Trace » conçue pour les personnalités exigeant une discrétion absolue.",
                 "grid": [
                     {
-                        "title": "Sovereign NDA Protocols",
-                        "desc": "All staff and partners operate under multi-jurisdictional, elite-tier non-disclosure agreements."
+                        "title": "Protocol NDA Souverain",
+                        "desc": "Tout notre personnel et partenaires sont soumis à des accords de confidentialité stricts."
                     },
                     {
-                        "title": "Invisible Transitions",
-                        "desc": "Jet-side tarmac handling and private helipads to ensure zero public or digital exposure."
+                        "title": "Transitions Invisibles",
+                        "desc": "Assistance sur piste au pied de l'avion et héliports privés pour éliminer toute exposition publique ou numérique."
                     },
                     {
-                        "title": "Hardened Communications",
-                        "desc": "Military-grade encrypted concierge channels for all planning and on-ground adjustments."
+                        "title": "Communications Chiffrées",
+                        "desc": "Canaux de conciergerie chiffrés de niveau militaire pour toute l'organisation du séjour."
                     },
                     {
-                        "title": "Ghost-Protocol Billing",
-                        "desc": "Total financial invisibility and comprehensive global identity protection."
+                        "title": "Facturation Discrète",
+                        "desc": "Invisibilité financière totale et protection globale de l'identité."
                     }
                 ],
                 "seclusion": {
-                    "title": "Absolute Seclusion",
-                    "desc": "Extreme privacy protocols with 100% staff anonymity and total site buyouts."
+                    "title": "Isolement Absolu",
+                    "desc": "Protocoles de confidentialité extrêmes avec 100% d'anonymat du personnel et privatisation complète des lieux."
                 },
                 "access": {
-                    "title": "Impossible Access",
-                    "desc": "We open doors to private collections, remote sites, and sacred spaces."
+                    "title": "Accès Inaccessibles",
+                    "desc": "Nous ouvrons les portes de collections privées, de sites isolés et de sanctuaires sacrés."
                 }
             },
             "breakdown": {
-                "title": "Service Breakdown",
-                "btn_hide": "Hide Details",
-                "btn_show": "Reveal Pricing",
+                "title": "Détail des Prestations",
+                "btn_hide": "Masquer les Détails",
+                "btn_show": "Afficher les Tarifs",
                 "items": [
                     {
-                        "label": "Elite Buyout & 24/7 Butler"
+                        "label": "Privatisation Domaine & Majordome 24/7"
                     },
                     {
-                        "label": "Helicopter Fleet & Security"
+                        "label": "Flotte d'Hélicoptères & Sécurité"
                     },
                     {
-                        "label": "Bespoke Culinary & Chef"
+                        "label": "Gastronomie Sur Mesure & Chef Privé"
                     },
                     {
-                        "label": "Daily Ayurveda & Medical"
+                        "label": "Ayurveda Quotidien & Médecin Dédié"
                     },
                     {
-                        "label": "Bespoke Gems & Private Access"
+                        "label": "Joyaux d'Exception & Accès Privés"
                     },
                     {
-                        "label": "VIP Handling & NDA Compliance"
+                        "label": "Prise en Charge VIP & Respect NDA"
                     }
                 ]
             },
             "inclusions": [
                 {
-                    "category": "Estates & Sovereign Staff",
+                    "category": "Domaines & Personnel Souverain",
                     "items": [
-                        "Exclusive Private Estate Buyouts",
-                        "Dedicated English Speaking National Guide & Expert Driver",
-                        "1:1 Staff-to-Guest Ratio (Butler/Chef/Concierge/Valet)",
-                        "Full-time Dedicated Physician & Trauma Support",
-                        "Absolute Privacy: Site-wide Signal Management",
-                        "Personalized Gourmet Kitchen (6-Member Elite Chef Team)",
-                        "Brand New Bespoke Linen (Destroyed/Gifted After Stay)"
+                        "Privatisation exclusive de domaines d'exception",
+                        "Guide national anglophone et chauffeur expert dédiés",
+                        "Ratio personnel/hôte de 1:1 (Majordome/Chef/Concierge/Valet)",
+                        "Médecin privé dédié et soutien d'urgence permanent",
+                        "Confidentialité absolue : Gestion des signaux sur l'ensemble du domaine",
+                        "Cuisine gastronomique personnalisée (Équipe de 6 chefs d'élite)",
+                        "Linge neuf sur mesure (Détruit ou offert après le séjour)"
                     ]
                 },
                 {
-                    "category": "Sovereign Logistics",
+                    "category": "Logistique Souveraine",
                     "items": [
-                        "Private Jet-Side Arrival & Tarmac Clearance",
-                        "Dedicated Standby Helicopter for Trip Duration",
-                        "Permanent 24/7 Close Protection Detail (CPD)",
-                        "Armored SUV Fleet (B6/B7 Level Availability)"
+                        "Accueil privé au pied du jet & dédouanement sur piste",
+                        "Hélicoptère dédié en attente pendant toute la durée du séjour",
+                        "Service de protection rapprochée permanent 24/7 (CPD)",
+                        "Flotte de SUV blindés (Disponibilité de niveau B6/B7)"
                     ]
                 },
                 {
-                    "category": "Impossible Access",
+                    "category": "Accès Inaccessibles",
                     "items": [
-                        "Private Jewelry Masterclass (Rare Stones)",
-                        "Elder Spiritual & Philosophical Counsel",
-                        "After-hours Private Opening of National Sites",
-                        "Global Identity Protection Protocols"
+                        "Atelier privé de haute joaillerie (Pierres d'exception)",
+                        "Conseil spirituel et philosophique avec des sages vénérés",
+                        "Ouverture privée nocturne de sites nationaux hors horaires publics",
+                        "Protocoles globaux de protection de l'identité"
                     ]
                 },
                 {
-                    "category": "Regenerative Wellness",
+                    "category": "Bien-être Régénératif",
                     "items": [
-                        "Bespoke Anti-Aging & Regenerative Therapies",
-                        "Private Ayurvedic Master & Team (Dedicated)",
-                        "Advanced Wellness & Medical Diagnostic Suite",
-                        "Michelin-Standard Personalized Nutritionist (24/7)",
-                        "Anything & Everything On Request (Dedicated Service)",
-                        "Zero-Trace Anonymity & Full NDA Ecosystem"
+                        "Thérapies anti-âge et régénératives sur mesure",
+                        "Maître Ayurvédique et équipe dédiée à plein temps",
+                        "Diagnostic médical et suite de bien-être avancée",
+                        "Nutritionniste personnel de niveau étoilé (24/7)",
+                        "Chaque souhait exaucé sur demande (Service exclusif)",
+                        "Anonymat zéro trace et écosystème NDA complet"
                     ]
                 }
             ],
             "cta": {
-                "btn": "Initiate VIP Consultation",
-                "sub": "private concierge assigned upon request"
+                "btn": "Demander une Consultation Privée VIP",
+                "sub": "Protocoles de Confidentialité Stricts Appliqués"
             }
         },
         "luxury": {
-            "badge": "The Sapphire Collection",
-            "title": "Luxury Collection",
-            "desc_1": "An elevated journey through Sri Lanka's most iconic destinations,",
-            "desc_2": "featuring 5-star comfort and professional local expertise.",
+            "badge": "La Collection Saphir",
+            "title": "Collection Luxe",
+            "desc_1": "Un voyage d'exception à travers les destinations les plus emblématiques du Sri Lanka,",
+            "desc_2": "offrant le confort d'établissements 5 étoiles et l'expertise de guides locaux chevronnés.",
             "quote": {
-                "sig": "Flagship Quote",
-                "sig_det": "7 Nights · 2 Travelers",
-                "daily": "Daily Investment",
-                "daily_det": "Per Person / Per Day"
+                "sig": "Devis Emblématique",
+                "sig_det": "7 Nuits · 2 Voyageurs",
+                "daily": "Investissement Journalier",
+                "daily_det": "Par Personne / Par Jour"
             },
             "epicurean": {
-                "badge": "The Sapphire Route",
-                "title": "The Sapphire Journey",
-                "desc": "A curated sequence of discovery and comfort. From standard express handling to final sunset, every moment is hand-crafted for excellence.",
+                "badge": "La Route Saphir",
+                "title": "Le Voyage Saphir",
+                "desc": "Une séquence soigneusement orchestrée entre découverte et raffinement. De l'accueil express personnalisé au dernier coucher de soleil, chaque instant est façonné pour l'excellence.",
                 "phase": "Phase",
                 "itinerary": [
                     {
-                        "title": "Private Arrival: Express",
-                        "description": "Personalized greeting at the arrival terminal. Direct assistance with baggage and a smooth transition to your waiting private vehicle.",
-                        "details": "Arrival Greeting + Logistics Support"
+                        "title": "Arrivée Privée : Express",
+                        "description": "Accueil personnalisé dès votre sortie du terminal d'arrivée. Assistance directe avec les bagages et transition fluide vers votre véhicule privé.",
+                        "details": "Accueil à l'Arrivée + Assistance Logistique"
                     },
                     {
-                        "title": "Elite Chauffeur Transit",
-                        "description": "Direct transfer via premium SUV to your first destination. Refreshments, Wi-Fi, and curated fine dining stops for lunch are provided for a seamless transition.",
-                        "details": "Premium SUV x 24/7 Availability + Gourmet Lunch Picks"
+                        "title": "Chauffeur Élite & Transit",
+                        "description": "Transfert direct en SUV haut de gamme vers votre première destination. Rafraîchissements, Wi-Fi et sélections gourmandes pour le déjeuner.",
+                        "details": "SUV Haut de Gamme 24/7 + Sélections Gastronomiques"
                     },
                     {
-                        "title": "5-Star Collection & Gastronomy",
-                        "description": "Check-in to the island's most iconic signature resorts with ocean or jungle views. Enjoy secure Half-Board (HB) dining featuring signature breakfasts, sought-after dinner reservations, and local organic delicacies.",
-                        "details": "Iconic Resorts + Half-Board (HB)"
+                        "title": "Collection 5 Étoiles & Gastronomie",
+                        "description": "Installation dans les resorts les plus iconiques de l'île offrant des vues spectaculaires sur l'océan ou la jungle. Demi-pension (HB) incluant petits-déjeuners gourmands et dîners raffinés.",
+                        "details": "Resorts d'Exception + Demi-Pension (HB)"
                     },
                     {
-                        "title": "Immersive Discovery",
-                        "description": "Explore sacred sites and hidden gems with an elite National Guide. Private after-hours access to selected monuments can be arranged for an additional charge.",
-                        "details": "Expert Guide + Optional Special Access"
+                        "title": "Découverte Immensive",
+                        "description": "Explorez les sites sacrés et les joyaux méconnus en compagnie d'un Guide National d'élite. Accès privé hors horaires publics disponible sur demande.",
+                        "details": "Guide Expert + Accès Spéciaux en Option"
                     },
                     {
-                        "title": "Rejuvenating Wellness",
-                        "description": "Daily opportunities to unwind with premium Balinese or Ayurvedic spa therapies, designed to revitalize mind and body.",
-                        "details": "Premium Spa Therapies"
+                        "title": "Régénération & Bien-être",
+                        "description": "Moments quotidiens de détente grâce à des soins spa balinais ou ayurvédiques haut de gamme conçus pour revitaliser le corps et l'esprit.",
+                        "details": "Soins Spa d'Exception"
                     },
                     {
-                        "title": "Elegant Departure",
-                        "description": "Leisurely morning at your resort followed by a direct premium transfer to the airport for your stress-free departure.",
-                        "details": "Premium Transfer + Departure Support"
+                        "title": "Départ Élégant",
+                        "description": "Matinée paisible à votre resort suivie d'un transfert premium direct vers l'aéroport pour un départ en toute sérénité.",
+                        "details": "Transfert Premium + Assistance au Départ"
                     }
                 ]
             },
             "signature": {
-                "desc": "Seven days. Seven chapters of the real Sri Lanka — ancient cities, misty highlands, surf, and the warmth of Galle Fort.",
-                "day": "Day",
-                "highlights": "Highlights",
-                "stay": "Stay",
+                "desc": "Sept jours. Sept chapitres du vrai Sri Lanka — citadelles antiques, montagnes brumeuses, surf et charme colonial de Galle Fort.",
+                "day": "Jour",
+                "highlights": "Points Forts",
+                "stay": "Hébergement",
                 "estimate": {
-                    "badge": "Estimated Price",
-                    "price": "$4,550",
-                    "sub": "Per Person · 7 Days ($650 / day)",
-                    "min": "Minimum 2 People · From $9,100 Total",
+                    "badge": "Tarif Estimatif",
+                    "price": "4 550 €",
+                    "sub": "Par Personne · 7 Jours (650 € / jour)",
+                    "min": "Minimum 2 Personnes · À partir de 9 100 € au total",
                     "cols": [
                         {
-                            "label": "Includes",
+                            "label": "Inclus",
                             "items": [
-                                "Premium SUV transport",
-                                "Boutique 5-star stays",
-                                "Half-board dining"
+                                "Transport en SUV Premium",
+                                "Séjours en hôtels 5 étoiles",
+                                "Formule demi-pension"
                             ]
                         },
                         {
-                            "label": "Experiences",
+                            "label": "Expériences",
                             "items": [
-                                "Hot air balloon ride",
-                                "Surf lesson in Weligama",
+                                "Vol en montgolfière",
+                                "Cours de surf à Weligama",
                                 "Sigiriya & Galle Fort"
                             ]
                         },
                         {
-                            "label": "Ideal for",
+                            "label": "Idéal pour",
                             "items": [
                                 "Couples",
-                                "Family groups",
-                                "Solo luxury travelers"
+                                "Familles",
+                                "Voyageurs solo exigeants"
                             ]
                         }
                     ]
                 },
                 "itinerary": [
                     {
-                        "title": "Arrival in Colombo",
+                        "title": "Arrivée à Colombo",
                         "location": "Colombo",
-                        "experience": "Welcome to Sri Lanka. The city greets you with colour, energy, and flavour.",
+                        "experience": "Bienvenue au Sri Lanka. La capitale vous accueille avec ses couleurs, son énergie et ses saveurs.",
                         "highlights": [
-                            "Arrival & hotel check-in",
-                            "Galle Face Green sunset stroll",
-                            "Colombo city tour by private SUV",
-                            "Street food tasting in Pettah market"
+                            "Arrivée et installation à l'hôtel",
+                            "Promenade au coucher du soleil à Galle Face Green",
+                            "Tour de ville de Colombo en SUV privé",
+                            "Dégustation de street food au marché de Pettah"
                         ],
-                        "stay": "Boutique city hotel",
+                        "stay": "Hôtel boutique urbain",
                         "optional": [
-                            "Rooftop dinner with city views"
+                            "Dîner sur toit-terrasse avec vue sur la ville"
                         ],
-                        "note": "Ease into the island. Let Colombo come to you."
+                        "note": "Prenez le temps d'arriver. Laissez le charme de Colombo vous envahir."
                     },
                     {
-                        "title": "Drive North to the Ancient Kingdom",
+                        "title": "Route vers le Royaume Antique",
                         "location": "Sigiriya & Minneriya",
-                        "experience": "A scenic morning drive into the heart of the Cultural Triangle.",
+                        "experience": "Un trajet matinal panoramique au cœur du Triangle Culturel.",
                         "highlights": [
-                            "Morning premium SUV ride to Sigiriya",
-                            "Boat ride on a local village lake",
-                            "Traditional village lunch on the water",
-                            "Evening elephant gathering at Minneriya"
+                            "Trajet matinal en SUV premium vers Sigiriya",
+                            "Balade en bateau sur un lac de village",
+                            "Déjeuner traditionnel sur l'eau",
+                            "Rassemblement d'éléphants en soirée à Minneriya"
                         ],
-                        "stay": "Jungle lodge near Sigiriya",
+                        "stay": "Lodge en jungle près de Sigiriya",
                         "optional": [
-                            "Village cycling tour"
+                            "Promenade à vélo dans le village"
                         ],
                         "note": null
                     },
                     {
-                        "title": "Sunrise, Rock & Sky",
+                        "title": "Lever du Soleil, Rocher & Ciel",
                         "location": "Pidurangala & Sigiriya",
-                        "experience": "The most unforgettable day — from the sky to the summit.",
+                        "experience": "Une journée inoubliable — du sommet du rocher jusqu'au ciel.",
                         "highlights": [
-                            "Pre-dawn hike to Pidurangala for sunrise",
-                            "Walking breakfast in the jungle",
-                            "Private guided climb of Sigiriya Lion Rock",
-                            "Hot air balloon ride & sky lunch"
+                            "Randonnée à Pidurangala avant l'aube pour le lever du soleil",
+                            "Petit-déjeuner itinérant dans la jungle",
+                            "Ascension guidée privée du Rocher du Lion à Sigiriya",
+                            "Vol en montgolfière & déjeuner suspendu"
                         ],
-                        "stay": "Boutique resort",
+                        "stay": "Resort de charme",
                         "optional": [
-                            "Sunset photography session"
+                            "Séance photo au coucher du soleil"
                         ],
-                        "note": "This day is the heart of the journey."
+                        "note": "Cette journée est le cœur battant de votre voyage."
                     },
                     {
-                        "title": "The Sacred Hill Capital",
+                        "title": "La Capitale Sacrée des Collines",
                         "location": "Kandy",
-                        "experience": "Kandy — where history, faith, and beauty converge.",
+                        "experience": "Kandy — où s'unissent histoire, foi et beauté naturelle.",
                         "highlights": [
-                            "Drive to Kandy via cultural sites",
-                            "Archaeological museum visit",
-                            "Private guided visit to the Temple of the Sacred Tooth",
-                            "Evening Kandyan cultural show"
+                            "Trajet vers Kandy à travers des sites culturels",
+                            "Visite du musée archéologique",
+                            "Visite guidée privée du Temple de la Dent Sacrée",
+                            "Spectacle culturel traditionnel kandyen en soirée"
                         ],
-                        "stay": "Heritage hotel overlooking Kandy Lake",
+                        "stay": "Hôtel de patrimoine surplombant le lac de Kandy",
                         "optional": [
-                            "Royal Botanical Gardens visit"
+                            "Visite des Jardins Botaniques Royaux"
                         ],
                         "note": null
                     },
                     {
-                        "title": "The Scenic Train to Ella",
+                        "title": "Le Train Panoramique vers Ella",
                         "location": "Ella",
-                        "experience": "One of the world's most beautiful train journeys — through mist, tea, and cloud.",
+                        "experience": "L'un des plus beaux trajets en train au monde — à travers la brume, le thé et les nuages.",
                         "highlights": [
-                            "Scenic railway journey through the highlands",
-                            "Check-in at Ella boutique property",
-                            "Afternoon relaxation and leisurely stroll",
-                            "Evening hike to Little Adam's Peak"
+                            "Voyage ferroviaire panoramique à travers les hautes terres",
+                            "Installation dans un hébergement de charme à Ella",
+                            "Après-midi détente et promenade paisible",
+                            "Randonnée du soir vers le Little Adam's Peak"
                         ],
-                        "stay": "Boutique mountain retreat, Ella",
+                        "stay": "Retraite de montagne à Ella",
                         "optional": [
-                            "Sunset rooftop dinner"
+                            "Dîner au coucher du soleil sur le toit"
                         ],
-                        "note": "Let the highlands slow you down."
+                        "note": "Laissez la fraîcheur des montagnes ralentir le rythme."
                     },
                     {
-                        "title": "Waves, Surf & Soul",
+                        "title": "Vagues, Surf & Sérénité",
                         "location": "Weligama",
-                        "experience": "The south coast in all its laid-back, sun-soaked glory.",
+                        "experience": "La côte sud dans toute sa splendeur décontractée et baignée de soleil.",
                         "highlights": [
-                            "Drive down to Weligama Bay",
-                            "Private surf lesson on the bay",
-                            "Fresh seafood lunch by the ocean",
-                            "Evening yoga and meditation session"
+                            "Trajet vers la baie de Weligama",
+                            "Cours de surf privé dans la baie",
+                            "Déjeuner de fruits de mer frais face à l'océan",
+                            "Session de yoga et méditation en fin de journée"
                         ],
-                        "stay": "Beachfront boutique villa",
+                        "stay": "Villa boutique en bord de mer",
                         "optional": [
-                            "Sunset catamaran cruise"
+                            "Croisière en catamaran au coucher du soleil"
                         ],
-                        "note": "This day is about presence, not pace."
+                        "note": "Une journée dédiée au bien-être et à l'instant présent."
                     },
                     {
-                        "title": "Homeward via the Fort City",
-                        "location": "Galle & Return",
-                        "experience": "A leisurely farewell through one of Asia's most storied colonial cities.",
+                        "title": "Retour par la Cité Fortifiée",
+                        "location": "Galle & Retour",
+                        "experience": "Un adieu paisible à travers l'une des cités coloniales les plus emblématiques d'Asie.",
                         "highlights": [
-                            "Morning stroll through Galle Fort (UNESCO)",
-                            "Visit ancient Dutch churches and ramparts",
-                            "Street food tour — hoppers, kottu & lime juice",
-                            "Scenic coastal drive back to Colombo"
+                            "Flânerie matinale dans le Fort de Galle (UNESCO)",
+                            "Visite des églises néerlandaises antiques et remparts",
+                            "Parcours gourmand de street food (hoppers, kottu & jus de citron)",
+                            "Route côtière panoramique de retour vers Colombo"
                         ],
                         "stay": null,
                         "optional": [
-                            "Souvenir shopping in Galle boutiques"
+                            "Shopping de souvenirs dans les boutiques de Galle"
                         ],
-                        "note": "End of journey. Sri Lanka at its finest."
+                        "note": "Fin du voyage. Le Sri Lanka dans ce qu'il a de plus beau."
                     }
                 ]
             },
             "philosophy": {
-                "badge": "Uncompromising Quality",
-                "title": "Iconic Standards",
-                "desc": "The Luxury Tier is designed for travelers who seek the best of the island with absolute comfort. From top-tier room categories at 5-star resorts to elite-level guides, we ensure a world-class standard at every turn.",
+                "badge": "Qualité Sans Compromis",
+                "title": "Standards d'Exception",
+                "desc": "La formule Luxe est pensée pour les voyageurs en quête des plus beaux trésors de l'île dans un confort absolu. Des catégories de chambres supérieures dans des resorts 5 étoiles jusqu'aux guides d'élite, nous garantissons une excellence constante.",
                 "grid": [
                     {
-                        "title": "Signature Resorts",
-                        "desc": "Exclusive access to the most iconic room categories in 5-star properties."
+                        "title": "Resorts Signatures",
+                        "desc": "Accès privilégié aux plus belles catégories de chambres dans des établissements 5 étoiles."
                     },
                     {
-                        "title": "Premium SUV",
-                        "desc": "Luxurious, late-model SUV transport for all land-based movements."
+                        "title": "SUV Premium",
+                        "desc": "Transport en SUV récent et luxueux pour tous vos trajets terrestres."
                     },
                     {
-                        "title": "National Guides",
-                        "desc": "Elite English-speaking guides with deep knowledge of history and culture."
+                        "title": "Guides Nationaux",
+                        "desc": "Guides d'élite passionnés et érudits possédant une connaissance approfondie de l'île."
                     },
                     {
-                        "title": "Standard Express",
-                        "desc": "Smooth airport greeting and luggage assistance. (VIP Handling available on request)."
+                        "title": "Accueil Express",
+                        "desc": "Accueil fluide à l'aéroport et prise en charge des bagages (Prise en charge VIP sur demande)."
                     }
                 ],
                 "seclusion": {
-                    "title": "Elite Curation",
-                    "desc": "Every accommodation and experience is personally vetted for the highest standard."
+                    "title": "Curation Élite",
+                    "desc": "Chaque hébergement et expérience est audité personnellement selon les standards les plus exigeants."
                 },
                 "access": {
-                    "title": "Deep Discovery",
-                    "desc": "Beyond sight-seeing: gain true insight through our most experienced National Guides."
+                    "title": "Découverte Approfondie",
+                    "desc": "Allez au-delà du tourisme classique : découvrez l'âme véritable du pays grâce à nos meilleurs guides."
                 }
             },
             "breakdown": {
-                "title": "Service Allocation",
-                "btn_show": "Reveal Breakdown",
-                "btn_hide": "Hide Details",
+                "title": "Répartition des Prestations",
+                "btn_show": "Afficher les Détails",
+                "btn_hide": "Masquer les Détails",
                 "items": [
                     {
-                        "label": "Signature Resorts & Hotels"
+                        "label": "Resorts & Hôtels Signatures"
                     },
                     {
-                        "label": "Premium SUV & Transfers"
+                        "label": "SUV Premium & Transferts"
                     },
                     {
-                        "label": "Curated Fine Dining"
+                        "label": "Restauration Gastronomique Sélectionnée"
                     },
                     {
-                        "label": "Daily Wellness & Access"
+                        "label": "Bien-être Quotidien & Accès"
                     },
                     {
-                        "label": "Elite Guides & Entrance"
+                        "label": "Guides d'Élite & Entrées"
                     },
                     {
-                        "label": "Premium Logistics & Support"
+                        "label": "Logistique Premium & Support"
                     }
                 ]
             },
             "inclusions": [
                 {
-                    "category": "Stay & Style",
+                    "category": "Séjour & Élégance",
                     "items": [
-                        "Hand-picked Signature 5-Star Resorts",
-                        "Superior or Deluxe Room Categories",
-                        "Personalized Welcome Amenities",
-                        "Early Check-in & Late Check-out options",
-                        "Daily Signature Half-Board (HB) Buffet/Menu"
+                        "Sélection de resorts 5 étoiles d'exception",
+                        "Chambres en catégorie Supérieure ou Deluxe",
+                        "Attentions personnalisées à l'arrivée",
+                        "Options de check-in précoce et check-out tardif",
+                        "Demi-pension gastronomique quotidienne (HB)"
                     ]
                 },
                 {
-                    "category": "Premium Logistics",
+                    "category": "Logistique Premium",
                     "items": [
-                        "Private Premium SUV & Elastic Driver Support",
-                        "English Speaking National Guides",
-                        "Airport Arrival & Departure Greeting",
-                        "All Domestic Highway & Parking Fees",
-                        "Daily Refreshment Pack (Chilled)"
+                        "SUV Premium privé avec chauffeur dédié",
+                        "Guides nationaux francophones/anglophones d'expérience",
+                        "Accueil personnalisé à l'arrivée et au départ de l'aéroport",
+                        "Frais d'autoroutes et de stationnements inclus",
+                        "Pack rafraîchissant quotidien (Boissons fraîches)"
                     ]
                 },
                 {
-                    "category": "Curated Culture",
+                    "category": "Culture Sur Mesure",
                     "items": [
-                        "Private Curated Cultural Tours",
-                        "Expert Local Guide Insights",
-                        "Hand-picked Artisan Workshop visits",
-                        "Personalized Shopping Support",
-                        "Entrance Fees to All Major Sites"
+                        "Circuits culturels privatisés et guidés",
+                        "Visites d'ateliers d'artisans d'art sélectionnés",
+                        "Assistance shopping personnalisée",
+                        "Droits d'entrée à l'ensemble des grands monuments"
                     ]
                 },
                 {
-                    "category": "Wellness & Rejuvenation",
+                    "category": "Bien-être & Sérénité",
                     "items": [
-                        "Daily Ayurvedic or Balinese Spa Session",
-                        "Dedicated On-trip Relationship Manager (24/7)",
-                        "All Local Taxes & Service Charges Included"
+                        "Soin spa ayurvédique ou balinais quotidien",
+                        "Gestionnaire de séjour dédié joignable 24/7",
+                        "Ensemble des taxes locales et frais de service inclus"
                     ]
                 }
             ],
             "cta": {
-                "btn": "Initiate Luxury Consultation",
-                "sub": "expert planning assigned upon request"
+                "btn": "Organiser Mon Voyage Luxe",
+                "sub": "Planification sur mesure attribuée sur demande"
             },
             "samples": {
-                "title": "Curated Luxury Samples",
-                "desc": "Explore our hand-crafted, fully customizable sample itineraries designed exclusively for the Luxury Collection.",
-                "view_btn": "View Itinerary",
-                "inq_btn": "Request Details",
+                "title": "Exemples de Voyages Kuratés",
+                "desc": "Découvrez nos itinéraires suggérés et personnalisables conçus exclusivement pour la Collection Luxe.",
+                "view_btn": "Voir l'Itinéraire",
+                "inq_btn": "Demander des Détails",
                 "items": [
                     {
-                        "title": "Elite Journeys (The Sapphire Edition)",
-                        "duration": "7 Nights · 8 Days (2 Travelers)",
-                        "price_per_day": "$650",
-                        "total_price": "$10,400 total",
-                        "highlights": "Cultural Triangle, Highlanders & Coastal Heritage, Sigiriya Lion Rock, Aman Resorts, Private SUV",
+                        "title": "Grands Voyages (Édition Saphir)",
+                        "duration": "7 Nuits · 8 Jours (2 Voyageurs)",
+                        "price_per_day": "650 €",
+                        "total_price": "10 400 € au total",
+                        "highlights": "Triangle Culturel, Hautes Terres & Patrimoine Côtier, Rocher du Lion de Sigiriya, Resorts de Luxe, SUV Privé",
                         "link": "/elite-journeys"
                     },
                     {
-                        "title": "Wild Ceylon & Seclusion",
-                        "duration": "10 Nights · 11 Days (2 Travelers)",
-                        "price_per_day": "$1,350",
-                        "total_price": "$29,700 total",
-                        "highlights": "Sigiriya Stopover, Hot Air Balloon, Exclusive Wildlife Lodges, Private Leopard Safari in Yala (Relais & Châteaux), Seaplane Transfers, Boutique Beach Villa",
+                        "title": "Sri Lanka Sauvage & Confidentialité",
+                        "duration": "10 Nuits · 11 Jours (2 Voyageurs)",
+                        "price_per_day": "1 350 €",
+                        "total_price": "29 700 € au total",
+                        "highlights": "Wilpattu Safari, Bungalows de Thé, Villa Côtière Privée, Hélicoptère",
                         "link": "/wild-ceylon"
                     },
                     {
-                        "title": "The Imperial Helicopter Route",
-                        "duration": "5 Nights · 6 Days (4 Travelers)",
-                        "price_per_day": "$2,000",
-                        "total_price": "$48,000 total",
-                        "highlights": "Charter Helicopter across the island, Ceylon Tea Trails Master Suite, Private Chef Dining, Private Catamaran",
+                        "title": "La Route Impériale en Hélicoptère",
+                        "duration": "5 Nuits · 6 Jours (4 Voyageurs)",
+                        "price_per_day": "2 000 €",
+                        "total_price": "48 000 € au total",
+                        "highlights": "Vol charter en hélicoptère à travers l'île, Suite Master à Ceylon Tea Trails, Chef privé, Catamaran privé",
                         "link": "/imperial-helicopter"
                     }
                 ]
             },
             "transparency": {
-                "title": "Pricing Transparency",
-                "desc_estimate": "The rate provided is an estimate meant to give you a clear baseline for your journey. The final package price is entirely bespoke and will vary based on:",
+                "title": "Transparence des Tarifs",
+                "desc_estimate": "Le tarif indiqué est une estimation vous fournissant une base claire pour votre séjour. Le prix final est entièrement sur mesure et varie selon :",
                 "factors": [
                     {
-                        "title": "Chosen Accommodations",
-                        "desc": "We handpick properties based on your preferences."
+                        "title": "Hébergements Sélectionnés",
+                        "desc": "Nous sélectionnons les propriétés selon vos préférences précises."
                     },
                     {
-                        "title": "Travel Distance",
-                        "desc": "Fuel costs are calculated precisely based on the finalized length and routing of your trip."
+                        "title": "Distance de Voyage",
+                        "desc": "Le carburant et la logistique sont calculés selon la longueur exacte du parcours."
                     },
                     {
-                        "title": "Seasonality",
-                        "desc": "Peak travel windows command premium venue pricing."
+                        "title": "Saisonnalité",
+                        "desc": "Les périodes de haute saison influent sur les tarifs des établissements."
                     },
                     {
-                        "title": "Special Dates",
-                        "desc": "Distinct dates often require mandatory supplementary charges by hotels."
+                        "title": "Dates Spéciales",
+                        "desc": "Certaines dates de fête appliquent des suppléments hôteliers obligatoires."
                     }
                 ]
             },
@@ -830,368 +827,423 @@
             }
         },
         "premium": {
-            "badge": "The Emerald Collection",
-            "title": "Premium Plan",
-            "desc_1": "A sophisticated blend of reliability, comfort, and professional local service.",
-            "desc_2": "Experience the best of Sri Lanka with reputable 3-4 star hospitality.",
+            "badge": "La Collection Émeraude",
+            "title": "Formule Premium",
+            "desc_1": "Un mélange sophistiqué de fiabilité, de confort et de service local professionnel.",
+            "desc_2": "Découvrez le meilleur du Sri Lanka avec une hospitalité renommée de 3 à 4 étoiles.",
             "quote": {
-                "sig": "Signature Quote",
-                "sig_det": "7 Nights · 2 Travelers",
-                "daily": "Daily Value",
-                "daily_det": "Per Person / Per Day"
+                "sig": "Devis Signature",
+                "sig_det": "7 Nuits · 2 Voyageurs",
+                "daily": "Valeur Quotidienne",
+                "daily_det": "Par Personne / Par Jour",
+                "starting_from": "À partir de"
             },
             "emerald": {
-                "badge": "The Emerald Route",
-                "title": "The Emerald Journey",
-                "desc": "A refined sequence from arrival to exit. Experience a beautifully paced exploration through Sri Lanka's cultural heart and comfort retreats.",
-                "phase": "Phase",
+                "badge": "La Route Émeraude",
+                "title": "Le Voyage Émeraude",
+                "desc": "Une séquence raffinée de l'arrivée au départ. Profitez d'une exploration harmonieusement rythmée à travers le cœur culturel du Sri Lanka et des retraites confortables.",
+                "phase": "Étape",
                 "itinerary": [
                     {
-                        "title": "Warm Greeting",
-                        "description": "Personalized welcome at the airport arrival terminal by your dedicated representative, ensuring a smooth transition to your vehicle.",
-                        "details": "Arrival Greeting Assistance"
+                        "title": "Accueil Chaleureux",
+                        "description": "Accueil personnalisé au terminal d'arrivée de l'aéroport par votre représentant dédié, assurant une transition fluide vers votre véhicule.",
+                        "details": "Assistance à l'Accueil à l'Aéroport"
                     },
                     {
-                        "title": "Professional Transit",
-                        "description": "Travel in a well-maintained, air-conditioned Sedan or Van with an experienced driver-guide acting as your local host.",
-                        "details": "Standard Luxury Sedan / Van"
+                        "title": "Transport Professionnel",
+                        "description": "Voyagez dans une berline ou un van climatisé bien entretenu avec un chauffeur-guide expérimenté servant de hôte local.",
+                        "details": "Berline / Van Standard de Luxe"
                     },
                     {
-                        "title": "3-4 Star Collection",
-                        "description": "Hand-picked accommodations at reputable 3 to 4 star hotels, ensuring reliable comfort, cleanliness, and essential amenities.",
-                        "details": "3 to 4 Star Stay Hotels"
+                        "title": "Sélection 3-4 Étoiles",
+                        "description": "Hébergements soigneusement sélectionnés dans des hôtels réputés 3 à 4 étoiles, garantissant un confort fiable, la propreté et les commodités essentielles.",
+                        "details": "Hôtels 3 à 4 Étoiles"
                     },
                     {
-                        "title": "Half-Board Dining (HB)",
-                        "description": "Half-Board (HB) dining experience including breakfast and dinner at your hotels. Explore the island's culinary landscape with high-quality local flavors.",
-                        "details": "Half-Board Dining (HB)"
+                        "title": "Demi-Pension Signature (HB)",
+                        "description": "Expérience culinaire en demi-pension incluant le petit-déjeuner et le dîner à vos hôtels. Explorez le paysage gastronomique de l'île avec des saveurs locales de haute qualité.",
+                        "details": "Restauration en Demi-Pension (HB)"
                     },
                     {
-                        "title": "Local Discovery",
-                        "description": "Explore the island's most iconic destinations with your experienced driver-guide. Practical local insights and seamless travel logistics.",
-                        "details": "Experienced Driver-Guide"
+                        "title": "Découverte Locale",
+                        "description": "Explorez les destinations les plus emblématiques de l'île avec votre chauffeur-guide expérimenté. Conseils pratiques locaux et logistique de voyage fluide.",
+                        "details": "Chauffeur-Guide Expérimenté"
                     },
                     {
-                        "title": "Seamless Departure",
-                        "description": "Final stop for last-minute souvenirs before a well-timed drop-off at the airport for your return flight.",
-                        "details": "Timed Airport Departure Transit"
+                        "title": "Départ Sans Souci",
+                        "description": "Dernier arrêt pour les souvenirs de dernière minute avant un transfert ponctuel à l'aéroport pour votre vol de retour.",
+                        "details": "Transfert de Départ À l'Aéroport"
                     }
                 ]
             },
             "philosophy": {
-                "badge": "Refined Standard",
-                "title": "Contemporary Value",
-                "desc": "The Premium tier is for the traveler who appreciates reliable quality, cultural connection, and experienced local guidance. It's a journey that balances iconic sites with authentic discovery.",
+                "badge": "Standard Raffiné",
+                "title": "Valeur Contemporaine",
+                "desc": "La catégorie Premium s'adresse au voyageur qui apprécie la qualité fiable, la connexion culturelle et les conseils locaux expérimentés. C'est un voyage qui équilibre sites emblématiques et découvertes authentiques.",
                 "grid": [
                     {
-                        "title": "Standard Comfort",
-                        "desc": "Access to our selected collection of 3 to 4 star comfort and business-class hotels."
+                        "title": "Confort Standard",
+                        "desc": "Accès à notre sélection d'hôtels de confort et affaires 3 à 4 étoiles."
                     },
                     {
-                        "title": "Driver-Guides",
-                        "desc": "Experienced driver-guides with years of local expertise acting as your host."
+                        "title": "Chauffeurs-Guides",
+                        "desc": "Des chauffeurs-guides expérimentés possédant des années d'expertise locale."
                     },
                     {
-                        "title": "Reliable Transit",
-                        "desc": "Arrival to destination in air-conditioned Sedans or modern passenger Vans."
+                        "title": "Transit Fiable",
+                        "desc": "Transferts vers les destinations en berlines climatisées ou vans passagers modernes."
                     },
                     {
-                        "title": "Essential Tours",
-                        "desc": "Selected entry into national parks and historic monuments with local context."
+                        "title": "Visites Essentielles",
+                        "desc": "Accès sélectionné aux parcs nationaux et monuments historiques avec contexte local."
                     }
                 ],
                 "comfort": {
-                    "title": "Reliable Comfort",
-                    "desc": "Consistent, high-quality service standards across every partner hotel and transport provider."
+                    "title": "Confort Fiable",
+                    "desc": "Normes de service constantes et de haute qualité auprès de chaque hôtel et transporteur partenaire."
                 },
                 "connection": {
-                    "title": "Cultural Connection",
-                    "desc": "A strong emphasis on Sri Lanka's living culture, iconic monuments, and immersive local experiences."
+                    "title": "Connexion Culturelle",
+                    "desc": "Un accent particulier sur la culture vivante du Sri Lanka, ses monuments emblématiques et des expériences locales immersives."
                 }
             },
             "breakdown": {
-                "title": "Service Breakdown",
-                "btn_show": "Reveal Pricing",
-                "btn_hide": "Hide Details",
+                "title": "Détail des Services",
+                "btn_show": "Afficher les Tarifs",
+                "btn_hide": "Masquer les Détails",
                 "items": [
                     {
-                        "label": "Quality Accommodation"
+                        "label": "Hébergement de Qualité"
                     },
                     {
-                        "label": "Transport & Transit"
+                        "label": "Transport & Transits"
                     },
                     {
-                        "label": "Signature Half-Board"
+                        "label": "Demi-Pension Signature"
                     },
                     {
-                        "label": "Logistics & Organization"
+                        "label": "Logistique & Organisation"
                     },
                     {
-                        "label": "18% Government VAT"
+                        "label": "TVA Gouvernementale 18%"
                     }
                 ]
             },
             "inclusions": [
                 {
-                    "category": "3 to 4 Star Hotels",
+                    "category": "Hôtels 3 à 4 Étoiles",
                     "items": [
-                        "Reputable 3 to 4 Star Signature Hotels",
-                        "Reliable Comfort and Modern Amenities",
-                        "Well-appointed Standard/Deluxe Rooms",
-                        "Daily Half-Board (HB) Dining Selection",
-                        "Complimentary In-room Wi-Fi Access"
+                        "Hôtels de Réputation 3 à 4 Étoiles Signature",
+                        "Confort Fiable et Équipements Modernes",
+                        "Chambres Standard/Deluxe Bien Aménagées",
+                        "Sélection Quotidienne en Demi-Pension (HB)",
+                        "Accès Wi-Fi Gratuit dans la Chambre"
                     ]
                 },
                 {
-                    "category": "Logistics & Guide",
+                    "category": "Logistique & Guide",
                     "items": [
-                        "Private Air-Conditioned Sedan or Van",
-                        "Experienced Driver-Guide (English Speaking)",
-                        "Arrival Terminal Greeting Assistance",
-                        "All Domestic Transportation Costs",
-                        "Highway Tolls & Parking Inclusions"
+                        "Berline ou Van Privé Climatisé",
+                        "Chauffeur-Guide Expérimenté (Anglophone/Francophone)",
+                        "Assistance à l'Accueil au Terminal d'Arrivée",
+                        "Tous les Frais de Transport Intérieur",
+                        "Péages d'Autoroute & Parking Inclus"
                     ]
                 },
                 {
-                    "category": "Dining & Comfort",
+                    "category": "Restauration & Confort",
                     "items": [
-                        "Curated Restaurant Recommendations",
-                        "Access to Hotel Wellness & Pool Areas",
-                        "Dedicated On-trip Support (Online)",
-                        "All Local Taxes & Service Charges Included"
+                        "Recommandations de Restaurants Sélectionnés",
+                        "Accès aux Espaces Bien-être & Piscines des Hôtels",
+                        "Assistance Dédiée Pendant le Séjour (En ligne)",
+                        "Toutes les Taxes Locales & Frais de Service Inclus"
                     ]
                 }
             ],
             "cta": {
-                "btn": "Initiate Premium Consultation",
-                "sub": "dedicated specialist guidance provided"
+                "btn": "Demander une Consultation Premium",
+                "sub": "conseils personnalisés par un spécialiste dédié"
             },
             "transparency": {
-                "title": "Pricing Transparency",
-                "desc_estimate": "The rate provided is an estimate meant to give you a clear baseline for your journey. The final package price is entirely bespoke and will vary based on:",
+                "title": "Transparence des Prix",
+                "desc_estimate": "Le tarif fourni est une estimation vous donnant une référence claire pour votre voyage. Le prix final du forfait est entièrement sur mesure et varie selon :",
                 "factors": [
                     {
-                        "title": "Chosen Accommodations",
-                        "desc": "We handpick properties based on your preferences."
+                        "title": "Hébergements Choisis",
+                        "desc": "Nous sélectionnons les établissements selon vos préférences."
                     },
                     {
-                        "title": "Travel Distance",
-                        "desc": "Fuel costs are calculated precisely based on the finalized length and routing of your trip."
+                        "title": "Distance de Voyage",
+                        "desc": "Les coûts de carburant sont calculés précisément en fonction de la durée et de l'itinéraire final."
                     },
                     {
-                        "title": "Seasonality",
-                        "desc": "Peak travel windows command premium venue pricing."
+                        "title": "Saisonnalité",
+                        "desc": "Les périodes de haute saison entraînent des tarifs préférentiels pour les hébergements."
                     },
                     {
-                        "title": "Special Dates",
-                        "desc": "Distinct dates often require mandatory supplementary charges by hotels."
+                        "title": "Dates Spéciales",
+                        "desc": "Certaines dates spécifiques nécessitent des suppléments obligatoires appliqués par les hôtels."
                     }
                 ]
             }
         },
         "regular": {
-            "badge": "The Topaz Collection",
-            "title": "Regular Plan",
-            "desc_1": "Authentic discovery with absolute reliability.",
-            "desc_2": "Experience the heart of the island with comfort, safety, and incredible value.",
+            "badge": "La Collection Topaze",
+            "title": "Formule Standard",
+            "desc_1": "Découverte authentique avec une fiabilité absolue.",
+            "desc_2": "Découvrez le cœur de l'île alliant confort, sécurité et un excellent rapport qualité-prix.",
             "quote": {
-                "sig": "Signature Quote",
-                "sig_det": "7 Nights · 2 Travelers",
-                "daily": "Daily Investment",
-                "daily_det": "Per Person / Per Day"
+                "sig": "Devis Signature",
+                "sig_det": "7 Nuits · 2 Voyageurs",
+                "daily": "Investissement Quotidien",
+                "daily_det": "Par Personne / Par Jour"
             },
             "topaz": {
-                "badge": "The Topaz Route",
-                "title": "The Authentic Path",
-                "desc": "A carefully phased sequence of discovery. Balanced, safe, and rich in local character, ensuring every dollar creates a lasting memory.",
-                "phase": "Phase",
+                "badge": "La Route Topaze",
+                "title": "Le Parcours Authentique",
+                "desc": "Une séquence de découverte soigneusement jalonnée. Équilibrée, sûre et riche en caractère local, garantissant que chaque dépense crée un souvenir durable.",
+                "phase": "Étape",
                 "itinerary": [
                     {
-                        "title": "Warm Welcome",
-                        "description": "Personalized greeting at the airport arrivals area. Assistance with local SIM cards and currency exchange for a smooth start.",
-                        "details": "Arrival Meeting & Assistance"
+                        "title": "Accueil Chaleureux",
+                        "description": "Accueil personnalisé dans la zone des arrivées de l'aéroport. Assistance pour les cartes SIM locales et le change de devises pour un démarrage en douceur.",
+                        "details": "Rencontre & Assistance à l'Arrivée"
                     },
                     {
-                        "title": "Flexible Transit",
-                        "description": "Efficient budget travel via booked local taxis or escorted public transport (scenic trains/buses) for an authentic local pulse.",
-                        "details": "Booked Taxi / Public Transport"
+                        "title": "Transit Flexible",
+                        "description": "Voyage économique et efficace via des taxis locaux réservés ou des transports publics accompagnés (trains/bus panoramiques) pour une immersion authentique.",
+                        "details": "Taxi Réservé / Transport Public"
                     },
                     {
-                        "title": "Home Stays & Comfort",
-                        "description": "Carefully vetted 3-star guest houses, budget hotels, or authentic family-run homestays for a true local experience.",
-                        "details": "3-Star / Homestay Collection"
+                        "title": "Séjours chez l'Habitant & Confort",
+                        "description": "Maison d'hôtes 3 étoiles soigneusement vérifiées, hôtels économiques ou séjours authentiques chez des familles locales pour une véritable expérience immanquable.",
+                        "details": "Collection 3 Étoiles / Séjours Chez l'Habitant"
                     },
                     {
-                        "title": "Daily Breakfast (BB)",
-                        "description": "Daily breakfast included (BB) at your stays. We provide curated lists of the best safe and authentic local dining spots for other meals.",
-                        "details": "Daily Authentic Breakfast (BB)"
+                        "title": "Petit-Déjeuner Quotidien (BB)",
+                        "description": "Petit-déjeuner quotidien inclus (BB) dans vos hébergements. Nous fournissons des listes sélectionnées des meilleurs restaurants locaux sûrs et authentiques pour les autres repas.",
+                        "details": "Petit-Déjeuner Local Authentique (BB)"
                     },
                     {
-                        "title": "Guided Discovery",
-                        "description": "Explore landmarks and heritage sites with a local specialist. Assistance with public transport navigation and street-food safety.",
-                        "details": "Essential Site Access & Guidance"
+                        "title": "Découverte Guidée",
+                        "description": "Explorez les monuments et sites du patrimoine avec un spécialiste local. Assistance à la navigation dans les transports publics et conseils de sécurité culinaire.",
+                        "details": "Accès aux Sites Essentiels & Orientations"
                     },
                     {
-                        "title": "Friendly Departure",
-                        "description": "Leisurely final morning followed by a direct, safe transfer back to the airport well ahead of your check-in time.",
-                        "details": "Safe Airport Drop-off Transit"
+                        "title": "Départ en Douceur",
+                        "description": "Matinée finale paisible suivie d'un transfert direct et sécurisé vers l'aéroport, bien avant l'heure de votre enregistrement.",
+                        "details": "Transfert Sécurisé vers l'Aéroport"
                     }
                 ]
             },
             "philosophy": {
-                "badge": "Reliable Value",
-                "title": "Essential Quality",
-                "desc": "The Regular tier provides the perfect foundation for a classic Sri Lankan adventure. We focus on cleanliness, safety, and authentic experiences, ensuring highly-rated stays and reliable transport.",
+                "badge": "Valeur Fiable",
+                "title": "Qualité Essentielle",
+                "desc": "La formule Standard offre la base parfaite pour une aventure classique au Sri Lanka. Nous privilégions la propreté, la sécurité et les expériences authentiques, garantissant des hébergements très bien notés et des transports fiables.",
                 "grid": [
                     {
-                        "title": "Local Home Stays",
-                        "desc": "Immersion in the island's culture through vetted 3-star hotels and family-run guest houses."
+                        "title": "Séjours Chez l'Habitant",
+                        "desc": "Immersion dans la culture de l'île grâce à des hôtels 3 étoiles vérifiés et des maisons d'hôtes familiales."
                     },
                     {
-                        "title": "Flexible Transit",
-                        "desc": "Cost-effective booked taxis or authentic public transit segments with expert guidance."
+                        "title": "Transit Flexible",
+                        "desc": "Taxis réservés économiques ou trajets en transports publics authentiques avec conseils d'experts."
                     },
                     {
-                        "title": "Essential Sites",
-                        "desc": "Integrated access to the most iconic cultural and historical landmarks of Sri Lanka."
+                        "title": "Sites Essentiels",
+                        "desc": "Accès intégré aux monuments culturels et historiques les plus emblématiques du Sri Lanka."
                     },
                     {
-                        "title": "Sustained Support",
-                        "desc": "Continuous remote connection and on-ground safety monitoring for independent spirits."
+                        "title": "Assistance Continue",
+                        "desc": "Connexion à distance constante et suivi de sécurité sur place pour les esprits indépendants."
                     }
                 ],
                 "comfort": {
-                    "title": "Always Connected",
-                    "desc": "Constant digital companionship to ensure your journey in a new country is stress-free."
+                    "title": "Toujours Connecté",
+                    "desc": "Un accompagnement numérique permanent pour garantir un voyage sans stress dans un nouveau pays."
                 },
                 "connection": {
-                    "title": "True Hospitality",
-                    "desc": "Experience the genuine warmth of Sri Lankan guesthouses hand-picked for their character."
+                    "title": "Véritable Hospitalité",
+                    "desc": "Découvrez la chaleur authentique des maisons d'hôtes srilankaises soigneusement sélectionnées pour leur caractère."
                 }
             },
             "breakdown": {
-                "title": "Value Allocation",
-                "btn_show": "Reveal Pricing",
-                "btn_hide": "Hide Details",
+                "title": "Répartition de la Valeur",
+                "btn_show": "Afficher les Tarifs",
+                "btn_hide": "Masquer les Détails",
                 "items": [
                     {
-                        "label": "3-Star & Home Stay Stays"
+                        "label": "Hébergements 3 Étoiles & chez l'habitant"
                     },
                     {
-                        "label": "Booked Taxi / Public Transit"
+                        "label": "Taxi Réservé / Transport Public"
                     },
                     {
-                        "label": "Authentic Local Breakfast"
+                        "label": "Petit-Déjeuner Local Authentique"
                     },
                     {
-                        "label": "Essential Site Entrances"
+                        "label": "Entrées aux Sites Essentiels"
                     },
                     {
-                        "label": "24/7 Virtual Support"
+                        "label": "Assistance Virtuelle 24/7"
                     }
                 ]
             },
             "inclusions": [
                 {
-                    "category": "Authentic Stays",
+                    "category": "Séjours Authentiques",
                     "items": [
-                        "Hand-picked 3-Star Budget Hotels",
-                        "Warm Family-run Homestay Experiences",
-                        "Clean & Vetted Boutique Guesthouses",
-                        "Daily Local Sri Lankan Breakfast (BB)",
-                        "Verified Convenience & Safety Standards"
+                        "Hôtels Économiques 3 Étoiles Sélectionnés",
+                        "Expériences Chaleureuses chez l'Habitant",
+                        "Maisons d'Hôtes de Charme Propres et Vérifiées",
+                        "Petit-Déjeuner Local Srilankais Quotidien (BB)",
+                        "Normes de Confort & Sécurité Vérifiées"
                     ]
                 },
                 {
-                    "category": "Flexible Logistics",
+                    "category": "Logistique Flexible",
                     "items": [
-                        "Booked Budget Taxis for Key Segments",
-                        "Escorted Public Transport (Train/Bus)",
-                        "Local Transport Navigation Assistance",
-                        "Pre-planned Route Connections",
-                        "Route Planning for Independent Travel"
+                        "Taxis Économiques Réservés pour les Trajets Clés",
+                        "Transports Publics Accompagnés (Train/Bus)",
+                        "Assistance à la Navigation dans les Transports Locaux",
+                        "Connexions d'Itinéraires Pré-planifiées",
+                        "Planification d'Itinéraires pour Voyageurs Indépendants"
                     ]
                 },
                 {
-                    "category": "Local Culture",
+                    "category": "Culture Locale",
                     "items": [
-                        "Entrance to Key Cultural Sites",
-                        "Curated 'Self-Guided' Trail Maps",
-                        "Recommendations for Local Markets",
-                        "Hand-picked Village Discovery Tips",
-                        "Essential City Exploration Routes"
+                        "Entrée aux Principaux Sites Culturels",
+                        "Cartes de Sentiers 'Auto-guidés' Sélectionnées",
+                        "Recommandations pour les Marchés Locaux",
+                        "Conseils de Découverte des Villages Traditionnels",
+                        "Itinéraires d'Exploration des Villes Essentielles"
                     ]
                 },
                 {
-                    "category": "Constant Support",
+                    "category": "Assistance Permanent",
                     "items": [
-                        "24/7 Virtual Concierge via WhatsApp",
-                        "Emergency Local Medical Contacts",
-                        "On-ground Safety Coordination",
-                        "Local SIM Card Assistance on Arrival",
-                        "All Standard Service Taxes Included"
+                        "Concierge Virtuel 24/7 via WhatsApp",
+                        "Contacts Médicaux Locaux d'Urgence",
+                        "Coordination de la Sécurité sur le Terrain",
+                        "Assistance Carte SIM Locale à l'Arrivée",
+                        "Toutes les Taxes de Service Standard Incluses"
                     ]
                 }
             ],
             "cta": {
-                "btn": "Initiate Regular Consultation",
-                "sub": "coordinated local handling provided"
+                "btn": "Demander une Consultation Standard",
+                "sub": "prise en charge locale coordonnée"
             }
+        }
+    },
+    "custom_plan": {
+        "badge": "Planificateur de Voyage IA",
+        "title": "Concevez Votre Voyage Parfait",
+        "desc": "Découvrez le Sri Lanka à votre façon. Sélectionnez les activités que vous aimez et notre planificateur intelligent élaborera l'itinéraire ultime avec une logistique fluide.",
+        "steps": {
+            "preferences": "Préférences",
+            "locations": "Lieux",
+            "itinerary": "Itinéraire"
+        },
+        "step1": {
+            "title": "Qu'aimez-vous faire ?",
+            "subtitle": "Sélectionnez les expériences qui vous inspirent.",
+            "all_categories": "Tous",
+            "search_placeholder": "Rechercher des expériences...",
+            "empty_search": "Aucune expérience trouvée pour vos critères.",
+            "clear_filters": "Effacer les filtres",
+            "loading": "Chargement des expériences de la collection...",
+            "continue": "Continuer vers les lieux"
+        },
+        "step2": {
+            "title": "Sélection de Vos Destinations",
+            "subtitle": "Selon vos choix, nous avons identifié les lieux incontournables. N'hésitez pas à en ajouter.",
+            "mandatory_stops": "Arrêts Obligatoires",
+            "mandatory_empty": "Aucun lieu spécifique lié aux activités sélectionnées.",
+            "optional_stops": "Expériences & Extensions Optionnelles",
+            "maldives_title": "Extension Atoll Sur l'Eau aux Maldives",
+            "maldives_desc": "Combinez votre voyage au Sri Lanka avec des villas de luxe sur l'eau et des transferts en hydravion aux Maldives.",
+            "maldives_add": "+ Ajouter les Maldives",
+            "maldives_added": "✓ Extension Ajoutée",
+            "back": "Retour",
+            "generate": "Générer le Plan IA",
+            "generating": "Optimisation IA..."
+        },
+        "step3": {
+            "score": "Score d'optimisation :",
+            "title": "Votre Itinéraire Sur Mesure de",
+            "days_itinerary": "Jours",
+            "total_travel": "Voyage total :",
+            "est_cost": "Coût estimé :",
+            "day": "Jour",
+            "day_efficiency": "Efficacité de la journée",
+            "form_title": "Prêt à Concrétiser Votre Voyage ?",
+            "name": "Votre Nom",
+            "email": "Adresse E-mail",
+            "phone": "Numéro de Téléphone (Facultatif)",
+            "travelers": "Voyageurs (ex. 2)",
+            "note": "Exigences particulières ou notes ? (Facultatif)",
+            "adjust": "Ajuster les Lieux",
+            "approve": "Approuver le Plan",
+            "submitting": "Envoi en cours...",
+            "alert_success": "Plan approuvé ! Nos spécialistes vous contacteront sous peu pour finaliser les détails.",
+            "alert_invalid_email": "Veuillez saisir une adresse e-mail valide."
         }
     },
     "destinations": {
         "overview": {
-            "subtitle": "Exquisite Locations",
-            "title": "The Collection of Destinations",
-            "desc": "Explore the diverse landscapes of Sri Lanka, from heritage sites to untamed wilderness, all experienced in absolute luxury.",
+            "subtitle": "Emplacements Exquis",
+            "title": "La Collection de Destinations",
+            "desc": "Explorez les paysages variés du Sri Lanka, des sites historiques à la nature sauvage, le tout vécu dans un luxe absolu.",
             "items": [
                 {
                     "slug": "colombo",
                     "name": "Colombo",
                     "type": "Commerce & Culture",
-                    "desc": "The heartbeat of the island, where colonial heritage meets modern luxury."
+                    "desc": "Le cœur battant de l'île, où le patrimoine colonial rencontre le luxe moderne."
                 },
                 {
                     "slug": "galle",
                     "name": "Galle",
-                    "type": "Colonial History",
-                    "desc": "A UNESCO World Heritage site, famous for its Dutch Fort and golden beaches."
+                    "type": "Histoire Coloniale",
+                    "desc": "Un site classé au patrimoine mondial de l'UNESCO, célèbre pour son fort néerlandais et ses plages dorées."
                 },
                 {
                     "slug": "sigiriya",
                     "name": "Sigiriya",
-                    "type": "Heritage & History",
-                    "desc": "The iconic Lion Rock fortress, a testament to ancient Sri Lankan engineering."
+                    "type": "Patrimoine & Histoire",
+                    "desc": "La citadelle emblématique du Rocher du Lion, un chef-d'œuvre d'ingénierie sri-lankaise ancienne."
                 },
                 {
                     "slug": "ella",
                     "name": "Ella",
-                    "type": "Nature & Highlands",
-                    "desc": "Mist-covered mountains, tea plantations, and the famous Nine Arch Bridge."
+                    "type": "Nature & Hautes Terres",
+                    "desc": "Montagnes embrumées, plantations de thé et le célèbre pont aux neuf arches."
                 },
                 {
                     "slug": "kandy",
                     "name": "Kandy",
-                    "type": "Culture & Royalty",
-                    "desc": "The sacred city, home to the Temple of the Tooth and traditional festivities."
+                    "type": "Culture & Royauté",
+                    "desc": "La ville sacrée, abritant le Temple de la Dent et des festivités traditionnelles."
                 },
                 {
                     "slug": "yala",
                     "name": "Yala",
-                    "type": "Wildlife & Safari",
-                    "desc": "Prime wildlife sanctuary famous for the highest concentration of leopards."
+                    "type": "Faune & Safari",
+                    "desc": "Sanctuaire faunique d'exception célèbre pour la plus forte concentration de léopards au monde."
                 },
                 {
                     "slug": "nuwara-eliya",
                     "name": "Nuwara Eliya",
-                    "type": "Tea & Relaxation",
-                    "desc": "Little England, a cool-climate retreat known for premium Ceylon tea."
+                    "type": "Thé & Relaxation",
+                    "desc": "La Petite Angleterre, une retraite au climat frais réputée pour son thé de Ceylan d'exception."
                 },
                 {
                     "slug": "weligama-mirissa",
                     "name": "Weligama & Mirissa",
-                    "type": "Coastal Synergy",
-                    "desc": "The heartbeat of the south coast, combining surf culture with luxury whale watching."
+                    "type": "Synergie Côtgère",
+                    "desc": "Le cœur de la côte sud, alliant culture du surf et observation luxueuse des baleines."
                 },
                 {
                     "slug": "trincomalee",
@@ -1210,155 +1262,155 @@
             }
         },
         "colombo": {
-            "subtitle": "Urban Masterpiece",
-            "title": "The Architecture of Ambition",
-            "desc_1": "Colombo is not merely a stopover; it is a destination undergoing a breathtaking transformation. From the colonial-era charm of the Fort district—where venerable buildings now house chic boutiques—to the futuristic skyline rising over the Indian Ocean, every corner tells a story of resilience and reinvention.",
-            "desc_2": "With Nilathra, you experience the city beyond the surface. We provide exclusive access to private art galleries, architectural masterpieces designed by Geoffrey Bawa, and rooftop venues that offer the most cinematic views of the Port City development. This is Colombo unfiltered—sophisticated, soulful, and relentlessly modern.",
+            "subtitle": "Chef-d'œuvre Urbain",
+            "title": "L'Architecture de l'Ambition",
+            "desc_1": "Colombo n'est pas une simple étape ; c'est une destination en pleine métamorphose cinématographique. Du charme colonial du quartier du Fort — où de vénérables édifices abritent désormais des boutiques chic — à la ligne d'horizon futuriste s'élevant au-dessus de l'Océan Indien, chaque coin de rue raconte une histoire de résilience et de réinvention.",
+            "desc_2": "Avec Nilathra, vous découvrez la capitale au-delà des sentiers battus. Nous vous ouvrons les portes de galeries d'art privées, de chefs-d'œuvre architecturaux signés Geoffrey Bawa, et de lieux exclusifs en rooftop offrant les plus beaux panoramas sur Port City. C'est Colombo au naturel — sophistiquée, vibrante et résolument moderne.",
             "stats": [
                 {
                     "val": "15+",
-                    "label": "Heritage Landmarks"
+                    "label": "Monuments Historiques"
                 },
                 {
                     "val": "20+",
-                    "label": "Gourmet Venues"
+                    "label": "Adresses Gastronomiques"
                 }
             ],
             "hero_badge": "Perspective",
-            "hero_title": "The Morning Vista"
+            "hero_title": "Le Panorama Matinal"
         },
         "ella": {
-            "subtitle": "Misty Highlands",
-            "title": "Above the Clouds",
-            "desc_1": "Ella is where the soul of Sri Lanka's hill country resides. Perched on the edge of a mountain range, this mist-shrouded village offers some of the most dramatic landscapes on the island. From the iconic architectural marvel of the Nine Arch Bridge to the sweeping vistas of Ella Rock, every moment here feels like a scene from a dream.",
-            "desc_2": "With Nilathra, your Ella experience is elevated beyond the backpacker trail. We arrange private guided hikes to secluded viewpoints, exclusive tea-tasting sessions in colonial-era factories, and luxury stays in boutique lodges that offer panoramic views of the Ella Gap. This is hill country living at its most serene and sophisticated.",
+            "subtitle": "Hautes Terres Embrumées",
+            "title": "Au-Dessus des Nuages",
+            "desc_1": "C'est à Ella que réside l'âme des montagnes sri-lankaises. Niché au bord d'une chaîne montagneuse, ce village enveloppé de brume offre certains des paysages les plus spectaculaires de l'île. De la merveille architecturale du Pont aux Neuf Arches aux panoramas grandioses du Rocher d'Ella, chaque instant y ressemble à une scène de rêve.",
+            "desc_2": "Avec Nilathra, votre séjour à Ella s'élève bien au-dessus des parcours classiques. Nous organisons des randonnées privées vers des points de vue secrets, des dégustations de thé exclusives dans des usines coloniales et des séjours de luxe dans des lodges de charme surplombant la faille d'Ella. C'est la vie de montagne sous son jour le plus serein et sophistiqué.",
             "stats": [
                 {
-                    "val": "1,000m+",
-                    "label": "Elevation"
+                    "val": "1 000m+",
+                    "label": "Altitude"
                 },
                 {
                     "val": "9",
-                    "label": "Historic Arches"
+                    "label": "Arches Historiques"
                 }
             ],
-            "hero_badge": "Highlands",
-            "hero_title": "The Misty Gap"
+            "hero_badge": "Hautes Terres",
+            "hero_title": "La Faille Embrumée"
         },
         "galle": {
-            "subtitle": "Heritage & History",
-            "title": "The Living Fortress",
-            "desc_1": "Galle Fort is not just a monument; it is a living, breathing testament to Sri Lanka's multifaceted history. Within its massive granite ramparts, colonial-era architecture seamlessly blends with modern tropical living. The air here carries the scent of salt spray and history, as narrow cobblestone streets reveal hidden boutique courtyards and world-class culinary gems.",
-            "desc_2": "With Nilathra, your experience of Galle transcends the typical tourist walk. We curate private encounters with local historians who reveal the secrets of the VOC era, arrange exclusive sunset champagne moments atop the ramparts, and provide access to private colonial villas that are usually closed to the public. This is the soul of the south, experienced in its most refined form.",
+            "subtitle": "Patrimoine & Histoire",
+            "title": "La Forteresse Vivante",
+            "desc_1": "Le fort de Galle n'est pas seulement un monument ; c'est un témoignage vivant de l'histoire séculaire du Sri Lanka. Entre ses imposants remparts de granit, l'architecture coloniale s'harmonise parfaitement avec le style de vie tropical moderne. L'air y est imprégné d'effluves marins et d'histoire, tandis que les ruelles pavées dévoilent des cours intérieures secrètes et des adresses gastronomiques raffinées.",
+            "desc_2": "Avec Nilathra, votre découverte de Galle dépasse la simple promenade touristique. Nous organisons des rencontres privées avec des historiens locaux passionnés par l'ère de la Compagnie néerlandaise des Indes orientales (VOC), des moments d'exception autour d'un champagne au coucher du soleil sur les remparts, et l'accès à des villas coloniales privées habituellement fermées au public. C'est toute l'âme du sud, révélée sous son jour le plus distingué.",
             "stats": [
                 {
                     "val": "400+",
-                    "label": "Years of History"
+                    "label": "Ans d'Histoire"
                 },
                 {
                     "val": "UNESCO",
-                    "label": "World Heritage"
+                    "label": "Patrimoine Mondial"
                 }
             ],
-            "hero_badge": "Heritage",
-            "hero_title": "The Clock Tower Vista"
+            "hero_badge": "Patrimoine",
+            "hero_title": "La Vue sur la Tour de l'Horloge"
         },
         "nuwara_eliya": {
-            "subtitle": "Little England",
-            "title": "The Heart of Tea Country",
-            "desc_1": "Nuwara Eliya is a timeless sanctuary of cool breezes and emerald-green tea estates. Often called \"Little England\" for its colonial-era architecture and temperate climate, this highland retreat offers a pace of life that is elegantly slow. From the manicured lawns of the Hill Club to the tranquil waters of Gregory Lake, the city exudes a refined nostalgia.",
-            "desc_2": "With Nilathra, you immerse yourself in the authentic tea lifestyle. We curate private high-tea experiences in century-old bungalows, arrange exclusive tours of premier tea factories where the world's finest Ceylon tea is crafted, and organize bespoke horseback rides through the misty hills. This is the quintessence of luxury in the highlands.",
+            "subtitle": "La Petite Angleterre",
+            "title": "Le Cœur du Pays du Thé",
+            "desc_1": "Nuwara Eliya est un sanctuaire intemporel de brises fraîches et de domaines de thé couleur émeraude. Souvent appelée « La Petite Angleterre » pour son architecture coloniale et son climat tempéré, cette retraite des hautes terres offre un rythme de vie élégamment paisible.",
+            "desc_2": "Avec Nilathra, plongez dans l'art de vivre authentique du thé. Nous orchestrons des thés de l'après-midi privatifs dans des bungalows centenaires, des visites exclusives des meilleures usines de thé au monde et des promenades à cheval sur mesure à travers les collines embrumées.",
             "stats": [
                 {
-                    "val": "1,889m",
-                    "label": "Peak Altitude"
+                    "val": "1 889m",
+                    "label": "Altitude Maximale"
                 },
                 {
                     "val": "1867",
-                    "label": "Est. Colonial Era"
+                    "label": "Fondation Coloniale"
                 }
             ],
-            "hero_badge": "Heritage",
-            "hero_title": "Little England"
+            "hero_badge": "Patrimoine",
+            "hero_title": "La Petite Angleterre"
         },
         "sigiriya": {
-            "subtitle": "Ancient Marvel",
-            "title": "A Fortress in the Sky",
-            "desc_1": "Sigiriya, the \"Lion Rock,\" is a monumental testament to the architectural brilliance and survivalist ingenuity of ancient Sri Lanka. Rising nearly 200 meters from the lush jungle plains, this monolithic rock fortress served as the palace-citadel of King Kashyapa in the 5th century. It is a mosaic of intricate gardens, advanced hydraulic engineering, and some of the world's most exquisite ancient frescoes.",
-            "desc_2": "With Nilathra, your journey to the summit is a curated narrative of royalty and rebellion. We arrange private, early-dawn climbs with archaeological experts to avoid the crowds, followed by luxury jungle breakfasts overlooking the fortress. Experience the spiritual and historical gravity of this UNESCO World Heritage site in absolute serenity and comfort.",
+            "subtitle": "Merveille Antique",
+            "title": "Une Citadelle dans les Cieux",
+            "desc_1": "Sigiriya, le « Rocher du Lion », est un témoignage monumental du génie architectural et de l'esprit du Sri Lanka ancien. S'élevant à près de 200 mètres au-dessus des plaines luxuriantes, cette forteresse monolithique servait de palais royal au roi Kashyapa au Ve siècle.",
+            "desc_2": "Avec Nilathra, l'ascension du sommet devient un récit royal. Nous organisons des ascensions privées à l'aube avec des archéologues pour éviter la foule, suivies d'un petit-déjeuner de luxe en pleine jungle face au rocher.",
             "stats": [
                 {
-                    "val": "1,200+",
-                    "label": "Steps to the Summit"
+                    "val": "1 200+",
+                    "label": "Marches vers le Sommet"
                 },
                 {
-                    "val": "5th",
-                    "label": "Century Masterpiece"
+                    "val": "Ve",
+                    "label": "Siècle de Chef-d'œuvre"
                 }
             ],
-            "hero_badge": "Heritage",
-            "hero_title": "The Eighth Wonder"
+            "hero_badge": "Patrimoine",
+            "hero_title": "La Huitième Merveille"
         },
         "weligama": {
-            "subtitle": "Southern Coast Synergy",
+            "subtitle": "Synergie de la Côte Sud",
             "title": "Weligama & Mirissa",
-            "desc_1": "Weligama and Mirissa represent the perfect synergy of the southern coast. Weligama, with its expansive crescent bay, is a haven for surfers and luxury seekers alike, offering a sophisticated beach lifestyle. Just a short drive away, Mirissa captivates with its intimate coves, vibrant sunset points, and its reputation as one of the world's premier locations for whale watching.",
-            "desc_2": "With Nilathra, you experience this coastal duo in unparalleled luxury. We arrange private yacht charters for whale watching expeditions, exclusive surf lessons with pro instructors in Weligama's gentle breaks, and sunset cocktail sessions at the most secluded beachfront venues. This is the heart of the southern rhythm—laid-back, yet impeccably refined.",
+            "desc_1": "Weligama et Mirissa représentent la synergie parfaite de la côte sud. Weligama, avec sa vaste baie en croissant, est un havre pour les passionnés de surf et de luxe. À quelques minutes, Mirissa séduit par ses criques intimes, ses couchers de soleil flamboyants et sa réputation mondiale d'observation des baleines.",
+            "desc_2": "Avec Nilathra, vivez ce duo côtier dans un luxe absolu. Nous organisons des charters privés en yacht pour l'observation des baleines, des cours de surf exclusifs et des cocktails privés au coucher du soleil sur les plages les plus secrètes.",
             "stats": [
                 {
-                    "val": "Blue Whale",
-                    "label": "Expeditions"
+                    "val": "Baleines Bleues",
+                    "label": "Expéditions"
                 },
                 {
-                    "val": "Pristine",
-                    "label": "Bays & Breaks"
+                    "val": "Preservées",
+                    "label": "Baies & Criques"
                 }
             ],
-            "hero_badge": "Synergy",
-            "hero_title": "The Southern Rhythm"
+            "hero_badge": "Synergie",
+            "hero_title": "Le Rythme du Sud"
         },
         "yala": {
-            "subtitle": "The Safari Experience",
-            "title": "The Wild Core of {Yala}",
-            "desc_1": "Yala is not just a park; it's a primal landscape where the drama of nature unfolds daily. At Nilathra, we provide exclusive access to the quietest corners of the park with elite trackers and luxury mobile camps.",
+            "subtitle": "L'Expérience Safari",
+            "title": "Le Cœur Sauvage de Yala",
+            "desc_1": "Yala n'est pas qu'un parc ; c'est un territoire originel où se joue chaque jour la vie sauvage. Chez Nilathra, nous offrons un accès privé aux zones les plus paisibles du parc avec nos meilleurs pisteurs et des camps sous tente de grand luxe.",
             "stats": [
                 {
-                    "val": "#1",
-                    "label": "Leopard Density"
+                    "val": "N°1",
+                    "label": "Densité de Léopards"
                 },
                 {
                     "val": "40+",
-                    "label": "Mammal Species"
+                    "label": "Espèces de Mammifères"
                 }
             ],
             "wildlife": [
                 {
-                    "title": "The Elusive Leopard",
-                    "desc": "Yala boasts one of the highest leopard densities in the world. Witness the apex predator of the island in its natural habitat.",
-                    "badge": "Priority View"
+                    "title": "Le Léopard Furtif",
+                    "desc": "Yala abrite l'une des plus fortes densités de léopards au monde. Observez le grand prédateur de l'île dans son habitat naturel.",
+                    "badge": "Vue Prioritaire"
                 },
                 {
-                    "title": "Gentle Giants",
-                    "desc": "Large herds of Asian elephants roam the plains of Yala, often seen congregating around ancient water reservoirs.",
-                    "badge": "Priority View"
+                    "title": "Les Géants Paisibles",
+                    "desc": "De grands troupeaux d'éléphants d'Asie arpentent les plaines de Yala, se rassemblant autour des anciens bassins d'eau.",
+                    "badge": "Vue Prioritaire"
                 },
                 {
-                    "title": "The Shaggy Recluse",
-                    "desc": "The rare Sri Lankan sloth bear is a prized sighting, often found during the Palu fruit season.",
-                    "badge": "Priority View"
+                    "title": "L'Ours Lippu Solitaire",
+                    "desc": "Le rare ours lippu du Sri Lanka est une observation précieuse, particulièrement durant la saison des fruits Palu.",
+                    "badge": "Vue Prioritaire"
                 },
                 {
-                    "title": "Lagoon Sentinels",
-                    "desc": "Wild water buffaloes and diverse birdlife thrive in the intricate network of lagoons and wetlands.",
-                    "badge": "Priority View"
+                    "title": "Les Sentinelles de la Lagune",
+                    "desc": "Buffles d'eau sauvages et nombreuses espèces d'oiseaux s'épanouissent dans le réseau complexe de lagunes.",
+                    "badge": "Vue Prioritaire"
                 }
             ],
             "expedition": {
-                "title": "Private Ranger-Led Expeditions",
-                "desc": "Escape the crowds. Nilathra arranges private entry into the less-traversed blocks of Yala, accompanied by senior wildlife naturalists and photographers. Experience the wild in absolute exclusivity.",
+                "title": "Expéditions Privées avec Rangers",
+                "desc": "Échappez à la foule. Nilathra organise des accès privatifs aux secteurs les moins fréquentés de Yala, accompagnés de naturalistes et photographes experts.",
                 "badges": [
-                    "Pro Photography Gear",
-                    "Off-track Permits"
+                    "Matériel Photo Pro",
+                    "Permis Hors Piste"
                 ]
             }
         }
@@ -1486,379 +1538,499 @@
     },
     "plans_overview": {
         "compare": {
-            "title": "Need help deciding?",
-            "desc": "View a detailed side-by-side comparison of all features, properties, and inclusions to find your perfect match.",
-            "btn": "Compare All Plans"
+            "title": "Besoin d'aide pour choisir ?",
+            "desc": "Consultez un comparatif détaillé côte à côte de toutes nos prestations, hébergements et services inclus pour trouver la formule idéale.",
+            "btn": "Comparer Tous les Plans"
         },
         "essentials": {
-            "title": "Travel Essentials",
-            "desc": "Before embarking on your journey, ensure all necessary travel documents are in order. Most visitors to Sri Lanka require an Electronic Travel Authorization (ETA).",
-            "btn_visa": "Obtain Sri Lanka Visa",
-            "btn_lib": "Travel Reference Library",
-            "visa_badge": "Official E-Visa Site",
-            "visa_desc": "For guaranteed processing and standard rates, always use the official Sri Lankan Government portal.",
-            "visa_tag": "Verified External Resource"
+            "title": "Informations Utiles pour votre Voyage",
+            "desc": "Avant votre départ, veillez à ce que vos documents de voyage soient en règle. La plupart des visiteurs au Sri Lanka nécessitent une autorisation de voyage électronique (ETA / Visa).",
+            "btn_visa": "Demander le Visa Sri Lanka",
+            "btn_lib": "Bibliothèque de Référence",
+            "visa_badge": "Site Officiel E-Visa",
+            "visa_desc": "Pour un traitement garanti aux tarifs officiels, utilisez toujours le portail gouvernemental sri-lankais officiel.",
+            "visa_tag": "Ressource Externe Vérifiée"
         },
         "faq": {
-            "title": "Frequently Asked Questions",
+            "title": "Foire Aux Questions",
             "items": [
                 {
-                    "q": "Can I upgrade my plan?",
-                    "a": "Yes! You can upgrade at any time. The price difference will be calculated based on remaining nights and availability of properties."
+                    "q": "Puis-je changer de formule en cours de route ?",
+                    "a": "Absolument ! Vous pouvez surclasser votre plan à tout moment. La différence tarifaire sera ajustée selon les nuitées restantes et les disponibilités."
                 },
                 {
-                    "q": "Are flights included?",
-                    "a": "International flights are not included in the base packages, but our concierge team can assist with booking both commercial and private charter flights."
+                    "q": "Les vols internationaux sont-ils inclus ?",
+                    "a": "Les vols internationaux ne sont pas inclus dans les offres de base, mais notre service conciergerie peut vous assister pour les vols commerciaux ou charters privés."
                 },
                 {
-                    "q": "What's the cancellation policy?",
-                    "a": "Standard and Deluxe plans offer free cancellation up to 30 days before arrival. The VIP plan provides extended flexibility depending on specific property policies."
+                    "q": "Quelle est la politique d'annulation ?",
+                    "a": "Les formules Régulière et Premium offrent une annulation gratuite jusqu'à 30 jours avant le départ. La formule Ultra VIP propose une flexibilité étendue selon les règles des domaines."
                 },
                 {
-                    "q": "Can I customize my itinerary?",
-                    "a": "Absolutely! Each tier serves as a foundation. Once you select a tier, you can customize destinations, activities, and the duration of your stay."
+                    "q": "Puis-je personnaliser mon itinéraire ?",
+                    "a": "Tout à fait ! Chaque collection constitue une base. Une fois votre niveau choisi, vous pouvez librement adapter vos destinations, activités et la durée du séjour."
                 }
             ]
         },
         "cta": {
-            "title": "Not sure which plan is right for you? Our local travel specialists are here to guide you.",
-            "btn": "Schedule a Private Consultation"
+            "title": "Vous hésitez sur le choix de votre voyage ? Nos conseillers spécialistes locaux sont à votre disposition.",
+            "btn": "Planifier un Entretien Privé"
         }
+    },
+    "plan_comparison": {
+        "title": "Comparer les Voyages",
+        "experience": "Expériences & Prestations",
+        "explore": "Découvrir",
+        "view": "Voir",
+        "back_to_plans": "Retour à toutes les offres",
+        "tiers": {
+            "regular": "Régulier",
+            "premium": "Premium",
+            "luxury": "Luxe",
+            "ultra-vip": "Ultra VIP",
+            "mixed": "Sur Mesure / Mixte"
+        },
+        "features": [
+            {
+                "name": "Type d'Hébergement",
+                "regular": "3 Étoiles / Maisons d'Hôtes",
+                "premium": "3-4 Étoiles / Confort",
+                "luxury": "5 Étoiles d'Exception",
+                "ultraVip": "Domaines & Villas Privatisés",
+                "mixed": "Assemblage Sur Mesure"
+            },
+            {
+                "name": "Linge & Literie",
+                "regular": "Selon Hôtel",
+                "premium": "Selon Hôtel",
+                "luxury": "Selon Hôtel",
+                "ultraVip": "Neuf & Sur Mesure",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Confidentialité de la Propriété",
+                "regular": "Hôtel Partagé",
+                "premium": "Hôtel Partagé",
+                "luxury": "Hôtel de Luxe",
+                "ultraVip": "Privatisation Totale du Domaine",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Sécurité & Protection",
+                "regular": "Aucune",
+                "premium": "Aucune",
+                "luxury": "Assistance Discrète",
+                "ultraVip": "Équipe de Protection Exécutive",
+                "mixed": "En Option"
+            },
+            {
+                "name": "Conciergerie",
+                "regular": "Support par E-mail",
+                "premium": "Concierge de Voyage",
+                "luxury": "Concierge Dédié",
+                "ultraVip": "Conciergerie Globale 24/7",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Accès Culturel",
+                "regular": "Visites Publiques",
+                "premium": "Visites Guidées",
+                "luxury": "Accès Privilégié",
+                "ultraVip": "Accès Privé au Patrimoine Restreint",
+                "mixed": "Sur Mesure"
+            },
+            {
+                "name": "Gastronomie",
+                "regular": "Restauration Hôtel (Petit-déjeuner)",
+                "premium": "Hôtel + Local (Demi-Pension)",
+                "luxury": "Gastronomie Raffinée (Demi-Pension)",
+                "ultraVip": "Expériences de Chefs Privés",
+                "mixed": "Sur Mesure"
+            },
+            {
+                "name": "Expérience d'Arrivée",
+                "regular": "Arrivée Aéroport Classique",
+                "premium": "Arrivée Assistée",
+                "luxury": "Salon VIP",
+                "ultraVip": "Terminal Privé + Transfert sur Piste",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Expériences & Activités",
+                "regular": "Excursions Classiques",
+                "premium": "Circuits Kuratés",
+                "luxury": "Expériences Signatures",
+                "ultraVip": "Expériences Inédites & Inaccessibles",
+                "mixed": "Sur Mesure"
+            },
+            {
+                "name": "Bien-être & Spa",
+                "regular": "Accès Spa",
+                "premium": "Forfaits Spa",
+                "luxury": "Spa d'Exception",
+                "ultraVip": "Médecin Privé / Maître Dédié",
+                "mixed": "En Option"
+            },
+            {
+                "name": "Personnel Privé",
+                "regular": "Aucun",
+                "premium": "Chauffeur",
+                "luxury": "Chauffeur, Guide & Majordome",
+                "ultraVip": "Chauffeur + Guide + Majordome + Valet + Concierge + Équipe de 6 Chefs",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Flexibilité du Voyage",
+                "regular": "Fixe",
+                "premium": "Modifications Limitées",
+                "luxury": "Flexible",
+                "ultraVip": "Aéronefs et Hélicoptères sur Demande",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Tarif / Jour / Personne",
+                "regular": "80 €",
+                "premium": "350 €",
+                "luxury": "650 €",
+                "ultraVip": "15 000 €",
+                "mixed": "Flexible"
+            }
+        ]
     },
     "destination_slugs": {
         "sigiriya": {
             "name": "Sigiriya",
-            "tagline": "The Lion Rock Fortress",
-            "description": "Rising 200m above the jungle, Sigiriya is an ancient palace-fortress of incomparable majesty. This UNESCO World Heritage site, the 'Lion Rock', is a masterpiece of 5th-century urban planning, hydraulic engineering, and artistic expression. From the Mirror Wall's ancient graffiti to the vivid frescoes and the massive lion's paws guarding the final ascent, Sigiriya offers a profound encounter with Sri Lanka's royal heritage.",
+            "tagline": "La Citadelle du Rocher du Lion",
+            "description": "S'élevant à 200 mètres au-dessus de la jungle, Sigiriya est un palais-forteresse antique d'une majesté incomparable. Ce site classé au patrimoine mondial de l'UNESCO est un chef-d'œuvre d'urbanisme du Ve siècle, d'ingénierie hydraulique et d'expression artistique.",
             "highlights": [
-                "Private early-dawn climb with an expert archaeologist",
-                "Viewing the 'Sigiriya Damsels' ancient frescoes",
-                "Exploring the world's oldest landscaped water gardens",
-                "Luxury jungle breakfast with a view of the fortress",
-                "Private 'Elephant Corridor' jeep safari nearby"
+                "Ascension privée à l'aube avec un archéologue expert",
+                "Découverte des fresques anciennes des « Demoiselles de Sigiriya »",
+                "Exploration des plus anciens jardins d'eau paysagers au monde",
+                "Petit-déjeuner de luxe dans la jungle avec vue sur la forteresse",
+                "Safari privé en jeep dans le corridor des éléphants"
             ],
-            "bestTime": "January to April",
+            "bestTime": "Janvier à Avril",
             "experiences": [
                 {
-                    "name": "Private Guided Tour"
+                    "name": "Visite Guidée Privée"
                 },
                 {
-                    "name": "Luxury Jungle Picnic"
+                    "name": "Pique-Nique de Luxe en Jungle"
                 },
                 {
-                    "name": "Heritage Photography"
+                    "name": "Photographie du Patrimoine"
                 }
             ],
             "accommodations": [
                 {
                     "name": "Boutique Heritage Suite (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Forest Pavilion (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Rock View Lodge (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "galle": {
             "name": "Galle",
-            "tagline": "Colonial Charm & Ocean Breeze",
-            "description": "Galle is a jewel where history meets the horizon. A UNESCO World Heritage site, the city is an intricate mosaic of colonial architecture and tropical elegance. The Dutch Fort is the heartbeat of Galle, housing luxury boutique villas, eclectic designer shops, and artisanal cafes within its ancient granite ramparts. Every cobblestone street tells a story of the VOC era, now reimagined as a sophisticated sanctuary for the modern traveler.",
+            "tagline": "Charme Colonial & Brise Marine",
+            "description": "Galle est un joyau où l'histoire rencontre l'horizon. Classée au patrimoine mondial de l'UNESCO, la ville offre une mosaïque d'architecture coloniale et d'élégance tropicale. Le Fort néerlandais est le cœur battant de Galle, abritant des villas de luxe, des boutiques d'artisanat d'art et des cafés bohèmes chic au creux de ses remparts ancestraux. Chaque rue pavée raconte l'épopée de l'époque hollandaise, réinventée aujourd'hui comme un refuge sophistiqué pour les voyageurs d'exception.",
             "highlights": [
-                "Private heritage walk with a local historian",
-                "Sunset champagne at the Triton Bastion",
-                "Whale watching expedition from the harbor",
-                "Luxury villa stay within the historic Fort",
-                "Curated 'Chef's Table' dining experience"
+                "Promenade privée du patrimoine avec un historien local",
+                "Champagne au coucher du soleil au Bastion Triton",
+                "Expédition d'observation des baleines au départ du port",
+                "Séjour en villa de luxe au cœur du Fort historique",
+                "Expérience gastronomique exclusive « Table du Chef »"
             ],
-            "bestTime": "December to March",
+            "bestTime": "Décembre à Mars",
             "experiences": [
                 {
-                    "name": "Fort Heritage Walk"
+                    "name": "Promenade Patrimoniale du Fort"
                 },
                 {
-                    "name": "Coastal Sailing"
+                    "name": "Navigation Côtière Privée"
                 },
                 {
-                    "name": "Colonial High Tea"
+                    "name": "Thé de l'Après-midi Colonial"
                 }
             ],
             "accommodations": [
                 {
                     "name": "The Governor's Mansion (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Fort Bliss Boutique (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Lighthouse Inn (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort de Charme"
                 }
             ]
         },
         "yala": {
             "name": "Yala",
-            "tagline": "Wild Safaris & Leopards",
-            "description": "Yala National Park is the most visited and second largest national park in Sri Lanka. The park is best known for its variety of wild animals. It is important for the conservation of Sri Lankan elephants, Sri Lankan leopards and aquatic birds.",
+            "tagline": "Safaris Sauvages & Léopards",
+            "description": "Le parc national de Yala est le sanctuaire animalier le plus renommé du Sri Lanka. Célèbre dans le monde entier pour sa densité exceptionnelle de léopards, il abrite également des éléphants d'Asie, des ours lippus et une profusion d'oiseaux tropicaux.",
             "highlights": [
-                "Exclusive dawn leopard safari",
-                "Elephants at the watering holes",
-                "Bird watching in the wetlands",
-                "Beach walk along the park's coast"
+                "Safari exclusif au lever du jour à la recherche des léopards",
+                "Observation des troupeaux d'éléphants aux points d'eau",
+                "Observation ornithologique dans les zones humides",
+                "Promenade privée le long de la côte sauvage du parc"
             ],
-            "bestTime": "February to June",
+            "bestTime": "Février à Juin",
             "experiences": [
                 {
-                    "name": "Private Photographer Safari"
+                    "name": "Safari Photo Privé"
                 },
                 {
-                    "name": "Luxury Tented Camping"
+                    "name": "Camping sous Tente de Luxe"
                 },
                 {
-                    "name": "Expert Wildlife Tracker"
+                    "name": "Pisteur Animalier Expert"
                 }
             ],
             "accommodations": [
                 {
                     "name": "Wild Coast Tented Lodge (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Safari Heritage Camp (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Nature's Edge Lodge (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "kandy": {
             "name": "Kandy",
-            "tagline": "The Sacred Hill Capital",
-            "description": "Nestled amidst misty green hills, Kandy is the cultural soul of Sri Lanka. Home to the sacred Temple of the Tooth Relic, this city offers a blend of spirituality, history, and natural beauty.",
+            "tagline": "La Capitale Sacrée des Collines",
+            "description": "Niché au cœur de collines verdoyantes et embrumées, Kandy est l'âme culturelle du Sri Lanka. Abritant le temple sacré de la Dent de Bouddha, la ville offre une harmonie unique de spiritualité, d'histoire et de beauté naturelle.",
             "highlights": [
-                "Visit the Temple of the Tooth Relic",
-                "Morning walk around Kandy Lake",
-                "Explore the Royal Botanical Gardens",
-                "Evening Kandyan dance performance"
+                "Visite privée du Temple de la Dent de Bouddha",
+                "Promenade matinale autour du lac de Kandy",
+                "Exploration des Jardins Botaniques Royaux de Peradeniya",
+                "Spectacle privé de danses traditionnelles Kandyennes"
             ],
-            "bestTime": "January to April",
+            "bestTime": "Janvier à Avril",
             "experiences": [
                 {
-                    "name": "Curated Temple Visit"
+                    "name": "Visite Culturelle & Spirituelle"
                 },
                 {
-                    "name": "Royal Botanical Tour"
+                    "name": "Tour Botanique Royal"
                 },
                 {
-                    "name": "Cultural Preservation Insight"
+                    "name": "Rencontre avec les Maîtres de Danse"
                 }
             ],
             "accommodations": [
                 {
                     "name": "The King's Pavilion (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Misty Mountain Resort (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "City Heritage Lodge (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "colombo": {
             "name": "Colombo",
-            "tagline": "Luxury Cosmopolitan Hub",
-            "description": "A vibrant fusion of colonial-era heritage and ultra-modern ambition, Colombo is the dynamic heartbeat of Sri Lanka. As the island's commercial capital and a burgeoning global hub, the city offers a sophisticated blend of world-class shopping at One Galle Face, exquisite fine dining, and meticulously preserved architecture. From the iconic Lotus Tower piercing the skyline to the historic grandeur of the Galle Face Hotel, Colombo provides a multifaceted luxury experience that serves as the perfect introduction or finale to your Sri Lankan journey.",
+            "tagline": "Centre Cosmopolite de Luxe",
+            "description": "Fusion vibrante de patrimoine colonial et d'ambition ultra-moderne, Colombo est le cœur dynamique du Sri Lanka. En tant que capitale commerciale de l'île, la ville offre un mélange raffiné de shopping haut de gamme, de haute gastronomie et d'architecture préservée.",
             "highlights": [
-                "Cinematic sunset views from the Lotus Tower rooftop",
-                "Gourmet 'Seafood Symphony' dining at Minister of Crab",
-                "Private architectural tour of Geoffrey Bawa's 'No. 11'",
-                "Antique car city cruise through the colonial Fort district",
-                "Curated shopping experiences at exclusive designer boutiques"
+                "Coucher de soleil panoramique depuis le rooftop de la Lotus Tower",
+                "Dîner gastronomique de fruits de mer au célèbre Ministry of Crab",
+                "Visite architecturale privée de la résidence « No. 11 » de Geoffrey Bawa",
+                "Circuit en voiture ancienne dans le quartier colonial du Fort",
+                "Shopping privé dans les boutiques de créateurs locaux"
             ],
-            "bestTime": "December to March",
+            "bestTime": "Décembre à Mars",
             "experiences": [
                 {
-                    "name": "Urban Heritage Walk"
+                    "name": "Promenade Urbaine du Patrimoine"
                 },
                 {
-                    "name": "Fine Dining Experience"
+                    "name": "Expérience Haute Gastronomie"
                 },
                 {
-                    "name": "Art & Architecture Tour"
+                    "name": "Tour Art & Architecture Privé"
                 }
             ],
             "accommodations": [
                 {
                     "name": "Shangri-La Horizon (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Cinnamon Grand (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Jetwing Urban (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "ella": {
             "name": "Ella",
-            "tagline": "The Misty Highland Sanctuary",
-            "description": "Perched amidst the emerald peaks of the Central Highlands, Ella is a mist-shrouded sanctuary for nature lovers and seekers of serenity. Famous for its sweeping mountain vistas and the iconic Nine Arch Bridge, this charming village offers a refreshing escape from the tropical heat. With its lush tea plantations, hidden waterfalls, and dramatic rock formations, Ella provides an immersive encounter with the raw beauty of Sri Lanka's hill country.",
+            "tagline": "Le Sanctuaire des Hautes Terres",
+            "description": "Perché au milieu des sommets émeraude des hautes terres centrales, Ella est un sanctuaire embrumé pour les amoureux de la nature et de la sérénité. Célèbre pour ses panoramas montagneux et le sublime Pont aux Neuf Arches, ce village de charme offre une escapade rafraîchissante.",
             "highlights": [
-                "Scenic private hike to the summit of Little Adam's Peak",
-                "Sunset views over the iconic Nine Arch Bridge",
-                "Curated tea tasting at a historic colonial factory",
-                "Luxury villa stay with panoramic views of Ella Gap",
-                "Private waterfall picnic at Ravana Falls"
+                "Randonnée privée vers le sommet du Little Adam's Peak",
+                "Coucher de soleil sur l'emblématique Pont aux Neuf Arches",
+                "Dégustation de thé privée dans une usine coloniale historique",
+                "Séjour en villa de luxe avec vue panoramique sur la faille d'Ella",
+                "Pique-nique privé au pied des cascades de Ravana"
             ],
-            "bestTime": "January to May",
+            "bestTime": "Janvier à Mai",
             "experiences": [
                 {
-                    "name": "Private Hike with Naturalists"
+                    "name": "Randonnée Privée avec Naturaliste"
                 },
                 {
-                    "name": "Ceylon Tea Masterclass"
+                    "name": "Masterclass de Thé de Ceylan"
                 },
                 {
-                    "name": "Waterfall Private Picnic"
+                    "name": "Pique-nique Privé aux Cascades"
                 }
             ],
             "accommodations": [
                 {
                     "name": "The Tea Estate Reserve (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Mountain View Boutique (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Mist Valley Inn (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "weligama-mirissa": {
             "name": "Weligama & Mirissa",
-            "tagline": "The Southern Rhythm",
-            "description": "Experience the ultimate coastal synergy where the golden sands of Weligama meet the vibrant bays of Mirissa. This southern duo offers a sophisticated blend of world-class surfing, intimate coastal coves, and the island's premier whale watching expeditions. Whether you're catching waves in the crescent bay of Weligama or watching the sunset from Mirissa's Parrot Rock, the southern coast pulses with a refined energy you won't find anywhere else.",
+            "tagline": "Le Rythme du Sud",
+            "description": "Découvrez la synergie côtière ultime où le sable doré de Weligama rencontre les baies animées de Mirissa. Ce duo du sud offre un mélange sophistiqué de surf de classe mondiale, de criques intimistes et d'expéditions d'observation des baleines.",
             "highlights": [
-                "Private yacht charter for whale watching",
-                "Luxury surf camp experience in Weligama Bay",
-                "Sunset cocktails at secluded Mirissa beach clubs",
-                "Gourmet seafood dining by the Indian Ocean",
-                "Private guided tour of the southern coastline"
+                "Charter privé en yacht pour l'observation des baleines",
+                "Cours de surf privés dans la baie de Weligama",
+                "Cocktails au coucher du soleil dans des beach clubs exclusifs",
+                "Dîner gastronomique de fruits de mer face à l'Océan Indien",
+                "Circuit privé guidé de la côte sud"
             ],
-            "bestTime": "November to April",
+            "bestTime": "Novembre à Avril",
             "experiences": [
                 {
-                    "name": "Archery & Water Sports"
+                    "name": "Sports Nautiques Privés"
                 },
                 {
-                    "name": "Turtle Hatchery Visit"
+                    "name": "Visite du Sanctuaire des Tortues"
                 }
             ],
             "accommodations": [
                 {
                     "name": "Saman Villas Exclusive (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Vivanta by Taj (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Bentota Beach Hotel (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "nuwara-eliya": {
             "name": "Nuwara Eliya",
-            "tagline": "The Little England of Sri Lanka",
-            "description": "Elegant, nostalgic, and perpetually cool, Nuwara Eliya is the quintessential highland retreat. Known as 'Little England' for its colonial-era charm and manicured gardens, the city is surrounded by some of the world's most famous tea estates. From the tranquil Gregory Lake to the historic Hill Club, Nuwara Eliya offers a refined sanctuary where the air is fresh and the pace of life gracefully slows down.",
+            "tagline": "La Petite Angleterre du Sri Lanka",
+            "description": "Élégante, nostalgique et toujours fraîche, Nuwara Eliya est la retraite incontournable des hautes terres. Surnommée « La Petite Angleterre » pour son charme colonial et ses jardins anglais, la ville est entourée des plus célèbres plantations de thé au monde.",
             "highlights": [
-                "Private high-tea at a historic colonial bungalow",
-                "Guided tour of a premier Ceylon tea factory",
-                "Horseback riding through the misty highland plains",
-                "Bespoke dining experience overlooking Gregory Lake",
-                "Exclusive access to the hill country's elite clubs"
+                "Thé de l'après-midi privé dans un bungalow colonial historique",
+                "Visite privée d'une usine de thé de Ceylan prestigieuse",
+                "Promenade à cheval dans les plaines embrumées des hautes terres",
+                "Dîner gastronomique sur mesure face au lac Gregory",
+                "Accès exclusif aux clubs privés du pays du thé"
             ],
-            "bestTime": "February to May",
+            "bestTime": "Février à Mai",
             "experiences": [
                 {
-                    "name": "Tea Masterclass"
+                    "name": "Masterclass de Thé de Ceylan"
                 },
                 {
-                    "name": "Horton Plains Private Trek"
+                    "name": "Trek Privé à Horton Plains"
                 },
                 {
-                    "name": "Colonial Heritage Walk"
+                    "name": "Circuit Patrimonial Colonial"
                 }
             ],
             "accommodations": [
                 {
                     "name": "Ceylon Tea Trails (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "The Grand Hotel (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Jetwing St. Andrew's (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         },
         "trincomalee": {
             "name": "Trincomalee",
-            "tagline": "East Coast Charm & Blue Seas",
-            "description": "Trincomalee, on the east coast of Sri Lanka, is home to one of the world's finest natural deep-sea harbors. It offers pristine white sand beaches, sacred Hindu temples, and world-class whale watching opportunities.",
+            "tagline": "Charme de la Côte Est & Eaux Cristallines",
+            "description": "Trincomalee, sur la côte est du Sri Lanka, possède l'un des plus grands ports naturels en eau profonde au monde. La région offre des plages de sable blanc immaculé, des temples hindous sacrés et des opportunités d'observation des baleines exceptionnelles.",
             "highlights": [
-                "Private whale & dolphin watching",
-                "Visit the sacred Koneswaram Temple",
-                "Snorkeling at Pigeon Island",
-                "Relax on Nilaveli Beach"
+                "Observation privée des baleines et des dauphins",
+                "Visite du temple sacré de Koneswaram",
+                "Plongée en apnée à Pigeon Island",
+                "Détente sur la plage de Nilaveli"
             ],
-            "bestTime": "May to October",
+            "bestTime": "Mai à Octobre",
             "experiences": [
                 {
-                    "name": "Deep Sea Whale Safari"
+                    "name": "Safari des Baleines en Haute Mer"
                 },
                 {
-                    "name": "Temple Heritage Tour"
+                    "name": "Visite du Patrimoine des Temples"
                 },
                 {
-                    "name": "Marine Life Exploration"
+                    "name": "Exploration de la Vie Marine"
                 }
             ],
             "accommodations": [
                 {
                     "name": "Jungle Beach by Uga (VIP)",
-                    "type": "Super Luxury"
+                    "type": "Ultra Luxe"
                 },
                 {
                     "name": "Trinco Blu by Cinnamon (Deluxe)",
-                    "type": "Premium"
+                    "type": "Élégance Premium"
                 },
                 {
                     "name": "Nilaveli Beach Hotel (Standard)",
-                    "type": "Comfort"
+                    "type": "Confort"
                 }
             ]
         }
@@ -1943,6 +2115,81 @@
         "leadership_subtitle": "Direction Exécutive",
         "leadership_title": "Notre Direction",
         "leadership_desc": "Guidée par des décennies d'excellence d'entreprise, notre équipe dirigeante allie vision stratégique et rigueur opérationnelle pour offrir les voyages d'exception les plus fiables du Sri Lanka.",
+        "leadership_page": {
+            "stewardship_badge": "Responsabilité Directe de la Direction",
+            "stewardship_title": "Gestion Directe par la Direction Exécutive",
+            "stewardship_desc": "Contrairement aux agences de voyages traditionnelles, chaque voyage conçu par Nilathra Collection est supervisé directement par notre équipe dirigeante. Vous bénéficiez d'un accès direct 1:1 à nos directeurs de terrain — sans intermédiaire ni délai de centre d'appels.",
+            "cta_plan": "Planifiez votre voyage avec nous",
+            "cta_legacy": "Découvrez notre héritage & nos piliers →",
+            "team": [
+                {
+                    "name": "Nirosh Li",
+                    "role": "Directeur Général",
+                    "badge": "Direction Exécutive",
+                    "bio": "Avec plus de 20 ans de leadership d'entreprise et de gestion stratégique d'investissements hôteliers et de grands groupes, Nirosh dirige la vision globale de Nilathra Collection. Son expertise en gouvernance d'entreprise, partenariats de luxe transfrontaliers et relations clients d'exception garantit un niveau d'excellence inégalé.",
+                    "highlights": [
+                        "20+ ans de leadership exécutif",
+                        "Rôle exécutif dans des entreprises de 3 milliards de dollars au Sri Lanka",
+                        "Propriétaire / Directeur"
+                    ]
+                },
+                {
+                    "name": "Wajira Di",
+                    "role": "Directeur Financier (CFO)",
+                    "badge": "Finance & Stratégie",
+                    "bio": "Expert en stratégie financière et expert-comptable agréé comptant plus de 15 ans d'expérience dans l'allocation de capital, la trésorerie globale et la conformité financière des actifs hôteliers de luxe. Wajira garantit une sécurité financière absolue et l'intégrité des transactions.",
+                    "highlights": [
+                        "15+ ans de finance et gouvernance",
+                        "Expert-Comptable Agréé (FCA)",
+                        "Escrow financier et audit VIP"
+                    ]
+                },
+                {
+                    "name": "Saliya Vi",
+                    "role": "Directeur Marketing & Directeur du Bureau des Maldives",
+                    "badge": "Marketing & Opérations Maldives",
+                    "bio": "Architecte de marque dynamique et cadre du tourisme comptant plus de 12 ans d'expérience en stratégie marketing mondiale. En plus de diriger la vision marketing internationale, Saliya dirige notre bureau régional de Male', supervisant les opérations aux Maldives, les vols privés en hydravion et les séjours en villas sur l'eau.",
+                    "highlights": [
+                        "12+ ans de leadership de marque et régional",
+                        "Stratégie marketing mondiale",
+                        "Opérations du bureau de Male'"
+                    ]
+                },
+                {
+                    "name": "Nimali Ra",
+                    "role": "Directrice des Ventes",
+                    "badge": "Ventes & Relations Clients",
+                    "bio": "Fort de plus de 16 ans d'expérience spécialisée dans les ventes de voyages de luxe et la conciergerie haut de gamme, Nimali dirige notre division commerciale. Elle est spécialisée dans la création d'itinéraires sur mesure d'exception et la relation avec les conseillers en voyages mondiaux.",
+                    "highlights": [
+                        "16+ ans de ventes de voyages",
+                        "Création d'itinéraires sur mesure",
+                        "Conciergerie VIP 24/7"
+                    ]
+                },
+                {
+                    "name": "Janaka Cha",
+                    "role": "Responsable des Opérations",
+                    "badge": "Opérations & Logistique",
+                    "bio": "Expert en logistique terrestre et gestion d'expéditions comptant plus de 13 ans d'expérience dans la gestion de flottes et les protocoles de sécurité VIP. Janaka dirige nos opérations de terrain en temps réel, garantissant une exécution parfaite et une sécurité totale.",
+                    "highlights": [
+                        "18+ ans d'opérations touristiques",
+                        "Gestion de flotte & chauffeurs",
+                        "Aviation VIP et logistique terrestre"
+                    ]
+                },
+                {
+                    "name": "Mahasen Ka",
+                    "role": "Responsable Senior des Ressources Humaines",
+                    "badge": "Ressources Humaines & Talents",
+                    "bio": "Stratege RH accompli comptant plus de 15 ans de leadership dans le développement des talents et la culture d'entreprise au sein d'hôtels de luxe. Mahasen supervise le capital humain de Nilathra Collection et dirige notre académie de formation de conciergerie d'élite.",
+                    "highlights": [
+                        "15+ ans de RH hôtelière",
+                        "Académie de formation de conciergerie",
+                        "Talents exécutifs et culture"
+                    ]
+                }
+            ]
+        },
         "wisdom_subtitle": "Savoir Local",
         "wisdom_title": "Au-delà des Guides",
         "wisdom_p1": "Nos guides ne sont pas de simples accompagnateurs ; ce sont des conteurs d'histoires passionnés.",

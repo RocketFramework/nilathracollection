@@ -4,6 +4,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ActivityCard from "@/components/ActivityCard";
+import { useTranslation } from "@/components/I18nProvider";
 import {
     MapPin, Check, Sparkles, Navigation, CalendarDays,
     Compass, Utensils, BedDouble, Sun, Clock, Plus, AlertCircle,
@@ -15,6 +16,8 @@ import { generateRoutePlan, ItineraryEvent, RoutePlan, GeoLocation } from "@/lib
 import { registerTouristAction, submitPlanRequestAction } from "@/actions/contact.actions";
 
 export default function CustomPlanContent() {
+    const t = useTranslation();
+    const tCust = t.custom_plan || {};
     const [step, setStep] = useState(1);
     const [activities, setActivities] = useState<Activity[]>([]);
     const [isLoadingActivities, setIsLoadingActivities] = useState(true);
@@ -166,7 +169,7 @@ export default function CustomPlanContent() {
 
     const handleSubmitPlan = async () => {
         if (!email) {
-            alert("Please enter a valid email address.");
+            alert(tCust.step3?.alert_invalid_email || "Please enter a valid email address.");
             return;
         }
         setIsSubmitting(true);
@@ -251,7 +254,7 @@ export default function CustomPlanContent() {
                 throw new Error(res.error);
             }
 
-            alert("Plan Approved! Our specialists will contact you shortly to finalize details.");
+            alert(tCust.step3?.alert_success || "Plan Approved! Our specialists will contact you shortly to finalize details.");
         } catch (error) {
             console.error("Error submitting request:", error);
             alert("An error occurred while submitting your plan. Please try again.");
@@ -260,22 +263,28 @@ export default function CustomPlanContent() {
         }
     };
 
+    const stepLabels = [
+        tCust.steps?.preferences || 'Preferences',
+        tCust.steps?.locations || 'Locations',
+        tCust.steps?.itinerary || 'Itinerary'
+    ];
+
     return (
         <MainLayout>
             <section className="pt-32 pb-24 px-6 md:px-12 bg-neutral-50 min-h-screen">
                 <div className="max-w-6xl mx-auto">
-                    {/* ... (Header logic) ... */}
+                    {/* Header */}
                     <div className="text-center mb-16 space-y-4">
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 px-3 py-1 bg-brand-gold/10 text-brand-gold rounded-full text-xs uppercase tracking-widest font-semibold border border-brand-gold/20">
-                            <Sparkles size={14} /> AI Trip Planner
+                            <Sparkles size={14} /> {tCust.badge || "AI Trip Planner"}
                         </motion.div>
-                        <h1 className="text-4xl md:text-5xl font-serif text-brand-green">Design Your Perfect Journey</h1>
+                        <h1 className="text-4xl md:text-5xl font-serif text-brand-green">{tCust.title || "Design Your Perfect Journey"}</h1>
                         <p className="text-neutral-500 max-w-2xl mx-auto font-light leading-relaxed">
-                            Discover Sri Lanka your way. Select what you love to do, and our intelligent planner will craft the ultimate itinerary, balancing mandatory highlights with seamless logistics.
+                            {tCust.desc || "Discover Sri Lanka your way. Select what you love to do, and our intelligent planner will craft the ultimate itinerary, balancing mandatory highlights with seamless logistics."}
                         </p>
                     </div>
                     <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-neutral-100">
-                        {/* Steps UI (Same as before) */}
+                        {/* Steps UI */}
                         <div className="flex justify-between items-center mb-12 relative w-full h-8 px-4">
                             <div className="absolute top-1/2 left-0 w-full h-[2px] bg-neutral-100 -z-10 rounded-full overflow-hidden">
                                 <motion.div
@@ -285,7 +294,7 @@ export default function CustomPlanContent() {
                                     transition={{ duration: 0.5 }}
                                 />
                             </div>
-                            {['Preferences', 'Locations', 'Itinerary'].map((label, index) => {
+                            {stepLabels.map((label, index) => {
                                 const s = index + 1;
                                 const isActive = step >= s;
                                 return (
@@ -302,13 +311,13 @@ export default function CustomPlanContent() {
                             {isLoadingActivities ? (
                                 <motion.div key="loading" className="py-24 flex flex-col items-center justify-center">
                                     <div className="w-12 h-12 border-4 border-brand-green/20 border-t-brand-green rounded-full animate-spin mb-4" />
-                                    <p className="text-neutral-500 font-medium tracking-wide">Loading experiences from the collection...</p>
+                                    <p className="text-neutral-500 font-medium tracking-wide">{tCust.step1?.loading || "Loading experiences from the collection..."}</p>
                                 </motion.div>
                             ) : step === 1 && (
                                 <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-10">
                                     <div className="text-center">
-                                        <h3 className="text-2xl font-serif text-brand-green mb-2">What do you love to do?</h3>
-                                        <p className="text-sm text-neutral-500">Select the experiences that call to you.</p>
+                                        <h3 className="text-2xl font-serif text-brand-green mb-2">{tCust.step1?.title || "What do you love to do?"}</h3>
+                                        <p className="text-sm text-neutral-500">{tCust.step1?.subtitle || "Select the experiences that call to you."}</p>
                                     </div>
 
                                     <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
@@ -320,7 +329,7 @@ export default function CustomPlanContent() {
                                                     onClick={() => setSelectedCategory(cat)}
                                                     className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${selectedCategory === cat ? 'bg-brand-green text-white shadow-md scale-105' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
                                                 >
-                                                    {cat}
+                                                    {cat === "All" ? (tCust.step1?.all_categories || "All") : cat}
                                                 </button>
                                             ))}
                                         </div>
@@ -330,7 +339,7 @@ export default function CustomPlanContent() {
                                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
                                             <input
                                                 type="text"
-                                                placeholder="Search experiences..."
+                                                placeholder={tCust.step1?.search_placeholder || "Search experiences..."}
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
                                                 className="w-full pl-12 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-full text-sm focus:ring-2 focus:ring-brand-gold focus:border-brand-gold transition-all"
@@ -352,12 +361,12 @@ export default function CustomPlanContent() {
                                         ) : (
                                             <div className="col-span-full py-20 text-center">
                                                 <Search className="mx-auto text-neutral-200 mb-4" size={48} />
-                                                <p className="text-neutral-400 font-light text-lg">No experiences found for your criteria.</p>
+                                                <p className="text-neutral-400 font-light text-lg">{tCust.step1?.empty_search || "No experiences found for your criteria."}</p>
                                                 <button
                                                     onClick={() => { setSearchTerm(""); setSelectedCategory("All"); }}
                                                     className="mt-4 text-brand-gold font-medium hover:underline"
                                                 >
-                                                    Clear filters
+                                                    {tCust.step1?.clear_filters || "Clear filters"}
                                                 </button>
                                             </div>
                                         )}
@@ -369,7 +378,7 @@ export default function CustomPlanContent() {
                                             disabled={selectedActivities.length === 0}
                                             className="bg-brand-green text-white px-8 py-3 rounded-full text-sm uppercase tracking-wider font-semibold shadow-lg hover:shadow-xl hover:bg-brand-charcoal transition-all disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-2"
                                         >
-                                            Continue to Locations <Navigation size={16} className="group-hover:translate-x-1 transition-transform" />
+                                            {tCust.step1?.continue || "Continue to Locations"} <Navigation size={16} className="group-hover:translate-x-1 transition-transform" />
                                         </button>
                                     </div>
                                 </motion.div>
@@ -378,20 +387,20 @@ export default function CustomPlanContent() {
                             {step === 2 && (
                                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-10">
                                     <div className="text-center">
-                                        <h3 className="text-2xl font-serif text-brand-green mb-2">Curating Your Destinations</h3>
-                                        <p className="text-sm text-neutral-500">Based on your choices, we've identified must-visit locations. Feel free to add more.</p>
+                                        <h3 className="text-2xl font-serif text-brand-green mb-2">{tCust.step2?.title || "Curating Your Destinations"}</h3>
+                                        <p className="text-sm text-neutral-500">{tCust.step2?.subtitle || "Based on your choices, we've identified must-visit locations. Feel free to add more."}</p>
                                     </div>
 
                                     <div className="space-y-8">
                                         <div>
-                                            <h4 className="text-sm font-semibold uppercase tracking-wider text-brand-gold mb-4 flex items-center gap-2"><MapPin size={16} /> Mandatory Stops</h4>
+                                            <h4 className="text-sm font-semibold uppercase tracking-wider text-brand-gold mb-4 flex items-center gap-2"><MapPin size={16} /> {tCust.step2?.mandatory_stops || "Mandatory Stops"}</h4>
                                             <div className="flex flex-wrap gap-3">
                                                 {mandatoryLocations.length > 0 ? mandatoryLocations.map((loc, i) => (
                                                     <div key={i} className="px-4 py-2 bg-neutral-900 text-white rounded-lg text-sm flex items-center gap-2 shadow-md">
                                                         <Check size={14} className="text-brand-gold" /> {loc.name}
                                                     </div>
                                                 )) : (
-                                                    <p className="text-sm text-neutral-400 italic">No specific location bound to selected activities.</p>
+                                                    <p className="text-sm text-neutral-400 italic">{tCust.step2?.mandatory_empty || "No specific location bound to selected activities."}</p>
                                                 )}
                                             </div>
                                         </div>
@@ -399,13 +408,13 @@ export default function CustomPlanContent() {
                                         <div className="h-px bg-neutral-100 w-full" />
 
                                         <div>
-                                            <h4 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 mb-4 flex items-center gap-2"><Compass size={16} /> Optional Experiences & Extensions</h4>
+                                            <h4 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 mb-4 flex items-center gap-2"><Compass size={16} /> {tCust.step2?.optional_stops || "Optional Experiences & Extensions"}</h4>
                                             
                                             {/* Maldives Twin-Island Toggle Card */}
                                             <div className="mb-4 p-4 rounded-xl border border-brand-gold/40 bg-brand-gold/5 flex items-center justify-between">
                                                 <div>
-                                                    <p className="font-serif text-base font-bold text-brand-green">Maldives Overwater Atoll Extension</p>
-                                                    <p className="text-xs text-neutral-500">Combine your Sri Lanka journey with luxury overwater villas & seaplane transfers in the Maldives (Male&apos; Desk handling).</p>
+                                                    <p className="font-serif text-base font-bold text-brand-green">{tCust.step2?.maldives_title || "Maldives Overwater Atoll Extension"}</p>
+                                                    <p className="text-xs text-neutral-500">{tCust.step2?.maldives_desc || "Combine your Sri Lanka journey with luxury overwater villas & seaplane transfers in the Maldives (Male' Desk handling)."}</p>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -418,7 +427,7 @@ export default function CustomPlanContent() {
                                                     }}
                                                     className={`px-4 py-2 text-xs font-bold uppercase rounded-lg transition-all ${note.includes("Maldives Extension") ? 'bg-brand-green text-white' : 'bg-white border border-brand-gold text-brand-green hover:bg-brand-gold/10'}`}
                                                 >
-                                                    {note.includes("Maldives Extension") ? '✓ Extension Added' : '+ Add Maldives'}
+                                                    {note.includes("Maldives Extension") ? (tCust.step2?.maldives_added || '✓ Extension Added') : (tCust.step2?.maldives_add || '+ Add Maldives')}
                                                 </button>
                                             </div>
 
@@ -444,7 +453,7 @@ export default function CustomPlanContent() {
                                     </div>
 
                                     <div className="flex justify-between pt-8 border-t border-neutral-100">
-                                        <button onClick={() => setStep(1)} className="...">Back</button>
+                                        <button onClick={() => setStep(1)} className="px-6 py-3 text-sm font-medium text-neutral-500 bg-white border border-neutral-200 rounded-full hover:bg-neutral-50 transition-colors">{tCust.step2?.back || "Back"}</button>
                                         <button
                                             onClick={generatePlan}
                                             disabled={isGenerating}
@@ -453,10 +462,10 @@ export default function CustomPlanContent() {
                                             {isGenerating ? (
                                                 <>
                                                     <BrainCircuit className="animate-pulse" size={18} />
-                                                    AI Optimizing...
+                                                    {tCust.step2?.generating || "AI Optimizing..."}
                                                 </>
                                             ) : (
-                                                <><Sparkles size={16} /> Generate AI Plan</>
+                                                <><Sparkles size={16} /> {tCust.step2?.generate || "Generate AI Plan"}</>
                                             )}
                                         </button>
                                     </div>
@@ -469,17 +478,17 @@ export default function CustomPlanContent() {
                                     <div className="flex justify-center">
                                         <div className="px-4 py-2 bg-brand-green/10 text-brand-green rounded-full text-sm font-semibold flex items-center gap-2">
                                             <BrainCircuit size={16} />
-                                            Optimization Score: {routeResult.optimizationScore}%
+                                            {tCust.step3?.score || "Optimization Score:"} {routeResult.optimizationScore}%
                                         </div>
                                     </div>
 
                                     <div className="text-center">
                                         <h3 className="text-3xl font-serif text-brand-green">
-                                            Your Bespoke {routeResult.totalDays}-Day Itinerary
+                                            {tCust.step3?.title || "Your Bespoke"} {routeResult.totalDays} {tCust.step3?.days_itinerary || "Day Itinerary"}
                                         </h3>
                                         <p className="text-sm text-neutral-500 mt-2">
-                                            Total travel: {routeResult.totalDistance}km |
-                                            Est. Cost: Rs. {routeResult.totalCost.toLocaleString()}
+                                            {tCust.step3?.total_travel || "Total travel:"} {routeResult.totalDistance}km |
+                                            {" "}{tCust.step3?.est_cost || "Est. Cost:"} LKR {routeResult.totalCost.toLocaleString()}
                                         </p>
                                     </div>
 
@@ -489,12 +498,12 @@ export default function CustomPlanContent() {
                                             <div key={day.day} className="border border-neutral-200 rounded-3xl overflow-hidden bg-white shadow-sm">
                                                 <div className="bg-neutral-50 px-6 py-4 flex justify-between items-center border-b border-neutral-200">
                                                     <div>
-                                                        <h4 className="font-serif text-xl">Day {day.day}</h4>
+                                                        <h4 className="font-serif text-xl">{tCust.step3?.day || "Day"} {day.day}</h4>
                                                         <p className="text-xs text-neutral-400">{day.weather || "Clear skies"}</p>
                                                     </div>
                                                     <div className="text-right">
                                                         <span className="text-xs font-medium text-brand-gold bg-brand-gold/10 px-2 py-1 rounded">
-                                                            {day.utilization * 100}% Day Efficiency
+                                                            {day.utilization * 100}% {tCust.step3?.day_efficiency || "Day Efficiency"}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -532,40 +541,40 @@ export default function CustomPlanContent() {
                                         ))}
                                     </div>
 
-                                    {/* ... (Final Approval inputs name/email) ... */}
+                                    {/* Final Approval inputs */}
                                     <div className="p-8 bg-brand-green/5 rounded-3xl border border-brand-green/10 space-y-6">
-                                        <h4 className="font-serif text-xl text-brand-green text-center">Ready to Make It Reality?</h4>
+                                        <h4 className="font-serif text-xl text-brand-green text-center">{tCust.step3?.form_title || "Ready to Make It Reality?"}</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <input
                                                 type="text"
-                                                placeholder="Your Name"
+                                                placeholder={tCust.step3?.name || "Your Name"}
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
                                                 value={name}
                                                 onChange={e => setName(e.target.value)}
                                             />
                                             <input
                                                 type="email"
-                                                placeholder="Email Address"
+                                                placeholder={tCust.step3?.email || "Email Address"}
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
                                                 value={email}
                                                 onChange={e => setEmail(e.target.value)}
                                             />
                                             <input
                                                 type="tel"
-                                                placeholder="Phone Number (Optional)"
+                                                placeholder={tCust.step3?.phone || "Phone Number (Optional)"}
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
                                                 value={phone}
                                                 onChange={e => setPhone(e.target.value)}
                                             />
                                             <input
                                                 type="number"
-                                                placeholder="Travelers (e.g. 2)"
+                                                placeholder={tCust.step3?.travelers || "Travelers (e.g. 2)"}
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold"
                                                 value={travelers}
                                                 onChange={e => setTravelers(e.target.value)}
                                             />
                                             <textarea
-                                                placeholder="Any special requirements or notes? (Optional)"
+                                                placeholder={tCust.step3?.note || "Any special requirements or notes? (Optional)"}
                                                 className="bg-white border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-gold min-h-[100px] resize-y"
                                                 value={note}
                                                 onChange={e => setNote(e.target.value)}
@@ -578,14 +587,14 @@ export default function CustomPlanContent() {
                                             onClick={() => setStep(2)}
                                             className="px-6 py-3 text-sm font-medium text-neutral-500 bg-white border border-neutral-200 rounded-full hover:bg-neutral-50 transition-colors"
                                         >
-                                            Adjust Locations
+                                            {tCust.step3?.adjust || "Adjust Locations"}
                                         </button>
                                         <button
                                             className="bg-brand-green text-white px-8 py-3 rounded-full text-sm uppercase tracking-wider font-semibold shadow-xl hover:bg-brand-charcoal transition-all flex items-center gap-2 disabled:opacity-50"
                                             onClick={handleSubmitPlan}
                                             disabled={isSubmitting}
                                         >
-                                            {isSubmitting ? 'Submitting...' : 'Approve Plan'} {isSubmitting ? null : <Check size={16} />}
+                                            {isSubmitting ? (tCust.step3?.submitting || 'Submitting...') : (tCust.step3?.approve || 'Approve Plan')} {isSubmitting ? null : <Check size={16} />}
                                         </button>
                                     </div>
                                 </motion.div>

@@ -125,7 +125,7 @@ export default function PremiumPlan() {
                             <div className="flex flex-col md:flex-row items-center gap-12 md:gap-20">
                                 <div className="text-center md:text-left">
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400 font-black mb-3">{tPrem.quote.sig}</p>
-                                    <div className="text-[10px] uppercase tracking-widest text-logo-blue font-bold mb-1">Starting From</div>
+                                    <div className="text-[10px] uppercase tracking-widest text-logo-blue font-bold mb-1">{tPrem.quote.starting_from || "Starting From"}</div>
                                     <div className="text-6xl font-serif text-logo-blue tracking-widest leading-none">
                                         ${total.toLocaleString()}
                                     </div>
@@ -136,7 +136,7 @@ export default function PremiumPlan() {
                                 <div className="h-24 w-px bg-neutral-100 hidden md:block" />
                                 <div className="text-center md:text-left">
                                     <p className="text-[10px] uppercase tracking-[0.3em] text-brand-gold font-black mb-3">{tPrem.quote.daily}</p>
-                                    <div className="text-[10px] uppercase tracking-widest text-logo-blue font-bold mb-1">Starting From</div>
+                                    <div className="text-[10px] uppercase tracking-widest text-logo-blue font-bold mb-1">{tPrem.quote.starting_from || "Starting From"}</div>
                                     <div className="text-4xl font-serif text-logo-blue leading-none">
                                         ${nightRatePerPerson.toLocaleString()}
                                     </div>

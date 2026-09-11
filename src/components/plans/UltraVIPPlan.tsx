@@ -162,11 +162,11 @@ export default function UltraVIPPlan() {
                             whileInView={{ opacity: 1, scale: 1 }}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] mb-6"
                         >
-                            <Sparkles size={14} /> Choose Your Journey
+                            <Sparkles size={14} /> {tVip.choose?.badge || "Choose Your Journey"}
                         </motion.div>
-                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-6 tracking-tight">Our Ultra VIP Journeys</h2>
+                        <h2 className="text-5xl md:text-7xl font-serif text-logo-blue mb-6 tracking-tight">{tVip.choose?.title || "Our Ultra VIP Journeys"}</h2>
                         <p className="text-neutral-500 max-w-2xl mx-auto text-lg leading-relaxed">
-                            Two distinct pathways, one standard of absolute excellence. Select the journey that resonates with your vision.
+                            {tVip.choose?.desc || "Two distinct pathways, one standard of absolute excellence. Select the journey that resonates with your vision."}
                         </p>
                     </div>
 
@@ -180,7 +180,7 @@ export default function UltraVIPPlan() {
                                     : "text-neutral-400 hover:text-logo-blue"
                                     }`}
                             >
-                                <Crown size={14} /> The Gold Route
+                                <Crown size={14} /> {tVip.choose?.route_gold || "The Gold Route"}
                             </button>
                             <button
                                 onClick={() => setActiveJourney("signature")}
@@ -189,7 +189,7 @@ export default function UltraVIPPlan() {
                                     : "text-neutral-400 hover:text-logo-blue"
                                     }`}
                             >
-                                <Gem size={14} /> Nilathra Signature Journey
+                                <Gem size={14} /> {tVip.choose?.route_sig || "Nilathra Signature Journey"}
                             </button>
                         </div>
                     </div>

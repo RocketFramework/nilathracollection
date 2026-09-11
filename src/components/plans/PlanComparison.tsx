@@ -1,19 +1,22 @@
-// components/plans/PlanComparison.tsx
 "use client";
 
 import { Check, X, Sparkles, Clock, MapPin, Globe, RefreshCcw } from "lucide-react";
 import Link from "next/link";
+import { useTranslation } from "@/components/I18nProvider";
 
 export default function PlanComparison() {
-  const tiers = [
-    { id: 'regular', name: 'Regular', color: 'text-green-700' },
-    { id: 'premium', name: 'Premium', color: 'text-blue-700' },
-    { id: 'luxury', name: 'Luxury', color: 'text-amber-700' },
-    { id: 'ultra-vip', name: 'Ultra VIP', color: 'text-neutral-900' },
-    { id: 'mixed', name: 'Mixed', color: 'text-neutral-500' }
+  const t = useTranslation();
+  const comp = t.plan_comparison || {};
+
+  const defaultTiers = [
+    { id: 'regular', name: comp.tiers?.regular || 'Regular', color: 'text-green-700' },
+    { id: 'premium', name: comp.tiers?.premium || 'Premium', color: 'text-blue-700' },
+    { id: 'luxury', name: comp.tiers?.luxury || 'Luxury', color: 'text-amber-700' },
+    { id: 'ultra-vip', name: comp.tiers?.['ultra-vip'] || 'Ultra VIP', color: 'text-neutral-900' },
+    { id: 'mixed', name: comp.tiers?.mixed || 'Mixed', color: 'text-neutral-500' }
   ];
 
-  const features = [
+  const defaultFeatures = [
     {
       name: "Property Type",
       regular: "3-Star / Homestays",
@@ -99,12 +102,7 @@ export default function PlanComparison() {
       regular: "None",
       premium: "Driver",
       luxury: "Driver, Guide & Butler",
-      ultraVip: (
-        <>
-          Driver + Guide + Butler + Valet<br />
-          + Concierge + 6-Chef Team
-        </>
-      ),
+      ultraVip: "Driver + Guide + Butler + Valet + Concierge + 6-Chef Team",
       mixed: "Flexible"
     },
     {
@@ -125,16 +123,18 @@ export default function PlanComparison() {
     }
   ];
 
+  const features = comp.features || defaultFeatures;
+
   return (
     <div className="bg-white rounded-3xl p-8 shadow-xl border border-neutral-200">
-      <h3 className="text-3xl font-serif text-brand-green mb-10 text-center">Compare Journeys</h3>
+      <h3 className="text-3xl font-serif text-brand-green mb-10 text-center">{comp.title || "Compare Journeys"}</h3>
 
       <div className="overflow-x-auto pb-6">
         <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b-2 border-neutral-100">
-              <th className="text-left py-6 px-4 font-serif text-lg">Experience</th>
-              {tiers.map(tier => (
+              <th className="text-left py-6 px-4 font-serif text-lg">{comp.experience || "Experience"}</th>
+              {defaultTiers.map(tier => (
                 <th key={tier.id} className={`text-center py-6 px-4 font-serif text-lg ${tier.color}`}>
                   {tier.name}
                 </th>
@@ -142,7 +142,7 @@ export default function PlanComparison() {
             </tr>
           </thead>
           <tbody>
-            {features.map((feature, index) => (
+            {features.map((feature: any, index: number) => (
               <tr key={index} className="border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors">
                 <td className="py-5 px-4 font-bold text-neutral-800 text-sm italic">{feature.name}</td>
                 <td className="py-5 px-4 text-center text-green-800 text-xs font-medium">{feature.regular}</td>
@@ -157,14 +157,14 @@ export default function PlanComparison() {
       </div>
 
       <div className="mt-12 grid grid-cols-2 md:grid-cols-5 gap-4">
-        {tiers.map(tier => (
+        {defaultTiers.map(tier => (
           <Link
             key={tier.id}
             href={tier.id === 'mixed' ? '/custom-plan' : `/plans/${tier.id === 'ultra-vip' ? 'ultra-vip' : tier.id.toLowerCase()}`}
             className="flex flex-col items-center p-4 rounded-2xl hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all group"
           >
-            <span className={`text-xs font-black uppercase tracking-widest mb-2 ${tier.color}`}>Explore</span>
-            <span className="text-sm font-bold text-neutral-800 group-hover:underline">View {tier.name}</span>
+            <span className={`text-xs font-black uppercase tracking-widest mb-2 ${tier.color}`}>{comp.explore || "Explore"}</span>
+            <span className="text-sm font-bold text-neutral-800 group-hover:underline">{comp.view || "View"} {tier.name}</span>
           </Link>
         ))}
       </div>

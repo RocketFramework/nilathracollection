@@ -100,54 +100,52 @@
         "title": "The Art of Travel",
         "desc": "Select the perfect level of exclusivity for your Sri Lankan odyssey. Each tier is meticulously architected to provide a peerless experience.",
         "learn_more": "Learn More",
+        "explore_journey": "explore journey",
+        "badge": "Our Travel Tiers",
+        "desc_1": "Select the perfect level of exclusivity for your Sri Lankan odyssey.",
+        "desc_2": "Each tier is meticulously architected to provide a peerless experience.",
         "items": [
             {
+                "id": "ultra-vip",
+                "badge": "The Pinnacle",
                 "title": "Ultra VIP",
-                "subtitle": "The Sovereignty Collection",
-                "description": "Reserved for the world's most discerning travelers. Absolute privacy, bespoke luxury, and peerless security.",
-                "features": [
-                    "Private Jet-Side Arrival & Tarmac Clearance",
-                    "Standby Helicopter for Trip Duration",
-                    "24/7 Close Protection Detail (CPD)",
-                    "Private Estate Buyouts & 1:1 Staffing",
-                    "Absolute NDA & Identity Protection"
-                ]
+                "priceRange": "$15,000",
+                "description": "The absolute pinnacle of luxury. Private jet-side clearance, 24/7 close protection, and dedicated aviation assets."
             },
             {
-                "title": "Luxury Collection",
-                "subtitle": "The Sapphire Collection",
-                "description": "Exceptional 5-star elegance. Hand-picked signature resorts, elite guidance, and curated gastronomy.",
-                "features": [
-                    "Iconic Signature 5-Star Resorts",
-                    "Private Premium SUV & Elite Chauffeur",
-                    "Daily Signature Half-Board (HB) Dining",
-                    "Curated Cultural Tours & Private Access",
-                    "Daily Ayurvedic/Balinese Spa Sessions"
-                ]
+                "id": "luxury",
+                "badge": "Exquisite Comfort",
+                "title": "Ceylon Luxury",
+                "priceRange": "$650",
+                "description": "5-star signature resorts, premium SUV transport, and dedicated personalized itinerary management."
             },
             {
-                "title": "Premium Plan",
-                "subtitle": "The Emerald Collection",
-                "description": "Reliable, well-organized excellence. Experience the island's beauty with 3-4 star curated excellence.",
-                "features": [
-                    "Hand-picked 3-4 Star Signature Hotels",
-                    "Private AC Sedan/Van & Expert Driver",
-                    "Daily Half-Board (HB) Dining Selection",
-                    "Guided Tours of Major Historic Sites",
-                    "Entrance Fees to National Parks Included"
-                ]
+                "id": "premium",
+                "badge": "Refined Style",
+                "title": "Ceylon Premium",
+                "priceRange": "$350",
+                "description": "Reputable 3-4 star hotels, reliable sedan or van transport, and essential curated local experiences."
             },
             {
+                "id": "regular",
+                "badge": "Authentic Value",
+                "title": "Ceylon Regular",
+                "priceRange": "$80",
+                "description": "Authentic 3-star guesthouses, homestays, and flexible budget transport for the savvy explorer."
+            },
+            {
+                "id": "mixed",
+                "badge": "Custom Blend",
                 "title": "Mixed Collection",
-                "subtitle": "Total Fluidity",
-                "description": "Your journey, your way. Mix and match tiers across destinations to create your bespoke escape.",
-                "features": [
-                    "Flexible Tier Mixing per Destination",
-                    "Dynamic Pacing (Activity vs. Serenity)",
-                    "Combined Jet & Ground Transport",
-                    "Bespoke Masterplans around Your Persona",
-                    "Unified Proposal at Multiple Points"
-                ]
+                "priceRange": "Flexible",
+                "description": "A tailored blend of different tiers throughout your journey for the ultimate personalized experience."
+            },
+            {
+                "id": "maldives-twin",
+                "badge": "Ceylon & Maldives",
+                "title": "Ceylon & Maldives",
+                "priceRange": "Bespoke",
+                "description": "Seamlessly integrate Sri Lankan cultural expeditions and safaris with private overwater bungalow retreats in the Maldives."
             }
         ],
         "ultraVip": {
@@ -838,7 +836,8 @@
                 "sig": "Signature Quote",
                 "sig_det": "7 Nights · 2 Travelers",
                 "daily": "Daily Value",
-                "daily_det": "Per Person / Per Day"
+                "daily_det": "Per Person / Per Day",
+                "starting_from": "Starting From"
             },
             "emerald": {
                 "badge": "The Emerald Route",
@@ -1137,6 +1136,60 @@
                 "btn": "Initiate Regular Consultation",
                 "sub": "coordinated local handling provided"
             }
+        }
+    },
+    "custom_plan": {
+        "badge": "AI Trip Planner",
+        "title": "Design Your Perfect Journey",
+        "desc": "Discover Sri Lanka your way. Select what you love to do, and our intelligent planner will craft the ultimate itinerary, balancing mandatory highlights with seamless logistics.",
+        "steps": {
+            "preferences": "Preferences",
+            "locations": "Locations",
+            "itinerary": "Itinerary"
+        },
+        "step1": {
+            "title": "What do you love to do?",
+            "subtitle": "Select the experiences that call to you.",
+            "all_categories": "All",
+            "search_placeholder": "Search experiences...",
+            "empty_search": "No experiences found for your criteria.",
+            "clear_filters": "Clear filters",
+            "loading": "Loading experiences from the collection...",
+            "continue": "Continue to Locations"
+        },
+        "step2": {
+            "title": "Curating Your Destinations",
+            "subtitle": "Based on your choices, we've identified must-visit locations. Feel free to add more.",
+            "mandatory_stops": "Mandatory Stops",
+            "mandatory_empty": "No specific location bound to selected activities.",
+            "optional_stops": "Optional Experiences & Extensions",
+            "maldives_title": "Maldives Overwater Atoll Extension",
+            "maldives_desc": "Combine your Sri Lanka journey with luxury overwater villas & seaplane transfers in the Maldives (Male' Desk handling).",
+            "maldives_add": "+ Add Maldives",
+            "maldives_added": "✓ Extension Added",
+            "back": "Back",
+            "generate": "Generate AI Plan",
+            "generating": "AI Optimizing..."
+        },
+        "step3": {
+            "score": "Optimization Score:",
+            "title": "Your Bespoke",
+            "days_itinerary": "Day Itinerary",
+            "total_travel": "Total travel:",
+            "est_cost": "Est. Cost:",
+            "day": "Day",
+            "day_efficiency": "Day Efficiency",
+            "form_title": "Ready to Make It Reality?",
+            "name": "Your Name",
+            "email": "Email Address",
+            "phone": "Phone Number (Optional)",
+            "travelers": "Travelers (e.g. 2)",
+            "note": "Any special requirements or notes? (Optional)",
+            "adjust": "Adjust Locations",
+            "approve": "Approve Plan",
+            "submitting": "Submitting...",
+            "alert_success": "Plan Approved! Our specialists will contact you shortly to finalize details.",
+            "alert_invalid_email": "Please enter a valid email address."
         }
     },
     "destinations": {
@@ -1524,6 +1577,126 @@
             "title": "Not sure which plan is right for you? Our local travel specialists are here to guide you.",
             "btn": "Schedule a Private Consultation"
         }
+    },
+    "plan_comparison": {
+        "title": "Compare Journeys",
+        "experience": "Experience",
+        "explore": "Explore",
+        "view": "View",
+        "back_to_plans": "Back to all plans",
+        "tiers": {
+            "regular": "Regular",
+            "premium": "Premium",
+            "luxury": "Luxury",
+            "ultra-vip": "Ultra VIP",
+            "mixed": "Mixed"
+        },
+        "features": [
+            {
+                "name": "Property Type",
+                "regular": "3-Star / Homestays",
+                "premium": "3-4 Star / Comfort",
+                "luxury": "Signature 5-Star",
+                "ultraVip": "Private Estates",
+                "mixed": "Flexible Blend"
+            },
+            {
+                "name": "Linen & Bedding",
+                "regular": "As per Hotel",
+                "premium": "As per Hotel",
+                "luxury": "As per Hotel",
+                "ultraVip": "Brand New / Bespoke",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Property Privacy",
+                "regular": "Shared Hotel",
+                "premium": "Shared Hotel",
+                "luxury": "Luxury Hotel",
+                "ultraVip": "Entire Estate Buyout",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Security",
+                "regular": "None",
+                "premium": "None",
+                "luxury": "Discreet Support",
+                "ultraVip": "Executive Protection Team",
+                "mixed": "Optional"
+            },
+            {
+                "name": "Concierge",
+                "regular": "Email Support",
+                "premium": "Travel Concierge",
+                "luxury": "Dedicated Concierge",
+                "ultraVip": "24/7 Global Concierge",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Cultural Access",
+                "regular": "Public Visits",
+                "premium": "Guided Visits",
+                "luxury": "Premium Access",
+                "ultraVip": "Private Heritage Access",
+                "mixed": "Custom"
+            },
+            {
+                "name": "Dining",
+                "regular": "Hotel Dining (BB)",
+                "premium": "Hotel + Local (HB)",
+                "luxury": "Fine Dining (HB)",
+                "ultraVip": "Private Chef Experiences",
+                "mixed": "Custom"
+            },
+            {
+                "name": "Arrival Experience",
+                "regular": "Airport Arrival",
+                "premium": "Assisted Arrival",
+                "luxury": "VIP Lounge",
+                "ultraVip": "Private Terminal + Tarmac",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Experiences",
+                "regular": "Standard Tours",
+                "premium": "Curated Tours",
+                "luxury": "Signature Experiences",
+                "ultraVip": "Impossible Experiences",
+                "mixed": "Custom"
+            },
+            {
+                "name": "Wellness",
+                "regular": "Spa Access",
+                "premium": "Spa Packages",
+                "luxury": "Luxury Spa",
+                "ultraVip": "Private Doctor / Master",
+                "mixed": "Optional"
+            },
+            {
+                "name": "Personal Staff",
+                "regular": "None",
+                "premium": "Driver",
+                "luxury": "Driver, Guide & Butler",
+                "ultraVip": "Driver + Guide + Butler + Valet + Concierge + 6-Chef Team",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Travel Flexibility",
+                "regular": "Fixed",
+                "premium": "Limited Changes",
+                "luxury": "Flexible",
+                "ultraVip": "On-Demand Aircraft",
+                "mixed": "Flexible"
+            },
+            {
+                "name": "Price / Day / Pax",
+                "regular": "$80",
+                "premium": "$350",
+                "luxury": "$650",
+                "ultraVip": "$15,000",
+                "mixed": "Flexible"
+            }
+        ]
     },
     "destination_slugs": {
         "sigiriya": {
@@ -1943,6 +2116,81 @@
         "leadership_subtitle": "Executive Steering",
         "leadership_title": "Our Leadership",
         "leadership_desc": "Guided by decades of corporate excellence and deep travel industry mastery, our leadership team combines strategic vision with meticulous operational focus to deliver Sri Lanka's most trusted luxury journeys.",
+        "leadership_page": {
+            "stewardship_badge": "Direct Senior Accountability",
+            "stewardship_title": "Undivided Senior Director Stewardship",
+            "stewardship_desc": "Unlike traditional mass travel agencies, every journey curated by Nilathra Collection is supervised directly by our senior leadership team. You have direct 1:1 access to our ground directors—ensuring zero call-center delays and total transparency at every touchpoint.",
+            "cta_plan": "Plan Your Journey With Us",
+            "cta_legacy": "Explore Our Legacy & Pillars →",
+            "team": [
+                {
+                    "name": "Nirosh Li",
+                    "role": "Managing Director",
+                    "badge": "Executive Leadership",
+                    "bio": "With over 20 years of executive corporate leadership and strategic enterprise management across major conglomerates and hospitality investments, Nirosh steers Nilathra Collection's global vision. His expertise in executive governance, cross-border luxury partnerships, and ultra-high-net-worth client relations ensures an unparalleled standard of excellence across all island operations.",
+                    "highlights": [
+                        "20+ Years Executive Leadership",
+                        "Played senior role for 3 billion dollar enterpises in Sri Lanka",
+                        "Owner/ Director"
+                    ]
+                },
+                {
+                    "name": "Wajira Di",
+                    "role": "Chief Financial Officer",
+                    "badge": "Finance & Strategy",
+                    "bio": "A seasoned corporate finance strategist and Chartered Accountant with 15+ years of experience in capital allocation, global treasury management, and financial compliance across luxury hospitality assets and travel infrastructure. Wajira guarantees flawless transaction security, price integrity, and financial strength for the agency.",
+                    "highlights": [
+                        "15+ Years Finance & Governance",
+                        "Chartered Accountant (FCA)",
+                        "VIP Financial Escrow & Audit"
+                    ]
+                },
+                {
+                    "name": "Saliya Vi",
+                    "role": "Head of Marketing & Head of Maldives Office",
+                    "badge": "Marketing & Maldives Ops",
+                    "bio": "A dynamic brand architect and travel executive with 12+ years of experience in global marketing strategy and luxury hospitality management. In addition to driving Nilathra Collection’s international marketing vision, Saliya heads our Male' regional office, overseeing Maldives operations, private seaplane charters, and overwater villa retreats.",
+                    "highlights": [
+                        "12+ Years Brand & Regional Leadership",
+                        "Global Marketing Strategy",
+                        "Male' Office Operations"
+                    ]
+                },
+                {
+                    "name": "Nimali Ra",
+                    "role": "Head of Sales",
+                    "badge": "Sales & Client Relations",
+                    "bio": "Bringing 16+ years of specialized experience in luxury travel sales, corporate guest relations, and high-value concierge management, Nimali leads our sales division. She specializes in crafting customized high-tier itineraries and maintaining seamless relationships with premier global travel advisors.",
+                    "highlights": [
+                        "16+ Years Travel Sales",
+                        "Bespoke Itinerary Curation",
+                        "24/7 VIP Concierge Excellence"
+                    ]
+                },
+                {
+                    "name": "Janaka Cha",
+                    "role": "Manager Operations",
+                    "badge": "Operations & Logistics",
+                    "bio": "A master of ground logistics and expedition management with 13+ years in complex fleet operations, private aviation ground handling, and VIP security protocols. Janaka leads our real-time ground operations, ensuring flawless execution, chauffeur-guide precision, and complete safety across every journey.",
+                    "highlights": [
+                        "18+ Years Travel Operations",
+                        "Chauffeur & Fleet Management",
+                        "VIP Aviation & Ground Logistics"
+                    ]
+                },
+                {
+                    "name": "Mahasen Ka",
+                    "role": "Senior Manager Human Resource",
+                    "badge": "People & Talent",
+                    "bio": "An accomplished human resource strategist with over 15 years of leadership in talent development, executive recruitment, and organizational culture across premium luxury hotel chains and travel corporations. Mahasen oversees Nilathra Collection’s human capital, spearheading our elite concierge training academy and driving service excellence standards across all team touchpoints.",
+                    "highlights": [
+                        "15+ Years Hospitality HR",
+                        "Concierge Training Academy",
+                        "Executive Talent & Culture"
+                    ]
+                }
+            ]
+        },
         "wisdom_subtitle": "Local Wisdom",
         "wisdom_title": "Beyond the Guidebooks",
         "wisdom_p1": "Our guides are more than just navigators; they are storytellers. Whether it's a private tour of the Galle Fort with a local historian or a sunrise trek in the Knuckles Range with a wildlife specialist, we ensure you see Sri Lanka through the eyes of those who love it most.",
