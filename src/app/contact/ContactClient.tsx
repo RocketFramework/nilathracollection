@@ -12,8 +12,8 @@ import { PhoneInput } from "@/components/ui/PhoneInput";
 import { useTranslation } from "@/components/I18nProvider";
 
 export default function ContactClient() {
-    const { dictionary } = useTranslation();
-    const c = dictionary?.contact || {};
+    const dict = useTranslation();
+    const c = dict?.contact || {};
 
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);

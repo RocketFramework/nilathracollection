@@ -9,6 +9,21 @@
         "scroll": "Scrollen"
     },
     "home": {
+        "accreditation": {
+            "subtitle": "Offizielle Lizenzierung & Akkreditierung",
+            "title": "Akkreditierte & Registrierte Agentur",
+            "description": "Nilathra Collection unterliegt strengen gesetzlichen Vorschriften und offiziellen Lizenzen, was absolute Rechtmäßigkeit, Kundenschutz und höchste Qualitätsstandards in ganz Sri Lanka garantiert.",
+            "sltda_badge": "SLTDA-Registrierte Agentur",
+            "sltda_title": "Tourismusentwicklungsbehörde Sri Lankas (SLTDA)",
+            "sltda_desc": "Offiziell lizensierter Inbound-Reiseveranstalter, registriert bei der Tourismusentwicklungsbehörde Sri Lankas (SLTDA).",
+            "sltda_bullet1": "Lizensiertes Zielgebiets-Management-Unternehmen (DMC)",
+            "sltda_bullet2": "Zertifizierte hohe Sicherheits- & Servicestandards",
+            "gov_badge": "Staatlich Registriertes Unternehmen",
+            "gov_title": "Regierung von Sri Lanka",
+            "gov_desc": "Offiziell eingetragene Private Limited Company (Pvt Ltd), registriert beim Hauptgesellschaftsregister von Sri Lanka.",
+            "gov_bullet1": "Vollständige rechtliche Unternehmenssouveränität",
+            "gov_bullet2": "Finanzielle Garantie & Verbraucherschutz"
+        },
         "partners_subtitle": "Unser Souveränes Netzwerk",
         "partners_title": "Exklusives Netzwerk von Ultra-Luxus-Partnern",
         "partners_desc": "Wir pflegen direkte Beziehungen zu den besten Hotels und exklusivsten Dienstleistern Sri Lankas. Von privaten Villen-Buchungen und privater Luftfahrt bis hin zu Hochsee-Yachting und Personenschutz garantiert unser Netzwerk absoluten Komfort, Sicherheit und bevorzugten Zugang.",
@@ -58,7 +73,7 @@
         "cta_btn1": "Private Beratung",
         "cta_btn2": "Bestes Reisebüro kontaktieren",
         "guide_subtitle": "Luxusreise-Architekt für Sri Lanka",
-        "guide_title": "Eine Meisterklasse der Inselkuration",
+        "guide_title": "Die Architektur des feinen Reisens",
         "guide_p1": "Als führender Reisekurator erhebt die Nilathra Collection Reisen in Sri Lanka zu einer Kunstform. Wir entwerfen maßgeschneiderte Reiserouten, die Abenteuer und Komfort verbinden und unseren Gästen exklusiven Zugang zu den legendärsten Sehenswürdigkeiten und Rückzugsorten der Insel bieten. Von der berühmten Felsenfestung Sigiriya, die sich majestätisch über dem Blätterdach des Dschungels erhebt, bis hin zu den kolonialen Festungsmauern von Galle Fort – unsere Luxusreisen sind auf Ihren spezifischen Rhythmus abgestimmt.",
         "guide_card1_title": "Kulturelles Erbe & Königreiche",
         "guide_card1_desc": "Reisen Sie durch die alten Königreiche Sri Lankas. Besteigen Sie den Pidurangala für einen außergewöhnlichen Sonnenaufgang oder besichtigen Sie den Zahntempel in Kandy mit einem lokalen Historiker. Unsere Reisepakete sorgen dafür, dass Sie die Menschenmassen umgehen und die Seele des Erbes von Ceylon erleben.",

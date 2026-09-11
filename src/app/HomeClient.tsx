@@ -102,8 +102,8 @@ const testimonials = [
 ];
 
 function TestimonialsSection() {
-  const { dictionary } = useTranslation();
-  const t = dictionary?.testimonials || {};
+  const dict = useTranslation();
+  const t = dict?.testimonials || {};
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 

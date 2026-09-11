@@ -14,8 +14,8 @@ const fadeUpVariant = {
 import { useTranslation } from "@/components/I18nProvider";
 
 export default function VIPContent() {
-    const { dictionary } = useTranslation();
-    const t = dictionary?.vip || {};
+    const dict = useTranslation();
+    const t = dict?.vip || {};
     const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 

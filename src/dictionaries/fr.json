@@ -9,6 +9,21 @@
         "scroll": "Défiler"
     },
     "home": {
+        "accreditation": {
+            "subtitle": "Licence Officielle & Accréditation",
+            "title": "Agence Accréditée & Enregistrée",
+            "description": "Nilathra Collection opère sous un respect strict de la réglementation et des licences officielles, garantissant une légitimité absolue, la protection des clients et des normes de qualité souveraines à travers le Sri Lanka.",
+            "sltda_badge": "Agence Enregistrée SLTDA",
+            "sltda_title": "Autorité de Développement du Tourisme du Sri Lanka",
+            "sltda_desc": "Tour-opérateur réceptif officiellement sous licence et enregistré auprès de l'Autorité de Développement du Tourisme du Sri Lanka (SLTDA).",
+            "sltda_bullet1": "Société de Gestion de Destination sous Licence",
+            "sltda_bullet2": "Normes de Sécurité et de Service Élevées Certifiées",
+            "gov_badge": "Entreprise Enregistrée par l'État",
+            "gov_title": "Gouvernement du Sri Lanka",
+            "gov_desc": "Société à Responsabilité Limitée (Pvt Ltd) officiellement constituée et enregistrée auprès du Registre Général des Sociétés du Sri Lanka.",
+            "gov_bullet1": "Pleine Souveraineté Juridique Corporate",
+            "gov_bullet2": "Garantie Financière & Sécurité des Consommateurs"
+        },
         "partners_subtitle": "Notre Réseau Souverain",
         "partners_title": "Réseau Exclusif de Partenaires d'Ultra-Luxe",
         "partners_desc": "Nous entretenons des relations directes avec les plus beaux établissements et opérateurs du Sri Lanka. De l'achat privatif de villas et de l'aviation privée au yachting hauturier et à la protection rapprochée, notre écosystème garantit un confort absolu, une sécurité totale et un accès prioritaire.",
@@ -23,33 +38,33 @@
         "stand_desc": "Découvrez les trois piliers fondamentaux qui définissent notre engagement envers une hospitalité d'exception et un service sans compromis.",
         "seo_subtitle": "Architectes des plus belles",
         "seo_title2": "Odyssées Sri-Lankaises",
-        "seo_p1": "As the leading luxury travel agency in Sri Lanka, Nilathra Collection specializes in curating experiences that transcend the ordinary. Our deep-rooted heritage in the island's hospitality sector allows us to open doors that remain closed to others, from private sunset viewings at the Sigiriya Rock Fortress to exclusive tea tastings in the misty valleys of Nuwara Eliya.",
-        "seo_p2": "Whether you are seeking the wild heart of Yala National Park for a leopard safari or the colonial elegance of Galle Fort, our travel architects design every moment with precision. We understand that for the high-net-worth traveler, time is the ultimate currency. That is why our itineraries prioritize efficiency without sacrificing depth.",
-        "seo_p3": "Our collections—Ultra VIP, Luxury, and Premium—are designed to cater to varying levels of intensity and exclusivity. We invite you to explore our bespoke Sri Lanka tour packages, each a blank canvas ready to be painted with your specific desires. Let Nilathra Collection be your compass to the Pearl of the Indian Ocean.",
+        "seo_p1": "En tant que première agence de voyage de luxe au Sri Lanka, Nilathra Collection se spécialise dans la création d'expériences d'exception qui transcendent l'ordinaire. Notre riche héritage dans le secteur de l'hospitalité nous permet d'ouvrir des portes qui restent fermées aux autres, des couchers de soleil privatifs au sommet de Sigiriya aux dégustations de thé exclusives dans les vallées brumeuses de Nuwara Eliya.",
+        "seo_p2": "Que vous recherchiez le cœur sauvage du parc national de Yala pour un safari léopard ou l'élégance coloniale de Galle Fort, nos architectes de voyage conçoivent chaque instant avec précision. Nous savons que pour les voyageurs d'exception, le temps est la monnaie ultime. C'est pourquoi nos itinéraires privilégient l'efficacité sans jamais sacrifier la profondeur.",
+        "seo_p3": "Nos collections — Ultra VIP, Luxury et Premium — sont conçues pour répondre à différents niveaux d'intensité et d'exclusivité. Nous vous invitons à explorer nos séjours sur mesure au Sri Lanka, chaque itinéraire étant une toile vierge prête à s'adapter à vos désirs. Laissez Nilathra Collection être votre boussole vers la perle de l'océan Indien.",
         "read_journal": "Lire nos derniers articles du journal",
         "faq_subtitle": "Vos Questions",
         "faq_title": "F.A.Q. Voyage d'Excellence",
         "faq_desc": "Tout ce que vous devez savoir pour planifier votre odyssée de luxe au Sri Lanka.",
         "faqs": [
             {
-                "q": "What makes Nilathra's Ultra VIP package different from standard luxury travel?",
-                "a": "Standard luxury focus on hotels; Ultra VIP focus on sovereignty. We provide jet-side tarmac clearance, standby helicopters, and total estate buyouts. You don't just stay in a hotel; you own the property for the duration of your stay, supported by a 6-member chef team and absolute security detail."
+                "q": "En quoi le forfait Ultra VIP de Nilathra se distingue-t-il du voyage de luxe classique ?",
+                "a": "Le luxe classique se concentre sur les hôtels ; l'Ultra VIP se concentre sur la souveraineté. Nous assurons un accueil au pied de l'avion sur le tarmac, des hélicoptères en stand-by et des privatisations complètes de domaines. Vous ne séjournez pas seulement dans un hôtel ; vous possédez le domaine pour la durée de votre séjour, assisté d'une équipe de 6 chefs et d'un service de sécurité dédié."
             },
             {
-                "q": "How does Nilathra ensure the security of international high-profile guests?",
-                "a": "We employ highly trained Close Protection Details (CPD) and utilize B6/B7 armored vehicles for ground movement. Our logistical planning ensures discreet entry and exit points, and we work under strict Non-Disclosure Agreements (NDAs) to protect our clients' identities at all times."
+                "q": "Comment Nilathra assure-t-elle la sécurité des personnalités internationales ?",
+                "a": "Nous employons des agents de protection rapprochée (CPD) hautement qualifiés et utilisons des véhicules blindés B6/B7 pour les déplacements terrestres. Notre planification logistique garantit des points d'accès discrets, et nous opérons sous des accords de confidentialité (NDA) stricts."
             },
             {
-                "q": "Can I customize a journey that blends different luxury tiers?",
-                "a": "Absolutely. Our 'Mixed Collection' is specifically designed for total fluidity. You might choose Ultra VIP transport with Luxury Collection resort stays, or balance the intensity of cultural exploration with the serenity of a 5-star spa retreat. We architect the masterplan around your specific rhythm."
+                "q": "Puis-je personnaliser un itinéraire combinant plusieurs niveaux de luxe ?",
+                "a": "Absolument. Notre 'Mixed Collection' est spécialement conçue pour une fluidité totale. Vous pouvez opter pour un transport Ultra VIP combiné avec des séjours en resorts de la Luxury Collection, ou équilibrer exploration culturelle et sérénité dans un spa 5 étoiles."
             },
             {
-                "q": "Is Sri Lanka a suitable destination for family luxury travel?",
-                "a": "Sri Lanka is exceptional for families. Our Premium and Luxury plans offer spacious multi-room suites, child-friendly logistics, and curated educational experiences such as turtle hatchery visits and junior ranger safari programs, all managed with 24/7 driver-guide support."
+                "q": "Le Sri Lanka est-il adapté aux voyages de luxe en famille ?",
+                "a": "Le Sri Lanka est exceptionnel pour les familles. Nos formules Premium et Luxury proposent de vastes suites multi-chambres, une logistique adaptée aux enfants et des activités éducatives sur mesure, le tout encadré 24h/24 par notre chauffeur-guide."
             },
             {
-                "q": "What is the best time of year to visit Sri Lanka for a luxury escape?",
-                "a": "Sri Lanka is a year-round destination thanks to its dual monsoon system. For the South and West coasts (Galle, Colombo, Yala), the ideal window is December to April. For the East coast and ancient cities, May to September offers pristine weather. We adjust your itinerary to match the best seasonal horizons."
+                "q": "Quelle est la meilleure période de l'année pour visiter le Sri Lanka ?",
+                "a": "Grâce à son système de double mousson, le Sri Lanka est une destination praticable toute l'année. Pour les côtes Sud et Ouest (Galle, Colombo, Yala), la période idéale s'étend de décembre à avril. Pour la côte Est et les cités anciennes, les mois de mai à septembre offrent un climat idéal."
             }
         ],
         "quote": "\"Une expérience inégalée. De la villa privée à Ella à la prise en charge VIP fluide à Colombo, Nilathra Collection a dépassé toutes nos attentes. Le vrai luxe sri-lankais.\"",
@@ -57,18 +72,18 @@
         "cta_title": "Planifiez votre escapade au Sri Lanka",
         "cta_btn1": "Consultation Privée",
         "cta_btn2": "Contacter la Meilleure Agence",
-        "guide_subtitle": "Sri Lanka Luxury Travel Architect",
-        "guide_title": "The Architecture of Fine Travel",
-        "guide_p1": "As a leading travel curator, Nilathra Collection elevates Sri Lanka travel to an art form. We design bespoke itineraries that balance adventure and comfort, offering guests exclusive access to the island's most legendary sights and retreats. From the iconic Sigiriya Rock Fortress rising majestically above the jungle canopy to the colonial ramparts of Galle Fort, our luxury journeys are tailored to your specific rhythm.",
-        "guide_card1_title": "Cultural Heartlands & Heritage",
-        "guide_card1_desc": "Journey through Sri Lanka's ancient kingdoms. Climb Pidurangala for an extraordinary sunrise, or tour Kandy's Temple of the Tooth with a local historian. Our travel packages ensure you bypass the crowds and experience the soul of Ceylon's heritage.",
-        "guide_card2_title": "Highland Retreats & Tea Estates",
-        "guide_card2_desc": "Ascend to the misty hills of Nuwara Eliya and Ella. Walk along the historic Nine Arches Bridge, take private tea-tasting masterclasses in historical bungalows, and travel seamlessly on chartered flights or private helicopter routes.",
-        "guide_card3_title": "Wild Safaris & Marine Life",
-        "guide_card3_desc": "Explore Yala National Park for private leopard safaris or sail the southern coast on private yachts to spot whales in Mirissa and Weligama. We combine expert trackers and luxury camps to offer unforgettable wilderness encounters.",
-        "guide_card4_title": "Sovereign Beach Sanctuaries",
-        "guide_card4_desc": "Unwind in exclusive beachfront villa buyouts on the quietest shores of Tangalle and Weligama. Backed by 1:1 service staff, dedicated culinary teams, and private spa sessions, our coastal retreats offer unmatched, discreet relaxation.",
-        "guide_p2": "Whether you seek private jet-side clearance at Colombo airport, standby aviation assets, or simply a perfectly guided family holiday, Nilathra travels above and beyond the norm. Let us architect your legacy journey in the Indian Ocean, ensuring absolute privacy, complete compliance with NDAs, and the finest hospitality Sri Lanka has to offer."
+        "guide_subtitle": "Architecte de Voyages de Luxe au Sri Lanka",
+        "guide_title": "L'Architecture du Voyage d'Exception",
+        "guide_p1": "En tant que curateur de voyage d'exception, Nilathra Collection élève le séjour au Sri Lanka au rang d'art. Nous concevons des itinéraires sur mesure équilibrant aventure et confort, offrant à nos hôtes un accès exclusif aux sites les plus légendaires et sanctuaires de l'île. De l'emblématique fort de Sigiriya s'élevant majestueusement au-dessus de la canopée coloniale aux remparts historiques de Galle Fort, nos odyssées de luxe s'adaptent à votre rythme personnel.",
+        "guide_card1_title": "Cœurs Culturels & Patrimoine",
+        "guide_card1_desc": "Parcourez les anciens royaumes du Sri Lanka. Gravissez Pidurangala pour un lever de soleil extraordinaire, ou visitez le Temple de la Dent à Kandy avec un historien local. Nos sélections vous garantissent d'éviter la foule et de vivre l'âme du patrimoine de Ceylan.",
+        "guide_card2_title": "Refuges des Hautes Terres & Domaines de Thé",
+        "guide_card2_desc": "Montez vers les collines brumeuses de Nuwara Eliya et d'Ella. Marchez sur le pont historique Nine Arches Bridge, participez à des ateliers de dégustation de thé privés dans des bungalows coloniaux et voyagez en toute fluidité en vols privés ou hélicoptères.",
+        "guide_card3_title": "Safaris Sauvages & Vie Marine",
+        "guide_card3_desc": "Explorez le parc national de Yala lors de safaris privés à la recherche des léopards ou naviguez sur la côte sud à bord de yachts privés pour observer les baleines à Mirissa et Weligama. Nous combinons pisteurs experts et camps de luxe pour des rencontres inoubliables.",
+        "guide_card4_title": "Sanctuaires Balnéaires Souverains",
+        "guide_card4_desc": "Détendez-vous dans des villas de plage privatisées sur les rivages les plus paisibles de Tangalle et Weligama. Accompagnés d'un personnel dédié, d'équipes culinaires privées et de séances de spa, nos refuges côtiers offrent une relaxation discrète et inégalée.",
+        "guide_p2": "Que vous recherchiez une prise en charge au pied de l'avion à l'aéroport de Colombo, des hélicoptères en stand-by ou simplement des vacances en famille parfaitement guidées, Nilathra va bien au-delà des normes. Laissez-nous concevoir votre voyage d'exception dans l'océan Indien, en garantissant une confidentialité absolue, le respect strict des accords de confidentialité (NDA) et la plus haute hospitalité du Sri Lanka."
     },
     "packages": {
         "subtitle": "Nos Collections",
