@@ -1422,7 +1422,59 @@
                 "title": "Direct Director Access",
                 "desc": "Direct line to senior travel leaders (Nirosh, Nimali, Sonali, Janaka)—zero call centers or third-party delays."
             }
-        ]
+        ],
+        "nda_charter_peer_note": "Confidential Peer Verification Available for Family Offices & Private Wealth Advisors",
+        "roster_subtitle": "Direct Senior Concierge Access",
+        "roster_title": "Your Dedicated VIP Travel Managers",
+        "roster_desc": "No automated call centers or third-party desks. You work 1:1 with senior travel directors.",
+        "role_nimali": "Head of Sales & VIP Concierge",
+        "role_sonali": "Senior Travel Curator",
+        "role_ruchika": "Expedition & Safari Director",
+        "role_ashee": "Maldives Desk Manager",
+        "scenarios_subtitle": "Operational Excellence in Action",
+        "scenarios_title": "Protocols of Care: Real Operational Scenarios",
+        "scenarios_desc": "True VIP confidence is not built on promises, but on execution. Below are real-world operational scenarios demonstrating how our command team handles high-profile movements, privacy engineering, and emergency pivots.",
+        "lbl_requirement": "The Requirement:",
+        "lbl_execution": "Nilathra Execution:",
+        "lbl_verified": "Verified Protocol",
+        "scenarios_items": [
+            {
+                "code": "SCENARIO 01",
+                "title": "Charter Helicopter Dispatch & Highland Estate Transfer",
+                "context": "Executive Delegation / Weather & Time Optimization",
+                "problem": "Guest needed to bypass a 5-hour highland road journey due to tight scheduling and afternoon meetings in Nuwara Eliya.",
+                "execution": "Dispatched a chartered Bell 206/407 helicopter from Ratmalana Airport (RML) directly to a private estate helipad at Ceylon Tea Trails. Dedicated estate butler staff and private chef team were positioned and ready upon landing.",
+                "metric": "35 Min Air Transfer"
+            },
+            {
+                "code": "SCENARIO 02",
+                "title": "Secluded Estate Buyout & Discreet Security Perimeter",
+                "context": "High-Profile Family / 100% Privacy Mandate",
+                "problem": "Client requested absolute physical isolation and total privacy at a coastal sanctuary in Tangalle with zero outside disturbance.",
+                "execution": "Executed a complete private estate buyout with trained Close Protection Detail (CPD) managing outer gate security. In-villa dining, wellness therapies, and concierge requests were managed seamlessly through personal butler service.",
+                "metric": "Total Estate Buyout"
+            },
+            {
+                "code": "SCENARIO 03",
+                "title": "Silk Route VIP Tarmac Greeting & Luxury SUV Escort",
+                "context": "Private Aviation Arrival / Colombo (CMB & RML)",
+                "problem": "Avoid public airport terminal lines for immediate, fast-track arrival greeting and private transfer to a boutique city residence.",
+                "execution": "Coordinated Silk Route VIP tarmac protocol with vehicle greeting at aircraft steps. Guests finalized immigration in minutes and transferred in a luxury SUV convoy (Range Rover & Land Cruiser V8) with an elite driver-guide.",
+                "metric": "Silk Route Fast-Track"
+            },
+            {
+                "code": "SCENARIO 04",
+                "title": "\"Everything Brought To You\": In-Villa Ceylon Sapphire Viewing",
+                "context": "Gem Collector & Enthusiast / Discreet Selection",
+                "problem": "Guest requested a private viewing of rare unheated Ceylon Blue and Padparadscha Sapphires without visiting public commercial jewelry houses.",
+                "execution": "Arranged for licensed master gemologists to present a hand-curated collection of natural sapphires directly at the guest's oceanfront villa in Weligama, complete with a private tea masterclass and chef-curated seafood dinner.",
+                "metric": "In-Villa Private Curation"
+            }
+        ],
+        "culinary_crab": "Lagoon Crab",
+        "culinary_hoppers": "Artisanal Hoppers",
+        "culinary_mangosteen": "Queen of Fruits",
+        "culinary_coconut": "King Coconut"
     },
     "plans_overview": {
         "compare": {

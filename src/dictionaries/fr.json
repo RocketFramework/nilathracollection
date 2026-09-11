@@ -1356,41 +1356,41 @@
         }
     },
     "vip": {
-        "play_start": "Immerse In The Story",
-        "play_pause": "Pause The Story",
-        "hero_subtitle": "A Land Like No Other",
+        "play_start": "S'immerger dans l'Histoire",
+        "play_pause": "Mettre en Pause",
+        "hero_subtitle": "Une Terre Sans Égale",
         "hero_title": "Thabrobana",
-        "hero_desc": "The pinnacle of luxury travel. Experience the diversity of an entire continent, curated exclusively for the world's most discerning travelers.",
-        "pitch_title": "Beyond The",
-        "pitch_title_gold": "Ordinary",
-        "pitch_p1": "While the Maldives offers pristine beaches curated by our very own Sri Lankan hospitality experts, Sri Lanka offers an experience that transcends mere relaxation.",
-        "pitch_p2": "Imagine a land not quite as vast as India, yet encompassing the entirety of India's breathtaking diversity within a compact 65,610 square kilometers. Here, luxury is defined not just by opulent resorts, but by unparalleled access to diverse worlds, seamlessly woven together.",
-        "pitch_btn": "Craft Your VIP Journey",
-        "symphony_title": "A Symphony of Climates",
-        "symphony_desc": "Begin your morning with yoga on a sun-drenched beach, ascend to the misty mountains for a colonial high tea, and conclude your day dining under a canopy of stars.",
+        "hero_desc": "Le sommet du voyage de luxe. Découvrez la diversité d'un continent entier, préparée exclusivement pour les voyageurs les plus exigeants au monde.",
+        "pitch_title": "Au-delà de l'",
+        "pitch_title_gold": "Ordinaire",
+        "pitch_p1": "Tandis que les Maldives offrent des plages immaculées orchestrées par nos propres experts sri-lankais en hospitalité, le Sri Lanka propose une expérience qui transcende la simple relaxation.",
+        "pitch_p2": "Imaginez une terre pas tout à fait aussi vaste que l'Inde, offrant pourtant l'intégralité de sa diversité stupéfiante sur 65 610 kilomètres carrés d'exception. Ici, le luxe ne se définit pas seulement par des resorts somptueux, mais par un accès sans égal à des univers variés, reliés en toute fluidité.",
+        "pitch_btn": "Concevoir Votre Voyage VIP",
+        "symphony_title": "Une Symphonie de Climats",
+        "symphony_desc": "Commencez votre matinée par une séance de yoga sur une plage ensoleillée, survolez les montagnes brumeuses pour un thé colonial et terminez la journée par un dîner sous les étoiles.",
         "climates": [
             {
-                "title": "Morning: Coastal Sun",
-                "desc": "Awake to the rhythmic crashing of the Indian Ocean from your secluded private villa."
+                "title": "Matin : Soleil Côtier",
+                "desc": "Réveillez-vous au rythme des vagues de l'océan Indien depuis votre villa privée isolée."
             },
             {
-                "title": "Noon: Emerald Wetlands",
-                "desc": "Helicopter to the lush interior, discovering hidden waterfalls and vibrant rainforests."
+                "title": "Midi : Zones Humides Émeraude",
+                "desc": "Transfert en hélicoptère vers l'intérieur verdoyant, à la découverte de cascades cachées et de forêts tropicales luxuriantes."
             },
             {
-                "title": "Evening: Golden Dry Lands",
-                "desc": "Dine under ancient skies in the cultural triangle, surrounded by millennia of history."
+                "title": "Soir : Terres Arides Dorées",
+                "desc": "Dînez sous des cieux séculaires dans le Triangle Culturel, entourés de millénaires d'histoire."
             }
         ],
-        "heritage_title": "Echoes of Eternity",
-        "heritage_desc": "Walk among 6000-year-old burial sites, trace the engineering marvels of ancient reservoirs, and gaze upon the majestic Sigiriya.",
-        "heritage_text": "Our culture is an unbroken lineage, alive with the mesmerizing rhythms of traditional dances and rituals that have safeguarded our people for millennia. Experience heritage that treats you not just as a guest, but as royalty.",
-        "wildlife_title": "Untamed Elegance",
-        "wildlife_desc": "Private safaris granting you exclusive access to the heart of the wild.",
-        "wildlife_tag": "The VIP Safari",
-        "culinary_tag": "Culinary Mastery",
-        "culinary_title": "A Feast Fit For Kings",
-        "culinary_desc": "Elevate your palate. Savor hand-picked native delicacies bursting with unique island spices, prepared by world-renowned executive chefs in exclusive settings.",
+        "heritage_title": "Échos de l'Éternité",
+        "heritage_desc": "Parcourez des sites funéraires vieux de 6 000 ans, admirez les merveilles d'ingénierie des anciens réservoirs et contemplez le majestueux Sigiriya.",
+        "heritage_text": "Notre culture est une lignée ininterrompue, animée par les rythmes envoûtants des danses traditionnelles et des rituels qui protègent notre peuple depuis des millénaires. Découvrez un patrimoine qui vous accueille comme un membre de la royauté.",
+        "wildlife_title": "Élégance Sauvage",
+        "wildlife_desc": "Des safaris privatifs vous offrant un accès exclusif au cœur de la faune sauvage.",
+        "wildlife_tag": "Le Safari VIP",
+        "culinary_tag": "Maîtrise Culinaire",
+        "culinary_title": "Un Festin digne des Rois",
+        "culinary_desc": "Élevez votre palais. Savourez des mets locaux sélectionnés, gorgés d'épices uniques, préparés par des chefs de renommée internationale dans des cadres exclusifs.",
         "nda_charter_badge": "Discrétion Souveraine & Charte NDA Stricte",
         "nda_charter_title": "Garantie & Protocole de Confidentialité UHNW",
         "nda_charter_desc": "Plus de 95 % des voyages Ultra-VIP de Nilathra Collection sont régis par des accords de confidentialité stricts (NDA). Afin de préserver la sécurité et l'anonymat total de notre clientèle, nous ne publions aucune identité sans accord écrit.",
@@ -1420,9 +1420,61 @@
                 "desc": "Ligne directe avec nos responsables seniors (Nirosh, Nimali, Sonali, Janaka) — aucun intermédiaire."
             }
         ],
-        "cta_title": "Your Thabrobana Awaits",
-        "cta_desc": "The ultimate travel privilege.",
-        "cta_btn": "Begin The Design"
+        "nda_charter_peer_note": "Vérification confidentielle disponible pour les Family Offices & Conseillers",
+        "roster_subtitle": "Accès Direct à la Conciergerie Senior",
+        "roster_title": "Vos Directeurs de Voyage VIP Dédiés",
+        "roster_desc": "Aucun centre d'appels automatisé. Vous travaillez en 1:1 avec nos directeurs de voyage.",
+        "role_nimali": "Chef des Ventes & Concierge VIP",
+        "role_sonali": "Curatrice de Voyage Senior",
+        "role_ruchika": "Directeur Expéditions & Safaris",
+        "role_ashee": "Responsable Bureau Maldives",
+        "scenarios_subtitle": "Excellence Opérationnelle en Action",
+        "scenarios_title": "Protocoles d'Attention : Scénarios Opérationnels Réels",
+        "scenarios_desc": "La véritable confiance VIP repose sur l'exécution. Voici des scénarios réels démontrant notre niveau de prise en charge.",
+        "lbl_requirement": "L'Exigence :",
+        "lbl_execution": "Exécution Nilathra :",
+        "lbl_verified": "Protocole Vérifié",
+        "scenarios_items": [
+            {
+                "code": "SCÉNARIO 01",
+                "title": "Transfert en Hélicoptère Privé & Domaine des Hautes Terres",
+                "context": "Délégation Exécutive / Optimisation Temps & Météo",
+                "problem": "Le client devait éviter un trajet routier de 5 heures dans les hautes terres en raison d'un emploi du temps chargé et de réunions à Nuwara Eliya.",
+                "execution": "Déploiement d'un hélicoptère Bell 206/407 depuis l'aéroport de Ratmalana (RML) vers l'héliport privé de Ceylon Tea Trails. Majordome privé et chef positionnés dès l'atterrissage.",
+                "metric": "Transfert Aérien 35 Min"
+            },
+            {
+                "code": "SCÉNARIO 02",
+                "title": "Privatisation de Domaine Isolé & Périmètre de Sécurité Discret",
+                "context": "Famille de Haut Rang / Mandat de Confidentialité Totale",
+                "problem": "Le client a exigé une isolation physique absolue et une confidentialité totale dans un sanctuaire côtier à Tangalle sans aucune perturbation extérieure.",
+                "execution": "Privatisation complète du domaine avec équipe de protection rapprochée (CPD) gérant les accès. Repas en villa, soins bien-être et requêtes conciergerie gérés via majordome personnel.",
+                "metric": "Privatisation Totale du Domaine"
+            },
+            {
+                "code": "SCÉNARIO 03",
+                "title": "Accueil VIP Silk Route sur Piste & Escorte en SUV de Luxe",
+                "context": "Arrivée en Aviation Privée / Colombo (CMB & RML)",
+                "problem": "Éviter les files d'attente du terminal pour un accueil prioritaire immédiat dès la sortie de l'avion et un transfert privé vers une résidence de charme.",
+                "execution": "Protocole VIP Silk Route sur piste avec véhicule au pied de la passerelle. Formalités d'immigration réglées en quelques minutes et transfert en convoi SUV de luxe (Range Rover & Land Cruiser V8).",
+                "metric": "Fast-Track Silk Route"
+            },
+            {
+                "code": "SCÉNARIO 04",
+                "title": "« Tout Vient à Vous » : Présentation Privée de Saphirs de Ceylan en Villa",
+                "context": "Collectionneur de Gemmes / Sélection Discrète",
+                "problem": "Le client a demandé une présentation privée de saphirs bleus de Ceylan et Padparadscha rares sans visiter de bijouteries publiques.",
+                "execution": "Des gemmologues diplômés ont présenté une collection exclusive de saphirs naturels directement dans la villa vue mer du client à Weligama, avec masterclass de thé et dîner de fruits de mer.",
+                "metric": "Curation Privée en Villa"
+            }
+        ],
+        "culinary_crab": "Crabe de Lagune",
+        "culinary_hoppers": "Hoppers Artisanaux",
+        "culinary_mangosteen": "Reine des Fruits",
+        "culinary_coconut": "Noix de Coco Royale",
+        "cta_title": "Votre Thabrobana Vous Attend",
+        "cta_desc": "Le privilège ultime du voyage.",
+        "cta_btn": "Demander au Bureau VIP"
     },
     "plans_overview": {
         "compare": {

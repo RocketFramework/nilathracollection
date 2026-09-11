@@ -1423,7 +1423,59 @@
                 "title": "Direkter Zugang zur Geschäftsführung",
                 "desc": "Direkter Draht zu leitenden Beratern (Nirosh, Nimali, Sonali, Janaka) – ohne Callcenter."
             }
-        ]
+        ],
+        "nda_charter_peer_note": "Vertrauliche Peer-Verifizierung für Family Offices & Berater verfügbar",
+        "roster_subtitle": "Direkter Zugang zu Senior Concierges",
+        "roster_title": "Ihre persönlichen VIP-Reiseleiter",
+        "roster_desc": "Keine automatisierten Callcenter. Sie arbeiten 1:1 mit leitenden Reisedirektoren.",
+        "role_nimali": "Leiterin Vertrieb & VIP Concierge",
+        "role_sonali": "Senior Reise-Kuratorin",
+        "role_ruchika": "Expeditions- & Safari-Direktor",
+        "role_ashee": "Leiterin Malediven-Desk",
+        "scenarios_subtitle": "Operative Exzellenz in Aktion",
+        "scenarios_title": "Protokolle der Fürsorge: Echte Operative Szenarien",
+        "scenarios_desc": "Wahre VIP-Sicherheit basiert nicht auf Versprechen, sondern auf Ausführung. Nachfolgend finden Sie reale Szenarien unserer Betreuung.",
+        "lbl_requirement": "Die Anforderung:",
+        "lbl_execution": "Nilathra-Ausführung:",
+        "lbl_verified": "Verifiziertes Protokoll",
+        "scenarios_items": [
+            {
+                "code": "SZENARIO 01",
+                "title": "Charter-Helikopter-Einsatz & Transfer zum Bergland-Anwesen",
+                "context": "Führungsdelegation / Wetter- & Zeitoptimierung",
+                "problem": "Der Gast musste aufgrund eines engen Zeitplans und nachmittäglicher Termine in Nuwara Eliya eine 5-stündige Fahrt im Bergland vermeiden.",
+                "execution": "Ein gecharterter Hubschrauber vom Typ Bell 206/407 flog direkt vom Flughafen Ratmalana (RML) zum privaten Hubschrauberlandeplatz auf Ceylon Tea Trails. Butler- und Küchenpersonal standen bei der Landung bereit.",
+                "metric": "35 Min. Lufttransfer"
+            },
+            {
+                "code": "SZENARIO 02",
+                "title": "Abgelegene Anwesen-Privatisierung & Diskreter Sicherheitsbereich",
+                "context": "Hochkarätige Familie / 100% Datenschutz-Mandat",
+                "problem": "Der Kunde wünschte absolute physische Isolierung und vollständige Privatsphäre in einem Küstenrefugium in Tangalle ohne Störungen von außen.",
+                "execution": "Vollständige Privatisierung des Anwesens mit geschultem Personenschutz (CPD) an den Außenzugängen. In-Villa-Dining, Wellness und Concierge-Service wurden nahtlos über den persönlichen Butler koordiniert.",
+                "metric": "Vollständige Anwesen-Privatisierung"
+            },
+            {
+                "code": "SZENARIO 03",
+                "title": "Silk Route VIP Rollfeld-Begrüßung & Luxus-SUV-Eskorte",
+                "context": "Ankunft mit Privatflugzeug / Colombo (CMB & RML)",
+                "problem": "Vermeidung öffentlicher Terminal-Warteschlangen für eine sofortige Fast-Track-Begrüßung und den privaten Transfer zu einer Boutique-Stadtresidenz.",
+                "execution": "Silk-Route-VIP-Rollfeldprotokoll mit Abholung direkt an der Flugzeugtreppe. Einreiseformalitäten in Minuten erledigt und Transfer im Luxus-SUV-Konvoi (Range Rover & Land Cruiser V8) mit Elite-Fahrer.",
+                "metric": "Silk Route Fast-Track"
+            },
+            {
+                "code": "SZENARIO 04",
+                "title": "„Alles wird zu Ihnen gebracht“: In-Villa Ceylon-Saphir-Präsentation",
+                "context": "Edelsteinsammler & Liebhaber / Diskrete Auswahl",
+                "problem": "Der Gast wünschte eine private Präsentation meisterhafter, unbehandelter Ceylon-Blau- und Padparadscha-Saphire, ohne öffentliche Juweliere besuchen zu müssen.",
+                "execution": "Lizensierte Meister-Gemmologen präsentierten eine handverlesene Kollektion natürlicher Saphire direkt in der Meeresvilla des Gastes in Weligama, ergänzt durch eine private Tee-Masterclass und ein Meeresfrüchte-Dinner.",
+                "metric": "Private In-Villa-Kuration"
+            }
+        ],
+        "culinary_crab": "Lagunen-Krabbe",
+        "culinary_hoppers": "Handwerkliche Hoppers",
+        "culinary_mangosteen": "Königin der Früchte",
+        "culinary_coconut": "Königskokosnuss"
     },
     "plans_overview": {
         "compare": {

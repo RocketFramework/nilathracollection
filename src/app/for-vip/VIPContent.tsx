@@ -197,7 +197,7 @@ export default function VIPContent() {
                     </p>
                     <div className="pt-2 flex flex-wrap items-center justify-between gap-4 text-xs text-white/70 font-sans border-t border-white/10">
                         <span className="flex items-center gap-2 text-brand-gold font-medium">
-                            <ShieldCheck size={16} /> Confidential Peer Verification Available for Family Offices &amp; Private Wealth Advisors
+                            <ShieldCheck size={16} /> {t.nda_charter_peer_note || "Confidential Peer Verification Available for Family Offices & Private Wealth Advisors"}
                         </span>
                         <Link 
                             href="/contact?topic=nda-reference-request" 
@@ -258,20 +258,22 @@ export default function VIPContent() {
                 <div className="max-w-6xl mx-auto space-y-12">
                     <div className="text-center max-w-2xl mx-auto space-y-3">
                         <span className="text-brand-gold text-xs font-bold uppercase tracking-[0.3em] block">
-                            Direct Senior Concierge Access
+                            {t.roster_subtitle || "Direct Senior Concierge Access"}
                         </span>
-                        <h2 className="font-serif text-3xl md:text-4xl text-white">Your Dedicated VIP Travel Managers</h2>
+                        <h2 className="font-serif text-3xl md:text-4xl text-white">
+                            {t.roster_title || "Your Dedicated VIP Travel Managers"}
+                        </h2>
                         <p className="text-neutral-400 text-sm font-light leading-relaxed">
-                            No automated call centers or third-party desks. You work 1:1 with senior travel directors.
+                            {t.roster_desc || "No automated call centers or third-party desks. You work 1:1 with senior travel directors."}
                         </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {[
-                            { name: "Nimali", email: "nimali@nilathra.com", role: "Head of Sales & VIP Concierge", img: "/images/team/nimali.webp" },
-                            { name: "Sonali", email: "sonali@nilathra.com", role: "Senior Travel Curator", img: "/images/team/sonali.webp" },
-                            { name: "Ruchika", email: "ruchika@nilathra.com", role: "Expedition & Safari Director", img: "/images/team/ruchika.webp" },
-                            { name: "Ashee", email: "ashee@nilathra.com", role: "Maldives Desk Manager", img: "/images/team/ashee.webp" },
+                            { name: "Nimali", email: "nimali@nilathra.com", role: t.role_nimali || "Head of Sales & VIP Concierge", img: "/images/team/nimali.webp" },
+                            { name: "Sonali", email: "sonali@nilathra.com", role: t.role_sonali || "Senior Travel Curator", img: "/images/team/sonali.webp" },
+                            { name: "Ruchika", email: "ruchika@nilathra.com", role: t.role_ruchika || "Expedition & Safari Director", img: "/images/team/ruchika.webp" },
+                            { name: "Ashee", email: "ashee@nilathra.com", role: t.role_ashee || "Maldives Desk Manager", img: "/images/team/ashee.webp" },
                         ].map((agent, idx) => (
                             <div key={idx} className="bg-neutral-950 border border-white/10 p-6 rounded-xl text-center space-y-4 hover:border-brand-gold/40 transition-all shadow-lg">
                                 <div className="relative w-20 h-20 rounded-full overflow-hidden mx-auto border-2 border-brand-gold/40">
@@ -304,25 +306,24 @@ export default function VIPContent() {
                         className="text-center max-w-4xl mx-auto mb-20 space-y-6"
                     >
                         <span className="text-brand-gold text-xs uppercase font-semibold tracking-[0.4em] block">
-                            Operational Excellence in Action
+                            {t.scenarios_subtitle || "Operational Excellence in Action"}
                         </span>
                         <h2 className="text-4xl md:text-6xl font-serif text-white leading-tight">
-                            Protocols of Care: <span className="text-brand-gold italic">Real Operational Scenarios</span>
+                            {t.scenarios_title || "Protocols of Care: Real Operational Scenarios"}
                         </h2>
                         <p className="text-neutral-400 text-lg md:text-xl font-light leading-relaxed">
-                            True VIP confidence is not built on promises, but on execution. Below are real-world operational scenarios demonstrating how our command team handles high-profile movements, privacy engineering, and emergency pivots.
+                            {t.scenarios_desc || "True VIP confidence is not built on promises, but on execution. Below are real-world operational scenarios demonstrating how our command team handles high-profile movements, privacy engineering, and emergency pivots."}
                         </p>
                     </motion.div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        {[
+                        {(t.scenarios_items || [
                             {
                                 code: "SCENARIO 01",
                                 title: "Charter Helicopter Dispatch & Highland Estate Transfer",
                                 context: "Executive Delegation / Weather & Time Optimization",
                                 problem: "Guest needed to bypass a 5-hour highland road journey due to tight scheduling and afternoon meetings in Nuwara Eliya.",
                                 execution: "Dispatched a chartered Bell 206/407 helicopter from Ratmalana Airport (RML) directly to a private estate helipad at Ceylon Tea Trails. Dedicated estate butler staff and private chef team were positioned and ready upon landing.",
-                                icon: Navigation,
                                 metric: "35 Min Air Transfer"
                             },
                             {
@@ -331,7 +332,6 @@ export default function VIPContent() {
                                 context: "High-Profile Family / 100% Privacy Mandate",
                                 problem: "Client requested absolute physical isolation and total privacy at a coastal sanctuary in Tangalle with zero outside disturbance.",
                                 execution: "Executed a complete private estate buyout with trained Close Protection Detail (CPD) managing outer gate security. In-villa dining, wellness therapies, and concierge requests were managed seamlessly through personal butler service.",
-                                icon: Lock,
                                 metric: "Total Estate Buyout"
                             },
                             {
@@ -340,7 +340,6 @@ export default function VIPContent() {
                                 context: "Private Aviation Arrival / Colombo (CMB & RML)",
                                 problem: "Avoid public airport terminal lines for immediate, fast-track arrival greeting and private transfer to a boutique city residence.",
                                 execution: "Coordinated Silk Route VIP tarmac protocol with vehicle greeting at aircraft steps. Guests finalized immigration in minutes and transferred in a luxury SUV convoy (Range Rover & Land Cruiser V8) with an elite driver-guide.",
-                                icon: ShieldCheck,
                                 metric: "Silk Route Fast-Track"
                             },
                             {
@@ -349,12 +348,14 @@ export default function VIPContent() {
                                 context: "Gem Collector & Enthusiast / Discreet Selection",
                                 problem: "Guest requested a private viewing of rare unheated Ceylon Blue and Padparadscha Sapphires without visiting public commercial jewelry houses.",
                                 execution: "Arranged for licensed master gemologists to present a hand-curated collection of natural sapphires directly at the guest's oceanfront villa in Weligama, complete with a private tea masterclass and chef-curated seafood dinner.",
-                                icon: Sparkles,
                                 metric: "In-Villa Private Curation"
                             }
-                        ].map((scenario, idx) => (
+                        ]).map((scenario: any, idx: number) => {
+                            const scenarioIcons = [Navigation, Lock, ShieldCheck, Sparkles];
+                            const ScenarioIcon = scenarioIcons[idx % scenarioIcons.length];
+                            return (
                             <motion.div
-                                key={scenario.code}
+                                key={scenario.code || idx}
                                 initial={{ opacity: 0, y: 30 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
@@ -367,7 +368,7 @@ export default function VIPContent() {
                                             {scenario.code}
                                         </span>
                                         <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-brand-gold group-hover:bg-brand-gold group-hover:text-black transition-colors">
-                                            <scenario.icon size={20} />
+                                            <ScenarioIcon size={20} />
                                         </div>
                                     </div>
 
@@ -379,20 +380,21 @@ export default function VIPContent() {
                                     </div>
 
                                     <div className="space-y-3 pt-2 text-sm text-neutral-400 font-light leading-relaxed">
-                                        <p><strong className="text-neutral-200 font-medium">The Requirement:</strong> {scenario.problem}</p>
-                                        <p><strong className="text-brand-gold font-medium">Nilathra Execution:</strong> {scenario.execution}</p>
+                                        <p><strong className="text-neutral-200 font-medium">{t.lbl_requirement || "The Requirement:"}</strong> {scenario.problem}</p>
+                                        <p><strong className="text-brand-gold font-medium">{t.lbl_execution || "Nilathra Execution:"}</strong> {scenario.execution}</p>
                                     </div>
                                 </div>
 
                                 <div className="pt-6 mt-8 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-brand-gold">
                                     <div className="flex items-center gap-2">
                                         <CheckCircle2 size={14} />
-                                        <span>Verified Protocol</span>
+                                        <span>{t.lbl_verified || "Verified Protocol"}</span>
                                     </div>
                                     <span className="text-neutral-400 font-mono">{scenario.metric}</span>
                                 </div>
                             </motion.div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </section>
@@ -518,21 +520,21 @@ export default function VIPContent() {
                         <div className="space-y-12 mt-0 md:mt-24">
                             <div className="relative h-[500px] w-full shadow-2xl">
                                 <Image src="/images/sri-lanka/food/crab-curry.webp" alt="Lagoon Crab" fill className="object-cover" />
-                                <p className="absolute -bottom-6 right-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2">Lagoon Crab</p>
+                                <p className="absolute -bottom-6 right-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2">{t.culinary_crab || "Lagoon Crab"}</p>
                             </div>
                             <div className="relative h-[600px] w-full shadow-2xl">
                                 <Image src="/images/sri-lanka/food/hopper.avif" alt="Artisanal Hoppers" fill className="object-cover" />
-                                <p className="absolute -bottom-6 left-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2">Artisanal Hoppers</p>
+                                <p className="absolute -bottom-6 left-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2">{t.culinary_hoppers || "Artisanal Hoppers"}</p>
                             </div>
                         </div>
                         <div className="space-y-12">
                             <div className="relative h-[600px] w-full shadow-2xl">
                                 <Image src="/images/sri-lanka/fruit/mangosteen-fruit.avif" alt="Fresh Mangosteen" fill className="object-cover" />
-                                <p className="absolute top-8 -right-4 md:-right-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2 whitespace-nowrap z-10 border-l border-brand-gold/30">Queen of Fruits</p>
+                                <p className="absolute top-8 -right-4 md:-right-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2 whitespace-nowrap z-10 border-l border-brand-gold/30">{t.culinary_mangosteen || "Queen of Fruits"}</p>
                             </div>
                             <div className="relative h-[500px] w-full shadow-2xl">
                                 <Image src="/images/sri-lanka/fruit/king-coconut.avif" alt="King Coconut" fill className="object-cover" />
-                                <p className="absolute bottom-8 -left-4 md:-left-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2 whitespace-nowrap z-10 border-r border-brand-gold/30">Kings Coconut</p>
+                                <p className="absolute bottom-8 -left-4 md:-left-8 text-brand-gold uppercase tracking-[0.2em] text-sm bg-black px-4 py-2 whitespace-nowrap z-10 border-r border-brand-gold/30">{t.culinary_coconut || "Kings Coconut"}</p>
                             </div>
                         </div>
                     </div>
