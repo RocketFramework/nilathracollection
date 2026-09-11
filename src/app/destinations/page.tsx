@@ -1,6 +1,9 @@
 import MainLayout from "@/components/layout/MainLayout";
 import DestinationsContent from "./DestinationsContent";
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { getDictionary } from "@/dictionaries";
+import { I18nProvider } from "@/components/I18nProvider";
 
 export const metadata: Metadata = {
     title: "Luxury Destinations Sri Lanka | Nilathra Collection",
@@ -31,10 +34,16 @@ export const metadata: Metadata = {
     },
 };
 
-export default function DestinationsPage() {
+export default async function DestinationsPage() {
+    const headersList = await headers();
+    const locale = headersList.get('x-locale') || 'en';
+    const dict = await getDictionary(locale);
+
     return (
-        <MainLayout>
-            <DestinationsContent />
-        </MainLayout>
+        <I18nProvider dictionary={dict}>
+            <MainLayout>
+                <DestinationsContent />
+            </MainLayout>
+        </I18nProvider>
     );
 }

@@ -2,6 +2,9 @@ import MainLayout from "@/components/layout/MainLayout";
 import React from "react";
 import DestinationClient from "./DestinationClient";
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { getDictionary } from "@/dictionaries";
+import { I18nProvider } from "@/components/I18nProvider";
 
 // We keep a lightweight version of the data just for static metadata generation 
 // to keep SEO intact without duplicating the whole dictionary.
@@ -44,12 +47,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
 }
 
-export default function DestinationPage({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = React.use(params);
+export default async function DestinationPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params;
+    const headersList = await headers();
+    const locale = headersList.get('x-locale') || 'en';
+    const dict = await getDictionary(locale);
 
     return (
-        <MainLayout>
-            <DestinationClient slug={slug} />
-        </MainLayout>
+        <I18nProvider dictionary={dict}>
+            <MainLayout>
+                <DestinationClient slug={slug} />
+            </MainLayout>
+        </I18nProvider>
     );
 }
