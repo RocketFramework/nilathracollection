@@ -449,19 +449,19 @@ export default function HomeClient() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {[
               {
-                title: "Unyielding Reliability",
+                title: t.home.stand_card1_title || "Unyielding Reliability",
                 icon: Shield,
-                text: "In an unpredictable world, Nilathra stands as your constant. We maintain direct relationships with every vendor, from private jet handlers to boutique estate owners. This ensures that every promise made is a promise kept, backed by 24/7 on-ground logistical support and real-time response teams."
+                text: t.home.stand_card1_text || "In an unpredictable world, Nilathra stands as your constant. We maintain direct relationships with every vendor, from private jet handlers to boutique estate owners. This ensures that every promise made is a promise kept, backed by 24/7 on-ground logistical support and real-time response teams."
               },
               {
-                title: "Sovereign Exclusivity",
+                title: t.home.stand_card2_title || "Sovereign Exclusivity",
                 icon: Crown,
-                text: "Privacy is the ultimate luxury. Our Ultra VIP and Luxury collections are built around the concept of the 'Sovereign Sanctuary'. We specialize in property buyouts, private transport lanes, and absolute identity protection, ensuring your presence on the island remains as discreet as you desire."
+                text: t.home.stand_card2_text || "Privacy is the ultimate luxury. Our Ultra VIP and Luxury collections are built around the concept of the 'Sovereign Sanctuary'. We specialize in property buyouts, private transport lanes, and absolute identity protection, ensuring your presence on the island remains as discreet as you desire."
               },
               {
-                title: "Absolute Authenticity",
+                title: t.home.stand_card3_title || "Absolute Authenticity",
                 icon: Star,
-                text: "We reject the generic. Every Nilathra journey is infused with the genuine spirit of Sri Lanka. Whether it's a private Kandyan dance performance at your hotel or a sunrise meditation session with a local monk, our experiences are curated to provide deep, meaningful connections to the island's heritage."
+                text: t.home.stand_card3_text || "We reject the generic. Every Nilathra journey is infused with the genuine spirit of Sri Lanka. Whether it's a private Kandyan dance performance at your hotel or a sunrise meditation session with a local monk, our experiences are curated to provide deep, meaningful connections to the island's heritage."
               }
             ].map((item, idx) => (
               <motion.div
@@ -486,17 +486,21 @@ export default function HomeClient() {
       <section className="py-16 px-6 md:px-12 bg-slate-900 text-white border-t border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-3">
-            <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em]">Twin-Island Sovereignty</span>
-            <h3 className="font-serif text-2xl md:text-3xl text-white">Ceylon Heritage &amp; Maldives Overwater Escapes</h3>
+            <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em]">
+              {t.home.twin_subtitle || "Twin-Island Sovereignty"}
+            </span>
+            <h3 className="font-serif text-2xl md:text-3xl text-white">
+              {t.home.twin_title || "Ceylon Heritage & Maldives Overwater Escapes"}
+            </h3>
             <p className="text-slate-300 text-sm font-light max-w-2xl">
-              Combine Sri Lanka&apos;s wildlife safaris, tea estates, and ancient fortresses with private overwater villa retreats in the Maldives. Coordinated seamlessly through our Male&apos; desk.
+              {t.home.twin_desc || "Combine Sri Lanka's wildlife safaris, tea estates, and ancient fortresses with private overwater villa retreats in the Maldives. Coordinated seamlessly through our Male' desk."}
             </p>
           </div>
           <Link
             href="/contact?plan=maldives-extension"
             className="shrink-0 px-8 py-4 bg-brand-gold text-slate-950 font-bold uppercase tracking-widest text-xs rounded-full hover:bg-white transition-all shadow-lg"
           >
-            Explore Maldives Extension
+            {t.home.twin_btn || "Explore Maldives Extension"}
           </Link>
         </div>
       </section>
