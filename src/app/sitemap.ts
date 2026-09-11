@@ -46,6 +46,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
                 priority: item.priority,
                 alternates: {
                     languages: {
+                        'x-default': `${baseUrl}${item.path}`,
                         en: `${baseUrl}${item.path}`,
                         de: `${baseUrl}/de${item.path}`,
                         fr: `${baseUrl}/fr${item.path}`,
@@ -74,6 +75,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
                 priority: 0.85,
                 alternates: {
                     languages: {
+                        'x-default': `${baseUrl}${relPath}`,
                         en: `${baseUrl}${relPath}`,
                         de: `${baseUrl}/de${relPath}`,
                         fr: `${baseUrl}/fr${relPath}`,
@@ -97,6 +99,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
                 priority: 0.70,
                 alternates: {
                     languages: {
+                        'x-default': `${baseUrl}${relPath}`,
                         en: `${baseUrl}${relPath}`,
                         de: `${baseUrl}/de${relPath}`,
                         fr: `${baseUrl}/fr${relPath}`,
