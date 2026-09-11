@@ -36,7 +36,18 @@ const leadershipTeam = [
         role: "Managing Director",
         image: "/images/team/nirosh-li-v2.webp",
         bio: "With over 20 years of executive corporate leadership and strategic enterprise management across major conglomerates and hospitality investments, Nirosh steers Nilathra Collection's global vision. His expertise in executive governance, cross-border luxury partnerships, and ultra-high-net-worth client relations ensures an unparalleled standard of excellence across all island operations.",
-        highlights: ["20+ Years Executive Leadership", "Strategic Corporate Governance", "Ultra-Luxury Island Buyouts"],
+        highlights: [
+            "20+ Years Executive Leadership",
+            {
+                label: "Played senior role for 3 billion dollar enterpises in Sri Lanka",
+                link: "https://lk.linkedin.com/in/nirosh"
+            },
+            {
+                label: "Owner/ Director",
+                linkText: "Kaveri Resorts & Spa, Sigiriya",
+                link: "https://www.kaveriresot.com"
+            }
+        ],
         badge: "Executive Leadership"
     },
     {
@@ -151,12 +162,44 @@ export default async function LeadershipPage() {
                                         </div>
 
                                         <div className="pt-4 border-t border-slate-700/60 space-y-2">
-                                            {member.highlights.map((item, i) => (
-                                                <div key={i} className="flex items-center gap-2 text-xs text-slate-400">
-                                                    <CheckCircle2 size={14} className="text-brand-gold shrink-0" />
-                                                    <span>{item}</span>
-                                                </div>
-                                            ))}
+                                            {member.highlights.map((item, i) => {
+                                                const isObj = typeof item === 'object' && item !== null;
+                                                const label = isObj ? item.label : item;
+                                                const linkText = isObj ? item.linkText : null;
+                                                const link = isObj ? item.link : null;
+
+                                                return (
+                                                    <div key={i} className="flex items-center gap-2 text-xs text-slate-400">
+                                                        <CheckCircle2 size={14} className="text-brand-gold shrink-0" />
+                                                        <span>
+                                                            {link && linkText ? (
+                                                                <>
+                                                                    {label && <span className="mr-1">{label}</span>}
+                                                                    <a
+                                                                        href={link}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-brand-gold hover:underline underline-offset-2 transition-colors"
+                                                                    >
+                                                                        {linkText}
+                                                                    </a>
+                                                                </>
+                                                            ) : link ? (
+                                                                <a
+                                                                    href={link}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-brand-gold hover:underline underline-offset-2 transition-colors"
+                                                                >
+                                                                    {label}
+                                                                </a>
+                                                            ) : (
+                                                                label
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>

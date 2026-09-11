@@ -9,6 +9,21 @@
         "scroll": "Scroll"
     },
     "home": {
+        "accreditation": {
+            "subtitle": "Official Licensing & Accreditation",
+            "title": "Accredited & Registered Agency",
+            "description": "Nilathra Collection operates under strict regulatory compliance and official licensing, guaranteeing absolute legitimacy, client protection, and sovereign quality standards across Sri Lanka.",
+            "sltda_badge": "SLTDA Registered Agency",
+            "sltda_title": "Sri Lanka Tourism Development Authority",
+            "sltda_desc": "Officially licensed Inbound Tour Operator registered under the Sri Lanka Tourism Development Authority (SLTDA).",
+            "sltda_bullet1": "Licensed Destination Management Company",
+            "sltda_bullet2": "Certified High Safety & Service Standards",
+            "gov_badge": "Government Registered Company",
+            "gov_title": "Government of Sri Lanka",
+            "gov_desc": "Officially incorporated Private Limited Company (Pvt Ltd) registered under the Registrar General of Companies of Sri Lanka.",
+            "gov_bullet1": "Full Corporate Legal Sovereignty",
+            "gov_bullet2": "Financial Guarantee & Consumer Security"
+        },
         "partners_subtitle": "Our Sovereign Network",
         "partners_title": "Exclusive Network of Ultra-Luxury Partners",
         "partners_desc": "We maintain direct relationships with Sri Lanka's finest properties and elite service operators. From boutique estate buyouts and private aviation to deep-sea yachting and close protection security, our ecosystem guarantees absolute comfort, safety, and priority access.",
