@@ -1312,8 +1312,9 @@ export async function sendCustomEmailAction(formData: FormData) {
             }
         }
 
+        const isHtml = /<[a-z][\s\S]*>/i.test(body);
         const contentHtml = `
-              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;white-space:pre-wrap;">${body}</div>
+              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;${isHtml ? '' : 'white-space:pre-wrap;'}">${body}</div>
               
               <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
                 For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
@@ -1619,8 +1620,9 @@ export async function sendPurchaseOrderEmailAction(options: {
         }
         
         // Wrap the body in standard Nilathra email HTML template
+        const isHtml = /<[a-z][\s\S]*>/i.test(body);
         const contentHtml = `
-              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;white-space:pre-wrap;">${body}</div>
+              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;${isHtml ? '' : 'white-space:pre-wrap;'}">${body}</div>
               
               <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
                 For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
