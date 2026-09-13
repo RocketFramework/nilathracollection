@@ -922,9 +922,9 @@ Here is the fundamental truth about the Maldives luxury experience: it is, at it
 Sri Lanka, by contrast, is a world. A 65,000 square kilometre world with ancient civilisations, cloud-piercing mountains, equatorial jungles, colonial coastal towns, working tea estates, leopard-stalked national parks, and some of the most extraordinary private villas on the planet. The experiential surface area of Sri Lanka is incomparably greater.
 
 > ### ✦ The Nilathra Perspective
-> Our Ultra VIP guests often tell us the same thing: "The Maldives was my relaxation. Sri Lanka became my obsession." One destination gives you a week of serene comfort. The other gives you a lifetime of stories.
+> Our Ultra VIP guests often tell us the same thing: *"The Maldives was my relaxation. Sri Lanka became my obsession."* One destination gives you a week of serene comfort. The other gives you a lifetime of stories.
 
-When you stay at one of our private estate buyouts in Tangalle or an exclusive hilltop retreat in Ella, you are not merely occupying luxury accommodation — you are inhabiting a landscape. You wake up to the sound of the jungle, or the ocean, or the wind through a tea plantation, depending on where your journey has taken you. That is a fundamentally different proposition.
+When you stay at one of our private estate buyouts in Tangalle or an exclusive hilltop retreat in **[Ella](/destinations/ella)**, you are not merely occupying luxury accommodation — you are inhabiting a landscape. You wake up to the sound of the jungle, or the ocean, or the wind through a tea plantation, depending on where your journey has taken you. That is a fundamentally different proposition.
 
 ![Luxury Private Hill Country Estate in Sri Lanka](/images/srilanka_luxury_estate.webp)
 
@@ -936,15 +936,15 @@ Let us talk about money — because this is where most travel agents go conspicu
 
 A premium overwater villa in the Maldives at a flagship resort will cost you between $2,000 and $8,000 per night. That is the room. Then consider what happens next:
 
-*   Seaplane or speedboat transfers: $300–$700 per person, per trip
-*   Food and beverage on a private atoll resort: typically $400–$900 per person per day, as there are no alternatives
-*   Excursions: snorkelling, diving, sunset cruises — all premium-priced with no competitive alternative
-*   Spa treatments: significantly inflated because you are, again, captive on the island
-*   Departure tax, seaplane slots, and tipping culture for a large staff complement
+*   **Seaplane or speedboat transfers**: $300–$700 per person, per trip
+*   **Food and beverage on a private atoll resort**: typically $400–$900 per person per day, as there are no alternatives
+*   **Excursions**: snorkelling, diving, sunset cruises — all premium-priced with no competitive alternative
+*   **Spa treatments**: significantly inflated because you are, again, captive on the island
+*   **Departure tax, seaplane slots**, and tipping culture for a large staff complement
 
 By the time a luxury couple spends seven nights in the Maldives, an honest all-in tally often reaches **$40,000–$80,000** — a figure that rarely appears in the initial proposal.
 
-In Sri Lanka, our High End Luxury Collection starts from **$1,000 per person per day** — all-inclusive of a private premium SUV, elite chauffeur, daily half-board dining at signature 5-star resorts, curated cultural experiences, and Ayurvedic spa sessions. The pricing is transparent. The value is exceptional. The experience is arguably superior.
+In Sri Lanka, our **[Luxury Collection](/plans/luxury)** starts from **$1,000 per person per day** — all-inclusive of a private premium SUV, elite chauffeur, daily half-board dining at signature 5-star resorts, curated cultural experiences, and Ayurvedic spa sessions. For guests requiring sovereign estate buyouts and private jet transfers, our **[Ultra VIP Collection](/plans/ultra-vip)** offers unyielding exclusivity. The pricing is transparent. The value is exceptional. The experience is arguably superior.
 
 ### Maldives vs Sri Lanka Luxury Comparison
 
@@ -958,8 +958,8 @@ One of the great ironies of Maldivian luxury is this: the overwater bungalows th
 
 At a top-tier Sri Lankan private estate — of which we have exclusive relationships with the finest — your buyout means precisely that. No other guests. Your own staff. Your own chef preparing meals calibrated to your preferences. The property's entire operational infrastructure exists solely for you and your party during your stay.
 
-> ### 🔐 For Ultra-High-Profile Guests
-> For heads of state, senior executives, celebrities, and family offices for whom identity protection is paramount, Sri Lanka offers capabilities the Maldives simply cannot match. Nilathra's Ultra VIP tier includes jet-side tarmac clearance at Colombo's BIA, 24/7 Close Protection Detail, B6/B7 armoured ground transport, and absolute NDA protocols. These are not services that exist meaningfully in the Maldivian resort model.
+> ### 🔐 For Ultra-High-Profile Guests & Family Offices
+> For heads of state, senior executives, celebrities, and family offices for whom identity protection is paramount, Sri Lanka offers capabilities the Maldives simply cannot match. Nilathra's **[Sovereign VIP Protocol](/for-vip)** includes jet-side tarmac clearance at Colombo's BIA, 24/7 Close Protection Detail, B6/B7 armoured ground transport, **[Imperial Helicopter Charters](/imperial-helicopter)**, and absolute NDA protocols. These are not services that exist meaningfully in the Maldivian resort model.
 
 This is not a criticism of Maldivian resorts. They are exceptional at what they do. But true sovereignty — the kind that a HNWI or public figure genuinely requires — demands land, infrastructure, and logistical flexibility. Sri Lanka has it. A sandbar does not.
 
@@ -973,17 +973,17 @@ The Maldives is, by its own design, a sensory retreat. Deliberate escapism. For 
 
 Sri Lanka is the opposite. It is one of the oldest continuously inhabited civilisations on earth:
 
-*   **Sigiriya** — a 5th century rock fortress citadel that predates most of Europe's great castles
-*   **The Temple of the Tooth, Kandy** — among the most sacred sites in all of Buddhism
-*   **Galle Fort** — a UNESCO World Heritage Site of extraordinary colonial architecture
-*   **Yala National Park** — the world's highest density of leopards in the wild
-*   **Nuwara Eliya** — where the world's finest Ceylon tea has been grown for two centuries
-*   **Anuradhapura** — an ancient city with running water when Rome was still in its infancy
+*   **[Sigiriya](/destinations/sigiriya)** — a 5th century rock fortress citadel that predates most of Europe's great castles
+*   **The Temple of the Tooth, [Kandy](/destinations/kandy)** — among the most sacred sites in all of Buddhism
+*   **[Galle Fort](/destinations/galle)** — a UNESCO World Heritage Site of extraordinary colonial architecture
+*   **[Yala National Park](/destinations/yala)** — the world's highest density of leopards in the wild
+*   **[Nuwara Eliya](/destinations/nuwara-eliya)** — where the world's finest Ceylon tea has been grown for two centuries
+*   **[Colombo](/destinations/colombo)** — the sovereign capital offering private fine dining, colonial heritage, and VIP tarmac arrivals
 
 Nilathra doesn't simply show you these places. We arrange private sunrise access to Sigiriya before the crowds arrive. We organise closed-door puja ceremonies with senior monks in Kandy. We facilitate private tastings in working tea bungalows that have never been opened to commercial tourism. We create experiences that do not exist in any brochure.
 
 > ### 🌟 A Guest Story
-> A family from the UAE recently completed a 14-night journey with us. On their last evening, seated at a private dinner on the ramparts of Galle Fort with a dedicated chef and the Indian Ocean spread before them, the patriarch said: "I have travelled everywhere. This is the first time I felt I was somewhere that no one else had been." That is what we architect.
+> A family from the UAE recently completed a 14-night journey with us. On their last evening, seated at a private dinner on the ramparts of Galle Fort with a dedicated chef and the Indian Ocean spread before them, the patriarch said: *"I have travelled everywhere. This is the first time I felt I was somewhere that no one else had been."* That is what we architect.
 
 ---
 
@@ -1026,8 +1026,10 @@ The ideal Indian Ocean itinerary for the discerning traveller often looks someth
 
 You arrive in the Maldives having just had one of the most stimulating, extraordinary cultural journeys of your life. The stillness of the lagoon becomes not escapism, but a deserved conclusion. The contrast makes both experiences richer.
 
-> ### ✈ Nilathra's Combined Itinerary Service
-> We design and execute combined Sri Lanka and Maldives itineraries for guests who want the best of both worlds. We handle every element: private jet connections, immigration facilitation, resort coordination, and seamless transitions between destinations. One team. One proposal. Zero complexity.
+> ### ✈ Nilathra's Combined Twin-Island Itinerary Service
+> We design and execute combined Sri Lanka and Maldives itineraries for guests who want the best of both worlds. Coordinated directly through our Colombo headquarters and Male' desk, we handle every element: private jet connections, seaplane transfers, immigration facilitation, resort buyouts, and seamless transitions between destinations. One team. One proposal. Zero complexity.
+> 
+> 🔗 **[Inquire About a Combined Sri Lanka & Maldives Journey](/contact?plan=maldives-extension)**
 
 ---
 
@@ -1036,9 +1038,14 @@ You arrive in the Maldives having just had one of the most stimulating, extraord
 > 
 > Sri Lanka is a different kind of answer. It is the answer for people who have moved beyond needing to explain themselves. For people who want their travel to reflect genuine curiosity, sovereign privacy, and the confidence to choose something extraordinary over something merely famous.
 > 
-> The world's most discerning travellers are already here. In the misty hills of Ella. In a private estate in Tangalle. In a colonial suite in Galle Fort. In a luxury tented camp on the edge of Yala.
+> The world's most discerning travellers are already here. In the misty hills of **[Ella](/destinations/ella)**. In a private estate in Tangalle. In a colonial suite in **[Galle Fort](/destinations/galle)**. In a luxury tented camp on the edge of **[Yala](/destinations/yala)**.
 > 
 > *They chose Sri Lanka because they knew something you now know too.*
+> 
+> ---
+> 
+> ### 🏛 Ready to Architect Your Ceylon Legacy?
+> Explore our **[Ultra VIP Masterplans](/plans/ultra-vip)**, compare our **[Luxury Collections](/plans/compare)**, or build a tailor-made journey with our **[Bespoke Journey Architect](/custom-plan)**.
 `
     },
     {

@@ -265,10 +265,20 @@ export default async function AboutPage() {
                             "description": "Learn about Nilathra Collection's evolution from a trusted local execution engine for international ultra-luxury tour operators into an independent Destination Management Company.",
                             "publisher": {
                                 "@type": "TravelAgency",
+                                "@id": "https://www.nilathra.com/#organization",
                                 "name": "Nilathra Collection",
                                 "url": "https://www.nilathra.com",
                                 "telephone": "+94777278282",
-                                "priceRange": "$$$$$"
+                                "priceRange": "$$$$$",
+                                "image": "https://www.nilathra.com/images/hero_sigiriya_breakfast.avif",
+                                "address": {
+                                    "@type": "PostalAddress",
+                                    "streetAddress": "Level 26, East Tower, World Trade Center",
+                                    "addressLocality": "Colombo",
+                                    "addressRegion": "Western Province",
+                                    "postalCode": "00100",
+                                    "addressCountry": "LK"
+                                }
                             }
                         }),
                     }}

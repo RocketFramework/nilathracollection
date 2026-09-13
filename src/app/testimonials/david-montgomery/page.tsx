@@ -45,8 +45,20 @@ export default async function DavidMontgomeryPage() {
                             "@type": "Review",
                             "itemReviewed": {
                                 "@type": "TravelAgency",
+                                "@id": "https://www.nilathra.com/#organization",
                                 "name": "Nilathra Collection",
-                                "url": "https://www.nilathra.com"
+                                "url": "https://www.nilathra.com",
+                                "telephone": "+94777278282",
+                                "priceRange": "$$$$$",
+                                "image": "https://www.nilathra.com/images/david_montgomery_tea_estate.webp",
+                                "address": {
+                                    "@type": "PostalAddress",
+                                    "streetAddress": "Level 26, East Tower, World Trade Center",
+                                    "addressLocality": "Colombo",
+                                    "addressRegion": "Western Province",
+                                    "postalCode": "00100",
+                                    "addressCountry": "LK"
+                                }
                             },
                             "author": {
                                 "@type": "Person",

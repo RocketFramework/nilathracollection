@@ -6,6 +6,9 @@ import { Car, UserCheck, ShieldCheck, Award, ArrowRight, CheckCircle2 } from "lu
 export const metadata = {
     title: "Partner Registration | Nilathra Collection",
     description: "Join Sri Lanka's premier luxury travel partner network. Onboarding portals for Transport Service Providers and Luxury Tourist Guides.",
+    alternates: {
+        canonical: "https://www.nilathra.com/partner-registration",
+    },
 };
 
 export default function PartnerRegistrationLandingPage() {

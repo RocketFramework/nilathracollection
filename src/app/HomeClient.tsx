@@ -702,17 +702,21 @@ export default function HomeClient() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "TravelAgency",
+            "@id": "https://www.nilathra.com/#organization",
             "name": "Nilathra Collection",
             "description": "The best travel agency in Sri Lanka specializing in luxury, curated, and VIP travel experiences.",
             "url": "https://www.nilathra.com",
             "telephone": "+94777278282",
             "address": {
               "@type": "PostalAddress",
+              "streetAddress": "Level 26, East Tower, World Trade Center",
               "addressLocality": "Colombo",
+              "addressRegion": "Western Province",
+              "postalCode": "00100",
               "addressCountry": "LK"
             },
             "image": "https://www.nilathra.com/images/luxury_resort_sunset.avif",
-            "priceRange": "$$$$"
+            "priceRange": "$$$$$"
           }),
         }}
       />
