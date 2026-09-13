@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type, Paperclip, LayoutTemplate, X, Code } from "lucide-react";
+import { Mail, Send, CheckCircle, AlertCircle, User, MessageSquare, Type, Paperclip, LayoutTemplate, X, Code, List, Bold, Italic, Underline } from "lucide-react";
 import { sendCustomEmailAction, getEmailTemplatesAction, getUserRoleAction } from "@/actions/admin.actions";
 import { EmailTemplate } from "@/services/email-template.service";
 import { createClient } from "@/utils/supabase/client";
@@ -83,9 +83,80 @@ export default function SendEmailPage() {
         setAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
+    useEffect(() => {
+        if (!showHtml && editorRef.current) {
+            editorRef.current.innerHTML = body;
+        }
+    }, [showHtml]);
+
     const handleInput = () => {
         if (editorRef.current) {
             setBody(editorRef.current.innerHTML);
+        }
+    };
+
+    const handleFormatText = (command: string, value: string = '') => {
+        if (showHtml) {
+            const textarea = document.querySelector('textarea[name="body_html_source"]') as HTMLTextAreaElement | null;
+            if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = body;
+                const selected = text.substring(start, end) || "Sample Text";
+                
+                let openTag = `<${command}>`;
+                let closeTag = `</${command}>`;
+
+                if (command === 'fontSize') {
+                    const sizePxMap: Record<string, string> = { '2': '13px', '3': '16px', '5': '24px', '7': '32px' };
+                    const px = sizePxMap[value] || '16px';
+                    openTag = `<span style="font-size: ${px};">`;
+                    closeTag = `</span>`;
+                }
+
+                const replacement = openTag + selected + closeTag;
+                const newText = text.substring(0, start) + replacement + text.substring(end);
+                setBody(newText);
+                setTimeout(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(start + openTag.length, start + openTag.length + selected.length);
+                }, 0);
+            }
+        } else {
+            if (editorRef.current) {
+                editorRef.current.focus();
+                document.execCommand(command, false, value || undefined);
+                handleInput();
+            }
+        }
+    };
+
+    const handleInsertBullet = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (showHtml) {
+            const textarea = document.querySelector('textarea[name="body_html_source"]') as HTMLTextAreaElement | null;
+            const bulletSnippet = "<ul>\n  <li>Item 1</li>\n  <li>Item 2</li>\n</ul>";
+            if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = body;
+                const before = text.substring(0, start);
+                const after = text.substring(end);
+                const newText = before + bulletSnippet + after;
+                setBody(newText);
+                setTimeout(() => {
+                    textarea.focus();
+                    textarea.setSelectionRange(start + bulletSnippet.length, start + bulletSnippet.length);
+                }, 0);
+            } else {
+                setBody(prev => prev + (prev ? "\n" : "") + bulletSnippet);
+            }
+        } else {
+            if (editorRef.current) {
+                editorRef.current.focus();
+                document.execCommand('insertUnorderedList', false);
+                handleInput();
+            }
         }
     };
 
@@ -234,8 +305,74 @@ export default function SendEmailPage() {
                                 </button>
                             </div>
                             
+                            <div className="flex flex-wrap items-center gap-1.5 p-2 bg-neutral-100 border border-neutral-200 rounded-t-xl border-b-0">
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleFormatText('bold')}
+                                    className="flex items-center gap-1 p-1.5 px-2 text-xs font-semibold text-brand-charcoal bg-white border border-neutral-200 rounded-lg shadow-xs hover:bg-neutral-50 hover:border-brand-gold/50 active:scale-95 transition-all"
+                                    title="Bold"
+                                >
+                                    <Bold size={15} className="text-brand-gold" />
+                                    <span className="hidden sm:inline">Bold</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleFormatText('italic')}
+                                    className="flex items-center gap-1 p-1.5 px-2 text-xs font-semibold text-brand-charcoal bg-white border border-neutral-200 rounded-lg shadow-xs hover:bg-neutral-50 hover:border-brand-gold/50 active:scale-95 transition-all"
+                                    title="Italic"
+                                >
+                                    <Italic size={15} className="text-brand-gold" />
+                                    <span className="hidden sm:inline">Italic</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleFormatText('underline')}
+                                    className="flex items-center gap-1 p-1.5 px-2 text-xs font-semibold text-brand-charcoal bg-white border border-neutral-200 rounded-lg shadow-xs hover:bg-neutral-50 hover:border-brand-gold/50 active:scale-95 transition-all"
+                                    title="Underline"
+                                >
+                                    <Underline size={15} className="text-brand-gold" />
+                                    <span className="hidden sm:inline">Underline</span>
+                                </button>
+
+                                <div className="h-4 w-px bg-neutral-300 mx-1" />
+
+                                <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={handleInsertBullet}
+                                    className="flex items-center gap-1 p-1.5 px-2 text-xs font-semibold text-brand-charcoal bg-white border border-neutral-200 rounded-lg shadow-xs hover:bg-neutral-50 hover:border-brand-gold/50 active:scale-95 transition-all"
+                                    title="Bullet List"
+                                >
+                                    <List size={15} className="text-brand-gold" />
+                                    <span className="hidden sm:inline">Bullet List</span>
+                                </button>
+
+                                <div className="h-4 w-px bg-neutral-300 mx-1" />
+
+                                <div className="flex items-center gap-1 bg-white border border-neutral-200 rounded-lg px-2 py-1 text-xs">
+                                    <Type size={14} className="text-brand-gold" />
+                                    <select
+                                        defaultValue="3"
+                                        onChange={(e) => handleFormatText('fontSize', e.target.value)}
+                                        className="bg-transparent text-xs font-medium text-brand-charcoal outline-none cursor-pointer"
+                                        title="Font Size"
+                                    >
+                                        <option value="2">Small</option>
+                                        <option value="3">Normal</option>
+                                        <option value="5">Large</option>
+                                        <option value="7">Huge</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             {showHtml ? (
                                 <textarea
+                                    name="body_html_source"
                                     required
                                     rows={10}
                                     value={body}
@@ -246,7 +383,7 @@ export default function SendEmailPage() {
                                         }
                                     }}
                                     placeholder="Type your HTML message here..."
-                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all resize-none font-mono text-sm"
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-b-xl rounded-t-none p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all resize-none font-mono text-sm"
                                 />
                             ) : (
                                 <div
@@ -254,7 +391,7 @@ export default function SendEmailPage() {
                                     contentEditable
                                     onInput={handleInput}
                                     onBlur={handleInput}
-                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-xl p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all overflow-y-auto min-h-[250px] prose prose-sm max-w-none"
+                                    className="w-full bg-neutral-50 border border-neutral-200 text-brand-charcoal rounded-b-xl rounded-t-none p-4 focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold outline-none transition-all overflow-y-auto min-h-[250px] prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_li]:my-1"
                                 />
                             )}
                         </div>
