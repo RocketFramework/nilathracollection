@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ShieldCheck, Award, Building2, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Award, Building2, CheckCircle2, Plane } from "lucide-react";
 import { useTranslation } from "@/components/I18nProvider";
 
 export default function AccreditationSection() {
@@ -123,6 +123,97 @@ export default function AccreditationSection() {
             </div>
           </motion.div>
         </div>
+
+        {/* Verified Professional Network Guarantee Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          id="accreditation-card-network-guarantee"
+          className="mt-12 bg-gradient-to-r from-brand-charcoal via-[#1A241F] to-brand-charcoal border border-brand-gold/30 p-8 md:p-10 rounded-2xl shadow-2xl text-white relative overflow-hidden"
+        >
+          {/* Subtle gold ambient glow */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-brand-gold/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-gold/20 pb-6">
+              <div className="space-y-1">
+                <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.3em] block">
+                  {acc.network_subtitle || "Strict Quality & Service Standard"}
+                </span>
+                <h3 className="font-serif text-2xl md:text-3xl text-white font-bold">
+                  {acc.network_title || "SLTDA Authorized & Hand-Picked Network"}
+                </h3>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-gold/20 border border-brand-gold/40 text-brand-gold text-xs font-bold uppercase tracking-wider shrink-0 self-start md:self-auto">
+                <ShieldCheck size={16} />
+                <span>{acc.network_badge || "100% Certified & Vetted"}</span>
+              </div>
+            </div>
+
+            <p className="text-neutral-300 text-sm md:text-base font-light leading-relaxed max-w-4xl">
+              {acc.network_desc || "For absolute client safety and sovereign quality, Nilathra Collection exclusively engages Sri Lanka Tourism Development Authority (SLTDA) Authorized Drivers and Tour Guides, alongside hand-picked veteran Safari Drivers, hand-picked Yacht Captains, and audited Activity Providers."}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              {/* Pillar 1: SLTDA Drivers */}
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 hover:border-brand-gold/40 transition-colors">
+                <div className="flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-wider">
+                  <CheckCircle2 size={16} className="shrink-0" />
+                  <span>{acc.network_item1_title || "SLTDA Authorized Drivers"}</span>
+                </div>
+                <p className="text-neutral-400 text-xs font-light leading-normal">
+                  {acc.network_item1_desc || "Officially licensed, background-vetted tourist drivers with flawless safety records."}
+                </p>
+              </div>
+
+              {/* Pillar 2: SLTDA Tour Guides */}
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 hover:border-brand-gold/40 transition-colors">
+                <div className="flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-wider">
+                  <CheckCircle2 size={16} className="shrink-0" />
+                  <span>{acc.network_item2_title || "SLTDA Registered Guides"}</span>
+                </div>
+                <p className="text-neutral-400 text-xs font-light leading-normal">
+                  {acc.network_item2_desc || "Certified National & Lecturer Guides possessing deep historical erudition and language fluency."}
+                </p>
+              </div>
+
+              {/* Pillar 3: Hand-Picked Safari & Yacht Captains */}
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 hover:border-brand-gold/40 transition-colors">
+                <div className="flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-wider">
+                  <CheckCircle2 size={16} className="shrink-0" />
+                  <span>{acc.network_item3_title || "Hand-Picked Safari & Yachts"}</span>
+                </div>
+                <p className="text-neutral-400 text-xs font-light leading-normal">
+                  {acc.network_item3_desc || "Veteran 4x4 wildlife trackers for Yala/Wilpattu & certified marine captains for private yacht charters."}
+                </p>
+              </div>
+
+              {/* Pillar 4: Zero-Fatal-Accident Aviation */}
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 hover:border-brand-gold/40 transition-colors border-brand-gold/20">
+                <div className="flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-wider">
+                  <Plane size={16} className="shrink-0 text-brand-gold" />
+                  <span>{acc.network_item4_title || "Zero-Fatal-Accident Aviation"}</span>
+                </div>
+                <p className="text-neutral-400 text-xs font-light leading-normal">
+                  {acc.network_item4_desc || "Air travel & helicopter charters operated exclusively with the Sri Lanka Air Force or private partners with a flawless zero fatal accident history."}
+                </p>
+              </div>
+
+              {/* Pillar 5: Vetted Activity Providers */}
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 hover:border-brand-gold/40 transition-colors sm:col-span-2 lg:col-span-2">
+                <div className="flex items-center gap-2 text-brand-gold font-bold text-xs uppercase tracking-wider">
+                  <CheckCircle2 size={16} className="shrink-0" />
+                  <span>{acc.network_item5_title || "Vetted Activity Partners"}</span>
+                </div>
+                <p className="text-neutral-400 text-xs font-light leading-normal">
+                  {acc.network_item5_desc || "Hand-picked local masters, wellness practitioners, and adventure operators meeting strict safety audits."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

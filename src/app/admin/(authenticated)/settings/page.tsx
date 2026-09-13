@@ -61,6 +61,8 @@ export default function SettingsPage() {
         [Settings.Company_Logo]: "",
         [Settings.Bank_Details_Usd]: "",
         [Settings.Bank_Details_Lkr]: "",
+        [Settings.Transport_Partner_Onboarding_Code]: "NILATHRA-TRANS-2026",
+        [Settings.Tour_Guide_Onboarding_Code]: "NILATHRA-GUIDE-2026",
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -248,6 +250,60 @@ export default function SettingsPage() {
                     <button
                         onClick={handleSave}
                         disabled={saving || uploadingLogo}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+
+            {/* Partner Onboarding Security Settings */}
+            <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden mb-8 animate-fade-in">
+                <div className="p-6 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-[#2B2B2B]">Partner Onboarding Security Codes</h2>
+                        <p className="text-sm text-neutral-500">Configure access codes shared with marketing campaigns for Transport Service Providers and Tour Guides.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Transport Provider Onboarding Code</label>
+                        <input
+                            type="text"
+                            value={markups[Settings.Transport_Partner_Onboarding_Code] || "NILATHRA-TRANS-2026"}
+                            onChange={(e) => setMarkups({ ...markups, [Settings.Transport_Partner_Onboarding_Code]: e.target.value })}
+                            placeholder="e.g. NILATHRA-TRANS-2026"
+                            className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-mono text-sm text-[#2B2B2B]"
+                        />
+                        <p className="text-xs text-neutral-500 mt-1">Partners must enter this code to onboard as a Transport Service Provider.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-neutral-700 mb-2">Tour Guide Onboarding Code</label>
+                        <input
+                            type="text"
+                            value={markups[Settings.Tour_Guide_Onboarding_Code] || "NILATHRA-GUIDE-2026"}
+                            onChange={(e) => setMarkups({ ...markups, [Settings.Tour_Guide_Onboarding_Code]: e.target.value })}
+                            placeholder="e.g. NILATHRA-GUIDE-2026"
+                            className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-brand-gold focus:border-transparent outline-none font-mono text-sm text-[#2B2B2B]"
+                        />
+                        <p className="text-xs text-neutral-500 mt-1">Partners must enter this code to onboard as a Tour Guide.</p>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between">
+                    <div className="flex-1">
+                        {message && (
+                            <div className={`text-sm font-bold ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                {message.text}
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
                         className="flex items-center gap-2 px-6 py-2.5 bg-brand-charcoal text-white font-bold rounded-xl hover:bg-black transition-colors disabled:opacity-50"
                     >
                         {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}

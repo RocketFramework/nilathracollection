@@ -40,4 +40,6 @@ export interface AppSettingsDTO {
     policy_draft: string;
     address: string;
     company_logo: string;
+    transport_partner_onboarding_code?: string;
+    tour_guide_onboarding_code?: string;
 }

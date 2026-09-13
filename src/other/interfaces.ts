@@ -600,16 +600,61 @@ export interface TourDailyDriver {
     updated_at?: string;
 }
 
-export interface TourDailyTransport {
+export interface ITransportProviderOnboardingInput {
     id?: string;
-    tour_id?: string;
-    tour_itinerary_id?: string;
-    day_number: number;
-    transport_provider_id: string;
-    vehicle_id?: string;
-    created_at?: string;
-    updated_at?: string;
+    name: string;
+    nic_number: string;
+    phone: string;
+    email: string;
+    address?: string;
+    contact_person?: string;
+    sltda_registered_driver?: boolean;
+    onboarding_code?: string;
+    bank_name?: string;
+    branch_name?: string;
+    account_name?: string;
+    account_number?: string;
+    swift_code?: string;
+    vehicles?: {
+        id?: string;
+        vehicle_type: string;
+        make?: string;
+        model?: string;
+        year_of_manufacture?: number;
+        vehicle_number?: string;
+        max_seat_capacity?: number;
+        km_rate?: number;
+        day_rate?: number;
+        max_km_per_day?: number;
+        additional_km_rate?: number;
+        with_driver?: boolean;
+    }[];
 }
+
+export interface ITourGuideOnboardingInput {
+    id?: string;
+    first_name: string;
+    last_name?: string;
+    nic_number: string;
+    sltda_registration_number: string;
+    phone: string;
+    email?: string;
+    address?: string;
+    city?: string;
+    district?: string;
+    languages?: string[];
+    german_proficiency?: boolean;
+    french_proficiency?: boolean;
+    experience_years?: number;
+    daily_rate?: number;
+    onboarding_code?: string;
+    bank_name?: string;
+    branch_name?: string;
+    account_name?: string;
+    account_number?: string;
+    swift_code?: string;
+}
+
 
 
 

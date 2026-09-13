@@ -167,7 +167,9 @@ export const Settings = {
   Address: 'address',
   Company_Logo: 'company_logo',
   Bank_Details_Usd: 'bank_details_usd',
-  Bank_Details_Lkr: 'bank_details_lkr'
+  Bank_Details_Lkr: 'bank_details_lkr',
+  Transport_Partner_Onboarding_Code: 'transport_partner_onboarding_code',
+  Tour_Guide_Onboarding_Code: 'tour_guide_onboarding_code'
 } as const;
 
 export type RoomSizeName = 'single_room' | 'double_room' | 'twin_room' | 'triple_room' | 'family_room';
