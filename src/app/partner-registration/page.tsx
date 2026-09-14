@@ -139,11 +139,11 @@ export default function PartnerRegistrationLandingPage() {
                                 Simple & Secure Partner Onboarding Process
                             </h3>
                             <p className="text-neutral-500 text-sm">
-                                Follow these 4 easy steps to register or update your profile in Nilathra&apos;s Partner System.
+                                Follow these 5 easy steps to register or update your profile in Nilathra&apos;s Partner System.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                             <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-100 space-y-3">
                                 <div className="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-gold font-bold flex items-center justify-center text-sm">
                                     01
@@ -177,6 +177,16 @@ export default function PartnerRegistrationLandingPage() {
                             <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-100 space-y-3">
                                 <div className="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-gold font-bold flex items-center justify-center text-sm">
                                     04
+                                </div>
+                                <h4 className="font-bold text-brand-charcoal text-sm">Inspection and Interview</h4>
+                                <p className="text-xs text-neutral-500 leading-relaxed">
+                                    Once the details provided, conducting the credential verification
+                                </p>
+                            </div>
+
+                            <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-100 space-y-3">
+                                <div className="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-gold font-bold flex items-center justify-center text-sm">
+                                    05
                                 </div>
                                 <h4 className="font-bold text-brand-charcoal text-sm">Receive VIP Bookings</h4>
                                 <p className="text-xs text-neutral-500 leading-relaxed">

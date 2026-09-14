@@ -542,10 +542,10 @@ export default function TourGuideOnboardingPage() {
 
                             <div className="space-y-2">
                                 <h2 className="text-3xl font-serif font-bold text-brand-charcoal">
-                                    Tour Guide Profile Saved!
+                                    Tour Guide Profile Saved Successfully!
                                 </h2>
                                 <p className="text-neutral-600 text-sm max-w-md mx-auto">
-                                    Thank you for registering with Nilathra Collection. Your SLTDA accreditation and details have been registered into our luxury guide network.
+                                    Post validating your record, we will inform you a date to come and have a formal chat to get to know you better.
                                 </p>
                             </div>
 

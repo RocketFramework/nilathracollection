@@ -731,7 +731,7 @@ export default function TransportProviderOnboardingPage() {
                                     Registration Saved Successfully!
                                 </h2>
                                 <p className="text-neutral-600 text-sm max-w-md mx-auto">
-                                    Thank you for submitting your transport provider details to Nilathra Collection. Our concierge operations team will review your fleet and contact you.
+                                    Since we service VIP tourists, post validating your record we will inform you a date for a formal inspection of your vehicle and update our records.
                                 </p>
                             </div>
 
