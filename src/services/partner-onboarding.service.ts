@@ -232,6 +232,7 @@ export class PartnerOnboardingService {
             nic_number: cleanNic,
             sltda_registered_driver: dto.sltda_registered_driver ?? false,
             onboarding_code: dto.onboarding_code || null,
+            approval_status: dto.approval_status || 'Pending',
             created_ip: userIp || 'unknown',
             status: 'Onboarding',
             payment_detail_id: activePaymentId || null,
@@ -273,6 +274,8 @@ export class PartnerOnboardingService {
                 max_km_per_day: v.max_km_per_day ? Number(v.max_km_per_day) : null,
                 additional_km_rate: v.additional_km_rate ? Number(v.additional_km_rate) : null,
                 with_driver: v.with_driver ?? true,
+                image_url: v.image_url || null,
+                approval_status: v.approval_status || 'Pending',
                 updated_at: new Date().toISOString()
             }));
 
@@ -360,6 +363,8 @@ export class PartnerOnboardingService {
             nic_number: cleanNic,
             license_id: dto.sltda_registration_number,
             sltda_registration_number: dto.sltda_registration_number,
+            sltda_id_image_url: dto.sltda_id_image_url || null,
+            approval_status: dto.approval_status || 'Pending',
             languages: dto.languages && dto.languages.length > 0 ? dto.languages : ['English'],
             german_proficiency: dto.german_proficiency ?? false,
             french_proficiency: dto.french_proficiency ?? false,

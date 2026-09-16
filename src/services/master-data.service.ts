@@ -59,6 +59,10 @@ export interface Driver {
     phone?: string;
     license_number?: string;
     nic_number?: string;
+    license_image_url?: string;
+    approval_status?: string;
+    approved_by?: string;
+    approved_at?: string;
     is_suspended?: boolean;
     has_contracted_price?: boolean;
     per_day_rate?: number;
@@ -76,6 +80,10 @@ export interface TransportVehicle {
     max_seat_capacity?: number; // excludes driver
     year_of_manufacture?: number;
     vehicle_number?: string;
+    image_url?: string;
+    approval_status?: string;
+    approved_by?: string;
+    approved_at?: string;
     with_driver?: boolean;
     km_rate?: number;
     day_rate?: number;
@@ -89,9 +97,14 @@ export interface TransportProvider {
     phone?: string;
     email?: string;
     address?: string;
+    contact_person?: string;
     lat?: number;
     lng?: number;
     nic_number?: string;
+    onboarding_code?: string;
+    approval_status?: string;
+    approved_by?: string;
+    approved_at?: string;
     is_suspended?: boolean;
     has_contracted_price?: boolean;
     payment_detail_id?: string;
@@ -104,8 +117,21 @@ export interface TourGuide {
     first_name: string;
     last_name?: string;
     phone?: string;
+    email?: string;
+    address?: string;
+    city?: string;
+    district?: string;
     languages?: string[];
     license_id?: string;
+    sltda_registration_number?: string;
+    nic_number?: string;
+    sltda_id_image_url?: string;
+    approval_status?: string;
+    approved_by?: string;
+    approved_at?: string;
+    german_proficiency?: boolean;
+    french_proficiency?: boolean;
+    experience_years?: number;
     is_suspended?: boolean;
     has_contracted_price?: boolean;
     daily_rate?: number;
@@ -579,7 +605,11 @@ export class MasterDataService {
                 km_rate: v.km_rate,
                 day_rate: v.day_rate,
                 max_km_per_day: v.max_km_per_day,
-                additional_km_rate: v.additional_km_rate
+                additional_km_rate: v.additional_km_rate,
+                image_url: v.image_url || null,
+                approval_status: v.approval_status || 'Pending',
+                approved_by: v.approved_by || null,
+                approved_at: v.approved_at || null
             }));
             
             const { error: vehError } = await dbClient.from('transport_vehicles').upsert(mappedVehicles, { onConflict: 'id' });
@@ -905,5 +935,72 @@ export class MasterDataService {
         const { error } = await dbClient.from('seamless_concierge_cost_items').delete().eq('id', id);
         if (error) throw error;
         return true;
+    }
+
+    /**
+     * Approves a partner entity (tour guide, transport provider, transport vehicle, or driver)
+     * and records approved_by (user ID) and approved_at (timestamp).
+     */
+    static async approvePartnerRecord(
+        entityType: 'guide' | 'transport' | 'vehicle' | 'driver',
+        id: string,
+        approverId?: string,
+        options?: { client?: SupabaseClient }
+    ) {
+        const dbClient = options?.client || supabase;
+        const now = new Date().toISOString();
+        const payload: Record<string, any> = {
+            approval_status: 'Approved',
+            approved_at: now
+        };
+        if (approverId) {
+            payload.approved_by = approverId;
+        }
+
+        const tableName = entityType === 'guide'
+            ? 'tour_guides'
+            : entityType === 'transport'
+            ? 'transport_providers'
+            : entityType === 'vehicle'
+            ? 'transport_vehicles'
+            : 'drivers';
+
+        const { data, error } = await dbClient
+            .from(tableName)
+            .update(payload)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    }
+
+    /**
+     * Upload a partner verification image (SLTDA guide ID image or vehicle photo)
+     * to the 'partner-documents' bucket and return the public URL.
+     */
+    static async uploadPartnerDocumentImage(file: File, folder: string = 'documents'): Promise<string> {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${folder}/${Math.random().toString(36).substring(2, 12)}_${Date.now()}.${fileExt}`;
+
+        // Attempt upload to 'partner-documents' bucket, fallback to 'payment-proofs' if needed
+        let bucketName = 'partner-documents';
+        let { error: uploadError } = await supabase.storage
+            .from(bucketName)
+            .upload(fileName, file, { upsert: true });
+
+        if (uploadError) {
+            console.warn(`Failed to upload to ${bucketName}, trying fallback bucket:`, uploadError.message);
+            bucketName = 'payment-proofs';
+            const res = await supabase.storage.from(bucketName).upload(fileName, file, { upsert: true });
+            if (res.error) throw res.error;
+        }
+
+        const { data } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
     }
 }

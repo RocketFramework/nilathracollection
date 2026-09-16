@@ -787,6 +787,79 @@ export async function saveTourGuideAction(guide: TourGuide) {
     }
 }
 
+export async function approvePartnerAction(entityType: 'guide' | 'transport' | 'vehicle' | 'driver', id: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const adminSupabase = createAdminClient();
+
+        const approverId = user?.id || 'admin';
+        const approved = await MasterDataService.approvePartnerRecord(entityType, id, approverId, { client: adminSupabase });
+
+        revalidatePath("/admin/master-data");
+        return { success: true, data: approved };
+    } catch (error: any) {
+        console.error("Error approving partner record:", error);
+        return { success: false, error: error.message || "Failed to approve partner record." };
+    }
+}
+
+export async function uploadPartnerImageAction(formData: FormData) {
+    try {
+        const file = formData.get("file") as File;
+        const folder = (formData.get("folder") as string) || "documents";
+        if (!file) {
+            return { error: "No file provided" };
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        let optimizedBuffer: Buffer;
+        try {
+            optimizedBuffer = await sharp(buffer)
+                .webp({ quality: 80 })
+                .toBuffer();
+        } catch {
+            optimizedBuffer = buffer;
+        }
+
+        const adminSupabase = createAdminClient();
+        const fileExt = file.name.split('.').pop() || 'webp';
+        const fileName = `${folder}/${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+
+        let bucketName = 'partner-documents';
+        let { error: uploadError } = await adminSupabase.storage
+            .from(bucketName)
+            .upload(fileName, optimizedBuffer, {
+                contentType: 'image/webp',
+                cacheControl: '3600',
+                upsert: true
+            });
+
+        if (uploadError) {
+            bucketName = 'payment-proofs';
+            const fallbackRes = await adminSupabase.storage
+                .from(bucketName)
+                .upload(fileName, optimizedBuffer, {
+                    contentType: 'image/webp',
+                    cacheControl: '3600',
+                    upsert: true
+                });
+            if (fallbackRes.error) throw fallbackRes.error;
+        }
+
+        const { data } = adminSupabase.storage
+            .from(bucketName)
+            .getPublicUrl(fileName);
+
+        return { success: true, url: data.publicUrl };
+    } catch (error: any) {
+        console.error("Error uploading partner image:", error);
+        return { error: error.message || "Failed to upload partner image." };
+    }
+}
+
 export async function getSeamlessConciergeCostItemsAction(options?: any) {
     try {
         if (options && Object.keys(options).filter(k => k !== 'pageSize').length > 0) {

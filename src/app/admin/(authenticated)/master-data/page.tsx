@@ -17,6 +17,7 @@ import ConciergeCostItemFormModal from "./components/ConciergeCostItemFormModal"
 import { MasterDataApprovalsService, ApprovalRequest } from "@/services/master-data-approvals.service";
 
 const DATABASES = [
+    { id: 'approvals', label: 'Pending Approvals', icon: Inbox },
     { id: 'hotels', label: 'Hotels & Resorts', icon: Building2 },
     { id: 'activities', label: 'Activities', icon: MapPin },
     { id: 'vendors', label: 'Activity Vendors', icon: Compass },
@@ -610,29 +611,53 @@ export default function MasterDataPage() {
                                 ) : transports.length === 0 ? (
                                     <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">No records found.</td></tr>
                                 ) : (
-                                    transports.map(row => (
-                                        <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
-                                            <td className="p-4 pl-6 font-bold">{row.name}</td>
-                                            <td className="p-4 text-neutral-500">Transport Provider</td>
-                                            <td className="p-4 text-neutral-500">{(row.transport_vehicles || []).map(v => v.vehicle_type).join(', ') || 'Various'}</td>
-                                            <td className="p-4 text-center">
-                                                <div className="flex flex-col items-center gap-1 justify-center">
-                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                    </span>
-                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 pr-6 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                                    <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    transports.map(row => {
+                                        const vehicleImages = (row.transport_vehicles || []).map(v => v.image_url).filter(Boolean);
+                                        const isApproved = row.approval_status === 'Approved';
+                                        return (
+                                            <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
+                                                <td className="p-4 pl-6">
+                                                    <div className="flex items-center gap-3">
+                                                        {vehicleImages.length > 0 ? (
+                                                            <img src={vehicleImages[0]} alt="Vehicle" className="w-10 h-10 object-cover rounded-lg border border-neutral-200 shadow-xs" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 font-bold text-xs">No Img</div>
+                                                        )}
+                                                        <div>
+                                                            <div className="font-bold text-brand-charcoal">{row.name}</div>
+                                                            {row.nic_number && <div className="text-[11px] text-neutral-400 font-mono">NIC: {row.nic_number}</div>}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-neutral-500">
+                                                    <div className="font-medium text-xs">Transport Provider</div>
+                                                    <div className="text-[11px] text-neutral-400">{(row.transport_vehicles || []).length} Vehicles</div>
+                                                </td>
+                                                <td className="p-4 text-neutral-500 text-xs">
+                                                    <div>{row.phone || row.email || 'No Contact'}</div>
+                                                    {row.approved_at && <div className="text-[10px] text-neutral-400">Approved: {new Date(row.approved_at).toLocaleDateString()}</div>}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    <div className="flex flex-col items-center gap-1 justify-center">
+                                                        <span className={`inline-block px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-widest rounded-full ${isApproved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                            {isApproved ? 'Approved' : 'Pending Approval'}
+                                                        </span>
+                                                        {row.is_suspended && (
+                                                            <span className="inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md bg-red-100 text-red-700">
+                                                                Suspended
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 pr-6 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                        <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )
                             ) : activeTab === 'guides' ? (
                                 loading ? (
@@ -640,29 +665,52 @@ export default function MasterDataPage() {
                                 ) : guides.length === 0 ? (
                                     <tr><td colSpan={5} className="p-8 text-center text-neutral-500 font-bold">No records found.</td></tr>
                                 ) : (
-                                    guides.map(row => (
-                                        <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
-                                            <td className="p-4 pl-6 font-bold">{row.first_name} {row.last_name || ''}</td>
-                                            <td className="p-4 text-neutral-500">Tour Guide</td>
-                                            <td className="p-4 text-neutral-500">{row.phone || 'No Contact'}</td>
-                                            <td className="p-4 text-center">
-                                                <div className="flex flex-col items-center gap-1 justify-center">
-                                                    <span className={`inline-block px-3 py-1 text-[10px] uppercase font-bold tracking-widest rounded-full ${!row.is_suspended ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                        {!row.is_suspended ? 'Active' : 'Suspended'}
-                                                    </span>
-                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md ${row.has_contracted_price !== false ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                                        {row.has_contracted_price !== false ? 'Contracted' : 'No Contract'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 pr-6 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                                    <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    guides.map(row => {
+                                        const isApproved = row.approval_status === 'Approved';
+                                        return (
+                                            <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
+                                                <td className="p-4 pl-6">
+                                                    <div className="flex items-center gap-3">
+                                                        {row.sltda_id_image_url ? (
+                                                            <img src={row.sltda_id_image_url} alt="SLTDA Guide ID" className="w-10 h-10 object-cover rounded-lg border border-neutral-200 shadow-xs" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 font-bold text-xs">No Img</div>
+                                                        )}
+                                                        <div>
+                                                            <div className="font-bold text-brand-charcoal">{row.first_name} {row.last_name || ''}</div>
+                                                            {row.sltda_registration_number && <div className="text-[11px] text-neutral-400 font-mono">SLTDA: {row.sltda_registration_number}</div>}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-neutral-500">
+                                                    <div className="font-medium text-xs">Tour Guide</div>
+                                                    {row.nic_number && <div className="text-[11px] text-neutral-400 font-mono">NIC: {row.nic_number}</div>}
+                                                </td>
+                                                <td className="p-4 text-neutral-500 text-xs">
+                                                    <div>{row.phone || 'No Contact'}</div>
+                                                    {row.approved_at && <div className="text-[10px] text-neutral-400">Approved: {new Date(row.approved_at).toLocaleDateString()}</div>}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    <div className="flex flex-col items-center gap-1 justify-center">
+                                                        <span className={`inline-block px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-widest rounded-full ${isApproved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                            {isApproved ? 'Approved' : 'Pending Approval'}
+                                                        </span>
+                                                        {row.is_suspended && (
+                                                            <span className="inline-block px-2 py-0.5 text-[9px] uppercase font-bold tracking-widest rounded-md bg-red-100 text-red-700">
+                                                                Suspended
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 pr-6 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => row.id && handleEdit(row.id)} className="p-2 text-neutral-400 hover:text-brand-green hover:bg-brand-green/10 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                        <button onClick={() => row.id && handleDelete(row.id)} className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )
                             ) : activeTab === 'concierge_costs' ? (
                                 loading ? (

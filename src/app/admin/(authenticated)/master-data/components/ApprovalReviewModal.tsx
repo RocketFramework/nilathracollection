@@ -78,11 +78,45 @@ export default function ApprovalReviewModal({ isOpen, onClose, request, onResolv
                         </div>
                     </div>
 
+                    {/* SLTDA Guide ID Image / Vehicle Photos from Proposed Data */}
+                    {parsedData?.sltda_id_image_url && (
+                        <div>
+                            <h3 className="text-sm font-bold text-brand-charcoal mb-4 border-b pb-2 flex items-center justify-between">
+                                SLTDA Tourist Guide ID Image
+                                <a href={parsedData.sltda_id_image_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green font-bold flex items-center gap-1 hover:underline">
+                                    Open Image <ExternalLink size={12} />
+                                </a>
+                            </h3>
+                            <div className="rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100 flex justify-center items-center">
+                                <img src={parsedData.sltda_id_image_url} alt="SLTDA Guide ID" className="max-w-full max-h-96 object-contain" />
+                            </div>
+                        </div>
+                    )}
+
+                    {Array.isArray(parsedData?.transport_vehicles) && parsedData.transport_vehicles.some((v: any) => v.image_url) && (
+                        <div>
+                            <h3 className="text-sm font-bold text-brand-charcoal mb-4 border-b pb-2">Vehicle Photos</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                {parsedData.transport_vehicles.filter((v: any) => v.image_url).map((v: any, idx: number) => (
+                                    <div key={idx} className="border border-neutral-200 rounded-xl p-3 bg-neutral-50 space-y-2">
+                                        <div className="flex justify-between text-xs font-bold text-neutral-700">
+                                            <span>{v.make} {v.model} ({v.vehicle_type})</span>
+                                            <a href={v.image_url} target="_blank" rel="noreferrer" className="text-brand-green flex items-center gap-1 hover:underline">
+                                                Link <ExternalLink size={10} />
+                                            </a>
+                                        </div>
+                                        <img src={v.image_url} alt={`Vehicle ${idx + 1}`} className="w-full h-40 object-cover rounded-lg border border-neutral-200" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Payment Verification Proof */}
                     {request.proof_image_url ? (
                         <div>
                             <h3 className="text-sm font-bold text-brand-charcoal mb-4 border-b pb-2 flex items-center justify-between">
-                                Verification Proof
+                                Payment/Bank Verification Proof
                                 <a href={request.proof_image_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green flex items-center gap-1 hover:underline">
                                     Open Original <ExternalLink size={12} />
                                 </a>
@@ -95,11 +129,11 @@ export default function ApprovalReviewModal({ isOpen, onClose, request, onResolv
                                 )}
                             </div>
                         </div>
-                    ) : (
+                    ) : (!parsedData?.sltda_id_image_url && (!Array.isArray(parsedData?.transport_vehicles) || !parsedData.transport_vehicles.some((v: any) => v.image_url)) && (
                         <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-800 text-sm font-medium">
                             No verification proof image was attached to this request.
                         </div>
-                    )}
+                    ))}
                 </div>
 
                 <div className="p-6 border-t border-neutral-100 bg-neutral-50 flex justify-end gap-4 rounded-b-2xl shadow-inner mt-auto">

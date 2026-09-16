@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, Upload, ExternalLink, ShieldCheck, Clock, UserCheck } from "lucide-react";
 import { MasterDataService, TourGuide } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveTourGuideAction } from "@/actions/admin.actions";
+import { saveTourGuideAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
 
 interface TourGuideFormModalProps {
     isOpen: boolean;
@@ -12,15 +12,16 @@ interface TourGuideFormModalProps {
     userRole: string;
 }
 
-const TABS = ["Basic Info", "Languages", "Payment Details"];
+const TABS = ["Basic Info", "SLTDA & Verification", "Languages", "Payment Details"];
 
 export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, userRole }: TourGuideFormModalProps) {
     const [activeTab, setActiveTab] = useState(TABS[0]);
     const [loading, setLoading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<TourGuide>>({
-        first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false, has_contracted_price: true,
+        first_name: "", last_name: "", phone: "", license_id: "", sltda_registration_number: "", nic_number: "", sltda_id_image_url: "", approval_status: "Pending", languages: [], is_suspended: false, has_contracted_price: true,
         payment_details: {}
     });
 
@@ -35,12 +36,13 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                     daily_rate: rate,
                     per_day_rate: rate,
                     has_contracted_price: guide.has_contracted_price ?? true,
+                    approval_status: guide.approval_status || 'Pending',
                     languages: guide.languages || [],
                     payment_details: guide.payment_details || {}
                 });
             } else {
                 setFormData({
-                    first_name: "", last_name: "", phone: "", license_id: "", languages: [], is_suspended: false, has_contracted_price: true,
+                    first_name: "", last_name: "", phone: "", license_id: "", sltda_registration_number: "", nic_number: "", sltda_id_image_url: "", approval_status: "Pending", languages: [], is_suspended: false, has_contracted_price: true,
                     daily_rate: 20,
                     per_day_rate: 20,
                     payment_details: {}
@@ -61,6 +63,58 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
             ...prev,
             payment_details: { ...(prev.payment_details || {}), [field]: value }
         }));
+    };
+
+    const handleSltdaImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingImage(true);
+        try {
+            const uploadFd = new FormData();
+            uploadFd.append('file', file);
+            uploadFd.append('folder', 'tour-guides');
+            const res = await uploadPartnerImageAction(uploadFd);
+            if (res.error) throw new Error(res.error);
+            if (res.url) {
+                setFormData(prev => ({ ...prev, sltda_id_image_url: res.url }));
+            }
+        } catch (error: any) {
+            alert(`Image upload failed: ${error.message}`);
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
+    const handleApproveGuide = async () => {
+        if (!formData.id) {
+            // New guide, set status to Approved locally before save
+            setFormData(prev => ({ ...prev, approval_status: 'Approved' }));
+            alert("Guide status set to Approved. Click 'Save Changes' to apply.");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to approve this Tour Guide? Approver ID and timestamp will be recorded.")) return;
+
+        setLoading(true);
+        try {
+            const res = await approvePartnerAction('guide', formData.id);
+            if (!res.success) throw new Error(res.error);
+
+            setFormData(prev => ({
+                ...prev,
+                approval_status: 'Approved',
+                approved_by: res.data?.approved_by || 'Admin',
+                approved_at: res.data?.approved_at || new Date().toISOString()
+            }));
+
+            onSave();
+            alert("Tour Guide approved successfully!");
+        } catch (err: any) {
+            alert(`Approval failed: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const addLanguage = () => {
@@ -127,20 +181,27 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center overflow-y-auto pt-10 pb-10">
             <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center p-6 border-b border-neutral-100">
-                    <h2 className="text-2xl font-bold font-playfair text-[#2B2B2B]">
-                        {guide ? "Edit Tour Guide" : "Add New Tour Guide"}
-                    </h2>
+                    <div>
+                        <h2 className="text-2xl font-bold font-playfair text-[#2B2B2B]">
+                            {guide ? "Edit Tour Guide" : "Add New Tour Guide"}
+                        </h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full ${formData.approval_status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                Status: {formData.approval_status || 'Pending'}
+                            </span>
+                        </div>
+                    </div>
                     <button onClick={onClose} className="p-2 text-neutral-400 hover:text-red-500 rounded-full hover:bg-red-50 transition-colors">
                         <X size={24} />
                     </button>
                 </div>
 
-                <div className="flex border-b border-neutral-100 px-6 bg-neutral-50/50">
+                <div className="flex border-b border-neutral-100 px-6 bg-neutral-50/50 overflow-x-auto">
                     {TABS.map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-6 py-4 text-sm font-bold tracking-wide transition-colors border-b-2 ${activeTab === tab ? "border-brand-green text-brand-green bg-brand-green/5" : "border-transparent text-neutral-500 hover:text-brand-charcoal"}`}
+                            className={`px-6 py-4 text-sm font-bold tracking-wide transition-colors border-b-2 whitespace-nowrap ${activeTab === tab ? "border-brand-green text-brand-green bg-brand-green/5" : "border-transparent text-neutral-500 hover:text-brand-charcoal"}`}
                         >
                             {tab}
                         </button>
@@ -163,10 +224,6 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.phone || ''} onChange={e => handleChange('phone', e.target.value)} />
                             </div>
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">License ID</label>
-                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.license_id || ''} onChange={e => handleChange('license_id', e.target.value)} />
-                            </div>
-                            <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Per Day Rate ($)</label>
                                 <input
                                     type="number"
@@ -179,6 +236,14 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                                     }}
                                 />
                             </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Email Address</label>
+                                <input type="email" className="w-full outline-none text-brand-charcoal font-medium" value={formData.email || ''} onChange={e => handleChange('email', e.target.value)} />
+                            </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Address</label>
+                                <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.address || ''} onChange={e => handleChange('address', e.target.value)} />
+                            </div>
                             <div className="col-span-2 mt-2 flex flex-wrap items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100 gap-4">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />
@@ -188,7 +253,96 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                                     <input type="checkbox" className="w-5 h-5 accent-brand-green rounded border-neutral-300" checked={formData.has_contracted_price ?? true} onChange={e => handleChange('has_contracted_price', e.target.checked)} />
                                     <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
-                                {(formData.daily_rate === undefined && formData.per_day_rate === undefined) && <span className="text-[10px] text-neutral-400 font-bold uppercase ml-auto">Default: $20.00</span>}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "SLTDA & Verification" && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">NIC Number</label>
+                                    <input type="text" placeholder="e.g. 199226125738 or 923612573V" className="w-full outline-none text-brand-charcoal font-medium" value={formData.nic_number || ''} onChange={e => handleChange('nic_number', e.target.value)} />
+                                </div>
+                                <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">SLTDA Registration / License ID</label>
+                                    <input type="text" placeholder="e.g. SLTDA/TG/2026/089" className="w-full outline-none text-brand-charcoal font-medium" value={formData.sltda_registration_number || formData.license_id || ''} onChange={e => { handleChange('sltda_registration_number', e.target.value); handleChange('license_id', e.target.value); }} />
+                                </div>
+                            </div>
+
+                            {/* Image Upload & Edit URL Section */}
+                            <div className="border border-neutral-200 rounded-2xl p-5 bg-neutral-50/50 space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-sm font-bold text-brand-charcoal flex items-center gap-2">
+                                        <ShieldCheck size={18} className="text-brand-green" /> SLTDA Tourist Guide ID Image
+                                    </h3>
+                                    {formData.sltda_id_image_url && (
+                                        <a href={formData.sltda_id_image_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green font-bold flex items-center gap-1 hover:underline">
+                                            View Full Image <ExternalLink size={12} />
+                                        </a>
+                                    )}
+                                </div>
+
+                                {formData.sltda_id_image_url ? (
+                                    <div className="relative rounded-xl overflow-hidden border border-neutral-200 bg-black/5 max-h-48 flex items-center justify-center">
+                                        <img src={formData.sltda_id_image_url} alt="SLTDA Guide ID" className="max-h-48 object-contain" />
+                                    </div>
+                                ) : (
+                                    <div className="p-6 border-2 border-dashed border-neutral-300 rounded-xl text-center bg-white">
+                                        <p className="text-xs text-neutral-500 font-medium">No SLTDA Tourist Guide ID image uploaded yet.</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                                    <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-neutral-200 hover:border-brand-green rounded-xl cursor-pointer text-xs font-bold text-brand-charcoal hover:text-brand-green transition-all shadow-sm">
+                                        <Upload size={16} /> {uploadingImage ? "Uploading..." : "Upload New Image"}
+                                        <input type="file" accept="image/*" className="hidden" onChange={handleSltdaImageUpload} disabled={uploadingImage} />
+                                    </label>
+                                    <div className="border border-neutral-200 rounded-xl px-3 py-1.5 bg-white focus-within:border-brand-green transition-all">
+                                        <label className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider block">Image URL Link</label>
+                                        <input type="text" placeholder="https://..." className="w-full outline-none text-xs text-brand-charcoal font-medium" value={formData.sltda_id_image_url || ''} onChange={e => handleChange('sltda_id_image_url', e.target.value)} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Approval Status & Metadata Panel */}
+                            <div className="border border-neutral-200 rounded-2xl p-5 bg-white space-y-4 shadow-sm">
+                                <h3 className="text-sm font-bold text-brand-charcoal flex items-center gap-2">
+                                    <UserCheck size={18} className="text-blue-600" /> Admin Approval Status
+                                </h3>
+
+                                <div className="grid grid-cols-2 gap-4 text-xs">
+                                    <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                                        <span className="text-neutral-400 font-bold uppercase tracking-wider block text-[10px]">Current Status</span>
+                                        <span className={`inline-block mt-1 font-bold px-2.5 py-0.5 rounded-full text-[11px] ${formData.approval_status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                            {formData.approval_status || 'Pending'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
+                                        <span className="text-neutral-400 font-bold uppercase tracking-wider block text-[10px]">Approved By User ID</span>
+                                        <span className="font-mono text-neutral-700 font-bold mt-1 block truncate">
+                                            {formData.approved_by || 'Not Approved Yet'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100 col-span-2">
+                                        <span className="text-neutral-400 font-bold uppercase tracking-wider block text-[10px]">Approval Timestamp</span>
+                                        <span className="text-neutral-700 font-bold mt-1 flex items-center gap-1.5">
+                                            <Clock size={13} className="text-neutral-400" />
+                                            {formData.approved_at ? new Date(formData.approved_at).toLocaleString() : 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {formData.approval_status !== 'Approved' && (
+                                    <button
+                                        type="button"
+                                        onClick={handleApproveGuide}
+                                        disabled={loading}
+                                        className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-2"
+                                    >
+                                        <ShieldCheck size={16} /> Approve Tour Guide & Record Verification
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}

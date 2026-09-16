@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { X, Check, Trash2, Plus } from "lucide-react";
+import { X, Check, Trash2, Plus, Upload, ExternalLink, ShieldCheck, Clock, UserCheck } from "lucide-react";
 import { MasterDataService, TransportProvider, TransportVehicle } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveTransportProviderAction } from "@/actions/admin.actions";
+import { saveTransportProviderAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
 
 interface TransportProviderFormModalProps {
     isOpen: boolean;
@@ -17,10 +17,11 @@ const TABS = ["Basic Info", "Vehicles", "Payment Details"];
 export default function TransportProviderFormModal({ isOpen, onClose, provider, onSave, userRole }: TransportProviderFormModalProps) {
     const [activeTab, setActiveTab] = useState(TABS[0]);
     const [loading, setLoading] = useState(false);
+    const [uploadingVehicleIndex, setUploadingVehicleIndex] = useState<number | null>(null);
     const [proofImage, setProofImage] = useState<File | null>(null);
 
     const [formData, setFormData] = useState<Partial<TransportProvider>>({
-        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false, has_contracted_price: true,
+        name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", approval_status: "Pending", is_suspended: false, has_contracted_price: true,
         payment_details: {},
         transport_vehicles: []
     });
@@ -29,11 +30,17 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
     useEffect(() => {
         if (isOpen) {
             if (provider) {
-                setFormData({ ...provider, has_contracted_price: provider.has_contracted_price ?? true, payment_details: provider.payment_details || {}, transport_vehicles: provider.transport_vehicles || [] });
+                setFormData({
+                    ...provider,
+                    approval_status: provider.approval_status || 'Pending',
+                    has_contracted_price: provider.has_contracted_price ?? true,
+                    payment_details: provider.payment_details || {},
+                    transport_vehicles: provider.transport_vehicles || []
+                });
                 setCoordinateInput((provider.lat && provider.lng) ? `${provider.lat}, ${provider.lng}` : "");
             } else {
                 setFormData({
-                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", is_suspended: false, has_contracted_price: true,
+                    name: "", phone: "", email: "", address: "", lat: undefined, lng: undefined, nic_number: "", approval_status: "Pending", is_suspended: false, has_contracted_price: true,
                     payment_details: {},
                     transport_vehicles: []
                 });
@@ -41,6 +48,7 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
             }
             setActiveTab(TABS[0]);
             setProofImage(null);
+            setUploadingVehicleIndex(null);
         }
     }, [isOpen, provider]);
 
@@ -69,7 +77,8 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
     const addVehicle = () => {
         const newVehicle: TransportVehicle = {
             vehicle_type: "",
-            with_driver: true
+            with_driver: true,
+            approval_status: 'Pending'
         };
         setFormData(prev => ({
             ...prev,
@@ -91,6 +100,67 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
             vehicles.splice(index, 1);
             return { ...prev, transport_vehicles: vehicles };
         });
+    };
+
+    const handleVehicleImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingVehicleIndex(index);
+        try {
+            const uploadFd = new FormData();
+            uploadFd.append('file', file);
+            uploadFd.append('folder', 'vehicles');
+            const res = await uploadPartnerImageAction(uploadFd);
+            if (res.error) throw new Error(res.error);
+            if (res.url) {
+                updateVehicle(index, 'image_url', res.url);
+            }
+        } catch (error: any) {
+            alert(`Vehicle image upload failed: ${error.message}`);
+        } finally {
+            setUploadingVehicleIndex(null);
+        }
+    };
+
+    const handleApproveProvider = async () => {
+        if (!formData.id) {
+            setFormData(prev => ({
+                ...prev,
+                approval_status: 'Approved',
+                transport_vehicles: (prev.transport_vehicles || []).map(v => ({ ...v, approval_status: 'Approved' }))
+            }));
+            alert("Provider status set to Approved. Click 'Save Changes' to apply.");
+            return;
+        }
+
+        if (!confirm("Are you sure you want to approve this Transport Provider and their fleet? Approver ID and timestamp will be recorded.")) return;
+
+        setLoading(true);
+        try {
+            const res = await approvePartnerAction('transport', formData.id);
+            if (!res.success) throw new Error(res.error);
+
+            setFormData(prev => ({
+                ...prev,
+                approval_status: 'Approved',
+                approved_by: res.data?.approved_by || 'Admin',
+                approved_at: res.data?.approved_at || new Date().toISOString(),
+                transport_vehicles: (prev.transport_vehicles || []).map(v => ({
+                    ...v,
+                    approval_status: 'Approved',
+                    approved_by: res.data?.approved_by || 'Admin',
+                    approved_at: res.data?.approved_at || new Date().toISOString()
+                }))
+            }));
+
+            onSave();
+            alert("Transport Provider approved successfully!");
+        } catch (err: any) {
+            alert(`Approval failed: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handlePaymentChange = (field: string, value: string) => {
@@ -161,9 +231,16 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center overflow-y-auto pt-10 pb-10">
             <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center p-6 border-b border-neutral-100">
-                    <h2 className="text-2xl font-bold font-playfair text-[#2B2B2B]">
-                        {provider ? "Edit Transport Provider" : "Add New Transport Provider"}
-                    </h2>
+                    <div>
+                        <h2 className="text-2xl font-bold font-playfair text-[#2B2B2B]">
+                            {provider ? "Edit Transport Provider" : "Add New Transport Provider"}
+                        </h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={`inline-block px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full ${formData.approval_status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                Status: {formData.approval_status || 'Pending'}
+                            </span>
+                        </div>
+                    </div>
                     <button onClick={onClose} className="p-2 text-neutral-400 hover:text-red-500 rounded-full hover:bg-red-50 transition-colors">
                         <X size={24} />
                     </button>
@@ -181,7 +258,7 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                     ))}
                 </div>
 
-                <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
+                <div className="p-8 overflow-y-auto flex-1 custom-scrollbar space-y-6">
                     {activeTab === "Basic Info" && (
                         <div className="grid grid-cols-2 gap-6">
                             <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
@@ -218,17 +295,97 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                                     <span className="text-sm font-bold text-brand-green group-hover:text-brand-green transition-colors">Has Contracted Price</span>
                                 </label>
                             </div>
+
+                            {/* Approval Verification Box */}
+                            <div className="col-span-2 border border-neutral-200 rounded-2xl p-5 bg-neutral-50/50 space-y-4 shadow-sm">
+                                <h3 className="text-sm font-bold text-brand-charcoal flex items-center gap-2">
+                                    <UserCheck size={18} className="text-blue-600" /> Approval Verification Status
+                                </h3>
+
+                                <div className="grid grid-cols-2 gap-4 text-xs">
+                                    <div className="p-3 rounded-xl bg-white border border-neutral-200">
+                                        <span className="text-neutral-400 font-bold uppercase tracking-wider block text-[10px]">Status</span>
+                                        <span className={`inline-block mt-1 font-bold px-2.5 py-0.5 rounded-full text-[11px] ${formData.approval_status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                            {formData.approval_status || 'Pending'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-white border border-neutral-200">
+                                        <span className="text-neutral-400 font-bold uppercase tracking-wider block text-[10px]">Approved By User ID</span>
+                                        <span className="font-mono text-neutral-700 font-bold mt-1 block truncate">
+                                            {formData.approved_by || 'Not Approved Yet'}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-white border border-neutral-200 col-span-2">
+                                        <span className="text-neutral-400 font-bold uppercase tracking-wider block text-[10px]">Approval Timestamp</span>
+                                        <span className="text-neutral-700 font-bold mt-1 flex items-center gap-1.5">
+                                            <Clock size={13} className="text-neutral-400" />
+                                            {formData.approved_at ? new Date(formData.approved_at).toLocaleString() : 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {formData.approval_status !== 'Approved' && (
+                                    <button
+                                        type="button"
+                                        onClick={handleApproveProvider}
+                                        disabled={loading}
+                                        className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-sm flex items-center justify-center gap-2"
+                                    >
+                                        <ShieldCheck size={16} /> Approve Provider & Fleet
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
 
                     {activeTab === "Vehicles" && (
                         <div className="flex flex-col gap-6">
                             {(formData.transport_vehicles || []).map((vehicle, index) => (
-                                <div key={index} className="border border-neutral-200 rounded-xl p-6 relative group bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div key={index} className="border border-neutral-200 rounded-xl p-6 relative group bg-white shadow-sm hover:shadow-md transition-shadow space-y-4">
                                     <button onClick={() => removeVehicle(index)} className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                                         <Trash2 size={18} />
                                     </button>
-                                    <h4 className="font-bold text-lg text-brand-charcoal mb-4">Vehicle #{index + 1}</h4>
+                                    <div className="flex items-center justify-between border-b pb-3">
+                                        <h4 className="font-bold text-lg text-brand-charcoal">Vehicle #{index + 1}</h4>
+                                        <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded-full ${vehicle.approval_status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                            {vehicle.approval_status || 'Pending'}
+                                        </span>
+                                    </div>
+
+                                    {/* Vehicle Photo Upload & Preview Section */}
+                                    <div className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/50 space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-xs font-bold text-neutral-600 uppercase tracking-wider flex items-center gap-1.5">
+                                                Vehicle Image Photo
+                                            </label>
+                                            {vehicle.image_url && (
+                                                <a href={vehicle.image_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green font-bold flex items-center gap-1 hover:underline">
+                                                    View Full <ExternalLink size={12} />
+                                                </a>
+                                            )}
+                                        </div>
+
+                                        {vehicle.image_url ? (
+                                            <div className="relative rounded-lg overflow-hidden border border-neutral-200 bg-black/5 max-h-40 flex items-center justify-center">
+                                                <img src={vehicle.image_url} alt={`Vehicle ${index + 1}`} className="max-h-40 object-contain" />
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 border border-dashed border-neutral-300 rounded-lg text-center bg-white">
+                                                <p className="text-xs text-neutral-400">No vehicle image uploaded yet.</p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                            <label className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-neutral-200 hover:border-brand-green rounded-xl cursor-pointer text-xs font-bold text-brand-charcoal hover:text-brand-green transition-all shadow-sm">
+                                                <Upload size={14} /> {uploadingVehicleIndex === index ? "Uploading..." : "Upload Photo"}
+                                                <input type="file" accept="image/*" className="hidden" onChange={e => handleVehicleImageUpload(index, e)} disabled={uploadingVehicleIndex === index} />
+                                            </label>
+                                            <div className="border border-neutral-200 rounded-xl px-3 py-1 bg-white focus-within:border-brand-green transition-all">
+                                                <label className="text-[8px] font-bold text-neutral-400 uppercase tracking-wider block">Image URL Link</label>
+                                                <input type="text" placeholder="https://..." className="w-full outline-none text-xs text-brand-charcoal font-medium" value={vehicle.image_url || ''} onChange={e => updateVehicle(index, 'image_url', e.target.value)} />
+                                            </div>
+                                        </div>
+                                    </div>
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">

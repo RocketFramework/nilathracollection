@@ -610,6 +610,9 @@ export interface ITransportProviderOnboardingInput {
     contact_person?: string;
     sltda_registered_driver?: boolean;
     onboarding_code?: string;
+    approval_status?: string;
+    approved_by?: string;
+    approved_at?: string;
     bank_name?: string;
     branch_name?: string;
     account_name?: string;
@@ -628,6 +631,8 @@ export interface ITransportProviderOnboardingInput {
         max_km_per_day?: number;
         additional_km_rate?: number;
         with_driver?: boolean;
+        image_url?: string;
+        approval_status?: string;
     }[];
 }
 
@@ -637,6 +642,7 @@ export interface ITourGuideOnboardingInput {
     last_name?: string;
     nic_number: string;
     sltda_registration_number: string;
+    sltda_id_image_url?: string;
     phone: string;
     email?: string;
     address?: string;
@@ -648,6 +654,9 @@ export interface ITourGuideOnboardingInput {
     experience_years?: number;
     daily_rate?: number;
     onboarding_code?: string;
+    approval_status?: string;
+    approved_by?: string;
+    approved_at?: string;
     bank_name?: string;
     branch_name?: string;
     account_name?: string;
