@@ -34,6 +34,7 @@ export function validateSriLankanNIC(nic: string): NICValidationResult {
 
     let rawDay: number;
     let birthYear: number;
+    let dayOfYear: number;
     let gender: 'Male' | 'Female';
     let convertedNewNic: string | undefined;
 

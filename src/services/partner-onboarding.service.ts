@@ -171,9 +171,9 @@ export class PartnerOnboardingService {
             throw new Error("Provider Name, Phone, Email, and NIC Number are required.");
         }
 
-        const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
-        if (!nicRegex.test(cleanNic)) {
-            throw new Error("Invalid Sri Lankan National ID (NIC) format. Must be either 9 digits ending with 'V' or 'X' (e.g. 851234567V) or 12 digits (e.g. 198512345678).");
+        const nicVal = validateSriLankanNIC(cleanNic);
+        if (!nicVal.isValid) {
+            throw new Error(nicVal.error || "Invalid Sri Lankan National ID (NIC) format.");
         }
 
         // Check if updating existing provider by NIC or ID
@@ -297,9 +297,9 @@ export class PartnerOnboardingService {
             throw new Error("First Name, Phone, NIC Number, and SLTDA Registration Number are required.");
         }
 
-        const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
-        if (!nicRegex.test(cleanNic)) {
-            throw new Error("Invalid Sri Lankan National ID (NIC) format. Must be either 9 digits ending with 'V' or 'X' (e.g. 851234567V) or 12 digits (e.g. 198512345678).");
+        const nicVal = validateSriLankanNIC(cleanNic);
+        if (!nicVal.isValid) {
+            throw new Error(nicVal.error || "Invalid Sri Lankan National ID (NIC) format.");
         }
 
         // Check if updating existing guide by NIC or ID

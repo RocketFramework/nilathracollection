@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import MainLayout from "@/components/layout/MainLayout";
 import { verifyPartnerAccessAction, submitTourGuideOnboardingAction } from "@/actions/partner-onboarding.actions";
+import { validateSriLankanNIC, NICValidationResult } from "@/utils/nic-validation";
 import { UserCheck, Lock, ShieldCheck, CheckCircle2, Loader2, ArrowLeft, Award, CreditCard, Edit3, Globe } from "lucide-react";
 
 const AVAILABLE_LANGUAGES = ['English', 'German', 'French', 'Italian', 'Russian', 'Japanese', 'Chinese', 'Spanish', 'Tamil', 'Sinhala'];
@@ -12,8 +13,9 @@ export default function TourGuideOnboardingPage() {
     const [step, setStep] = useState<'verify' | 'form' | 'success'>('verify');
     
     // Gate inputs
-    const [code, setCode] = useState("");
     const [nic, setNic] = useState("");
+    const [code, setCode] = useState("");
+    const [nicValidationInfo, setNicValidationInfo] = useState<NICValidationResult | null>(null);
     const [verifying, setVerifying] = useState(false);
     const [verifyError, setVerifyError] = useState("");
     const [isExisting, setIsExisting] = useState(false);
@@ -44,10 +46,34 @@ export default function TourGuideOnboardingPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
 
+    // Handle NIC Input & Auto Populate Campaign Code
+    const handleNicChange = (val: string) => {
+        const cleanVal = val.toUpperCase();
+        setNic(cleanVal);
+
+        if (cleanVal.trim()) {
+            const validation = validateSriLankanNIC(cleanVal);
+            setNicValidationInfo(validation);
+            if (validation.isValid) {
+                setCode("NILATHRA-GUIDE-2026");
+                setVerifyError("");
+            }
+        } else {
+            setNicValidationInfo(null);
+        }
+    };
+
     // Step 1: Verify Code & NIC
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault();
         setVerifyError("");
+
+        const validation = validateSriLankanNIC(nic);
+        if (!validation.isValid) {
+            setVerifyError(validation.error || "Invalid Sri Lankan National ID (NIC) Number.");
+            return;
+        }
+
         setVerifying(true);
 
         try {
@@ -185,8 +211,37 @@ export default function TourGuideOnboardingPage() {
 
                                 <div className="space-y-4">
                                     <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-1.5">
+                                                <ShieldCheck size={14} className="text-brand-gold" /> Sri Lankan National ID (NIC) Number *
+                                            </label>
+                                            {nicValidationInfo && (
+                                                <span className={`text-[11px] font-bold flex items-center gap-1 ${nicValidationInfo.isValid ? 'text-green-600' : 'text-red-500'}`}>
+                                                    {nicValidationInfo.isValid ? (
+                                                        <>
+                                                            <CheckCircle2 size={12} />
+                                                            Valid NIC ({nicValidationInfo.format === 'old' ? 'Old Format' : 'New Format'})
+                                                        </>
+                                                    ) : (
+                                                        nicValidationInfo.error
+                                                    )}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={nic}
+                                            onChange={(e) => handleNicChange(e.target.value)}
+                                            placeholder="e.g. 923612573V or 199226125738"
+                                            className={`w-full bg-neutral-50 border ${nicValidationInfo ? (nicValidationInfo.isValid ? 'border-green-500 ring-1 ring-green-500/20' : 'border-red-400') : 'border-neutral-300'} rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase`}
+                                        />
+                                        <p className="text-[11px] text-neutral-400 mt-1">Your NIC identifies your profile. If registered previously, this will load your existing record to edit.</p>
+                                    </div>
+
+                                    <div>
                                         <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                            <Lock size={14} className="text-brand-gold" /> Onboarding Campaign Code
+                                            <Lock size={14} className="text-brand-gold" /> Onboarding Campaign Code *
                                         </label>
                                         <input
                                             type="text"
@@ -196,22 +251,9 @@ export default function TourGuideOnboardingPage() {
                                             placeholder="e.g. NILATHRA-GUIDE-2026"
                                             className="w-full bg-neutral-50 border border-neutral-300 rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase tracking-wider"
                                         />
-                                        <p className="text-[11px] text-neutral-400 mt-1">Code provided in Nilathra&apos;s luxury guide campaign invitation.</p>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                            <ShieldCheck size={14} className="text-brand-gold" /> Sri Lankan National ID (NIC) Number
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={nic}
-                                            onChange={(e) => setNic(e.target.value.toUpperCase())}
-                                            placeholder="e.g. 198812345678 or 881234567V"
-                                            className="w-full bg-neutral-50 border border-neutral-300 rounded-xl p-3.5 focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold outline-none font-mono text-sm uppercase"
-                                        />
-                                        <p className="text-[11px] text-neutral-400 mt-1">Your NIC identifies your profile. If you registered previously, this will load your existing record to edit.</p>
+                                        <p className="text-[11px] text-neutral-400 mt-1">
+                                            {nicValidationInfo?.isValid ? "Auto-populated upon valid NIC verification. You can modify if using a custom code." : "Auto-populated upon valid NIC entry, or enter your official invitation code."}
+                                        </p>
                                     </div>
                                 </div>
 
