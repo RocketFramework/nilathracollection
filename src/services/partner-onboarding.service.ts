@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { TransportProviderOnboardingDTO, TourGuideOnboardingDTO, PartnerVerificationResultDTO } from '@/dtos/partner-onboarding.dto';
 import { Settings } from '@/types/types';
+import { validateSriLankanNIC } from '@/utils/nic-validation';
 
 export class PartnerOnboardingService {
     /**
@@ -20,12 +21,12 @@ export class PartnerOnboardingService {
             return { success: false, error: 'Sri Lankan National ID (NIC) number is required.' };
         }
 
-        // Validate Sri Lankan NIC format: Old format (9 digits + V/X) or New format (12 digits)
-        const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
-        if (!nicRegex.test(cleanNic)) {
+        // Validate Sri Lankan NIC format & day range using validator helper
+        const nicVal = validateSriLankanNIC(cleanNic);
+        if (!nicVal.isValid) {
             return {
                 success: false,
-                error: 'Invalid Sri Lankan National ID (NIC) format. Must be either 9 digits ending with "V" or "X" (e.g. 851234567V) or 12 digits (e.g. 198512345678).'
+                error: nicVal.error || 'Invalid Sri Lankan National ID (NIC) format.'
             };
         }
 
