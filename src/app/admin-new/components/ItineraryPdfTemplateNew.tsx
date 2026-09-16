@@ -415,16 +415,17 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
             .print-page-break { 
               page-break-after: always; 
               break-after: page;
+              padding-top: 12mm !important;
             }
             .print-avoid-break { 
               page-break-inside: avoid; 
               break-inside: avoid;
             }
             .print-header-spacer { 
-              height: 20mm; 
+              height: 18mm !important; 
             }
             .print-footer-spacer { 
-              height: 25mm; 
+              height: 15mm !important; 
             }
           }
         `}} />
@@ -591,7 +592,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           <tfoot className="hidden print:table-footer-group">
             <tr>
               <td>
-                <div className="print-footer-spacer flex items-end justify-between px-16 pb-8 text-[8px] uppercase tracking-[0.2em] text-[#9CA3AF] font-sans">
+                <div className="print-footer-spacer flex items-end justify-between px-8 pb-4 text-[8px] uppercase tracking-[0.2em] text-[#9CA3AF] font-sans">
                   <span>Nilathra Collection</span>
                   <span>Private & Confidential Itinerary</span>
                 </div>
@@ -604,8 +605,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
               <td>
 
                 {/* 2. PROLOGUE / WELCOME PAGE */}
-                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
-                  <div className="text-center mb-16">
+                <div className="print-page-break w-full px-8 py-6 box-border">
+                  <div className="text-center mb-12">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Prologue</span>
                     <div className="w-10 h-[1px] bg-[#D4AF37] mx-auto"></div>
                   </div>
@@ -635,14 +636,14 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                 </div>
 
                 {/* 3. TRIP BLUEPRINT / METRICS OVERVIEW */}
-                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
-                  <div className="text-center mb-12">
+                <div className="print-page-break w-full px-8 py-6 box-border">
+                  <div className="text-center mb-8">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">The Blueprint</span>
                     <h3 className="text-3xl font-serif text-[#111827] font-light italic">Journey Details</h3>
                   </div>
 
-                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 space-y-10">
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-10">
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-8">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-8">
 
                       <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
                         <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Party Details</span>
@@ -716,90 +717,325 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   </div>
                 </div>
 
-                {/* 3.4 CONCIERGES & DESTINATION SUPPORT PAGE */}
-                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
-                  <div className="text-center mb-10">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Exclusive Services</span>
-                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Concierges & Destination Support</h3>
-                  </div>
+                {/* 3.3 SRI LANKA ROUTE MAP & DESTINATION SEQUENCE */}
+                {(() => {
+                  // Coordinate lookup dictionary for Sri Lanka cities
+                  const SRI_LANKA_CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+                    'colombo': { lat: 6.9271, lng: 79.8612 },
+                    'negombo': { lat: 7.1895, lng: 79.8897 },
+                    'katunayake': { lat: 7.1800, lng: 79.8841 },
+                    'bandaranaike': { lat: 7.1800, lng: 79.8841 },
+                    'kandy': { lat: 7.2906, lng: 80.6337 },
+                    'nuwara eliya': { lat: 6.9497, lng: 80.7891 },
+                    'sigiriya': { lat: 7.9570, lng: 80.7603 },
+                    'dambulla': { lat: 7.8742, lng: 80.6511 },
+                    'anuradhapura': { lat: 8.3114, lng: 80.4037 },
+                    'polonnaruwa': { lat: 7.9403, lng: 81.0188 },
+                    'galle': { lat: 6.0535, lng: 80.2210 },
+                    'bentota': { lat: 6.4255, lng: 79.9972 },
+                    'beruwala': { lat: 6.4788, lng: 79.9828 },
+                    'wadduwa': { lat: 6.6667, lng: 79.9333 },
+                    'hikkaduwa': { lat: 6.1394, lng: 80.1063 },
+                    'weligama': { lat: 5.9722, lng: 80.4286 },
+                    'mirissa': { lat: 5.9483, lng: 80.4578 },
+                    'tangalle': { lat: 6.0243, lng: 80.7941 },
+                    'hambantota': { lat: 6.1241, lng: 81.1185 },
+                    'yala': { lat: 6.3725, lng: 81.5165 },
+                    'tissamaharama': { lat: 6.2843, lng: 81.3320 },
+                    'kataragama': { lat: 6.4133, lng: 81.3344 },
+                    'ella': { lat: 6.8667, lng: 81.0466 },
+                    'badulla': { lat: 6.9934, lng: 81.0550 },
+                    'hatton': { lat: 6.8919, lng: 80.5969 },
+                    'dickoya': { lat: 6.8667, lng: 80.6000 },
+                    'trincomalee': { lat: 8.5874, lng: 81.2152 },
+                    'pasikuda': { lat: 7.9252, lng: 81.5623 },
+                    'batticaloa': { lat: 7.7170, lng: 81.7000 },
+                    'arugam bay': { lat: 6.8417, lng: 81.8333 },
+                    'jaffna': { lat: 9.6615, lng: 80.0255 },
+                    'udawalawe': { lat: 6.4402, lng: 80.8872 },
+                    'wilpattu': { lat: 8.4485, lng: 80.0076 },
+                    'kitulgala': { lat: 6.9986, lng: 80.4208 },
+                    'kalpitiya': { lat: 8.2325, lng: 79.7644 },
+                    'habarana': { lat: 8.0347, lng: 80.7516 },
+                    'minneriya': { lat: 8.0333, lng: 80.9000 },
+                    'kaudulla': { lat: 8.1333, lng: 80.9167 },
+                    'ratnapura': { lat: 6.6828, lng: 80.3992 },
+                    'belihuloya': { lat: 6.7167, lng: 80.7667 }
+                  };
 
-                  {enrichedTourConcierges && enrichedTourConcierges.length > 0 ? (
-                    <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
-                      <div className="text-center max-w-lg mx-auto mb-2">
-                        <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                          Tailored Concierge Services
-                        </span>
-                        <p className="text-xs text-neutral-500 font-serif italic">
-                          Bespoke concierge services and VIP support protocols integrated into your Ceylon journey for {clientName}.
-                        </p>
+                  // Helper function to resolve (lat, lng) for a location string
+                  const resolveLocationCoords = (locName: string): { lat: number; lng: number } => {
+                    const clean = locName.toLowerCase().trim();
+                    for (const [key, coords] of Object.entries(SRI_LANKA_CITY_COORDS)) {
+                      if (clean.includes(key) || key.includes(clean)) {
+                        return coords;
+                      }
+                    }
+                    // Fallback to center-west default if unknown
+                    return { lat: 7.0, lng: 80.2 };
+                  };
+
+                  // Project (lat, lng) to SVG viewBox coordinates (width: 320, height: 440)
+                  const projectToMap = (lat: number, lng: number): { x: number; y: number } => {
+                    const minLat = 5.7;
+                    const maxLat = 9.8;
+                    const minLng = 79.3;
+                    const maxLng = 82.1;
+
+                    const minX = 40;
+                    const maxX = 280;
+                    const minY = 40;
+                    const maxY = 400;
+
+                    const x = minX + ((lng - minLng) / (maxLng - minLng)) * (maxX - minX);
+                    const y = maxY - ((lat - minLat) / (maxLat - minLat)) * (maxY - minY);
+                    return { x: Math.round(x), y: Math.round(y) };
+                  };
+
+                  // Group itinerary blocks by unique location/coordinates
+                  const sortedBlocks = [...itinerary].sort((a, b) => a.dayNumber - b.dayNumber);
+                  const cityStopsMap = new Map<string, {
+                    name: string;
+                    startDay: number;
+                    endDay: number;
+                    coords: { lat: number; lng: number };
+                    mapXY: { x: number; y: number };
+                    hotelName?: string;
+                  }>();
+
+                  sortedBlocks.forEach(block => {
+                    const rawLoc = block.locationName || block.hotelName || block.name || '';
+                    if (!rawLoc || rawLoc.toLowerCase().includes('travel') || rawLoc.toLowerCase().includes('transfer')) return;
+
+                    let cityName = rawLoc.split('-')[0].split(',')[0].trim();
+                    if (!cityName) return;
+
+                    const coords = resolveLocationCoords(cityName);
+                    const cityKey = `${coords.lat.toFixed(2)},${coords.lng.toFixed(2)}`;
+                    const mapXY = projectToMap(coords.lat, coords.lng);
+
+                    if (cityStopsMap.has(cityKey)) {
+                      const existing = cityStopsMap.get(cityKey)!;
+                      existing.startDay = Math.min(existing.startDay, block.dayNumber);
+                      existing.endDay = Math.max(existing.endDay, block.dayNumber);
+                      if (block.type === ItineraryBlockTypes.SLEEP && block.hotelName) {
+                        existing.hotelName = block.hotelName;
+                      }
+                    } else {
+                      cityStopsMap.set(cityKey, {
+                        name: cityName,
+                        startDay: block.dayNumber,
+                        endDay: block.dayNumber,
+                        coords,
+                        mapXY,
+                        hotelName: block.type === ItineraryBlockTypes.SLEEP ? block.hotelName : undefined
+                      });
+                    }
+                  });
+
+                  const locationStops = Array.from(cityStopsMap.values()).sort((a, b) => a.startDay - b.startDay);
+
+                  if (locationStops.length === 0) return null;
+
+                  const pathPointsString = locationStops.map(s => `${s.mapXY.x},${s.mapXY.y}`).join(' L ');
+
+                  return (
+                    <div className="print-page-break w-full px-8 py-6 box-border">
+                      <div className="text-center mb-6">
+                        <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Spatial Blueprint</span>
+                        <h3 className="text-2xl font-serif text-[#111827] font-light italic">Route Map & Destination Sequence</h3>
                       </div>
 
-                      <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
-                        <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 flex justify-between items-center text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold">
-                          <span>Service & Category</span>
-                          <div className="flex items-center gap-12 pr-2">
-                            <span>Service Basis</span>
-                            <span>Quantity</span>
+                      <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6">
+                        <div className="w-full bg-white rounded-xl border border-[#E8DFD1] p-6 flex flex-col items-center justify-center relative shadow-sm min-h-[680px]">
+                          <span className="text-[10px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-4 text-center">
+                            Sri Lanka Private Tour Route • {locationStops.length} Destination Hubs
+                          </span>
+
+                          <svg
+                            viewBox="0 0 320 440"
+                            className="w-full h-auto max-h-[620px] drop-shadow-sm"
+                            style={{ overflow: 'visible' }}
+                          >
+                            <defs>
+                              <linearGradient id="sriLankaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#F5F2EA" />
+                                <stop offset="100%" stopColor="#EBE5D8" />
+                              </linearGradient>
+                              <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="2" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                              </filter>
+                            </defs>
+
+                            {/* Stylized Vector Path of Sri Lanka Silhouette */}
+                            <path
+                              d="M 142,42 C 150,38 165,40 174,48 C 182,56 186,66 180,78 C 174,88 158,94 153,105 C 148,116 150,126 146,138 C 140,154 122,165 112,180 C 102,195 98,215 94,235 C 90,255 88,275 86,295 C 84,315 83,335 82,350 C 81,365 82,380 86,395 C 92,410 102,422 115,432 C 128,442 145,448 165,450 C 185,451 205,448 225,441 C 242,434 256,420 268,402 C 278,386 284,365 285,344 C 286,323 282,302 278,282 C 274,262 272,242 270,222 C 267,202 261,182 252,163 C 244,144 233,126 218,111 C 206,97 192,83 182,68 C 172,55 158,45 142,42 Z"
+                              fill="url(#sriLankaBg)"
+                              stroke="#D4AF37"
+                              strokeWidth="1.5"
+                              strokeLinejoin="round"
+                            />
+
+                            {/* Coastal Grid Reference Lines */}
+                            <circle cx="160" cy="240" r="180" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.25" />
+                            <circle cx="160" cy="240" r="120" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.2" />
+
+                            {/* Route Trajectory Polyline */}
+                            {locationStops.length > 1 && (
+                              <path
+                                d={`M ${pathPointsString}`}
+                                stroke="#D4AF37"
+                                strokeWidth="2.5"
+                                strokeDasharray="5,4"
+                                fill="none"
+                                filter="url(#goldGlow)"
+                              />
+                            )}
+
+                            {/* Location Pins showing Day numbers */}
+                            {locationStops.map((stop, sIdx) => {
+                              const isStart = sIdx === 0;
+                              const isEnd = sIdx === locationStops.length - 1;
+                              const pinColor = isStart ? "#0A251D" : isEnd ? "#8C6D3F" : "#111827";
+                              const dayLabel = stop.startDay === stop.endDay 
+                                ? `D${stop.startDay}` 
+                                : `D${stop.startDay}-${stop.endDay}`;
+
+                              return (
+                                <g key={sIdx}>
+                                  {/* Circle Pin Badge */}
+                                  <circle
+                                    cx={stop.mapXY.x}
+                                    cy={stop.mapXY.y}
+                                    r="14"
+                                    fill={pinColor}
+                                    stroke="#D4AF37"
+                                    strokeWidth="1.5"
+                                  />
+                                  <text
+                                    x={stop.mapXY.x}
+                                    y={stop.mapXY.y + 3.5}
+                                    fill="#FFFFFF"
+                                    fontSize="8"
+                                    fontWeight="bold"
+                                    fontFamily="sans-serif"
+                                    textAnchor="middle"
+                                  >
+                                    {dayLabel}
+                                  </text>
+                                </g>
+                              );
+                            })}
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 3.4 CONCIERGES & DESTINATION SUPPORT PAGES */}
+                {(() => {
+                  const CONCIERGE_ITEMS_PER_PAGE = 9;
+                  const hasConcierges = enrichedTourConcierges && enrichedTourConcierges.length > 0;
+                  const conciergeChunks: any[][] = [];
+
+                  if (hasConcierges) {
+                    for (let i = 0; i < enrichedTourConcierges.length; i += CONCIERGE_ITEMS_PER_PAGE) {
+                      conciergeChunks.push(enrichedTourConcierges.slice(i, i + CONCIERGE_ITEMS_PER_PAGE));
+                    }
+                  } else {
+                    conciergeChunks.push([]);
+                  }
+
+                  return conciergeChunks.map((chunk, chunkIdx) => (
+                    <div key={`concierge-chunk-page-${chunkIdx}`} className="print-page-break w-full px-8 py-6 box-border">
+                      <div className="text-center mb-6">
+                        <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Exclusive Services</span>
+                        <h3 className="text-2xl font-serif text-[#111827] font-light italic">
+                          Concierges & Destination Support {conciergeChunks.length > 1 ? `(Page ${chunkIdx + 1} of ${conciergeChunks.length})` : ''}
+                        </h3>
+                      </div>
+
+                      {chunk.length > 0 ? (
+                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
+                          <div className="text-center max-w-lg mx-auto mb-1">
+                            <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-0.5">
+                              Tailored Concierge Services
+                            </span>
+                            <p className="text-xs text-neutral-500 font-serif italic">
+                              Bespoke concierge services and VIP support protocols integrated into your Ceylon journey for {clientName}.
+                            </p>
+                          </div>
+
+                          <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                            <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-2.5 flex justify-between items-center text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold">
+                              <span>Service & Category</span>
+                              <div className="flex items-center gap-12 pr-2">
+                                <span>Service Basis</span>
+                                <span>Quantity</span>
+                              </div>
+                            </div>
+
+                            <div className="divide-y divide-neutral-100">
+                              {chunk.map((item: any, idx: number) => {
+                                const title = item.cost_item?.title || item.title || 'Bespoke Concierge Service';
+                                const details = item.cost_item?.details || item.details || '';
+                                const category = item.cost_item?.category || item.category || 'Support';
+                                const rawBasis = (item.costing_basis || item.cost_item?.costing_basis || 'per_service').toLowerCase();
+                                const costingBasis = rawBasis.includes('day') ? 'Per Day' : (rawBasis.includes('person') ? 'Per Guest' : 'Per Service');
+                                const qty = item.quantity || 1;
+
+                                return (
+                                  <div key={idx} className="px-5 py-2.5 flex justify-between items-start text-left hover:bg-neutral-50/50 transition-colors">
+                                    <div className="space-y-0.5 max-w-md">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-serif font-bold text-sm text-[#111827]">{title}</span>
+                                        <span className="text-[7.5px] font-sans uppercase tracking-[0.2em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
+                                          {category}
+                                        </span>
+                                      </div>
+                                      {details && (
+                                        <p className="text-[11px] text-neutral-500 font-sans leading-normal">
+                                          {details}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-12 text-xs font-sans text-right pt-0.5">
+                                      <span className="text-neutral-500 font-medium text-[11px] min-w-[70px]">{costingBasis}</span>
+                                      <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-0.5 rounded text-xs min-w-[50px] text-center">
+                                        {qty} {qty > 1 ? 'Pax' : 'Unit'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
-
-                        <div className="divide-y divide-neutral-100">
-                          {enrichedTourConcierges.map((item: any, idx: number) => {
-                            const title = item.cost_item?.title || item.title || 'Bespoke Concierge Service';
-                            const details = item.cost_item?.details || item.details || '';
-                            const category = item.cost_item?.category || item.category || 'Support';
-                            const rawBasis = (item.costing_basis || item.cost_item?.costing_basis || 'per_service').toLowerCase();
-                            const costingBasis = rawBasis.includes('day') ? 'Per Day' : (rawBasis.includes('person') ? 'Per Guest' : 'Per Service');
-                            const qty = item.quantity || 1;
-
-                            return (
-                              <div key={idx} className="px-5 py-3.5 flex justify-between items-start text-left hover:bg-neutral-50/50 transition-colors">
-                                <div className="space-y-0.5 max-w-md">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-serif font-bold text-sm text-[#111827]">{title}</span>
-                                    <span className="text-[7.5px] font-sans uppercase tracking-[0.2em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
-                                      {category}
-                                    </span>
-                                  </div>
-                                  {details && (
-                                    <p className="text-[11px] text-neutral-500 font-sans leading-normal">
-                                      {details}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-12 text-xs font-sans text-right pt-0.5">
-                                  <span className="text-neutral-500 font-medium text-[11px] min-w-[70px]">{costingBasis}</span>
-                                  <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-0.5 rounded text-xs min-w-[50px] text-center">
-                                    {qty} {qty > 1 ? 'Pax' : 'Unit'}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
+                      ) : (
+                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 text-center space-y-3">
+                          <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                            Complimentary Destination Support Included
+                          </span>
+                          <p className="text-xs text-neutral-600 font-serif italic max-w-md mx-auto">
+                            24/7 dedicated local concierge manager on standby, airport coordination, luxury transfer logistics, and real-time itinerary support throughout your Ceylon travel experience.
+                          </p>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 text-center space-y-4">
-                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                        Complimentary Destination Support Included
-                      </span>
-                      <p className="text-xs text-neutral-600 font-serif italic max-w-md mx-auto">
-                        24/7 dedicated local concierge manager on standby, airport coordination, luxury transfer logistics, and real-time itinerary support throughout your Ceylon travel experience.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  ));
+                })()}
 
                 {/* 3.5 FINANCIAL BLUEPRINT / ESTIMATED PACKAGE COST OVERVIEW PAGE */}
-                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
-                  <div className="text-center mb-12">
+                <div className="print-page-break w-full px-8 py-6 box-border">
+                  <div className="text-center mb-8">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Commercial Overview</span>
                     <h3 className="text-3xl font-serif text-[#111827] font-light italic">Estimated Package Cost Overview</h3>
                   </div>
 
-                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-10 space-y-8">
-                    <div className="text-center max-w-md mx-auto mb-6">
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
+                    <div className="text-center max-w-md mx-auto mb-4">
                       <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
                         Investment Summary
                       </span>
@@ -865,95 +1101,109 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   </div>
                 </div>
 
-                {/* 3.6 ACCOMMODATION SUMMARY PAGE */}
-                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
-                  <div className="text-center mb-12">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Accommodations</span>
-                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Sanctuaries & Stay Schedule</h3>
-                  </div>
+                {/* 3.6 ACCOMMODATION SUMMARY PAGES */}
+                {(() => {
+                  const SLEEP_ITEMS_PER_PAGE = 9;
+                  const sleepBlocks = itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP).sort((a, b) => a.dayNumber - b.dayNumber);
+                  const sleepChunks: any[][] = [];
 
-                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
-                    <div className="text-center max-w-lg mx-auto mb-2">
-                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                        Curated Hotel Portfolio
-                      </span>
-                      <p className="text-xs text-neutral-500 font-serif italic">
-                        Hand-selected luxury accommodations and room arrangements for {clientName}.
-                      </p>
-                    </div>
+                  if (sleepBlocks.length > 0) {
+                    for (let i = 0; i < sleepBlocks.length; i += SLEEP_ITEMS_PER_PAGE) {
+                      sleepChunks.push(sleepBlocks.slice(i, i + SLEEP_ITEMS_PER_PAGE));
+                    }
+                  } else {
+                    sleepChunks.push([]);
+                  }
 
-                    <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
-                      <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
-                        <span className="col-span-3">Night & Date</span>
-                        <span className="col-span-4">Hotel Sanctuary</span>
-                        <span className="col-span-2">Star Rating</span>
-                        <span className="col-span-3 text-right pr-2">Meal Plan</span>
+                  return sleepChunks.map((chunk, chunkIdx) => (
+                    <div key={`sleep-chunk-page-${chunkIdx}`} className="print-page-break w-full px-8 py-6 box-border">
+                      <div className="text-center mb-6">
+                        <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Accommodations</span>
+                        <h3 className="text-2xl font-serif text-[#111827] font-light italic">
+                          Sanctuaries & Stay Schedule {sleepChunks.length > 1 ? `(Page ${chunkIdx + 1} of ${sleepChunks.length})` : ''}
+                        </h3>
                       </div>
 
-                      <div className="divide-y divide-neutral-100">
-                        {(() => {
-                          const sleepBlocks = itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP).sort((a, b) => a.dayNumber - b.dayNumber);
-                          if (sleepBlocks.length === 0) {
-                            return (
-                              <div className="p-8 text-center text-xs text-neutral-400 font-serif italic">
+                      <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
+                        <div className="text-center max-w-lg mx-auto mb-1">
+                          <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-0.5">
+                            Curated Hotel Portfolio
+                          </span>
+                          <p className="text-xs text-neutral-500 font-serif italic">
+                            Hand-selected luxury accommodations and room arrangements for {clientName}.
+                          </p>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                          <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-2.5 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
+                            <span className="col-span-3">Night & Date</span>
+                            <span className="col-span-4">Hotel Sanctuary</span>
+                            <span className="col-span-2">Star Rating</span>
+                            <span className="col-span-3 text-right pr-2">Meal Plan</span>
+                          </div>
+
+                          <div className="divide-y divide-neutral-100">
+                            {chunk.length === 0 ? (
+                              <div className="p-6 text-center text-xs text-neutral-400 font-serif italic">
                                 Accommodations are currently being finalized.
                               </div>
-                            );
-                          }
-                          return sleepBlocks.map((block, idx) => {
-                            const hotelDetail = masterData?.hotels
-                              ? masterData.hotels.find((x: any) =>
-                                (block.hotelId && x.id === block.hotelId) ||
-                                (block.hotelName && x.name?.toLowerCase() === block.hotelName.toLowerCase()) ||
-                                (block.name && x.name?.toLowerCase() === block.name.toLowerCase())
-                              )
-                              : null;
+                            ) : (
+                              chunk.map((block, idx) => {
+                                const hotelDetail = masterData?.hotels
+                                  ? masterData.hotels.find((x: any) =>
+                                    (block.hotelId && x.id === block.hotelId) ||
+                                    (block.hotelName && x.name?.toLowerCase() === block.hotelName.toLowerCase()) ||
+                                    (block.name && x.name?.toLowerCase() === block.name.toLowerCase())
+                                  )
+                                  : null;
 
-                            const hName = block.hotelName || block.name || hotelDetail?.name || 'Pending Assignment';
-                            const starClass = hotelDetail?.hotel_class || hotelDetail?.star_rating || (travelStyle === 'Ultra VIP' ? '5 Star Super Luxury' : '5 Star Luxury');
-                            const mealPlan = block.mealPlan || 'HB';
-                            const dateFormatted = getShortFormattedDate(block.dayNumber);
+                                const hName = block.hotelName || block.name || hotelDetail?.name || 'Pending Assignment';
+                                const starClass = hotelDetail?.hotel_class || hotelDetail?.star_rating || (travelStyle === 'Ultra VIP' ? '5 Star Super Luxury' : '5 Star Luxury');
+                                const mealPlan = block.mealPlan || 'HB';
+                                const dateFormatted = getShortFormattedDate(block.dayNumber);
 
-                            return (
-                              <div key={idx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
-                                <div className="col-span-3 space-y-0.5">
-                                  <span className="font-bold text-[#111827] block">Night {String(block.dayNumber).padStart(2, '0')}</span>
-                                  <span className="text-[10px] text-neutral-500 font-sans block">{dateFormatted !== `Day ${block.dayNumber}` ? dateFormatted : `Day ${block.dayNumber}`}</span>
-                                </div>
+                                return (
+                                  <div key={idx} className="px-5 py-3 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
+                                    <div className="col-span-3 space-y-0.5">
+                                      <span className="font-bold text-[#111827] block">Night {String(block.dayNumber).padStart(2, '0')}</span>
+                                      <span className="text-[10px] text-neutral-500 font-sans block">{dateFormatted !== `Day ${block.dayNumber}` ? dateFormatted : `Day ${block.dayNumber}`}</span>
+                                    </div>
 
-                                <div className="col-span-4 space-y-0.5">
-                                  <span className="font-serif font-bold text-sm text-[#111827] block">{hName}</span>
-                                  {block.locationName && (
-                                    <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{block.locationName}</span>
-                                  )}
-                                  {block.roomName && (
-                                    <span className="text-[10px] text-neutral-500 font-sans block font-medium">Room: {block.roomName}</span>
-                                  )}
-                                </div>
+                                    <div className="col-span-4 space-y-0.5">
+                                      <span className="font-serif font-bold text-sm text-[#111827] block">{hName}</span>
+                                      {block.locationName && (
+                                        <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{block.locationName}</span>
+                                      )}
+                                      {block.roomName && (
+                                        <span className="text-[10px] text-neutral-500 font-sans block font-medium">Room: {block.roomName}</span>
+                                      )}
+                                    </div>
 
-                                <div className="col-span-2">
-                                  <span className="text-[10px] font-sans font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-2 py-0.5 rounded inline-block">
-                                    {starClass}
-                                  </span>
-                                </div>
+                                    <div className="col-span-2">
+                                      <span className="text-[10px] font-sans font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-2 py-0.5 rounded inline-block">
+                                        {starClass}
+                                      </span>
+                                    </div>
 
-                                <div className="col-span-3 text-right pr-2">
-                                  <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded text-xs inline-block">
-                                    {mealPlan} Basis
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
+                                    <div className="col-span-3 text-right pr-2">
+                                      <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded text-xs inline-block">
+                                        {mealPlan} Basis
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  ));
+                })()}
 
                 {/* 3.7 PRIVATE TRANSPORT & CHAUFFEUR LOGISTICS PAGE */}
-                <div className="print-page-break px-16 py-12 max-w-[850px] mx-auto min-h-[250mm]">
-                  <div className="text-center mb-12">
+                <div className="print-page-break w-full px-8 py-6 box-border">
+                  <div className="text-center mb-8">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Transport & Chauffeur</span>
                     <h3 className="text-3xl font-serif text-[#111827] font-light italic">Private Vehicles & Chauffeur Logistics</h3>
                   </div>
@@ -1160,8 +1410,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                 </div>
 
                 {/* 4. CHRONOLOGY - DAY-BY-DAY TIMELINE */}
-                <div className="px-16 py-12 max-w-[850px] mx-auto">
-                  <div className="text-center mb-12">
+                <div className="w-full px-8 py-6 box-border">
+                  <div className="text-center mb-10">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Chronology</span>
                     <h3 className="text-3xl font-serif text-[#111827] font-light italic">Your Custom Itinerary</h3>
                   </div>
