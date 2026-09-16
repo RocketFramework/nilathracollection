@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin, Sparkles } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity, SeamlessConciergeCostItem } from "@/services/master-data.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, getVendorAction, getRestaurantsAction, getTransportProvidersAction, getDriversAction, getTourGuidesAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, deleteVendorAction, getVendorAction, getRestaurantsAction, deleteRestaurantAction, getTransportProvidersAction, deleteTransportProviderAction, getDriversAction, deleteDriverAction, getTourGuidesAction, deleteTourGuideAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -297,17 +297,20 @@ export default function MasterDataPage() {
     const handleDelete = async (id: string | number) => {
         if (confirm(`Are you sure you want to delete this ${activeTab.slice(0, -1)}?`)) {
             try {
+                let res: { success?: boolean; error?: string } | undefined = undefined;
                 if (activeTab === 'hotels') {
-                    const res = await deleteHotelAction(id as string);
-                    if (res && res.error) throw new Error(res.error);
+                    res = await deleteHotelAction(id as string);
                 }
                 else if (activeTab === 'activities') await MasterDataService.deleteActivity(id as number);
-                else if (activeTab === 'vendors') await MasterDataService.deleteVendor(id as string);
-                else if (activeTab === 'restaurants') await MasterDataService.deleteRestaurant(id as string);
-                else if (activeTab === 'transports') await MasterDataService.deleteTransportProvider(id as string);
-                else if (activeTab === 'drivers') await MasterDataService.deleteDriver(id as string);
-                else if (activeTab === 'guides') await MasterDataService.deleteTourGuide(id as string);
-                else if (activeTab === 'concierge_costs') await deleteSeamlessConciergeCostItemAction(id as string);
+                else if (activeTab === 'vendors') res = await deleteVendorAction(id as string);
+                else if (activeTab === 'restaurants') res = await deleteRestaurantAction(id as string);
+                else if (activeTab === 'transports') res = await deleteTransportProviderAction(id as string);
+                else if (activeTab === 'drivers') res = await deleteDriverAction(id as string);
+                else if (activeTab === 'guides') res = await deleteTourGuideAction(id as string);
+                else if (activeTab === 'concierge_costs') res = await deleteSeamlessConciergeCostItemAction(id as string);
+
+                if (res && res.error) throw new Error(res.error);
+
                 loadData();
             } catch (error: any) {
                 console.error("Failed to delete record:", error);

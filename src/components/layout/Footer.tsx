@@ -24,13 +24,15 @@ export default function Footer() {
             <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-12 mb-16">
                 <div className="space-y-6 md:col-span-1">
                     <Link href="/" className="flex items-center gap-3">
-                        <div className="relative h-10 w-10 overflow-hidden rounded-full brightness-0 invert">
-                            <Image
-                                src="/images/nilathra_travels_logo.avif"
-                                alt="Nilathra Collection Logo"
-                                fill
-                                className="object-contain"
-                            />
+                        <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white shadow-md flex-shrink-0" style={{ padding: '3px' }}>
+                            <div className="relative w-full h-full">
+                                <Image
+                                    src="/images/nilathra_travels_logo.avif"
+                                    alt="Nilathra Collection Logo"
+                                    fill
+                                    className="object-contain"
+                                />
+                            </div>
                         </div>
                         <span className="font-serif text-2xl font-bold tracking-tighter uppercase">
                             NILATHRA <span className="text-[#016795]">COLLECTION</span>

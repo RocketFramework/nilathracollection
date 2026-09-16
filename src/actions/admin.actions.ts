@@ -696,6 +696,54 @@ export async function saveTransportProviderAction(provider: TransportProvider) {
     }
 }
 
+export async function deleteTransportProviderAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        await MasterDataService.deleteTransportProvider(id, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting transport provider:", error);
+        return { error: error.message || "Failed to delete transport provider." };
+    }
+}
+
+export async function deleteVendorAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        await MasterDataService.deleteVendor(id, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting vendor:", error);
+        return { error: error.message || "Failed to delete vendor." };
+    }
+}
+
+export async function deleteDriverAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        await MasterDataService.deleteDriver(id, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting driver:", error);
+        return { error: error.message || "Failed to delete driver." };
+    }
+}
+
+export async function deleteTourGuideAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        await MasterDataService.deleteTourGuide(id, { client: supabase });
+        revalidatePath("/admin/master-data");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting tour guide:", error);
+        return { error: error.message || "Failed to delete tour guide." };
+    }
+}
+
 export async function refreshPlannerCacheAction() {
     try {
         revalidatePath('/admin-new');

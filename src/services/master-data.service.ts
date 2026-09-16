@@ -471,8 +471,13 @@ export class MasterDataService {
         return savedVendorId;
     }
 
-    static async deleteVendor(id: string) {
-        const { error } = await supabase.from('vendors').delete().eq('id', id);
+    static async deleteVendor(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { error: actErr } = await dbClient.from('vendor_activities').delete().eq('vendor_id', id);
+        if (actErr) {
+            console.warn("Notice deleting vendor activities:", actErr.message);
+        }
+        const { error } = await dbClient.from('vendors').delete().eq('id', id);
         if (error) throw error;
         return true;
     }
@@ -619,8 +624,14 @@ export class MasterDataService {
         return savedProviderId;
     }
 
-    static async deleteTransportProvider(id: string) {
-        const { error } = await supabase.from('transport_providers').delete().eq('id', id);
+    static async deleteTransportProvider(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { error: vehErr } = await dbClient.from('transport_vehicles').delete().eq('provider_id', id);
+        if (vehErr) {
+            console.warn("Notice deleting associated vehicles:", vehErr.message);
+        }
+
+        const { error } = await dbClient.from('transport_providers').delete().eq('id', id);
         if (error) throw error;
         return true;
     }
@@ -689,8 +700,9 @@ export class MasterDataService {
         return savedId;
     }
 
-    static async deleteDriver(id: string) {
-        const { error } = await supabase.from('drivers').delete().eq('id', id);
+    static async deleteDriver(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { error } = await dbClient.from('drivers').delete().eq('id', id);
         if (error) throw error;
         return true;
     }
@@ -780,8 +792,9 @@ export class MasterDataService {
         return savedId;
     }
 
-    static async deleteTourGuide(id: string) {
-        const { error } = await supabase.from('tour_guides').delete().eq('id', id);
+    static async deleteTourGuide(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { error } = await dbClient.from('tour_guides').delete().eq('id', id);
         if (error) throw error;
         return true;
     }
@@ -856,8 +869,9 @@ export class MasterDataService {
         return savedId;
     }
 
-    static async deleteRestaurant(id: string) {
-        const { error } = await supabase.from('restaurants').delete().eq('id', id);
+    static async deleteRestaurant(id: string, options?: { client?: SupabaseClient }) {
+        const dbClient = options?.client || supabase;
+        const { error } = await dbClient.from('restaurants').delete().eq('id', id);
         if (error) throw error;
         return true;
     }
