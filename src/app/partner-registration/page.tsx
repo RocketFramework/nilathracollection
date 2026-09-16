@@ -14,7 +14,7 @@ export const metadata = {
 export default function PartnerRegistrationLandingPage() {
     return (
         <MainLayout>
-            <div className="bg-[#FAF9F5] min-h-screen py-16 px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+            <div className="bg-[#FAF9F5] min-h-screen pt-24 md:pt-32 pb-16 px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
                 <div className="max-w-6xl mx-auto">
                     {/* Header Banner */}
                     <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
