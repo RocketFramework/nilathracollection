@@ -4,6 +4,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ActivityCard from "@/components/ActivityCard";
+import MultiActivityBookingModal from "@/components/MultiActivityBookingModal";
 import { useTranslation } from "@/components/I18nProvider";
 import {
     MapPin, Check, Sparkles, Navigation, CalendarDays,
@@ -39,6 +40,10 @@ export default function CustomPlanContent() {
     const [searchTerm, setSearchTerm] = useState("");
     const [generationError, setGenerationError] = useState<string | null>(null);
     const [showAllConflicts, setShowAllConflicts] = useState(false);
+
+    // Direct Activity Session Booking Modal State
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    const [activitiesForModal, setActivitiesForModal] = useState<Activity[]>([]);
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -347,7 +352,7 @@ export default function CustomPlanContent() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto p-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-2">
                                         {filteredActivities.length > 0 ? (
                                             filteredActivities.map(act => (
                                                 <ActivityCard
@@ -355,6 +360,10 @@ export default function CustomPlanContent() {
                                                     activity={act}
                                                     isSelected={selectedActivities.includes(act.id)}
                                                     onToggle={toggleActivity}
+                                                    onBookOnly={(singleAct) => {
+                                                        setActivitiesForModal([singleAct]);
+                                                        setIsBookingModalOpen(true);
+                                                    }}
                                                     variant="grid"
                                                 />
                                             ))
@@ -372,14 +381,40 @@ export default function CustomPlanContent() {
                                         )}
                                     </div>
 
-                                    <div className="flex justify-end pt-8">
-                                        <button
-                                            onClick={() => setStep(2)}
-                                            disabled={selectedActivities.length === 0}
-                                            className="bg-brand-green text-white px-8 py-3 rounded-full text-sm uppercase tracking-wider font-semibold shadow-lg hover:shadow-xl hover:bg-brand-charcoal transition-all disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-2"
-                                        >
-                                            {tCust.step1?.continue || "Continue to Locations"} <Navigation size={16} className="group-hover:translate-x-1 transition-transform" />
-                                        </button>
+                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 border-t border-neutral-100">
+                                        <div className="text-xs text-neutral-500 font-medium">
+                                            {selectedActivities.length > 0 ? (
+                                                <span className="text-brand-green font-bold flex items-center gap-1">
+                                                    <Check size={14} /> {selectedActivities.length} experience{selectedActivities.length > 1 ? 's' : ''} selected
+                                                </span>
+                                            ) : (
+                                                "Select one or more experiences to get started"
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const chosen = activities.filter(a => selectedActivities.includes(a.id));
+                                                    setActivitiesForModal(chosen);
+                                                    setIsBookingModalOpen(true);
+                                                }}
+                                                disabled={selectedActivities.length === 0}
+                                                className="bg-brand-gold text-white px-6 py-3 rounded-full text-xs uppercase tracking-wider font-bold shadow-md hover:bg-brand-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                <CalendarDays size={16} /> Book Activities Only
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setStep(2)}
+                                                disabled={selectedActivities.length === 0}
+                                                className="bg-brand-green text-white px-6 py-3 rounded-full text-xs uppercase tracking-wider font-bold shadow-md hover:bg-brand-charcoal transition-all disabled:opacity-50 disabled:cursor-not-allowed group flex items-center justify-center gap-2"
+                                            >
+                                                {tCust.step1?.continue || "Build Full Tour Itinerary"} <Navigation size={16} className="group-hover:translate-x-1 transition-transform" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </motion.div>
                             )}
@@ -493,7 +528,7 @@ export default function CustomPlanContent() {
                                     </div>
 
                                     {/* Itinerary Display */}
-                                    <div className="space-y-8 max-h-[700px] overflow-y-auto pr-2">
+                                    <div className="space-y-8">
                                         {routeResult.plan.map(day => (
                                             <div key={day.day} className="border border-neutral-200 rounded-3xl overflow-hidden bg-white shadow-sm">
                                                 <div className="bg-neutral-50 px-6 py-4 flex justify-between items-center border-b border-neutral-200">
@@ -603,6 +638,16 @@ export default function CustomPlanContent() {
                     </div>
                 </div>
             </section>
+
+            <MultiActivityBookingModal
+                isOpen={isBookingModalOpen}
+                onClose={() => setIsBookingModalOpen(false)}
+                selectedActivities={activitiesForModal}
+                onClearSelection={() => {
+                    setSelectedActivities([]);
+                    setActivitiesForModal([]);
+                }}
+            />
         </MainLayout>
     );
 }

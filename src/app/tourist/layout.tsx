@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { User, LogOut, Map, ReceiptText, ChevronDown } from "lucide-react";
+import { User, LogOut, Map, ReceiptText, ChevronDown, Compass } from "lucide-react";
 import { AuthService } from "@/services/auth.service";
 import { createClient } from "@/utils/supabase/client";
 
@@ -66,6 +66,15 @@ export default function TouristLayout({ children }: { children: React.ReactNode 
                                     <Map className="w-4 h-4 mr-2" /> My Tours
                                 </Link>
                                 <Link
+                                    href="/tourist/activities"
+                                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${pathname?.includes('/activities')
+                                        ? 'border-brand-green text-brand-green'
+                                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                                        }`}
+                                >
+                                    <Compass className="w-4 h-4 mr-2" /> Activity Bookings
+                                </Link>
+                                <Link
                                     href="/tourist/invoices"
                                     className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${pathname?.includes('/invoices')
                                         ? 'border-brand-green text-brand-green'
@@ -101,11 +110,16 @@ export default function TouristLayout({ children }: { children: React.ReactNode 
                                                 <Map className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-brand-green" />
                                                 My Tours
                                             </Link>
+                                            <Link href="/tourist/activities" className="group flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
+                                                <Compass className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-brand-green" />
+                                                Activity Bookings
+                                            </Link>
                                             <Link href="/tourist/invoices" className="group flex items-center px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
                                                 <ReceiptText className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-brand-green" />
                                                 Invoices
                                             </Link>
                                         </div>
+
                                         <div className="py-1">
                                             <button
                                                 onClick={handleLogout}

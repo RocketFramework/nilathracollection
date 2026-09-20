@@ -244,6 +244,147 @@ export class EmailService {
     }
 
     /**
+     * Notify tourist that their multi-activity booking request was received.
+     */
+    static async sendTouristActivityRequestReceipt(options: {
+        email: string;
+        name: string;
+        bookingNumber: string;
+        itemCount: number;
+        loginPassword?: string | null;
+    }) {
+        const instance = new EmailService();
+        const { email, name, bookingNumber, itemCount, loginPassword } = options;
+        const subject = `Activity Booking Request Received (${bookingNumber}) – Nilathra Collection`;
+
+        const contentHtml = `
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">Dear ${name},</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                Thank you for choosing Nilathra Collection! We have received your booking request for <strong>${itemCount} activity experience${itemCount > 1 ? 's' : ''}</strong>.
+            </p>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;border-left:3px solid #C9A84C;border-radius:4px;margin:28px 0;">
+                <tr>
+                    <td style="padding:20px 24px;">
+                        <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;">Booking Reference</p>
+                        <p style="margin:0;font-size:20px;font-weight:600;color:#1B3A2D;">${bookingNumber}</p>
+                        <p style="margin:6px 0 0;font-size:13px;color:#6b7280;">Status: Pending Price Confirmation & Vendor Assignment</p>
+                    </td>
+                </tr>
+            </table>
+
+            <p style="margin:0 0 16px;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                Our travel team is currently reviewing your requested dates and activity sessions to confirm availability and provide you with your final price quote.
+            </p>
+
+            ${loginPassword ? `
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:6px;margin:24px 0;">
+                <tr>
+                    <td style="padding:20px;">
+                        <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#3730A3;">Your Tourist Portal Access</p>
+                        <p style="margin:0 0 8px;font-size:14px;color:#1E1B4B;">You can log in to your Tourist Portal to track your activity bookings:</p>
+                        <p style="margin:0;font-size:13px;color:#312E81;"><strong>Email:</strong> ${email}<br/><strong>Password:</strong> <code style="background:#E0E7FF;padding:2px 6px;border-radius:4px;">${loginPassword}</code></p>
+                    </td>
+                </tr>
+            </table>` : ''}
+
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">
+                Payment is processed offline once your prices and vendors are confirmed by our team.
+            </p>
+        `;
+
+        const html = instance.generateEmailHtml('Activity Request Received', 'Nilathra Experience Booking', contentHtml);
+        return instance.sendEmail({ to: email, subject, html });
+    }
+
+    /**
+     * Send confirmed price response to tourist.
+     */
+    static async sendTouristActivityPriceConfirmation(options: {
+        email: string;
+        name: string;
+        bookingNumber: string;
+        totalPrice: number;
+        currency: string;
+    }) {
+        const instance = new EmailService();
+        const { email, name, bookingNumber, totalPrice, currency } = options;
+        const subject = `Your Activity Booking Quote is Ready (${bookingNumber}) – Nilathra Collection`;
+
+        const contentHtml = `
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">Dear ${name},</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                We are delighted to inform you that your activity session booking request <strong>${bookingNumber}</strong> has been reviewed and confirmed by our specialist team!
+            </p>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#1B3A2D;border-radius:6px;margin:28px 0;color:#ffffff;">
+                <tr>
+                    <td style="padding:24px;text-align:center;">
+                        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;">Confirmed Total Price</p>
+                        <h2 style="margin:0;font-size:32px;font-weight:700;color:#ffffff;">$${totalPrice.toLocaleString()} ${currency}</h2>
+                        <p style="margin:8px 0 0;font-size:13px;color:#E5E7EB;">Offline Payment Processing</p>
+                    </td>
+                </tr>
+            </table>
+
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                You can view full session details and manage your booking directly in your Tourist Portal at <a href="https://www.nilathra.com/tourist" style="color:#C9A84C;font-weight:bold;">nilathra.com/tourist</a>.
+            </p>
+        `;
+
+        const html = instance.generateEmailHtml('Activity Booking Quote Confirmed', 'Quote Ready', contentHtml);
+        return instance.sendEmail({ to: email, subject, html });
+    }
+
+    /**
+     * Send vendor assignment notification email to activity vendor.
+     */
+    static async sendVendorActivityAssignmentNotification(options: {
+        vendorEmail: string;
+        vendorName: string;
+        bookingNumber: string;
+        activityName: string;
+        location: string;
+        bookingDate: string;
+        preferredTimeSlot?: string | null;
+        adults: number;
+        children: number;
+        infants: number;
+        agreedVendorPrice: number;
+    }) {
+        const instance = new EmailService();
+        const { vendorEmail, vendorName, bookingNumber, activityName, location, bookingDate, preferredTimeSlot, adults, children, infants, agreedVendorPrice } = options;
+        const subject = `New Activity Session Assignment (${bookingNumber}) – Nilathra Collection`;
+
+        const contentHtml = `
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">Dear ${vendorName},</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                You have been assigned a new tourist activity session by Nilathra Collection.
+            </p>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F3EF;border-left:3px solid #1B3A2D;border-radius:4px;margin:24px 0;">
+                <tr>
+                    <td style="padding:20px 24px;">
+                        <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;">Assignment Details</p>
+                        <h3 style="margin:0 0 8px;font-size:18px;font-weight:600;color:#1B3A2D;">${activityName}</h3>
+                        <p style="margin:0 0 4px;font-size:13px;color:#4b5563;"><strong>Location:</strong> ${location}</p>
+                        <p style="margin:0 0 4px;font-size:13px;color:#4b5563;"><strong>Date:</strong> ${bookingDate} (${preferredTimeSlot || 'Flexible'})</p>
+                        <p style="margin:0 0 4px;font-size:13px;color:#4b5563;"><strong>Guests:</strong> ${adults} Adults${children > 0 ? `, ${children} Children` : ''}${infants > 0 ? `, ${infants} Infants` : ''}</p>
+                        <p style="margin:8px 0 0;font-size:15px;color:#1B3A2D;"><strong>Agreed Vendor Rate:</strong> $${agreedVendorPrice} USD</p>
+                    </td>
+                </tr>
+            </table>
+
+            <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">
+                Reference: ${bookingNumber}. Please ensure all preparation is completed for this activity date.
+            </p>
+        `;
+
+        const html = instance.generateEmailHtml('New Activity Assignment', 'Vendor Session Assignment', contentHtml);
+        return instance.sendEmail({ to: vendorEmail, subject, html });
+    }
+
+    /**
      * Verify SMTP connection configuration
      */
     async verifyConnection() {
@@ -260,3 +401,4 @@ export class EmailService {
 
 // Export a singleton instance for direct use
 export const emailService = new EmailService();
+

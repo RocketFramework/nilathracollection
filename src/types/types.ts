@@ -205,3 +205,6 @@ export interface TourConciergeItem {
         costing_basis: string;
     };
 }
+
+export type { ActivityBookingItem, ActivityBookingStatus } from './activity-booking.type';
+export type { ActivityBooking as CustomerActivityBooking } from './activity-booking.type';

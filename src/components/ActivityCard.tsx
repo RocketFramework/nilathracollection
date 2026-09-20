@@ -25,6 +25,7 @@ interface ActivityCardProps {
     activity: Activity;
     isSelected: boolean;
     onToggle: (id: number) => void;
+    onBookOnly?: (activity: Activity) => void;
     variant?: 'grid' | 'list' | 'compact';
 }
 
@@ -39,6 +40,7 @@ export default function ActivityCard({
     activity,
     isSelected,
     onToggle,
+    onBookOnly,
     variant = 'grid'
 }: ActivityCardProps) {
     const [showPopup, setShowPopup] = useState(false);
@@ -127,6 +129,7 @@ export default function ActivityCard({
                             activity={activity}
                             isSelected={isSelected}
                             onToggle={onToggle}
+                            onBookOnly={onBookOnly}
                             images={images}
                             currentImageIndex={currentImageIndex}
                             isLoadingImages={isLoadingImages}
@@ -219,6 +222,7 @@ export default function ActivityCard({
                         activity={activity}
                         isSelected={isSelected}
                         onToggle={onToggle}
+                        onBookOnly={onBookOnly}
                         images={images}
                         currentImageIndex={currentImageIndex}
                         isLoadingImages={isLoadingImages}
@@ -238,6 +242,7 @@ function PopupContent({
     activity,
     isSelected,
     onToggle,
+    onBookOnly,
     images,
     currentImageIndex,
     isLoadingImages,
@@ -249,6 +254,7 @@ function PopupContent({
     activity: Activity;
     isSelected: boolean;
     onToggle: (id: number) => void;
+    onBookOnly?: (activity: Activity) => void;
     images: LocationImage[];
     currentImageIndex: number;
     isLoadingImages: boolean;
@@ -446,7 +452,18 @@ function PopupContent({
                     )}
 
                     {/* Action buttons */}
-                    <div className="flex gap-3 mt-6 pt-4 border-t border-neutral-100">
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-neutral-100">
+                        {onBookOnly && (
+                            <button
+                                onClick={() => {
+                                    onClose();
+                                    onBookOnly(activity);
+                                }}
+                                className="flex-1 py-3 bg-brand-green hover:bg-brand-green/90 text-white rounded-xl text-sm font-bold transition-all shadow-md"
+                            >
+                                Book Only This Experience
+                            </button>
+                        )}
                         <button
                             onClick={() => {
                                 onClose();
@@ -457,7 +474,7 @@ function PopupContent({
                                 : 'bg-brand-gold hover:bg-brand-gold/90 text-white'
                                 }`}
                         >
-                            {isSelected ? 'Remove from Itinerary' : 'Add to Itinerary'}
+                            {isSelected ? 'Remove from Itinerary' : 'Add to Full Itinerary'}
                         </button>
                         <button
                             onClick={() => {

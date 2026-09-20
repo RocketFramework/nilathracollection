@@ -75,3 +75,37 @@ export interface TourDailyVehicle {
     created_at?: string;
     updated_at?: string;
 }
+
+export interface IActivityBookingItem {
+    id: string;
+    booking_id: string;
+    activity_id: number;
+    booking_date: string;
+    preferred_time_slot?: string | null;
+    adults: number;
+    children: number;
+    infants: number;
+    item_price?: number | null;
+    status: string;
+    assigned_vendor_id?: string | null;
+    agreed_vendor_price?: number | null;
+    assigned_at?: string | null;
+    activity?: any;
+    vendor?: any;
+}
+
+export interface IActivityBooking {
+    id: string;
+    booking_number: string;
+    tourist_id: string;
+    total_price?: number | null;
+    currency: string;
+    status: string;
+    admin_notes?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    items?: IActivityBookingItem[];
+    tourist_profile?: any;
+    user?: any;
+}
+

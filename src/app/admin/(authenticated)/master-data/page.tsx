@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, Car, Compass, UserCircle, Utensils, Inbox, Eye, MapPin, Sparkles } from "lucide-react";
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity, SeamlessConciergeCostItem } from "@/services/master-data.service";
+import type { ApprovalRequest } from "@/services/master-data-approvals.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
 import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, deleteVendorAction, getVendorAction, getRestaurantsAction, deleteRestaurantAction, getTransportProvidersAction, deleteTransportProviderAction, getDriversAction, deleteDriverAction, getTourGuidesAction, deleteTourGuideAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
@@ -14,10 +15,11 @@ import RestaurantFormModal from "./components/RestaurantFormModal";
 import ActivityFormModal from "./components/ActivityFormModal";
 import ApprovalReviewModal from "./components/ApprovalReviewModal";
 import ConciergeCostItemFormModal from "./components/ConciergeCostItemFormModal";
-import { MasterDataApprovalsService, ApprovalRequest } from "@/services/master-data-approvals.service";
+import ActivityBookingsManagement from "@/app/admin-new/components/ActivityBookingsManagement";
 
 const DATABASES = [
     { id: 'approvals', label: 'Pending Approvals', icon: Inbox },
+    { id: 'activity_bookings', label: 'Tourist Activity Bookings', icon: Compass },
     { id: 'hotels', label: 'Hotels & Resorts', icon: Building2 },
     { id: 'activities', label: 'Activities', icon: MapPin },
     { id: 'vendors', label: 'Activity Vendors', icon: Compass },
@@ -27,6 +29,7 @@ const DATABASES = [
     { id: 'guides', label: 'Tour Guides', icon: UserCircle },
     { id: 'concierge_costs', label: 'Concierge Cost Items', icon: Sparkles },
 ];
+
 
 export default function MasterDataPage() {
     const [activeTab, setActiveTab] = useState(DATABASES[0].id);
@@ -373,21 +376,27 @@ export default function MasterDataPage() {
                 </div>
 
                 {/* Toolbar */}
-                <div className="p-6 border-b border-neutral-100 flex gap-4 bg-neutral-50/50">
-                    <div className="relative flex-1 max-w-md">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                        <input
-                            type="text"
-                            placeholder="Search records..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-xl text-sm focus:ring-brand-green focus:border-brand-green"
-                        />
+                {activeTab !== 'activity_bookings' && (
+                    <div className="p-6 border-b border-neutral-100 flex gap-4 bg-neutral-50/50">
+                        <div className="relative flex-1 max-w-md">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                            <input
+                                type="text"
+                                placeholder="Search records..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-neutral-200 rounded-xl text-sm focus:ring-brand-green focus:border-brand-green"
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* Table */}
-                <div className="overflow-x-auto">
+                {activeTab === 'activity_bookings' ? (
+                    <div className="p-6">
+                        <ActivityBookingsManagement />
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-neutral-50 border-b border-neutral-200 text-xs uppercase tracking-wider font-bold text-neutral-500">
@@ -813,7 +822,9 @@ export default function MasterDataPage() {
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
+        </div>
+
 
             <HotelFormModal
                 isOpen={isHotelModalOpen}
