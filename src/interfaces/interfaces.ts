@@ -109,3 +109,37 @@ export interface IActivityBooking {
     user?: any;
 }
 
+export interface IDriver {
+    id: string;
+    first_name: string;
+    last_name?: string | null;
+    phone?: string | null;
+    license_number?: string | null;
+    nic_number?: string | null;
+    per_day_rate?: number | null;
+    is_suspended?: boolean;
+    approval_status?: string | null;
+    approved_by?: string | null;
+    approved_at?: string | null;
+    license_image_url?: string | null;
+    payment_detail_id?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface IVendor {
+    id: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    description?: string | null;
+    address?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    has_contracted_price?: boolean;
+    is_suspended?: boolean;
+    payment_detail_id?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+

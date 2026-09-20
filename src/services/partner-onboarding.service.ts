@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { TransportProviderOnboardingDTO, TourGuideOnboardingDTO, PartnerVerificationResultDTO } from '@/dtos/partner-onboarding.dto';
+import { OnboardDriverDTO, OnboardVendorDTO } from '@/dtos/partner-registration.dto';
+import { IDriver, IVendor } from '@/interfaces/interfaces';
 import { Settings } from '@/types/types';
 import { validateSriLankanNIC } from '@/utils/nic-validation';
 
@@ -396,5 +398,200 @@ export class PartnerOnboardingService {
         }
 
         return { success: true, id: guideId };
+    }
+
+    /**
+     * Registers a new Chauffeur (Driver) with SLTDA certification details into public.drivers
+     */
+    static async onboardDriver(dto: OnboardDriverDTO): Promise<IDriver> {
+        const supabase = createAdminClient();
+
+        // 1. Create payment details if bank info provided
+        let paymentDetailId: string | null = null;
+        if (dto.bank_name && dto.account_number) {
+            const { data: pData } = await supabase
+                .from('payment_details')
+                .insert([{
+                    bank_name: dto.bank_name,
+                    branch_name: dto.branch_name || null,
+                    account_name: dto.account_name || `${dto.first_name} ${dto.last_name || ''}`.trim(),
+                    account_number: dto.account_number,
+                    swift_code: dto.swift_code || null
+                }])
+                .select('id')
+                .single();
+
+            if (pData) paymentDetailId = pData.id;
+        }
+
+        // 2. Insert into drivers table
+        const driverInsert = {
+            id: crypto.randomUUID(),
+            first_name: dto.first_name,
+            last_name: dto.last_name || null,
+            phone: dto.phone,
+            nic_number: dto.nic_number,
+            license_number: dto.license_number,
+            per_day_rate: dto.per_day_rate || 15.00,
+            license_image_url: dto.license_image_url || null,
+            payment_detail_id: paymentDetailId,
+            approval_status: 'Pending',
+            is_suspended: false,
+            has_contracted_price: true
+        };
+
+        const { data: driver, error } = await supabase
+            .from('drivers')
+            .insert([driverInsert])
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error onboarding driver:", error);
+            throw new Error(error.message || "Failed to register driver");
+        }
+
+        return driver as IDriver;
+    }
+
+    /**
+     * Searches existing registered vendors by name, email, or phone number to check if company already onboarded.
+     */
+    static async searchVendors(queryStr: string): Promise<IVendor[]> {
+        const supabase = createAdminClient();
+        if (!queryStr || !queryStr.trim()) return [];
+
+        const term = queryStr.trim();
+        const { data, error } = await supabase
+            .from('vendors')
+            .select('id, name, phone, email, address, description, is_suspended')
+            .or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`)
+            .limit(10);
+
+        if (error) {
+            console.error("Error searching vendors:", error);
+            throw error;
+        }
+
+        return (data || []) as IVendor[];
+    }
+
+    /**
+     * Registers a new Activity Vendor and links offered experiences into public.vendor_activities
+     */
+    static async onboardVendor(dto: OnboardVendorDTO): Promise<IVendor> {
+        const supabase = createAdminClient();
+
+        // 1. Create payment details if bank info provided
+        let paymentDetailId: string | null = null;
+        if (dto.bank_name && dto.account_number) {
+            const { data: pData } = await supabase
+                .from('payment_details')
+                .insert([{
+                    bank_name: dto.bank_name,
+                    branch_name: dto.branch_name || null,
+                    account_name: dto.account_name || dto.name,
+                    account_number: dto.account_number,
+                    swift_code: dto.swift_code || null
+                }])
+                .select('id')
+                .single();
+
+            if (pData) paymentDetailId = pData.id;
+        }
+
+        // 2. Insert into vendors table
+        const vendorInsert = {
+            id: crypto.randomUUID(),
+            name: dto.name,
+            phone: dto.phone || null,
+            email: dto.email || null,
+            description: dto.description || null,
+            address: dto.address || null,
+            lat: dto.lat || null,
+            lng: dto.lng || null,
+            payment_detail_id: paymentDetailId,
+            has_contracted_price: dto.has_contracted_price !== false,
+            is_suspended: false
+        };
+
+        const { data: vendor, error: vErr } = await supabase
+            .from('vendors')
+            .insert([vendorInsert])
+            .select()
+            .single();
+
+        if (vErr || !vendor) {
+            console.error("Error onboarding vendor:", vErr);
+            throw new Error(vErr?.message || "Failed to register vendor");
+        }
+
+        // 3. Insert vendor_activities mappings
+        if (Array.isArray(dto.activities) && dto.activities.length > 0) {
+            const vaInserts = dto.activities.map(act => ({
+                id: crypto.randomUUID(),
+                vendor_id: vendor.id,
+                activity_id: act.activity_id,
+                vendor_price: act.vendor_price || null
+            }));
+
+            const { error: vaErr } = await supabase
+                .from('vendor_activities')
+                .insert(vaInserts);
+
+            if (vaErr) {
+                console.error("Error inserting vendor_activities:", vaErr);
+            }
+        }
+
+        return vendor as IVendor;
+    }
+
+    /**
+     * Verifies if the provided phone or email matches the existing registered vendor record
+     * to prevent unauthorized competitors from editing vendor details.
+     */
+    static async verifyVendorOwnership(vendorId: string, verificationInput: string): Promise<boolean> {
+        const supabase = createAdminClient();
+        const inputStr = (verificationInput || '').trim().toLowerCase();
+        if (!inputStr) return false;
+
+        const { data: vendor, error } = await supabase
+            .from('vendors')
+            .select('phone, email')
+            .eq('id', vendorId)
+            .maybeSingle();
+
+        if (error || !vendor) return false;
+
+        // Check email match (case-insensitive)
+        if (vendor.email && vendor.email.trim().toLowerCase() === inputStr) {
+            return true;
+        }
+
+        // Check phone match (digits only comparison)
+        const inputDigits = inputStr.replace(/\D/g, '');
+        if (vendor.phone) {
+            const vendorPhoneDigits = vendor.phone.replace(/\D/g, '');
+            if (inputDigits && vendorPhoneDigits && (vendorPhoneDigits.endsWith(inputDigits) || inputDigits.endsWith(vendorPhoneDigits))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Gets master activities list for vendor activity picker
+     */
+    static async getAvailableActivities() {
+        const supabase = createAdminClient();
+        const { data, error } = await supabase
+            .from('activities')
+            .select('id, activity_name, category, location_name, district')
+            .order('activity_name', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
     }
 }
