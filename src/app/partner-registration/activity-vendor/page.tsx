@@ -21,6 +21,26 @@ interface SelectedActivityState {
     vendor_price: number | string;
 }
 
+function maskPhone(phone?: string | null): string {
+    if (!phone) return "";
+    const clean = phone.trim();
+    if (clean.length <= 4) return "****";
+    const start = clean.slice(0, 4);
+    const end = clean.slice(-3);
+    return `${start}***${end}`;
+}
+
+function maskEmail(email?: string | null): string {
+    if (!email) return "";
+    const clean = email.trim();
+    const parts = clean.split("@");
+    if (parts.length !== 2) return "****";
+    const name = parts[0];
+    const domain = parts[1];
+    const maskedName = name.length > 2 ? `${name.slice(0, 2)}***` : `${name.slice(0, 1)}***`;
+    return `${maskedName}@${domain}`;
+}
+
 export default function ActivityVendorOnboardingPage() {
     const [step, setStep] = useState<'search' | 'form' | 'success'>('search');
 
@@ -302,8 +322,8 @@ export default function ActivityVendorOnboardingPage() {
                                                             <div>
                                                                 <h4 className="font-bold text-sm text-brand-charcoal">{v.name}</h4>
                                                                 <p className="text-xs text-neutral-500 mt-0.5">
-                                                                    {v.phone && <span>Phone: {v.phone} • </span>}
-                                                                    {v.email && <span>Email: {v.email} • </span>}
+                                                                    {v.phone && <span>Phone: {maskPhone(v.phone)} • </span>}
+                                                                    {v.email && <span>Email: {maskEmail(v.email)} • </span>}
                                                                     {v.address && <span>{v.address}</span>}
                                                                 </p>
                                                             </div>
