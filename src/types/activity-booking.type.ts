@@ -63,7 +63,7 @@ export interface ActivityBooking {
         medical_conditions?: string | null;
         language_preference?: string | null;
         special_notes?: string | null;
-    };
+    } | null;
     user?: {
         id: string;
         email: string;

@@ -200,20 +200,7 @@ export class ActivityBookingService {
                         address
                     )
                 ),
-                tourist_profile:tourist_profiles!activity_bookings_tourist_id_fkey(
-                    first_name,
-                    last_name,
-                    phone,
-                    country,
-                    passport_number,
-                    departure_country,
-                    arrival_date,
-                    departure_date,
-                    medical_conditions,
-                    language_preference,
-                    special_notes
-                ),
-                user:users!activity_bookings_tourist_id_fkey(
+                user:users(
                     id,
                     email
                 )
@@ -226,7 +213,24 @@ export class ActivityBookingService {
 
         const { data, error } = await query;
         if (error) throw error;
-        return (data || []) as ActivityBooking[];
+
+        const bookings = (data || []) as ActivityBooking[];
+        if (bookings.length > 0) {
+            const touristIds = Array.from(new Set(bookings.map(b => b.tourist_id).filter(Boolean)));
+            if (touristIds.length > 0) {
+                const { data: profiles } = await supabase
+                    .from('tourist_profiles')
+                    .select('id, first_name, last_name, phone, country, passport_number, departure_country, arrival_date, departure_date, medical_conditions, language_preference, special_notes')
+                    .in('id', touristIds);
+
+                const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+                bookings.forEach(b => {
+                    b.tourist_profile = profileMap.get(b.tourist_id) || null;
+                });
+            }
+        }
+
+        return bookings;
     }
 
     /**
@@ -260,20 +264,7 @@ export class ActivityBookingService {
                         address
                     )
                 ),
-                tourist_profile:tourist_profiles!activity_bookings_tourist_id_fkey(
-                    first_name,
-                    last_name,
-                    phone,
-                    country,
-                    passport_number,
-                    departure_country,
-                    arrival_date,
-                    departure_date,
-                    medical_conditions,
-                    language_preference,
-                    special_notes
-                ),
-                user:users!activity_bookings_tourist_id_fkey(
+                user:users(
                     id,
                     email
                 )
@@ -282,7 +273,18 @@ export class ActivityBookingService {
             .single();
 
         if (error) throw error;
-        return data as ActivityBooking;
+        const booking = data as ActivityBooking;
+        if (booking && booking.tourist_id) {
+            const { data: profile } = await supabase
+                .from('tourist_profiles')
+                .select('first_name, last_name, phone, country, passport_number, departure_country, arrival_date, departure_date, medical_conditions, language_preference, special_notes')
+                .eq('id', booking.tourist_id)
+                .maybeSingle();
+
+            booking.tourist_profile = profile || null;
+        }
+
+        return booking;
     }
 
     /**
@@ -366,12 +368,21 @@ export class ActivityBookingService {
             .eq('id', dto.booking_id)
             .select(`
                 *,
-                user:users!activity_bookings_tourist_id_fkey(email),
-                tourist_profile:tourist_profiles!activity_bookings_tourist_id_fkey(first_name, last_name)
+                user:users(email)
             `)
             .single();
 
         if (headerErr) throw headerErr;
+
+        if (updatedHeader && updatedHeader.tourist_id) {
+            const { data: prof } = await supabase
+                .from('tourist_profiles')
+                .select('first_name, last_name')
+                .eq('id', updatedHeader.tourist_id)
+                .maybeSingle();
+
+            updatedHeader.tourist_profile = prof || null;
+        }
 
         // 3. Send Price Confirmation Email to Tourist
         if (updatedHeader?.user?.email) {

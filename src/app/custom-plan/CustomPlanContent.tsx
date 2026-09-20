@@ -381,7 +381,7 @@ export default function CustomPlanContent() {
                                         )}
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 border-t border-neutral-100">
+                                    <div className="sticky bottom-6 z-40 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-xl border border-neutral-200/80 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all">
                                         <div className="text-xs text-neutral-500 font-medium">
                                             {selectedActivities.length > 0 ? (
                                                 <span className="text-brand-green font-bold flex items-center gap-1">
