@@ -24,6 +24,7 @@ interface ItineraryPdfTemplateNewProps {
   dailyVehicleAssignments?: Record<number, any>;
   dbActivities?: any[];
   tourConcierges?: any[];
+  accommodations?: any[];
 }
 
 export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
@@ -44,7 +45,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     dailyDriverAssignments,
     dailyVehicleAssignments,
     dbActivities,
-    tourConcierges
+    tourConcierges,
+    accommodations
   }, ref) => {
 
     const getAbsoluteUrl = (path: string) => {
@@ -1241,33 +1243,82 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 const dateFormatted = getShortFormattedDate(block.dayNumber);
 
                                 return (
-                                  <div key={idx} className="px-5 py-3 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
-                                    <div className="col-span-3 space-y-0.5">
-                                      <span className="font-bold text-[#111827] block">Night {String(block.dayNumber).padStart(2, '0')}</span>
-                                      <span className="text-[10px] text-neutral-500 font-sans block">{dateFormatted !== `Day ${block.dayNumber}` ? dateFormatted : `Day ${block.dayNumber}`}</span>
+                                  <div key={idx} className="px-5 py-3 hover:bg-neutral-50/50 transition-colors text-xs border-b border-neutral-100 last:border-b-0 space-y-2">
+                                    <div className="grid grid-cols-12 items-center text-left">
+                                      <div className="col-span-3 space-y-0.5">
+                                        <span className="font-bold text-[#111827] block">Night {String(block.dayNumber).padStart(2, '0')}</span>
+                                        <span className="text-[10px] text-neutral-500 font-sans block">{dateFormatted !== `Day ${block.dayNumber}` ? dateFormatted : `Day ${block.dayNumber}`}</span>
+                                      </div>
+
+                                      <div className="col-span-4 space-y-0.5">
+                                        <span className="font-serif font-bold text-sm text-[#111827] block">{hName}</span>
+                                        {block.locationName && (
+                                          <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{block.locationName}</span>
+                                        )}
+                                      </div>
+
+                                      <div className="col-span-2">
+                                        <span className="text-[10px] font-sans font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-2 py-0.5 rounded inline-block">
+                                          {starClass}
+                                        </span>
+                                      </div>
+
+                                      <div className="col-span-3 text-right pr-2">
+                                        <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded text-xs inline-block">
+                                          {mealPlan} Basis
+                                        </span>
+                                      </div>
                                     </div>
 
-                                    <div className="col-span-4 space-y-0.5">
-                                      <span className="font-serif font-bold text-sm text-[#111827] block">{hName}</span>
-                                      {block.locationName && (
-                                        <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{block.locationName}</span>
-                                      )}
-                                      {block.roomName && (
-                                        <span className="text-[10px] text-neutral-500 font-sans block font-medium">Room: {block.roomName}</span>
-                                      )}
-                                    </div>
+                                    {/* Room Options Breakdown Table (Room Category / Type | Meal Plan | Quantity / Rooms | Rate (USD)) */}
+                                    {(() => {
+                                      const acc = accommodations?.find((a: any) => Number(a.nightIndex) === Number(block.dayNumber));
+                                      const selectedRooms = acc?.selectedRooms || (block as any).selectedRooms || [];
 
-                                    <div className="col-span-2">
-                                      <span className="text-[10px] font-sans font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-2 py-0.5 rounded inline-block">
-                                        {starClass}
-                                      </span>
-                                    </div>
+                                      let roomRows: Array<{ category: string; mealPlan: string; qty: number; rate?: number }> = [];
 
-                                    <div className="col-span-3 text-right pr-2">
-                                      <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded text-xs inline-block">
-                                        {mealPlan} Basis
-                                      </span>
-                                    </div>
+                                      if (selectedRooms.length > 0) {
+                                        roomRows = selectedRooms.map((sr: any) => ({
+                                          category: [sr.reqId, sr.roomName].filter(Boolean).join(' - ') || 'Standard Room',
+                                          mealPlan: sr.mealPlan || acc?.mealPlan || block.mealPlan || mealPlan || 'HB',
+                                          qty: sr.quantity || 1,
+                                          rate: sr.pricePerNight || sr.contractedPrice
+                                        }));
+                                      } else {
+                                        if (singleRoomsCount > 0) roomRows.push({ category: 'Single Room', mealPlan: mealPlan, qty: singleRoomsCount });
+                                        if (doubleRoomsCount > 0) roomRows.push({ category: 'Double Room', mealPlan: mealPlan, qty: doubleRoomsCount });
+                                        if (tripleRoomsCount > 0) roomRows.push({ category: 'Triple Room', mealPlan: mealPlan, qty: tripleRoomsCount });
+                                        if (familyRoomsCount > 0) roomRows.push({ category: 'Family Room', mealPlan: mealPlan, qty: familyRoomsCount });
+                                        if (roomRows.length === 0 && block.roomName) {
+                                          roomRows.push({ category: block.roomName, mealPlan: mealPlan, qty: 1 });
+                                        }
+                                      }
+
+                                      if (roomRows.length === 0) return null;
+
+                                      return (
+                                        <div className="bg-[#FAF8F5] rounded-lg border border-[#E8DFD1] p-2 text-[9.5px] font-sans">
+                                          <div className="grid grid-cols-12 gap-2 uppercase tracking-wider font-bold text-[#8C6D3F] text-[8px] border-b border-[#E8DFD1] pb-1 mb-1">
+                                            <span className="col-span-4">Room Category / Type</span>
+                                            <span className="col-span-2 text-center">Meal Plan</span>
+                                            <span className="col-span-3 text-center">Quantity / Rooms</span>
+                                            <span className="col-span-3 text-right pr-1">Rate (USD)</span>
+                                          </div>
+                                          <div className="divide-y divide-[#E8DFD1]/50">
+                                            {roomRows.map((r, rIdx) => (
+                                              <div key={rIdx} className="grid grid-cols-12 gap-2 items-center py-1 text-neutral-800">
+                                                <span className="col-span-4 font-semibold text-neutral-900">{r.category}</span>
+                                                <span className="col-span-2 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded py-0.5 px-1 inline-block mx-auto text-[8.5px]">{r.mealPlan}</span>
+                                                <span className="col-span-3 text-center font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
+                                                <span className="col-span-3 text-right font-mono font-semibold pr-1 text-neutral-900">
+                                                  {r.rate && r.rate > 0 ? `$${Number(r.rate).toFixed(2)} USD` : 'Included'}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 );
                               })
@@ -1560,19 +1611,71 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 const starClass = hotelDetail?.hotel_class;
 
                                 return (
-                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed">
-                                    <div className="font-bold text-[#8C6D3F] text-[10.5px] mb-0.5">
-                                      {sleepBlock.hotelName || sleepBlock.name}
+                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed space-y-1">
+                                    <div className="font-bold text-[#8C6D3F] text-[11px] mb-0.5">
+                                      {sleepBlock.hotelName || sleepBlock.name} {starClass ? `• ${starClass}` : ''}
                                     </div>
-                                    <div className="font-medium">
-                                      {starClass ? `${starClass} • ` : ''}
-                                      {sleepBlock.roomName || 'Standard Room'} &bull; {sleepBlock.mealPlan || 'HB'} Basis
-                                    </div>
+
                                     {sleepBlock.locationName && (
-                                      <div className="text-neutral-400 font-bold uppercase tracking-wider text-[8px] mt-0.5">
+                                      <div className="text-neutral-400 font-bold uppercase tracking-wider text-[8px] mb-1">
                                         Location: {sleepBlock.locationName}
                                       </div>
                                     )}
+
+                                    {(() => {
+                                      const acc = accommodations?.find((a: any) => Number(a.nightIndex) === Number(sleepBlock.dayNumber));
+                                      const selectedRooms = acc?.selectedRooms || (sleepBlock as any).selectedRooms || [];
+
+                                      let roomRows: Array<{ category: string; mealPlan: string; qty: number; rate?: number }> = [];
+
+                                      if (selectedRooms.length > 0) {
+                                        roomRows = selectedRooms.map((sr: any) => ({
+                                          category: [sr.reqId, sr.roomName].filter(Boolean).join(' - ') || 'Standard Room',
+                                          mealPlan: sr.mealPlan || acc?.mealPlan || sleepBlock.mealPlan || 'HB',
+                                          qty: sr.quantity || 1,
+                                          rate: sr.pricePerNight || sr.contractedPrice
+                                        }));
+                                      } else {
+                                        if (singleRoomsCount > 0) roomRows.push({ category: 'Single Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: singleRoomsCount });
+                                        if (doubleRoomsCount > 0) roomRows.push({ category: 'Double Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: doubleRoomsCount });
+                                        if (tripleRoomsCount > 0) roomRows.push({ category: 'Triple Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: tripleRoomsCount });
+                                        if (familyRoomsCount > 0) roomRows.push({ category: 'Family Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: familyRoomsCount });
+                                        if (roomRows.length === 0 && sleepBlock.roomName) {
+                                          roomRows.push({ category: sleepBlock.roomName, mealPlan: sleepBlock.mealPlan || 'HB', qty: 1 });
+                                        }
+                                      }
+
+                                      if (roomRows.length === 0) {
+                                        return (
+                                          <div className="font-medium">
+                                            Standard Room &bull; {sleepBlock.mealPlan || 'HB'} Basis
+                                          </div>
+                                        );
+                                      }
+
+                                      return (
+                                        <div className="bg-[#FAF8F5] rounded border border-[#E8DFD1] p-1.5 text-[9px] font-sans mt-1">
+                                          <div className="grid grid-cols-12 gap-1 uppercase tracking-wider font-bold text-[#8C6D3F] text-[7.5px] border-b border-[#E8DFD1] pb-0.5 mb-1">
+                                            <span className="col-span-4">Room Category / Type</span>
+                                            <span className="col-span-2 text-center">Meal Plan</span>
+                                            <span className="col-span-3 text-center">Quantity / Rooms</span>
+                                            <span className="col-span-3 text-right pr-1">Rate (USD)</span>
+                                          </div>
+                                          <div className="divide-y divide-[#E8DFD1]/40">
+                                            {roomRows.map((r, rIdx) => (
+                                              <div key={rIdx} className="grid grid-cols-12 gap-1 items-center py-0.5 text-neutral-800">
+                                                <span className="col-span-4 font-semibold text-neutral-900">{r.category}</span>
+                                                <span className="col-span-2 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded px-1 text-[8px]">{r.mealPlan}</span>
+                                                <span className="col-span-3 text-center font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
+                                                <span className="col-span-3 text-right font-mono font-semibold pr-1 text-neutral-900">
+                                                  {r.rate && r.rate > 0 ? `$${Number(r.rate).toFixed(2)} USD` : 'Included'}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 );
                               })()}

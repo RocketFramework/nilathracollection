@@ -9687,6 +9687,7 @@ ${chauffeurHtml}
                         dayCostOverrides={tripData?.dayCostOverrides}
                         dailyDriverAssignments={dailyDriverAssignments}
                         dailyVehicleAssignments={dailyVehicleAssignments}
+                        accommodations={tripData?.accommodations}
                         tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
                           const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
                           return {
@@ -24154,6 +24155,74 @@ function AIItineraryBuilder({
     }));
   };
 
+  const handleUpdateSelectedRoomField = (dayNum: number, roomIdx: number, field: string, value: any) => {
+    if (!tripData) return;
+    const accs = tripData.accommodations || [];
+    let accIndex = accs.findIndex((a: any) => Number(a.nightIndex) === Number(dayNum));
+
+    let currentAcc: any;
+    if (accIndex === -1) {
+      const matchingSleepBlock = itinerary.find(b => b.dayNumber === dayNum && b.type === ItineraryBlockTypes.SLEEP);
+      currentAcc = {
+        nightIndex: dayNum,
+        hotelId: matchingSleepBlock?.hotelId || null,
+        hotelName: matchingSleepBlock?.hotelName || matchingSleepBlock?.name || '',
+        mealPlan: matchingSleepBlock?.mealPlan || 'BB',
+        selectedRooms: []
+      };
+    } else {
+      currentAcc = { ...accs[accIndex] };
+    }
+
+    let selectedRooms = currentAcc.selectedRooms ? [...currentAcc.selectedRooms] : [];
+    if (selectedRooms.length === 0 && field !== 'add') {
+      if (singleRoomsCount > 0) selectedRooms.push({ reqId: 'Single', roomName: 'Single Room', quantity: singleRoomsCount, mealPlan: currentAcc.mealPlan || 'BB', pricePerNight: 0 });
+      if (doubleRoomsCount > 0) selectedRooms.push({ reqId: 'Double', roomName: 'Double Room', quantity: doubleRoomsCount, mealPlan: currentAcc.mealPlan || 'BB', pricePerNight: 0 });
+      if (tripleRoomsCount > 0) selectedRooms.push({ reqId: 'Triple', roomName: 'Triple Room', quantity: tripleRoomsCount, mealPlan: currentAcc.mealPlan || 'BB', pricePerNight: 0 });
+      if (familyRoomsCount > 0) selectedRooms.push({ reqId: 'Family', roomName: 'Family Room', quantity: familyRoomsCount, mealPlan: currentAcc.mealPlan || 'BB', pricePerNight: 0 });
+      if (selectedRooms.length === 0) {
+        selectedRooms.push({ reqId: 'Room', roomName: 'Standard Room', quantity: 1, mealPlan: currentAcc.mealPlan || 'BB', pricePerNight: 0 });
+      }
+    }
+
+    if (field === 'add') {
+      selectedRooms.push({
+        reqId: `Room ${selectedRooms.length + 1}`,
+        roomName: 'Standard Room',
+        quantity: 1,
+        mealPlan: currentAcc.mealPlan || 'BB',
+        pricePerNight: 0
+      });
+    } else if (field === 'delete' && roomIdx >= 0 && roomIdx < selectedRooms.length) {
+      selectedRooms.splice(roomIdx, 1);
+    } else if (roomIdx >= 0 && roomIdx < selectedRooms.length) {
+      const targetRoom = { ...selectedRooms[roomIdx] };
+      if (field === 'roomName' || field === 'category') {
+        targetRoom.roomName = value;
+        targetRoom.reqId = value;
+      } else if (field === 'mealPlan') {
+        targetRoom.mealPlan = value;
+      } else if (field === 'quantity') {
+        targetRoom.quantity = Number(value) || 1;
+      } else if (field === 'pricePerNight' || field === 'rate') {
+        targetRoom.pricePerNight = value !== '' ? Number(value) : 0;
+        targetRoom.contractedPrice = value !== '' ? Number(value) : 0;
+      }
+      selectedRooms[roomIdx] = targetRoom;
+    }
+
+    currentAcc.selectedRooms = selectedRooms;
+
+    const updatedAccs = [...accs];
+    if (accIndex === -1) {
+      updatedAccs.push(currentAcc);
+    } else {
+      updatedAccs[accIndex] = currentAcc;
+    }
+
+    setTripData((prev: any) => prev ? { ...prev, accommodations: updatedAccs } : prev);
+  };
+
   const handleMoveBlock = (id: string, direction: 'up' | 'down') => {
     const dayBlocksList = itinerary.filter(b => b.dayNumber === activeDay);
     const index = dayBlocksList.findIndex(b => b.id === id);
@@ -25986,7 +26055,7 @@ function AIItineraryBuilder({
 
                   {/* Sleep type specific fields */}
                   {block.type === ItineraryBlockTypes.SLEEP && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-dashed border-neutral-200">
+                    <div className="space-y-4 pt-4 border-t border-dashed border-neutral-200">
                       <div>
                         <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Hotel Name</label>
                         <input
@@ -25998,41 +26067,136 @@ function AIItineraryBuilder({
                           className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Room Category / Type</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Deluxe Double Room"
-                          value={block.roomName || ''}
-                          onChange={(e) => handleUpdateBlockField(block.id, 'roomName', e.target.value)}
-                          disabled={isLockedByOther}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Meal Plan</label>
-                        <select
-                          value={(block.mealPlan === 'None' ? 'RO' : block.mealPlan) || 'BB'}
-                          onChange={(e) => handleUpdateBlockField(block.id, 'mealPlan', e.target.value)}
-                          disabled={isLockedByOther}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-850 font-bold focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-                        >
-                          {mealPlans.map(mp => (
-                            <option key={mp} value={mp}>{mp}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Rate (USD)</label>
-                        <input
-                          type="number"
-                          placeholder="e.g. 250"
-                          value={block.agreedPrice !== undefined ? block.agreedPrice : ''}
-                          onChange={(e) => handleUpdateBlockField(block.id, 'agreedPrice', e.target.value ? Number(e.target.value) : undefined)}
-                          disabled={isLockedByOther}
-                          className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2 bg-white text-neutral-800 font-bold placeholder:text-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all shadow-sm disabled:opacity-50"
-                        />
-                      </div>
+
+                      {/* Selected Room Options Breakdown Table (Category, Meal Plan, Quantity, Rate) */}
+                      {(() => {
+                        const acc = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === Number(block.dayNumber));
+                        const selectedRooms = acc?.selectedRooms || [];
+
+                        let roomRows: Array<{ reqId?: string; roomName?: string; category: string; mealPlan: string; qty: number; rate?: number }> = [];
+
+                        if (selectedRooms.length > 0) {
+                          roomRows = selectedRooms.map((sr: any) => ({
+                            reqId: sr.reqId,
+                            roomName: sr.roomName,
+                            category: sr.roomName || sr.reqId || 'Standard Room',
+                            mealPlan: sr.mealPlan || acc?.mealPlan || block.mealPlan || 'BB',
+                            qty: sr.quantity || 1,
+                            rate: sr.pricePerNight !== undefined ? sr.pricePerNight : sr.contractedPrice
+                          }));
+                        } else {
+                          const defaultMp = block.mealPlan || acc?.mealPlan || 'BB';
+                          if (singleRoomsCount > 0) roomRows.push({ reqId: 'Single', roomName: 'Single Room', category: 'Single Room', mealPlan: defaultMp, qty: singleRoomsCount, rate: 0 });
+                          if (doubleRoomsCount > 0) roomRows.push({ reqId: 'Double', roomName: 'Double Room', category: 'Double Room', mealPlan: defaultMp, qty: doubleRoomsCount, rate: 0 });
+                          if (tripleRoomsCount > 0) roomRows.push({ reqId: 'Triple', roomName: 'Triple Room', category: 'Triple Room', mealPlan: defaultMp, qty: tripleRoomsCount, rate: 0 });
+                          if (familyRoomsCount > 0) roomRows.push({ reqId: 'Family', roomName: 'Family Room', category: 'Family Room', mealPlan: defaultMp, qty: familyRoomsCount, rate: 0 });
+                          if (roomRows.length === 0 && block.roomName) {
+                            roomRows.push({ reqId: 'Room', roomName: block.roomName, category: block.roomName, mealPlan: defaultMp, qty: 1, rate: 0 });
+                          }
+                        }
+
+                        return (
+                          <div className="md:col-span-5 mt-2 bg-amber-50/50 p-3 rounded-2xl border border-amber-200/70 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-extrabold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                                <svg className="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0v-4a1 1 0 011-1h2a1 1 0 011 1v4m-6 0h6" />
+                                </svg>
+                                Room Options Breakdown & Details (Editable):
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateSelectedRoomField(block.dayNumber, -1, 'add', null)}
+                                className="text-[10px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                              >
+                                + Add Room Option
+                              </button>
+                            </div>
+
+                            <div className="bg-white rounded-xl border border-amber-200/70 overflow-hidden text-xs shadow-2xs">
+                              <div className="grid grid-cols-12 gap-2 bg-amber-100/50 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-900 border-b border-amber-200/60">
+                                <span className="col-span-4">Room Category / Type</span>
+                                <span className="col-span-2 text-center">Meal Plan</span>
+                                <span className="col-span-2 text-center">Quantity / Rooms</span>
+                                <span className="col-span-3 text-right pr-1">Rate (USD)</span>
+                                <span className="col-span-1 text-center"></span>
+                              </div>
+                              <div className="divide-y divide-amber-100/60">
+                                {roomRows.map((r, rIdx) => (
+                                  <div key={rIdx} className="grid grid-cols-12 gap-2 px-3 py-1.5 items-center text-neutral-800">
+                                    {/* Room Category / Type input */}
+                                    <div className="col-span-4">
+                                      <input
+                                        type="text"
+                                        value={r.category}
+                                        onChange={(e) => handleUpdateSelectedRoomField(block.dayNumber, rIdx, 'roomName', e.target.value)}
+                                        placeholder="e.g. Deluxe Suite"
+                                        className="w-full text-xs font-bold text-neutral-900 border border-neutral-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all"
+                                      />
+                                    </div>
+
+                                    {/* Meal Plan select */}
+                                    <div className="col-span-2 text-center">
+                                      <select
+                                        value={r.mealPlan}
+                                        onChange={(e) => handleUpdateSelectedRoomField(block.dayNumber, rIdx, 'mealPlan', e.target.value)}
+                                        className="w-full text-xs font-mono font-extrabold text-emerald-900 bg-emerald-50 border border-emerald-300 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center cursor-pointer"
+                                      >
+                                        <option value="BB">BB</option>
+                                        <option value="HB">HB</option>
+                                        <option value="FB">FB</option>
+                                        <option value="AI">AI</option>
+                                        <option value="RO">RO</option>
+                                      </select>
+                                    </div>
+
+                                    {/* Quantity / Rooms input */}
+                                    <div className="col-span-2 text-center">
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={r.qty}
+                                        onChange={(e) => handleUpdateSelectedRoomField(block.dayNumber, rIdx, 'quantity', e.target.value)}
+                                        className="w-full text-xs font-bold text-center text-neutral-900 border border-neutral-200 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                                      />
+                                    </div>
+
+                                    {/* Rate (USD) input */}
+                                    <div className="col-span-3">
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400">$</span>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          placeholder="0.00"
+                                          value={r.rate !== undefined && r.rate !== null ? r.rate : ''}
+                                          onChange={(e) => handleUpdateSelectedRoomField(block.dayNumber, rIdx, 'pricePerNight', e.target.value)}
+                                          className="w-full text-xs font-mono font-bold text-right text-neutral-900 border border-neutral-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Delete room option button */}
+                                    <div className="col-span-1 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateSelectedRoomField(block.dayNumber, rIdx, 'delete', null)}
+                                        title="Remove Room Option"
+                                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -26383,6 +26547,7 @@ function AIItineraryBuilder({
           dayCostOverrides={tripData?.dayCostOverrides}
           dailyDriverAssignments={dailyDriverAssignments}
           dailyVehicleAssignments={dailyVehicleAssignments}
+          accommodations={tripData?.accommodations}
           tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
             const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
             return {
