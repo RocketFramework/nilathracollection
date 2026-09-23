@@ -1299,20 +1299,16 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       return (
                                         <div className="bg-[#FAF8F5] rounded-lg border border-[#E8DFD1] p-2 text-[9.5px] font-sans">
                                           <div className="grid grid-cols-12 gap-2 uppercase tracking-wider font-bold text-[#8C6D3F] text-[8px] border-b border-[#E8DFD1] pb-1 mb-1">
-                                            <span className="col-span-4">Room Category / Type</span>
-                                            <span className="col-span-2 text-center">Meal Plan</span>
-                                            <span className="col-span-3 text-center">Quantity / Rooms</span>
-                                            <span className="col-span-3 text-right pr-1">Rate (USD)</span>
+                                            <span className="col-span-5">Room Category / Type</span>
+                                            <span className="col-span-3 text-center">Meal Plan</span>
+                                            <span className="col-span-4 text-right pr-2">Quantity / Rooms</span>
                                           </div>
                                           <div className="divide-y divide-[#E8DFD1]/50">
                                             {roomRows.map((r, rIdx) => (
                                               <div key={rIdx} className="grid grid-cols-12 gap-2 items-center py-1 text-neutral-800">
-                                                <span className="col-span-4 font-semibold text-neutral-900">{r.category}</span>
-                                                <span className="col-span-2 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded py-0.5 px-1 inline-block mx-auto text-[8.5px]">{r.mealPlan}</span>
-                                                <span className="col-span-3 text-center font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
-                                                <span className="col-span-3 text-right font-mono font-semibold pr-1 text-neutral-900">
-                                                  {r.rate && r.rate > 0 ? `$${Number(r.rate).toFixed(2)} USD` : 'Included'}
-                                                </span>
+                                                <span className="col-span-5 font-semibold text-neutral-900">{r.category}</span>
+                                                <span className="col-span-3 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded py-0.5 px-1 inline-block mx-auto text-[8.5px]">{r.mealPlan}</span>
+                                                <span className="col-span-4 text-right pr-2 font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
                                               </div>
                                             ))}
                                           </div>
@@ -1656,20 +1652,16 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       return (
                                         <div className="bg-[#FAF8F5] rounded border border-[#E8DFD1] p-1.5 text-[9px] font-sans mt-1">
                                           <div className="grid grid-cols-12 gap-1 uppercase tracking-wider font-bold text-[#8C6D3F] text-[7.5px] border-b border-[#E8DFD1] pb-0.5 mb-1">
-                                            <span className="col-span-4">Room Category / Type</span>
-                                            <span className="col-span-2 text-center">Meal Plan</span>
-                                            <span className="col-span-3 text-center">Quantity / Rooms</span>
-                                            <span className="col-span-3 text-right pr-1">Rate (USD)</span>
+                                            <span className="col-span-5">Room Category / Type</span>
+                                            <span className="col-span-3 text-center">Meal Plan</span>
+                                            <span className="col-span-4 text-right pr-2">Quantity / Rooms</span>
                                           </div>
                                           <div className="divide-y divide-[#E8DFD1]/40">
                                             {roomRows.map((r, rIdx) => (
                                               <div key={rIdx} className="grid grid-cols-12 gap-1 items-center py-0.5 text-neutral-800">
-                                                <span className="col-span-4 font-semibold text-neutral-900">{r.category}</span>
-                                                <span className="col-span-2 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded px-1 text-[8px]">{r.mealPlan}</span>
-                                                <span className="col-span-3 text-center font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
-                                                <span className="col-span-3 text-right font-mono font-semibold pr-1 text-neutral-900">
-                                                  {r.rate && r.rate > 0 ? `$${Number(r.rate).toFixed(2)} USD` : 'Included'}
-                                                </span>
+                                                <span className="col-span-5 font-semibold text-neutral-900">{r.category}</span>
+                                                <span className="col-span-3 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded px-1 text-[8px]">{r.mealPlan}</span>
+                                                <span className="col-span-4 text-right pr-2 font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
                                               </div>
                                             ))}
                                           </div>
