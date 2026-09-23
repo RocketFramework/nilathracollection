@@ -189,12 +189,15 @@ export async function saveTourAction(tourId: string, tripData: any) {
         const summary = tripData?.accommodations?.map((a: any) => ({ night: a.nightIndex, hotelId: a.hotelId, hotelName: a.hotelName })) || [];
         const itinSummary = tripData?.itinerary?.filter((b: any) => b.type === 'sleep').map((b: any) => ({ day: b.dayNumber, hotelId: b.hotelId, name: b.name })) || [];
         await TourService.saveTour(tourId, tripData);
-        // Force revalidation of any cached planner data views
-        revalidatePath(`/admin-new`);
+        try {
+            revalidatePath(`/admin-new`);
+        } catch (revErr) {
+            console.warn("revalidatePath warning in saveTourAction:", revErr);
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error saving tour data:", error);
-        return { error: error.stack || error.message || "Failed to save tour data." };
+        return { success: false, error: typeof error === 'string' ? error : (error?.message || String(error) || "Failed to save tour data.") };
     }
 }
 
@@ -228,11 +231,15 @@ export async function getTouristDataAction(tourId: string) {
 export async function saveTouristDataAction(tourId: string, data: any) {
     try {
         await TouristService.saveTouristData(tourId, data);
-        revalidatePath(`/admin-new`);
+        try {
+            revalidatePath(`/admin-new`);
+        } catch (revErr) {
+            console.warn("revalidatePath warning in saveTouristDataAction:", revErr);
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error saving tourist DTO data:", error);
-        return { error: error.stack || error.message || "Failed to save tourist data." };
+        return { success: false, error: typeof error === 'string' ? error : (error?.message || String(error) || "Failed to save tourist data.") };
     }
 }
 
@@ -973,11 +980,15 @@ export async function saveTourConciergesAction(tourId: string, items: SaveTourCo
     try {
         const supabase = createAdminClient();
         await TourConciergeService.saveTourConcierges(tourId, items, supabase);
-        revalidatePath("/admin-new");
+        try {
+            revalidatePath("/admin-new");
+        } catch (revErr) {
+            console.warn("revalidatePath warning in saveTourConciergesAction:", revErr);
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error saving tour concierges:", error);
-        return { error: error.message || "Failed to save tour concierges." };
+        return { success: false, error: typeof error === 'string' ? error : (error?.message || String(error) || "Failed to save tour concierges.") };
     }
 }
 export async function getPurchaseOrdersAction(tourId: string) {

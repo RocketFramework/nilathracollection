@@ -697,6 +697,23 @@ export interface IActivityBooking {
     user?: any;
 }
 
+export interface WeatherReportItem {
+    location: string;
+    category: 'seaside' | 'inland';
+    swimmingRating: number; // 0 to 5, can be 4.5
+    activityRating: number; // 0 to 5, Snorkelling for seaside, Outdoor Activities for inland
+    weatherReliabilityRating: number; // 0 to 5
+    monsoonConcern: 'Low' | 'Moderate' | 'Moderate-high' | 'High';
+    overallTripAdvice: string;
+}
+
+export interface WeatherReportData {
+    periodLabel: string; // e.g., "For 10–16 October" or "For October"
+    monthName: string;
+    items: WeatherReportItem[];
+}
+
+
 
 
 

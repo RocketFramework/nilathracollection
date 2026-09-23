@@ -2329,7 +2329,8 @@ function PlannerWizardWorkspace() {
 
     setIsSaving(true);
     try {
-      const res = await saveTouristDataAction(tourId, touristData);
+      const cleanTouristData = touristData ? JSON.parse(JSON.stringify(touristData)) : {};
+      const res = await saveTouristDataAction(tourId, cleanTouristData);
       if (!res.success) {
         throw new Error(res.error || 'Failed to save tourist data');
       }
@@ -2351,13 +2352,17 @@ function PlannerWizardWorkspace() {
       const cleanItinerary = JSON.parse(JSON.stringify(syncedItinerary));
 
       if (tripData) {
+        const firstName = touristData?.profile?.first_name || '';
+        const lastName = touristData?.profile?.last_name || '';
+        const clientName = `${firstName} ${lastName}`.trim() || tripData.clientName;
+
         const updatedTripData = {
           ...tripData,
-          clientName: `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || tripData.clientName,
-          clientEmail: touristData.profile.email || tripData.clientEmail,
-          clientPhone: touristData.profile.phone || tripData.clientPhone,
-          clientAddress: touristData.profile.address || tripData.clientAddress,
-          clientPassport: touristData.profile.passport_number || tripData.clientPassport,
+          clientName: clientName,
+          clientEmail: touristData?.profile?.email || tripData.clientEmail,
+          clientPhone: touristData?.profile?.phone || tripData.clientPhone,
+          clientAddress: touristData?.profile?.address || tripData.clientAddress,
+          clientPassport: touristData?.profile?.passport_number || tripData.clientPassport,
           itinerary: cleanItinerary,
           manualSingle,
           manualDouble,
@@ -2365,25 +2370,25 @@ function PlannerWizardWorkspace() {
           manualFamily,
           profile: {
             ...tripData.profile,
-            adults: touristData.preferences.adults ?? tripData.profile?.adults ?? 2,
-            children: touristData.preferences.children ?? tripData.profile?.children ?? 0,
-            infants: touristData.preferences.infants ?? tripData.profile?.infants ?? 0,
-            arrivalDate: touristData.preferences.arrival_date || tripData.profile?.arrivalDate || '',
-            departureDate: touristData.preferences.departure_date || tripData.profile?.departureDate || '',
-            durationDays: touristData.preferences.duration_days ?? tripData.profile?.durationDays ?? 0,
-            budgetTotal: touristData.preferences.budget_total ?? tripData.profile?.budgetTotal ?? 0,
-            budgetPerPerson: touristData.preferences.budget_per_person ?? tripData.profile?.budgetPerPerson ?? 0,
-            travelStyle: (touristData.preferences.travel_style || tripData.profile?.travelStyle || 'Luxury') as TravelStyle,
-            departureCountry: touristData.preferences.departure_country || tripData.profile?.departureCountry || '',
+            adults: touristData?.preferences?.adults ?? tripData.profile?.adults ?? 2,
+            children: touristData?.preferences?.children ?? tripData.profile?.children ?? 0,
+            infants: touristData?.preferences?.infants ?? tripData.profile?.infants ?? 0,
+            arrivalDate: touristData?.preferences?.arrival_date || tripData.profile?.arrivalDate || '',
+            departureDate: touristData?.preferences?.departure_date || tripData.profile?.departureDate || '',
+            durationDays: touristData?.preferences?.duration_days ?? tripData.profile?.durationDays ?? 0,
+            budgetTotal: touristData?.preferences?.budget_total ?? tripData.profile?.budgetTotal ?? 0,
+            budgetPerPerson: touristData?.preferences?.budget_per_person ?? tripData.profile?.budgetPerPerson ?? 0,
+            travelStyle: (touristData?.preferences?.travel_style || tripData.profile?.travelStyle || 'Luxury') as TravelStyle,
+            departureCountry: touristData?.preferences?.departure_country || tripData.profile?.departureCountry || '',
             specialConditions: {
-              dietary: touristData.preferences.dietary_requirements || tripData.profile?.specialConditions?.dietary || '',
-              medical: touristData.preferences.medical_conditions || tripData.profile?.specialConditions?.medical || '',
-              accessibility: touristData.preferences.accessibility_requirements || tripData.profile?.specialConditions?.accessibility || '',
-              language: touristData.preferences.language_preference || tripData.profile?.specialConditions?.language || 'English',
-              occasion: touristData.preferences.special_notes || tripData.profile?.specialConditions?.occasion || '',
+              dietary: touristData?.preferences?.dietary_requirements || tripData.profile?.specialConditions?.dietary || '',
+              medical: touristData?.preferences?.medical_conditions || tripData.profile?.specialConditions?.medical || '',
+              accessibility: touristData?.preferences?.accessibility_requirements || tripData.profile?.specialConditions?.accessibility || '',
+              language: touristData?.preferences?.language_preference || tripData.profile?.specialConditions?.language || 'English',
+              occasion: touristData?.preferences?.special_notes || tripData.profile?.specialConditions?.occasion || '',
             }
           },
-          travelers: (touristData.team || []).map(t => ({
+          travelers: (touristData?.team || []).map(t => ({
             id: t.id,
             fullName: t.full_name,
             passportNumber: t.passport_number,
@@ -2397,31 +2402,41 @@ function PlannerWizardWorkspace() {
             medicalNotes: t.medical_notes,
           }))
         };
-        const tourRes = await saveTourAction(tourId, updatedTripData);
+        const cleanTripData = JSON.parse(JSON.stringify(updatedTripData));
+        const tourRes = await saveTourAction(tourId, cleanTripData);
         if (!tourRes.success) {
           throw new Error(tourRes.error || 'Failed to save itinerary');
         }
       }
 
       // Save daily driver assignments to database
-      const driverPayloads = Object.values(dailyDriverAssignments).flat();
-      const driverSaveRes = await saveTourDailyDriversAction(tourId, driverPayloads);
-      if (!driverSaveRes.success) {
-        console.error("Warning: Failed to save tour daily drivers:", driverSaveRes.error);
+      const driverPayloads = Object.values(dailyDriverAssignments || {}).flat();
+      if (driverPayloads.length > 0) {
+        const cleanDriverPayloads = JSON.parse(JSON.stringify(driverPayloads));
+        const driverSaveRes = await saveTourDailyDriversAction(tourId, cleanDriverPayloads);
+        if (!driverSaveRes.success) {
+          console.error("Warning: Failed to save tour daily drivers:", driverSaveRes.error);
+        }
       }
 
       // Save daily transport provider assignments to database
-      const transportPayloads = Object.values(dailyTransportAssignments).flat();
-      const transportSaveRes = await saveTourDailyTransportsAction(tourId, transportPayloads);
-      if (!transportSaveRes.success) {
-        console.error("Warning: Failed to save tour daily transports:", transportSaveRes.error);
+      const transportPayloads = Object.values(dailyTransportAssignments || {}).flat();
+      if (transportPayloads.length > 0) {
+        const cleanTransportPayloads = JSON.parse(JSON.stringify(transportPayloads));
+        const transportSaveRes = await saveTourDailyTransportsAction(tourId, cleanTransportPayloads);
+        if (!transportSaveRes.success) {
+          console.error("Warning: Failed to save tour daily transports:", transportSaveRes.error);
+        }
       }
 
       // Save daily vehicle assignments to database
-      const vehiclePayloads = Object.values(dailyVehicleAssignments).flat();
-      const vehicleSaveRes = await saveTourDailyVehiclesAction(tourId, vehiclePayloads);
-      if (!vehicleSaveRes.success) {
-        console.error("Warning: Failed to save tour daily vehicles:", vehicleSaveRes.error);
+      const vehiclePayloads = Object.values(dailyVehicleAssignments || {}).flat();
+      if (vehiclePayloads.length > 0) {
+        const cleanVehiclePayloads = JSON.parse(JSON.stringify(vehiclePayloads));
+        const vehicleSaveRes = await saveTourDailyVehiclesAction(tourId, cleanVehiclePayloads);
+        if (!vehicleSaveRes.success) {
+          console.error("Warning: Failed to save tour daily vehicles:", vehicleSaveRes.error);
+        }
       }
 
       // Save concierge assignments to database
@@ -2440,9 +2455,12 @@ function PlannerWizardWorkspace() {
             }
           }
         });
-        const conciergeSaveRes = await saveTourConciergesAction(tourId, selectedItems);
-        if (!conciergeSaveRes.success) {
-          console.error("Warning: Failed to save tour concierges:", conciergeSaveRes.error);
+        if (selectedItems.length > 0) {
+          const cleanSelectedItems = JSON.parse(JSON.stringify(selectedItems));
+          const conciergeSaveRes = await saveTourConciergesAction(tourId, cleanSelectedItems);
+          if (!conciergeSaveRes.success) {
+            console.error("Warning: Failed to save tour concierges:", conciergeSaveRes.error);
+          }
         }
       }
 
@@ -18057,6 +18075,7 @@ ${chauffeurHtml}
                     chauffeurNeeded={elements.driver}
                     onChauffeurNeededChange={(needed) => setElements(prev => ({ ...prev, driver: needed }))}
                     touristData={touristData}
+                    appSettings={appSettings}
                     isLockedByOther={isLockedByOther}
                     lockOwnerName={lockOwnerName}
                     versions={draftVersions}
@@ -22404,6 +22423,7 @@ interface AIItineraryBuilderProps {
   chauffeurNeeded: boolean;
   onChauffeurNeededChange: (needed: boolean) => void;
   touristData: TouristDataDTO;
+  appSettings?: any;
   isLockedByOther: boolean;
   lockOwnerName: string;
   versions: Omit<DraftItineraryVersion, 'itinerary_data'>[];
@@ -22482,6 +22502,7 @@ function AIItineraryBuilder({
   chauffeurNeeded,
   onChauffeurNeededChange,
   touristData,
+  appSettings: appSettingsProp,
   isLockedByOther,
   lockOwnerName,
   versions,
@@ -23418,7 +23439,13 @@ function AIItineraryBuilder({
     }
   }, [tourId]);
 
-  const [appSettings, setAppSettings] = useState<any>(null);
+  const [appSettings, setAppSettings] = useState<any>(appSettingsProp || null);
+
+  useEffect(() => {
+    if (appSettingsProp && !appSettings) {
+      setAppSettings(appSettingsProp);
+    }
+  }, [appSettingsProp]);
 
   // Load app settings on mount
   useEffect(() => {

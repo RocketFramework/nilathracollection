@@ -3,6 +3,8 @@ import { InternalItineraryBlock } from '@/other/interfaces';
 import { TouristDataDTO } from '@/dtos/tourist-data.dto';
 import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys, TRAVEL_STYLES, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings } from '@/types/types';
 import { InvoiceCalculationService } from '@/services/invoice-calculation.service';
+import { WeatherService } from '@/services/weather.service';
+
 
 interface ItineraryPdfTemplateNewProps {
   itinerary: InternalItineraryBlock[];
@@ -717,6 +719,87 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   </div>
                 </div>
 
+                {/* 3.2 SEASONAL WEATHER & ACTIVITY GUIDE */}
+                {(() => {
+                  const weatherReport = WeatherService.generateWeatherReport(arrivalDate, departureDate, itinerary, masterData);
+
+                  if (!weatherReport.items || weatherReport.items.length === 0) return null;
+
+
+                  const renderStarRating = (rating: number) => {
+                    if (rating <= 0) return <span className="text-neutral-300 font-mono text-xs">—</span>;
+                    const fullStars = Math.floor(rating);
+                    const hasHalf = rating % 1 !== 0;
+
+                    return (
+                      <div className="inline-flex items-center gap-0.5 text-[#D4AF37] font-sans text-xs">
+                        {Array.from({ length: fullStars }).map((_, i) => (
+                          <span key={`full-${i}`}>★</span>
+                        ))}
+                        {hasHalf && <span key="half" className="text-[10px] font-bold">½★</span>}
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="print-page-break w-full px-8 py-6 box-border">
+                      <div className="text-center mb-6">
+                        <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Seasonal Advisory</span>
+                        <h3 className="text-2xl font-serif text-[#111827] font-light italic">Weather & Activity Suitability</h3>
+                        <span className="text-[10px] font-sans font-bold text-[#8C6D3F] uppercase tracking-widest mt-1 block">
+                          {weatherReport.periodLabel}
+                        </span>
+                      </div>
+
+                      <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
+                        <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                          <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
+                            <span className="col-span-3">Location</span>
+                            <span className="col-span-2">Swimming</span>
+                            <span className="col-span-2">Snorkelling / Outdoor</span>
+                            <span className="col-span-2">{weatherReport.monthName} Weather</span>
+                            <span className="col-span-2 text-right pr-2">Overall for Your Trip</span>
+                          </div>
+
+                          <div className="divide-y divide-neutral-100">
+                            {weatherReport.items.map((item, idx) => (
+                              <div key={idx} className="px-5 py-3.5 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
+                                <div className="col-span-3 space-y-0.5">
+                                  <span className="font-serif font-bold text-sm text-[#111827] block">{item.location}</span>
+                                  <span className="text-[8.5px] font-sans uppercase tracking-wider font-semibold text-[#8C6D3F]">
+                                    {item.category === 'seaside' ? 'Seaside Coastal' : 'Inland / Highlands'}
+                                  </span>
+                                </div>
+
+                                <div className="col-span-2">
+                                  {item.category === 'seaside' ? renderStarRating(item.swimmingRating) : <span className="text-neutral-300 font-mono text-xs">—</span>}
+                                </div>
+
+                                <div className="col-span-2">
+                                  {renderStarRating(item.activityRating)}
+                                </div>
+
+                                <div className="col-span-2">
+                                  {renderStarRating(item.weatherReliabilityRating)}
+                                </div>
+
+                                <div className="col-span-3 text-right pr-2 text-[10.5px] font-serif font-medium text-neutral-700 leading-snug">
+                                  {item.overallTripAdvice}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-3.5 rounded-xl text-left flex items-center justify-between text-[10px] text-[#8C6D3F] font-medium">
+                          <span>* Ratings reflect historical seasonal averages and monsoon transition cycles for Sri Lanka.</span>
+                          <span className="font-bold">Nilathra Bespoke Seasonal Advisory</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* 3.3 SRI LANKA ROUTE MAP & DESTINATION SEQUENCE */}
                 {(() => {
                   // Coordinate lookup dictionary for Sri Lanka cities
@@ -1044,49 +1127,44 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       </p>
                     </div>
 
-                    {appSettings && invoiceItems.length > 0 && grandTotal > 0 ? (
-                      <div className="space-y-6">
-                        <div className="bg-white rounded-xl border border-[#E8DFD1] p-6 shadow-sm space-y-4">
-                          <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-3 flex justify-between items-center">
-                            <span>Category Description</span>
-                            <span>Estimated Cost (USD)</span>
-                          </div>
-
-                          <div className="space-y-3.5 pt-1">
-                            {invoiceItems.map((item, idx) => (
-                              <div key={idx} className="flex justify-between items-center border-b border-neutral-100/80 pb-2.5 text-xs">
-                                <span className="text-neutral-700 font-medium">{item.description}</span>
-                                <span className="font-semibold text-neutral-900 font-mono text-sm">${item.amount.toFixed(2)} USD</span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {invoiceItems.length > 1 && (
-                            <div className="flex justify-between items-center pt-2 px-1 text-xs font-semibold text-neutral-600">
-                              <span className="uppercase tracking-wider text-[10px] text-neutral-500 font-sans">Subtotal (Direct Services)</span>
-                              <span className="font-mono text-sm text-neutral-800">${invoiceItems.filter(i => !i.description.includes('Tax &')).reduce((sum, i) => sum + i.amount, 0).toFixed(2)} USD</span>
-                            </div>
-                          )}
-
-                          <div className="border-t-2 border-[#D4AF37]/40 pt-4 mt-2 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-4 rounded-xl border border-[#E8DFD1]">
-                            <div className="flex flex-col">
-                              <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Estimated Grand Total</span>
-                              <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest">Inclusive of taxes & concierge coordination</span>
-                            </div>
-                            <span className="text-2xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toFixed(2)} USD</span>
-                          </div>
+                    {invoiceItems.length > 0 && grandTotal > 0 ? (
+                      <div className="space-y-3 bg-white p-6 rounded-xl border border-[#E8DFD1] text-left text-xs font-sans text-neutral-600 shadow-sm">
+                        <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-2.5 flex justify-between items-center">
+                          <span>Category Description</span>
+                          <span>Estimated Cost (USD)</span>
                         </div>
 
-                        {/* Per Head & Per Day Analytical Breakdown */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white p-5 rounded-xl border border-[#E8DFD1] text-center space-y-1">
-                            <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block">Per Guest Investment ({totalPax} Pax)</span>
-                            <span className="font-serif text-xl font-bold text-neutral-800">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
+                        <div className="space-y-2 pt-1">
+                          {invoiceItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center border-b border-neutral-100 pb-2 text-xs">
+                              <span className="text-neutral-700 font-medium">{item.description}</span>
+                              <span className="font-semibold text-neutral-900 font-mono text-sm">${item.amount.toFixed(2)} USD</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {invoiceItems.length > 1 && (
+                          <div className="flex justify-between items-center pt-2 px-1 text-xs font-semibold text-neutral-600">
+                            <span className="uppercase tracking-wider text-[10px] text-neutral-500 font-sans">Subtotal (Direct Services)</span>
+                            <span className="font-mono text-sm text-neutral-800">${invoiceItems.filter(i => !i.description.includes('Tax &')).reduce((sum, i) => sum + i.amount, 0).toFixed(2)} USD</span>
                           </div>
-                          <div className="bg-white p-5 rounded-xl border border-[#E8DFD1] text-center space-y-1">
-                            <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block">Per Guest Daily Investment ({durationDays} Days)</span>
-                            <span className="font-serif text-xl font-bold text-neutral-800">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
+                        )}
+
+                        <div className="border-t-2 border-[#D4AF37]/40 pt-4 mt-2 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-4 rounded-xl border border-[#E8DFD1]">
+                          <div className="flex flex-col">
+                            <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Estimated Grand Total</span>
+                            <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest">Inclusive of taxes & concierge coordination</span>
                           </div>
+                          <span className="text-2xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toFixed(2)} USD</span>
+                        </div>
+
+                        <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium pt-2 border-t border-neutral-100">
+                          <span>Per Head Cost (Trip Total — {totalPax} Pax):</span>
+                          <span className="font-semibold text-neutral-700 font-mono">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
+                        </div>
+                        <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium">
+                          <span>Per Head Cost (Per Day):</span>
+                          <span className="font-semibold text-neutral-700 font-mono">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
                         </div>
                       </div>
                     ) : (
