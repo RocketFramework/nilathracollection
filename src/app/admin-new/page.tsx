@@ -23964,6 +23964,21 @@ function AIItineraryBuilder({
           }
 
           const eventNote = event.description || '';
+          const nameLower = (event.name || '').toLowerCase();
+          let inferredMealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack' | undefined = undefined;
+          if (event.type === ItineraryBlockTypes.MEAL || (event.type as any) === 'meal') {
+            if ((event as any).mealType) {
+              inferredMealType = (event as any).mealType;
+            } else if (nameLower.includes('breakfast')) {
+              inferredMealType = 'Breakfast';
+            } else if (nameLower.includes('dinner')) {
+              inferredMealType = 'Dinner';
+            } else if (nameLower.includes('snack')) {
+              inferredMealType = 'Snack';
+            } else {
+              inferredMealType = 'Lunch';
+            }
+          }
 
           const block: InternalItineraryBlock = {
             id: generateUUID(),
@@ -23978,6 +23993,7 @@ function AIItineraryBuilder({
             hotelName: event.type === ItineraryBlockTypes.SLEEP ? (event.hotelName || event.name) : '',
             roomName: event.type === ItineraryBlockTypes.SLEEP ? (event.roomCategory || '') : '',
             mealPlan: event.type === ItineraryBlockTypes.SLEEP ? (event.mealPlan || 'BB') : '',
+            mealType: inferredMealType,
             agreedPrice: event.type === ItineraryBlockTypes.SLEEP ? (sleepPrice && sleepPrice > 0 ? Math.round(sleepPrice * 100) / 100 : undefined) : undefined,
             baseRoomRate: event.type === ItineraryBlockTypes.SLEEP ? (event.rateUsd || undefined) : undefined,
             imageUrl: '',
