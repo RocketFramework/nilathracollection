@@ -284,40 +284,45 @@ export default function TourDetailsPage() {
                         <h3 className="text-xl font-serif text-brand-charcoal mb-6">Financial Summary</h3>
 
                         <div className="space-y-4 mb-6">
-                            {tour.rawPlannerData?.financials?.draftCosts && tour.rawPlannerData.financials.draftCosts.length > 0 && (
+                            {((tour.costBreakdown && tour.costBreakdown.length > 0) || (tour.rawPlannerData?.financials?.draftCosts && tour.rawPlannerData.financials.draftCosts.length > 0)) && (
                                 <div className="mb-6 space-y-3 pb-6 border-b border-neutral-100">
                                     <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Cost Breakdown</h4>
-                                    {Object.entries(
-                                        tour.rawPlannerData.financials.draftCosts.reduce((acc: any, item: any) => {
-                                            acc[item.category] = (acc[item.category] || 0) + (Number(item.totalPrice) || 0);
-                                            return acc;
-                                        }, {})
-                                    ).map(([category, amount]) => {
-                                        let displayName = category;
-                                        if (category === 'Service and Support') {
-                                            const agencyFeeItem = tour.rawPlannerData.financials.draftCosts.find((item: any) => item.category === 'Service and Support' && item.vendorName === 'Agency');
-                                            displayName = agencyFeeItem ? agencyFeeItem.serviceName : 'Tax, Service and Support Fee';
-                                        }
-                                        return (
-                                            <div key={category} className="flex justify-between items-center text-sm">
-                                                <span className="text-neutral-600">
-                                                    {displayName}
-                                                </span>
-                                                <span className="font-semibold text-neutral-800">${(amount as number).toFixed(2)}</span>
+                                    {tour.costBreakdown && tour.costBreakdown.length > 0 ? (
+                                        tour.costBreakdown.map((item: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-center text-sm">
+                                                <span className="text-neutral-600">{item.description}</span>
+                                                <span className="font-semibold text-neutral-800">${Number(item.amount || 0).toFixed(2)}</span>
                                             </div>
-                                        );
-                                    })}
+                                        ))
+                                    ) : (
+                                        Object.entries(
+                                            tour.rawPlannerData.financials.draftCosts.reduce((acc: any, item: any) => {
+                                                acc[item.category] = (acc[item.category] || 0) + (Number(item.totalPrice) || 0);
+                                                return acc;
+                                            }, {})
+                                        ).map(([category, amount]) => {
+                                            let displayName = category;
+                                            if (category === 'Service and Support') {
+                                                const agencyFeeItem = tour.rawPlannerData.financials.draftCosts.find((item: any) => item.category === 'Service and Support' && item.vendorName === 'Agency');
+                                                displayName = agencyFeeItem ? agencyFeeItem.serviceName : 'Tax, Service and Support Fee';
+                                            }
+                                            return (
+                                                <div key={category} className="flex justify-between items-center text-sm">
+                                                    <span className="text-neutral-600">
+                                                        {displayName}
+                                                    </span>
+                                                    <span className="font-semibold text-neutral-800">${(amount as number).toFixed(2)}</span>
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                 </div>
                             )}
 
                             {(() => {
-                                const hasDraftCosts = tour.rawPlannerData?.financials?.draftCosts && tour.rawPlannerData.financials.draftCosts.length > 0;
-                                const draftTotal = hasDraftCosts 
-                                    ? tour.rawPlannerData.financials.draftCosts.reduce((sum: number, item: any) => sum + (Number(item.totalPrice) || 0), 0)
-                                    : 0;
-                                    
-                                const displayTotal = draftTotal > 0 ? `$${draftTotal.toFixed(2)}` : tour.totalPrice;
-                                const displayTotalNum = draftTotal > 0 ? draftTotal : parseFloat((tour.totalPrice || '0').replace(/[^0-9.-]+/g, '')) || 0;
+                                const displayTotalNum = typeof tour.totalPriceNum === 'number' && tour.totalPriceNum > 0 
+                                    ? tour.totalPriceNum 
+                                    : (parseFloat((tour.totalPrice || '0').replace(/[^0-9.-]+/g, '')) || 0);
                                 
                                 const adults = tour.rawPlannerData?.profile?.adults || 0;
                                 const children = tour.rawPlannerData?.profile?.children || 0;
@@ -327,31 +332,38 @@ export default function TourDetailsPage() {
                                 const perHeadCost = displayTotalNum / totalPax;
                                 const perHeadPerDayCost = displayTotalNum / (totalPax * durationDays);
 
-                                const paidAmountNum = parseFloat((tour.paidAmount || '0').replace(/[^0-9.-]+/g, '')) || 0;
-                                const balanceDueNum = Math.max(0, displayTotalNum - paidAmountNum);
+                                const paidAmountNum = typeof tour.paidAmountNum === 'number' 
+                                    ? tour.paidAmountNum 
+                                    : (parseFloat((tour.paidAmount || '0').replace(/[^0-9.-]+/g, '')) || 0);
+                                    
+                                const balanceDueNum = typeof tour.balanceDueNum === 'number' 
+                                    ? tour.balanceDueNum 
+                                    : Math.max(0, displayTotalNum - paidAmountNum);
 
                                 return (
                                     <>
                                         <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
-                                            <span className="text-neutral-500 font-medium">Estimated Total Cost</span>
-                                            <span className="font-bold text-lg">{displayTotal}</span>
+                                            <span className="text-neutral-500 font-medium">Package Total</span>
+                                            <span className="font-bold text-lg text-brand-charcoal">${displayTotalNum.toFixed(2)} USD</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
                                             <span className="text-neutral-500 font-medium">Per Person Cost ({totalPax} Pax)</span>
-                                            <span className="font-bold text-brand-green">${perHeadCost.toFixed(2)}</span>
+                                            <span className="font-bold text-brand-green">${perHeadCost.toFixed(2)} USD</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
                                             <span className="text-neutral-500 font-medium">Per Person Per Day</span>
-                                            <span className="font-bold text-neutral-800">${perHeadPerDayCost.toFixed(2)}</span>
+                                            <span className="font-bold text-neutral-800">${perHeadPerDayCost.toFixed(2)} USD</span>
                                         </div>
                                         
                                         <div className="flex justify-between items-center pb-4 border-b border-neutral-100">
                                             <span className="text-neutral-500 font-medium">Amount Paid</span>
-                                            <span className="text-green-600 font-bold">{tour.paidAmount || '$0.00'}</span>
+                                            <span className="text-green-600 font-bold">${paidAmountNum.toFixed(2)} USD</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-neutral-500 font-medium">Balance Due</span>
-                                            <span className="text-red-600 font-bold text-xl">${balanceDueNum.toFixed(2)}</span>
+                                            <span className={`font-bold text-xl ${balanceDueNum > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                ${balanceDueNum.toFixed(2)} USD
+                                            </span>
                                         </div>
                                     </>
                                 );
@@ -359,8 +371,8 @@ export default function TourDetailsPage() {
                         </div>
 
                         {tour.invoices && tour.invoices.length > 0 && (
-                            <div className="space-y-3">
-                                <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Invoices</h4>
+                            <div className="space-y-3 mb-6 pt-4 border-t border-neutral-100">
+                                <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Issued Invoices</h4>
                                 {tour.invoices.map((inv: any) => (
                                     <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 hover:border-brand-gold/40 transition-colors">
                                         <div className="flex items-center gap-3">
@@ -377,6 +389,28 @@ export default function TourDetailsPage() {
                                             <p className={`text-[10px] font-bold uppercase tracking-wider ${inv.status === 'Paid' ? 'text-green-600' : 'text-red-600'}`}>
                                                 {inv.status}
                                             </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {tour.payments && tour.payments.length > 0 && (
+                            <div className="space-y-3 pt-4 border-t border-neutral-100">
+                                <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Payment Receipts</h4>
+                                {tour.payments.map((p: any) => (
+                                    <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 hover:border-brand-gold/40 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                                                <CheckCircle2 size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-brand-charcoal">{p.method}</p>
+                                                <p className="text-xs text-neutral-400">{p.date} • Ref: {p.reference}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-sm font-bold text-green-600">{p.amount}</p>
                                         </div>
                                     </div>
                                 ))}

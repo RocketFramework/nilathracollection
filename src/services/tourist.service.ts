@@ -130,22 +130,80 @@ export class TouristService {
             };
         });
 
+        // Fetch real financial summary data (preview breakdown, invoices, and payments)
+        const adminSupabase = createAdminClient();
+        
+        let previewItems: { description: string; amount: number }[] = [];
+        try {
+            const { CustomerInvoiceService } = await import('./customer-invoice.service');
+            previewItems = await CustomerInvoiceService.previewInvoiceItems(tourId, {});
+        } catch (e) {
+            console.warn("Could not preview invoice items for tourist portal:", e);
+        }
+
+        let customerInvoices: any[] = [];
+        try {
+            const { CustomerInvoiceService } = await import('./customer-invoice.service');
+            customerInvoices = await CustomerInvoiceService.getCustomerInvoices(tourId);
+        } catch (e) {
+            console.warn("Could not fetch customer invoices for tourist portal:", e);
+        }
+
+        const { data: paymentsData } = await adminSupabase
+            .from('customer_payments')
+            .select('*')
+            .eq('tour_id', tourId)
+            .order('payment_date', { ascending: false });
+
+        const tourBuyingRate = Number(data.usd_lkr_buying_rate) || 300;
+        const paymentsList = paymentsData || [];
+        const totalPaidUSD = paymentsList.reduce((sum: number, p: any) => {
+            const amt = Number(p.amount) || 0;
+            if (amt === 0) return sum;
+            if (!p.currency || p.currency === 'USD') return sum + amt;
+            const rate = Number(p.exchange_rate);
+            const effRate = (rate && rate > 1.0) ? rate : tourBuyingRate;
+            return sum + (effRate > 0 ? amt / effRate : amt);
+        }, 0);
+
+        const draftTotal = previewItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        const officialTotal = (customerInvoices || []).reduce((sum, inv: any) => sum + (Number(inv.amount) || 0), 0);
+        const totalAmount = officialTotal > 0 ? officialTotal : (draftTotal > 0 ? draftTotal : (tripData.financials?.sellingPrice || 0));
+        const balanceDue = Math.max(0, totalAmount - totalPaidUSD);
+
         return {
             title: data.title,
             status: data.status,
             destinations: [], // TripProfile does not have destinations
             startDate: data.start_date,
-            durationDays: tripData.profile?.durationDays || 0,
+            durationDays: tripData.profile?.durationDays || sortedItineraries.length || 0,
             travelers: `${tripData.profile?.adults || 0} Adults${tripData.profile?.children > 0 ? `, ${tripData.profile.children} Children` : ''}`,
-            totalPrice: `$${tripData.financials?.sellingPrice || 0} USD`,
-            paidAmount: "$0 USD", // Requires financials integration
+            totalPrice: `$${totalAmount.toFixed(2)} USD`,
+            totalPriceNum: totalAmount,
+            paidAmount: `$${totalPaidUSD.toFixed(2)} USD`,
+            paidAmountNum: totalPaidUSD,
+            balanceDueNum: balanceDue,
+            costBreakdown: previewItems,
             agent: {
                 name: agentProfile.first_name ? `${agentProfile.first_name} ${agentProfile.last_name || ''}`.trim() : (agentData?.email ? agentData.email.split('@')[0].charAt(0).toUpperCase() + agentData.email.split('@')[0].slice(1).replace(/[^a-zA-Z]/g, ' ') : 'Assigned Agent'),
                 phone: agentProfile.phone || 'N/A',
                 email: agentData?.email || 'N/A',
                 photoInitials: agentProfile.first_name ? agentProfile.first_name.charAt(0) : (agentData?.email ? agentData.email.charAt(0).toUpperCase() : 'A')
             },
-            invoices: [], // Requires invoices integration
+            invoices: (customerInvoices || []).map((inv: any) => ({
+                id: inv.invoice_number || inv.id,
+                date: inv.created_at ? new Date(inv.created_at).toLocaleDateString() : 'N/A',
+                amount: `$${Number(inv.amount || 0).toFixed(2)} USD`,
+                amountNum: Number(inv.amount || 0),
+                status: inv.status || 'Pending'
+            })),
+            payments: paymentsList.map((p: any) => ({
+                id: p.id,
+                date: p.payment_date ? new Date(p.payment_date).toLocaleDateString() : 'N/A',
+                amount: `${p.currency || 'USD'} ${Number(p.amount || 0).toFixed(2)}`,
+                method: p.payment_method || 'Bank Transfer',
+                reference: p.reference_number || 'N/A'
+            })),
             itinerarySummary: summary,
             detailedItinerary: tripData.itinerary || [],
             accommodations: tripData.accommodations || [],
