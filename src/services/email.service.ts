@@ -1,5 +1,3 @@
-import nodemailer from 'nodemailer';
-
 interface SendEmailOptions {
     to: string | string[];
     subject: string;
@@ -10,18 +8,26 @@ interface SendEmailOptions {
 }
 
 export class EmailService {
-    private transporter: nodemailer.Transporter;
+    private transporter: any = null;
 
-    constructor() {
-        this.transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: Number(process.env.SMTP_PORT) === 465, // true for 465, false for other ports
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASSWORD,
-            },
-        });
+    private getTransporter() {
+        if (typeof window !== 'undefined') {
+            throw new Error('EmailService cannot be executed in browser environment.');
+        }
+        if (!this.transporter) {
+            const req = eval('require');
+            const nodemailer = req('nodemailer');
+            this.transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: Number(process.env.SMTP_PORT) || 587,
+                secure: Number(process.env.SMTP_PORT) === 465,
+                auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASSWORD,
+                },
+            });
+        }
+        return this.transporter;
     }
 
     /**
@@ -44,7 +50,8 @@ export class EmailService {
         };
 
         try {
-            const info = await this.transporter.sendMail(mailOptions);
+            const transporter = this.getTransporter();
+            const info = await transporter.sendMail(mailOptions);
             console.log('Email sent: %s', info.messageId);
             return info;
         } catch (error) {
@@ -389,7 +396,7 @@ export class EmailService {
      */
     async verifyConnection() {
         try {
-            await this.transporter.verify();
+            await this.getTransporter().verify();
             console.log('SMTP Server connection verified successfully');
             return true;
         } catch (error) {

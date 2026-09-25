@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: "50mb",
     inlineCss: true,
   },
+  turbopack: {},
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        dns: false,
+        fs: false,
+        child_process: false,
+        nodemailer: false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

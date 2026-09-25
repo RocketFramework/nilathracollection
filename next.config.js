@@ -16,6 +16,21 @@ const nextConfig = {
     },
     proxyClientMaxBodySize: "50mb",
   },
+  turbopack: {},
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        dns: false,
+        fs: false,
+        child_process: false,
+        nodemailer: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;
