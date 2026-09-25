@@ -1,10 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 import { CreateRequestDTO, UpdateRequestDTO } from '../dtos/request.dto';
 import { createAdminClient } from '../utils/supabase/admin';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const getSupabase = () => createSupabaseClient();
 
 export class RequestService {
     static async createRequest(dto: CreateRequestDTO, touristId?: string) {
@@ -28,7 +26,7 @@ export class RequestService {
             infants: dto.infants,
         };
 
-        const { error: reqError } = await supabase
+        const { error: reqError } = await getSupabase()
             .from('requests')
             .insert(requestData);
 
@@ -98,7 +96,7 @@ export class RequestService {
     static async getAllRequests(page: number = 1, pageSize: number = 10, customClient?: any) {
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
-        const client = customClient || supabase;
+        const client = customClient || getSupabase();
 
                 const { data, count, error } = await client
             .from('requests')
@@ -141,7 +139,7 @@ export class RequestService {
     }, page: number = 1, pageSize: number = 10, customClient?: any) {
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
-        const client = customClient || supabase;
+        const client = customClient || getSupabase();
 
         let query = client
             .from('requests')

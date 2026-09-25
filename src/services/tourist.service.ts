@@ -80,10 +80,9 @@ export class TouristService {
     static async getTourDetails(tourId: string) {
         const supabase = createClient();
 
-        const { data: { user }, error: authErr } = await supabase.auth.getUser();
-        if (authErr || !user) throw new Error("Not authenticated");
+        const { data: { user } } = await supabase.auth.getUser();
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('tours')
             .select(`
                 *,
@@ -98,11 +97,21 @@ export class TouristService {
                     daily_activities(title, time_start)
                 )
             `)
-            .eq('id', tourId)
-            .eq('tourist_id', user.id)
-            .single();
+            .eq('id', tourId);
 
-        if (error) throw error;
+        if (user) {
+            const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle();
+            if (userData && userData.role === 'tourist') {
+                query = query.eq('tourist_id', user.id);
+            }
+        }
+
+        const { data, error } = await query.maybeSingle();
+
+        if (error || !data) {
+            console.error("Error fetching tour in getTourDetails:", error);
+            throw new Error("Tour not found or access denied");
+        }
 
         // Map data to match the UI expectations
         const agentData = Array.isArray(data.agent) ? data.agent[0] : data.agent;
@@ -166,9 +175,27 @@ export class TouristService {
             return sum + (effRate > 0 ? amt / effRate : amt);
         }, 0);
 
-        const draftTotal = previewItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-        const officialTotal = (customerInvoices || []).reduce((sum, inv: any) => sum + (Number(inv.amount) || 0), 0);
-        const totalAmount = officialTotal > 0 ? officialTotal : (draftTotal > 0 ? draftTotal : (tripData.financials?.sellingPrice || 0));
+        const expectedBudgetTotal = Number(tripData.profile?.budgetTotal || tripData.financials?.sellingPrice || 0);
+        const paxCount = Math.max(1, (tripData.profile?.adults || 0) + (tripData.profile?.children || 0));
+        const expectedBudgetPerPerson = Number(tripData.profile?.budgetPerPerson || (expectedBudgetTotal > 0 ? expectedBudgetTotal / paxCount : 0));
+
+        const rawDraftCosts = tripData.financials?.draftCosts || [];
+        const costBreakdown = (rawDraftCosts && rawDraftCosts.length > 0)
+            ? rawDraftCosts.map((item: any) => ({
+                category: item.category,
+                vendorName: item.vendorName,
+                serviceName: item.serviceName,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                description: `${item.category ? `[${item.category}] ` : ''}${item.vendorName ? item.vendorName + ' – ' : ''}${item.serviceName}`,
+                amount: Number(item.totalPrice) || 0
+              }))
+            : previewItems;
+
+        const draftTotal = costBreakdown.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
+        const officialTotal = (customerInvoices || []).reduce((sum: number, inv: any) => sum + (Number(inv.amount) || 0), 0);
+        const totalAmount = officialTotal > 0 ? officialTotal : (draftTotal > 0 ? draftTotal : (expectedBudgetTotal > 0 ? expectedBudgetTotal : 0));
         const balanceDue = Math.max(0, totalAmount - totalPaidUSD);
 
         return {
@@ -178,12 +205,15 @@ export class TouristService {
             startDate: data.start_date,
             durationDays: tripData.profile?.durationDays || sortedItineraries.length || 0,
             travelers: `${tripData.profile?.adults || 0} Adults${tripData.profile?.children > 0 ? `, ${tripData.profile.children} Children` : ''}`,
+            expectedBudget: expectedBudgetTotal > 0 ? `$${expectedBudgetTotal.toFixed(2)} USD` : undefined,
+            expectedBudgetNum: expectedBudgetTotal,
+            expectedBudgetPerPersonNum: expectedBudgetPerPerson,
             totalPrice: `$${totalAmount.toFixed(2)} USD`,
             totalPriceNum: totalAmount,
             paidAmount: `$${totalPaidUSD.toFixed(2)} USD`,
             paidAmountNum: totalPaidUSD,
             balanceDueNum: balanceDue,
-            costBreakdown: previewItems,
+            costBreakdown: costBreakdown,
             agent: {
                 name: agentProfile.first_name ? `${agentProfile.first_name} ${agentProfile.last_name || ''}`.trim() : (agentData?.email ? agentData.email.split('@')[0].charAt(0).toUpperCase() + agentData.email.split('@')[0].slice(1).replace(/[^a-zA-Z]/g, ' ') : 'Assigned Agent'),
                 phone: agentProfile.phone || 'N/A',

@@ -284,14 +284,36 @@ export default function TourDetailsPage() {
                         <h3 className="text-xl font-serif text-brand-charcoal mb-6">Financial Summary</h3>
 
                         <div className="space-y-4 mb-6">
+                            {/* Expected Tourist Budget */}
+                            {((tour.expectedBudgetNum && tour.expectedBudgetNum > 0) || (tour.rawPlannerData?.profile?.budgetTotal && tour.rawPlannerData.profile.budgetTotal > 0)) && (
+                                <div className="mb-6 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/60 space-y-2">
+                                    <div className="flex justify-between items-center text-sm font-semibold text-amber-900">
+                                        <span>Expected Tourist Budget</span>
+                                        <span className="text-base font-bold">${Number(tour.expectedBudgetNum || tour.rawPlannerData?.profile?.budgetTotal || 0).toFixed(2)} USD</span>
+                                    </div>
+                                    {(tour.expectedBudgetPerPersonNum > 0 || tour.rawPlannerData?.profile?.budgetPerPerson) && (
+                                        <div className="flex justify-between items-center text-xs text-amber-700">
+                                            <span>Expected Per Person</span>
+                                            <span className="font-semibold">${Number(tour.expectedBudgetPerPersonNum || tour.rawPlannerData?.profile?.budgetPerPerson || 0).toFixed(2)} USD</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Itinerary Builder Cost Breakdown */}
                             {((tour.costBreakdown && tour.costBreakdown.length > 0) || (tour.rawPlannerData?.financials?.draftCosts && tour.rawPlannerData.financials.draftCosts.length > 0)) && (
                                 <div className="mb-6 space-y-3 pb-6 border-b border-neutral-100">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Cost Breakdown</h4>
+                                    <h4 className="text-sm font-bold uppercase tracking-wider text-neutral-400 mb-3">Itinerary Builder Cost Breakdown</h4>
                                     {tour.costBreakdown && tour.costBreakdown.length > 0 ? (
                                         tour.costBreakdown.map((item: any, idx: number) => (
-                                            <div key={idx} className="flex justify-between items-center text-sm">
-                                                <span className="text-neutral-600">{item.description}</span>
-                                                <span className="font-semibold text-neutral-800">${Number(item.amount || 0).toFixed(2)}</span>
+                                            <div key={idx} className="flex justify-between items-center text-sm py-1 border-b border-dashed border-neutral-100 last:border-0">
+                                                <div>
+                                                    <span className="text-neutral-700 font-medium">{item.description}</span>
+                                                    {item.quantity > 1 && item.unitPrice > 0 && (
+                                                        <span className="block text-[11px] text-neutral-400">Qty: {item.quantity} × ${Number(item.unitPrice).toFixed(2)}</span>
+                                                    )}
+                                                </div>
+                                                <span className="font-semibold text-neutral-800">${Number(item.amount || item.totalPrice || 0).toFixed(2)}</span>
                                             </div>
                                         ))
                                     ) : (
@@ -307,10 +329,8 @@ export default function TourDetailsPage() {
                                                 displayName = agencyFeeItem ? agencyFeeItem.serviceName : 'Tax, Service and Support Fee';
                                             }
                                             return (
-                                                <div key={category} className="flex justify-between items-center text-sm">
-                                                    <span className="text-neutral-600">
-                                                        {displayName}
-                                                    </span>
+                                                <div key={category} className="flex justify-between items-center text-sm py-1 border-b border-dashed border-neutral-100 last:border-0">
+                                                    <span className="text-neutral-600">{displayName}</span>
                                                     <span className="font-semibold text-neutral-800">${(amount as number).toFixed(2)}</span>
                                                 </div>
                                             );
