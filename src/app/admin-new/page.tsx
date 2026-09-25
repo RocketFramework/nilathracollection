@@ -540,6 +540,7 @@ function PlannerWizardWorkspace() {
   const [selectedRfqStays, setSelectedRfqStays] = useState<any[]>([]);
   const [rfqEmailTo, setRfqEmailTo] = useState('');
   const [rfqEmailSubject, setRfqEmailSubject] = useState('');
+  const [rfqSubjectBrand, setRfqSubjectBrand] = useState('');
   const [rfqEmailBody, setRfqEmailBody] = useState('');
   const [rfqEmailBodyOriginal, setRfqEmailBodyOriginal] = useState('');
   const [showRfqHtml, setShowRfqHtml] = useState(false);
@@ -5352,6 +5353,10 @@ function PlannerWizardWorkspace() {
         });
         setRfqEmailBody(initialProcessed);
 
+        const initialRecipientEmail = hotel?.reservation_email || hotel?.email || hotel?.contact_email || '';
+        const initialBrand = getBrandFromEmail(initialRecipientEmail) || hotel?.name || '';
+        setRfqSubjectBrand(initialBrand);
+
         // Sync editor HTML after DOM mounts
         setTimeout(() => {
           if (rfqEditorRef.current) {
@@ -5364,8 +5369,79 @@ function PlannerWizardWorkspace() {
     }
   };
 
+  const escapeRegExp = (str: string) => {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  const getBrandFromEmail = (email: string): string => {
+    if (!email || !email.includes('@')) return '';
+    const domain = email.split('@')[1]?.toLowerCase().trim();
+    if (!domain) return '';
+
+    const parts = domain.split('.');
+    const ignoreSubdomains = new Set([
+      'reservations', 'reservation', 'res', 'info', 'mail', 'email', 'sales',
+      'contact', 'www', 'api', 'admin', 'booking', 'bookings', 'help', 'support',
+      'gsuite', 'smtp', 'desk', 'inquiries', 'inquiry'
+    ]);
+    const TLDs = new Set([
+      'com', 'org', 'net', 'co', 'uk', 'lk', 'io', 'gov', 'edu', 'biz', 'info', 'us', 'eu', 'asia', 'online', 'store'
+    ]);
+
+    const filteredParts = parts.filter(p => !TLDs.has(p));
+    let brandPart = '';
+
+    for (const part of filteredParts) {
+      if (!ignoreSubdomains.has(part)) {
+        brandPart = part;
+        break;
+      }
+    }
+
+    if (!brandPart && filteredParts.length > 0) {
+      brandPart = filteredParts[0];
+    }
+
+    if (!brandPart) return '';
+
+    let formatted = brandPart
+      .replace(/(hotels|resorts|villas|suites|inn|palace|retreat)$/i, ' $1')
+      .trim();
+
+    return formatted
+      .split(/[-_\s]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(brandPart.includes('-') ? '-' : ' ');
+  };
+
+  const handleRfqEmailToChange = (newEmail: string) => {
+    setRfqEmailTo(newEmail);
+    const newBrand = getBrandFromEmail(newEmail);
+    if (!newBrand) return;
+
+    setRfqEmailSubject((prevSubject) => {
+      if (!prevSubject) return prevSubject;
+
+      const oldBrand = rfqSubjectBrand;
+      const hotelName = selectedRfqHotel?.name || '';
+
+      if (hotelName && prevSubject.toLowerCase().includes(hotelName.toLowerCase())) {
+        const reg = new RegExp(escapeRegExp(hotelName), 'gi');
+        return prevSubject.replace(reg, newBrand);
+      }
+
+      if (oldBrand && prevSubject.toLowerCase().includes(oldBrand.toLowerCase())) {
+        const reg = new RegExp(escapeRegExp(oldBrand), 'gi');
+        return prevSubject.replace(reg, newBrand);
+      }
+
+      return prevSubject;
+    });
+
+    setRfqSubjectBrand(newBrand);
+  };
+
   const updateRfqEmailBody = (
-    baseHtml: string,
     options: {
       adjacentRooms: boolean;
       buggyCars: boolean;
@@ -5374,9 +5450,11 @@ function PlannerWizardWorkspace() {
       driverAcc: boolean;
       parking: boolean;
       guideRoomDiscount: string | null;
-    }
+    },
+    baseHtmlOverride?: string
   ) => {
-    const processed = getProcessedEmailBody(baseHtml, options);
+    const currentBody = baseHtmlOverride || rfqEditorRef.current?.innerHTML || rfqEmailBody;
+    const processed = getProcessedEmailBody(currentBody, options);
     setRfqEmailBody(processed);
     if (rfqEditorRef.current && !showRfqHtml) {
       rfqEditorRef.current.innerHTML = processed;
@@ -5397,29 +5475,86 @@ function PlannerWizardWorkspace() {
   ) => {
     if (rfqIsRestaurant || rfqIsTransport) return html;
     let result = html;
+
+    const addItemToList = (content: string, itemHtml: string) => {
+      if (content.includes("</ul>")) {
+        return content.replace("</ul>", `  ${itemHtml}\n</ul>`);
+      } else if (content.includes("</UL>")) {
+        return content.replace("</UL>", `  ${itemHtml}\n</UL>`);
+      }
+      return content + `\n<ul>\n  ${itemHtml}\n</ul>`;
+    };
+
     if (!options.adjacentRooms) {
-      result = result.replace(/<li[^>]*>Availability of Adjacent Rooms<\/li>/gi, '');
-    }
-    if (!options.buggyCars) {
-      result = result.replace(/<li[^>]*>Availability of Buggy Cars\/ Electric Vehicles<\/li>/gi, '');
-    }
-    if (!options.heliPad) {
-      result = result.replace(/<li[^>]*>Availability of a Heli-Pad<\/li>/gi, '');
-    }
-    if (!options.driverMeal) {
-      result = result.replace(/<li[^>]*>Kindly confirm if Driver Meals are included\.<\/li>/gi, '');
-    }
-    if (!options.driverAcc) {
-      result = result.replace(/<li[^>]*>Kindly confirm if Driver Accommodation \(FOC\) is provided\.<\/li>/gi, '');
-    }
-    if (!options.parking) {
-      result = result.replace(/<li[^>]*>Kindly confirm if on-site Parking is included\.<\/li>/gi, '');
-    }
-    if (!options.guideRoomDiscount) {
-      result = result.replace(/<li[^>]*>Kindly confirm Guide Room option:.*?<\/li>/gi, '');
+      result = result.replace(/<li[^>]*data-section-id="adjacent_rooms"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Availability of Adjacent Rooms<\/li>\s*/gi, '');
     } else {
-      result = result.replace(/{{Guide Room Discount}}/g, options.guideRoomDiscount);
+      if (!/Availability of Adjacent Rooms/i.test(result)) {
+        result = addItemToList(result, '<li data-section-id="adjacent_rooms">Availability of Adjacent Rooms</li>');
+      }
     }
+
+    if (!options.buggyCars) {
+      result = result.replace(/<li[^>]*data-section-id="buggy_cars"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Availability of Buggy Cars\/ Electric Vehicles<\/li>\s*/gi, '');
+    } else {
+      if (!/Availability of Buggy Cars/i.test(result)) {
+        result = addItemToList(result, '<li data-section-id="buggy_cars">Availability of Buggy Cars/ Electric Vehicles</li>');
+      }
+    }
+
+    if (!options.heliPad) {
+      result = result.replace(/<li[^>]*data-section-id="heli_pad"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Availability of a Heli-Pad<\/li>\s*/gi, '');
+    } else {
+      if (!/Availability of a Heli-Pad/i.test(result)) {
+        result = addItemToList(result, '<li data-section-id="heli_pad">Availability of a Heli-Pad</li>');
+      }
+    }
+
+    if (!options.driverMeal) {
+      result = result.replace(/<li[^>]*data-section-id="driver_meals"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Kindly confirm if Driver Meals are included\.<\/li>\s*/gi, '');
+    } else {
+      if (!/Kindly confirm if Driver Meals are included/i.test(result)) {
+        result = addItemToList(result, '<li data-section-id="driver_meals">Kindly confirm if Driver Meals are included.</li>');
+      }
+    }
+
+    if (!options.driverAcc) {
+      result = result.replace(/<li[^>]*data-section-id="driver_acc"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Kindly confirm if Driver Accommodation \(FOC\) is provided\.<\/li>\s*/gi, '');
+    } else {
+      if (!/Kindly confirm if Driver Accommodation \(FOC\) is provided/i.test(result)) {
+        result = addItemToList(result, '<li data-section-id="driver_acc">Kindly confirm if Driver Accommodation (FOC) is provided.</li>');
+      }
+    }
+
+    if (!options.parking) {
+      result = result.replace(/<li[^>]*data-section-id="parking"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Kindly confirm if on-site Parking is included\.<\/li>\s*/gi, '');
+    } else {
+      if (!/Kindly confirm if on-site Parking is included/i.test(result)) {
+        result = addItemToList(result, '<li data-section-id="parking">Kindly confirm if on-site Parking is included.</li>');
+      }
+    }
+
+    if (!options.guideRoomDiscount) {
+      result = result.replace(/<li[^>]*data-section-id="guide_room"[^>]*>.*?<\/li>\s*/gi, '');
+      result = result.replace(/<li[^>]*>Kindly confirm Guide Room option:.*?<\/li>\s*/gi, '');
+    } else {
+      const guideRoomLi = `<li data-section-id="guide_room">Kindly confirm Guide Room option: ${options.guideRoomDiscount}.</li>`;
+      if (/<li[^>]*data-section-id="guide_room"[^>]*>.*?<\/li>/gi.test(result)) {
+        result = result.replace(/<li[^>]*data-section-id="guide_room"[^>]*>.*?<\/li>/gi, guideRoomLi);
+      } else if (/<li[^>]*>Kindly confirm Guide Room option:.*?<\/li>/gi.test(result)) {
+        result = result.replace(/<li[^>]*>Kindly confirm Guide Room option:.*?<\/li>/gi, guideRoomLi);
+      } else if (result.includes("{{Guide Room Discount}}")) {
+        result = result.replace(/{{Guide Room Discount}}/g, options.guideRoomDiscount);
+      } else {
+        result = addItemToList(result, guideRoomLi);
+      }
+    }
+
     return result;
   };
 
@@ -20747,7 +20882,7 @@ ${chauffeurHtml}
                         required
                         placeholder="e.g. reservations@hotel.com"
                         value={rfqEmailTo}
-                        onChange={(e) => { const val = e.target.value; startTransition(() => setRfqEmailTo(val)); }}
+                        onChange={(e) => { const val = e.target.value; startTransition(() => handleRfqEmailToChange(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
                       />
                       <span className="text-[9px] text-neutral-400 mt-1 block">
@@ -20784,7 +20919,7 @@ ${chauffeurHtml}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setRfqAdjacentRooms(checked);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: checked,
                               buggyCars: rfqBuggyCars,
                               heliPad: rfqHeliPad,
@@ -20810,7 +20945,7 @@ ${chauffeurHtml}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setRfqBuggyCars(checked);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: rfqAdjacentRooms,
                               buggyCars: checked,
                               heliPad: rfqHeliPad,
@@ -20836,7 +20971,7 @@ ${chauffeurHtml}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setRfqHeliPad(checked);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: rfqAdjacentRooms,
                               buggyCars: rfqBuggyCars,
                               heliPad: checked,
@@ -20862,7 +20997,7 @@ ${chauffeurHtml}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setRfqDriverMeal(checked);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: rfqAdjacentRooms,
                               buggyCars: rfqBuggyCars,
                               heliPad: rfqHeliPad,
@@ -20888,7 +21023,7 @@ ${chauffeurHtml}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setRfqDriverAcc(checked);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: rfqAdjacentRooms,
                               buggyCars: rfqBuggyCars,
                               heliPad: rfqHeliPad,
@@ -20914,7 +21049,7 @@ ${chauffeurHtml}
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setRfqParking(checked);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: rfqAdjacentRooms,
                               buggyCars: rfqBuggyCars,
                               heliPad: rfqHeliPad,
@@ -20943,7 +21078,7 @@ ${chauffeurHtml}
                             const originalVal = guideRoomDisc ? (guideRoomDisc.guide_room_discount || guideRoomDisc.guideRoomDiscount || null) : null;
                             const nextVal = checked ? (originalVal && originalVal !== 'None' ? originalVal : 'Free') : null;
                             setRfqGuideRoomDiscount(nextVal);
-                            updateRfqEmailBody(rfqEmailBodyOriginal, {
+                            updateRfqEmailBody({
                               adjacentRooms: rfqAdjacentRooms,
                               buggyCars: rfqBuggyCars,
                               heliPad: rfqHeliPad,
