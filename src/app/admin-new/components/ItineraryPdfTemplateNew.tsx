@@ -1344,56 +1344,126 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     </div>
 
                     {(() => {
-                      // Collect assigned vehicles and drivers
-                      const assignedVehicleList: any[] = [];
-                      const assignedDriverList: any[] = [];
-                      const processedVehIds = new Set<string>();
-                      const processedDrvIds = new Set<string>();
+                      const formatDayNumbers = (days: number[], durationDays: number): string => {
+                        const sorted = Array.from(new Set(days.map(Number).filter(d => !isNaN(d) && d > 0))).sort((a, b) => a - b);
+                        if (sorted.length === 0) {
+                          return `Days 01 to ${String(durationDays).padStart(2, '0')}`;
+                        }
+                        if (sorted.length === durationDays && sorted[0] === 1 && sorted[sorted.length - 1] === durationDays) {
+                          return `Days 01 to ${String(durationDays).padStart(2, '0')}`;
+                        }
 
-                      if (dailyVehicleAssignments) {
-                        Object.values(dailyVehicleAssignments).flat().forEach((ass: any) => {
-                          const vId = ass.vehicle_id || ass.vehicleId;
-                          const vObj = masterData?.transportVehicles?.find((mv: any) => mv.id === vId) || ass.vehicles || ass.vehicle;
-                          if (vObj && vId && !processedVehIds.has(vId)) {
-                            processedVehIds.add(vId);
-                            assignedVehicleList.push(vObj);
-                          } else if (ass.vehicle_name && !processedVehIds.has(ass.vehicle_name)) {
-                            processedVehIds.add(ass.vehicle_name);
-                            assignedVehicleList.push({ name: ass.vehicle_name, license_plate: ass.registration_number });
+                        const ranges: Array<{ start: number; end: number }> = [];
+                        let currentStart = sorted[0];
+                        let currentEnd = sorted[0];
+
+                        for (let i = 1; i < sorted.length; i++) {
+                          if (sorted[i] === currentEnd + 1) {
+                            currentEnd = sorted[i];
+                          } else {
+                            ranges.push({ start: currentStart, end: currentEnd });
+                            currentStart = sorted[i];
+                            currentEnd = sorted[i];
+                          }
+                        }
+                        ranges.push({ start: currentStart, end: currentEnd });
+
+                        const parts = ranges.map(r => {
+                          const sStr = String(r.start).padStart(2, '0');
+                          const eStr = String(r.end).padStart(2, '0');
+                          if (r.start === r.end) {
+                            return sStr;
+                          } else if (r.end === r.start + 1) {
+                            return `${sStr} & ${eStr}`;
+                          } else {
+                            return `${sStr} to ${eStr}`;
                           }
                         });
-                      }
 
-                      if (dailyDriverAssignments) {
-                        Object.values(dailyDriverAssignments).flat().forEach((ass: any) => {
-                          const dId = ass.driver_id || ass.driverId;
-                          const dObj = masterData?.drivers?.find((md: any) => md.id === dId) || ass.driver;
-                          if (dObj && dId && !processedDrvIds.has(dId)) {
-                            processedDrvIds.add(dId);
-                            assignedDriverList.push(dObj);
-                          } else if (ass.driver_name && !processedDrvIds.has(ass.driver_name)) {
-                            processedDrvIds.add(ass.driver_name);
-                            assignedDriverList.push({ first_name: ass.driver_name, phone: ass.phone });
-                          }
+                        if (ranges.length === 1 && ranges[0].start === ranges[0].end) {
+                          return `Day ${parts[0]}`;
+                        }
+
+                        return `Days ${parts.join(', ')}`;
+                      };
+
+                      // Collect assigned vehicles with specific day numbers
+                      const vehicleDaysMap = new Map<string, { vehicleObj: any; days: Set<number> }>();
+
+                      if (dailyVehicleAssignments) {
+                        Object.entries(dailyVehicleAssignments).forEach(([dayStr, assList]) => {
+                          const dayNum = Number(dayStr);
+                          if (isNaN(dayNum) || !Array.isArray(assList)) return;
+                          assList.forEach((ass: any) => {
+                            const vId = ass.vehicle_id || ass.vehicleId;
+                            const vObj = masterData?.transportVehicles?.find((mv: any) => mv.id === vId) || ass.vehicles || ass.vehicle;
+                            const key = vId || ass.vehicle_name || 'default_veh';
+                            if (vObj || ass.vehicle_name) {
+                              const itemObj = vObj || { name: ass.vehicle_name, license_plate: ass.registration_number };
+                              if (!vehicleDaysMap.has(key)) {
+                                vehicleDaysMap.set(key, { vehicleObj: itemObj, days: new Set<number>() });
+                              }
+                              vehicleDaysMap.get(key)!.days.add(dayNum);
+                            }
+                          });
                         });
                       }
 
                       itinerary.filter(b => b.type === 'travel' || b.type === 'train').forEach(block => {
-                        if (block.driverId && masterData?.drivers && !processedDrvIds.has(block.driverId)) {
-                          const dObj = masterData.drivers.find((d: any) => d.id === block.driverId);
-                          if (dObj) {
-                            processedDrvIds.add(block.driverId);
-                            assignedDriverList.push(dObj);
-                          }
-                        }
-                        if (block.vehicleId && masterData?.transportVehicles && !processedVehIds.has(block.vehicleId)) {
+                        if (block.vehicleId && masterData?.transportVehicles) {
                           const vObj = masterData.transportVehicles.find((v: any) => v.id === block.vehicleId);
                           if (vObj) {
-                            processedVehIds.add(block.vehicleId);
-                            assignedVehicleList.push(vObj);
+                            const key = vObj.id || block.vehicleId;
+                            if (!vehicleDaysMap.has(key)) {
+                              vehicleDaysMap.set(key, { vehicleObj: vObj, days: new Set<number>() });
+                            }
+                            if (block.dayNumber) {
+                              vehicleDaysMap.get(key)!.days.add(block.dayNumber);
+                            }
                           }
                         }
                       });
+
+                      const assignedVehicleList = Array.from(vehicleDaysMap.values());
+
+                      // Collect assigned drivers with specific day numbers
+                      const driverDaysMap = new Map<string, { driverObj: any; days: Set<number> }>();
+
+                      if (dailyDriverAssignments) {
+                        Object.entries(dailyDriverAssignments).forEach(([dayStr, assList]) => {
+                          const dayNum = Number(dayStr);
+                          if (isNaN(dayNum) || !Array.isArray(assList)) return;
+                          assList.forEach((ass: any) => {
+                            const dId = ass.driver_id || ass.driverId;
+                            const dObj = masterData?.drivers?.find((md: any) => md.id === dId) || ass.driver;
+                            const key = dId || ass.driver_name || 'default_drv';
+                            if (dObj || ass.driver_name) {
+                              const itemObj = dObj || { first_name: ass.driver_name, phone: ass.phone };
+                              if (!driverDaysMap.has(key)) {
+                                driverDaysMap.set(key, { driverObj: itemObj, days: new Set<number>() });
+                              }
+                              driverDaysMap.get(key)!.days.add(dayNum);
+                            }
+                          });
+                        });
+                      }
+
+                      itinerary.filter(b => b.type === 'travel' || b.type === 'train').forEach(block => {
+                        if (block.driverId && masterData?.drivers) {
+                          const dObj = masterData.drivers.find((d: any) => d.id === block.driverId);
+                          if (dObj) {
+                            const key = dObj.id || block.driverId;
+                            if (!driverDaysMap.has(key)) {
+                              driverDaysMap.set(key, { driverObj: dObj, days: new Set<number>() });
+                            }
+                            if (block.dayNumber) {
+                              driverDaysMap.get(key)!.days.add(block.dayNumber);
+                            }
+                          }
+                        }
+                      });
+
+                      const assignedDriverList = Array.from(driverDaysMap.values());
 
                       // Fallback vehicle category description if none explicitly bound yet
                       const vehicleCategoryName = totalPax <= 2 
@@ -1409,17 +1479,17 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
                               <span className="col-span-4">Vehicle Category & Model</span>
                               <span className="col-span-3">Reg. / License Plate</span>
-                              <span className="col-span-2">Capacity</span>
+                              <span className="col-span-2">Service Period</span>
                               <span className="col-span-3 text-right pr-2">Comfort & Amenities</span>
                             </div>
 
                             <div className="divide-y divide-neutral-100">
                               {assignedVehicleList.length > 0 ? (
-                                assignedVehicleList.map((veh, vIdx) => {
+                                assignedVehicleList.map(({ vehicleObj: veh, days }, vIdx) => {
                                   const vName = veh.name || veh.model || veh.vehicle_name || 'Executive Private Vehicle';
                                   const vPlate = veh.license_plate || veh.registration_number || veh.plate_number || 'Assigned Fleet';
-                                  const vCap = veh.seating_capacity ? `${veh.seating_capacity} Seats` : `${totalPax + 2} Seats Capacity`;
                                   const vType = veh.vehicle_type || veh.type || 'Fully Air-Conditioned';
+                                  const servicePeriodStr = formatDayNumbers(Array.from(days), durationDays);
 
                                   return (
                                     <div key={vIdx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
@@ -1431,7 +1501,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                         {vPlate}
                                       </div>
                                       <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                        {vCap}
+                                        {servicePeriodStr}
                                       </div>
                                       <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
                                         Air-Conditioned, Chilled Water, Wi-Fi
@@ -1449,7 +1519,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     Assigned Executive Vehicle
                                   </div>
                                   <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                    {totalPax} Guests + Luggage
+                                    Days 01 to {durationDays}
                                   </div>
                                   <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
                                     A/C, Chilled Towels, Refreshments
@@ -1470,10 +1540,11 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                             <div className="divide-y divide-neutral-100">
                               {assignedDriverList.length > 0 ? (
-                                assignedDriverList.map((drv, dIdx) => {
+                                assignedDriverList.map(({ driverObj: drv, days }, dIdx) => {
                                   const dName = drv.first_name ? `${drv.first_name} ${drv.last_name || ''}`.trim() : (drv.driver_name || drv.name || 'Private Chauffeur');
                                   const dPhone = drv.phone || drv.contact_number || 'Direct Operational Hotline';
                                   const dLangs = Array.isArray(drv.languages) ? drv.languages.join(', ') : (drv.languages || 'English Speaking');
+                                  const servicePeriodStr = formatDayNumbers(Array.from(days), durationDays);
 
                                   return (
                                     <div key={dIdx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
@@ -1485,7 +1556,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                         {dPhone}
                                       </div>
                                       <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                        Days 01 to {durationDays}
+                                        {servicePeriodStr}
                                       </div>
                                       <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
                                         {dLangs} &bull; SLTDA Certified

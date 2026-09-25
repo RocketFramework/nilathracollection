@@ -16,14 +16,6 @@ export class UserService {
 
         const adminClient = createAdminClient();
 
-        // Check tourist profile
-        const { data: tourist } = await adminClient.from('tourist_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (tourist) return { ...tourist, role: 'tourist' };
-
-        // Check agent profile
-        const { data: agent } = await adminClient.from('agent_profiles').select('*').eq('id', user.id).maybeSingle();
-        if (agent) return { ...agent, role: 'agent' };
-
         // Check admin profile
         const { data: admin } = await adminClient.from('admin_profiles').select('*').eq('id', user.id).maybeSingle();
         if (admin) return { ...admin, role: 'admin' };
@@ -32,9 +24,17 @@ export class UserService {
         const { data: supervisor } = await adminClient.from('agent_supervisor_profiles').select('*').eq('id', user.id).maybeSingle();
         if (supervisor) return { ...supervisor, role: 'agent_supervisor' };
 
+        // Check agent profile
+        const { data: agent } = await adminClient.from('agent_profiles').select('*').eq('id', user.id).maybeSingle();
+        if (agent) return { ...agent, role: 'agent' };
+
         // Check finance profile
         const { data: finance } = await adminClient.from('finance_profiles').select('*').eq('id', user.id).maybeSingle();
         if (finance) return { ...finance, role: 'finance' };
+
+        // Check tourist profile
+        const { data: tourist } = await adminClient.from('tourist_profiles').select('*').eq('id', user.id).maybeSingle();
+        if (tourist) return { ...tourist, role: 'tourist' };
 
         return { id: user.id };
     }

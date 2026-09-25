@@ -25,11 +25,18 @@ export default function SendEmailPage() {
 
     useEffect(() => {
         async function fetchTemplates() {
-            const res = await getEmailTemplatesAction();
-            if (res.success && res.templates) {
-                setTemplates(res.templates);
+            try {
+                const res = await getEmailTemplatesAction();
+                if (res.success && res.templates) {
+                    setTemplates(res.templates);
+                } else if (res.error) {
+                    console.error("Failed to load email templates:", res.error);
+                }
+            } catch (err) {
+                console.error("Error fetching email templates:", err);
+            } finally {
+                setIsLoadingTemplates(false);
             }
-            setIsLoadingTemplates(false);
         }
         
         async function fetchUser() {
