@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { UserProfileDTO, CreateUserDTO, UpdateUserDTO, ResetPasswordDTO } from '../dtos/user-vendor.dto';
 import { createAdminClient } from '../utils/supabase/admin';
-import { emailService } from './email.service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -134,6 +133,7 @@ export class AdminService {
             const packageName = request.request_type;
 
             if (customerEmail) {
+                const { emailService } = await import('./email.service');
                 await emailService.sendAgentAssignedEmail({
                     customerEmail,
                     customerName,

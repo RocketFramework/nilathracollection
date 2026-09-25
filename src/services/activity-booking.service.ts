@@ -6,7 +6,6 @@ import {
     UpdateActivityBookingStatusDTO
 } from '@/dtos/activity-booking.dto';
 import { ActivityBooking, ActivityBookingItem } from '@/types/activity-booking.type';
-import { EmailService } from './email.service';
 
 export class ActivityBookingService {
     /**
@@ -113,6 +112,7 @@ export class ActivityBookingService {
 
         // 5. Send Email Notification to Tourist
         try {
+            const { EmailService } = await import('./email.service');
             await EmailService.sendTouristActivityRequestReceipt({
                 email: dto.email,
                 name: `${dto.first_name || ''} ${dto.last_name || ''}`.trim() || 'Valued Tourist',
@@ -334,6 +334,7 @@ export class ActivityBookingService {
                         .single();
 
                     if (itemWithVendor?.vendor?.email) {
+                        const { EmailService } = await import('./email.service');
                         await EmailService.sendVendorActivityAssignmentNotification({
                             vendorEmail: itemWithVendor.vendor.email,
                             vendorName: itemWithVendor.vendor.name,
@@ -387,6 +388,7 @@ export class ActivityBookingService {
         // 3. Send Price Confirmation Email to Tourist
         if (updatedHeader?.user?.email) {
             try {
+                const { EmailService } = await import('./email.service');
                 await EmailService.sendTouristActivityPriceConfirmation({
                     email: updatedHeader.user.email,
                     name: `${updatedHeader.tourist_profile?.first_name || ''} ${updatedHeader.tourist_profile?.last_name || ''}`.trim() || 'Valued Tourist',
