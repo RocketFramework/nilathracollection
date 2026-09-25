@@ -283,15 +283,24 @@ export class InvoiceCalculationService {
 
     // --- CATEGORY 4: CURATED ACTIVITIES & EXPERIENCES ---
     const experienceBlocks = itinerary.filter(b => b.type === 'activity' || b.type === 'custom');
-    const itineraryActTotal = experienceBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
-    
+    const itineraryActTotal = experienceBlocks.reduce((sum, b) => {
+      const qty = b.quantity || (b as any).headCount || pax || 1;
+      const unit = Number(b.agreedPrice) || 0;
+      return sum + (unit * qty);
+    }, 0);
+
     let dbActTotal = 0;
     if (dbActivities && dbActivities.length > 0) {
       const actItems = dbActivities.filter(da => {
         const actType = da.activity_type || da.type || '';
         return actType !== 'meal' && actType !== 'sleep' && actType !== 'travel';
       });
-      dbActTotal = actItems.reduce((sum, da) => sum + (Number(da.charged_total_price ?? da.total_price ?? 0)), 0);
+      dbActTotal = actItems.reduce((sum, da) => {
+        const qty = Number(da.quantity || (da as any).headCount || pax || 1);
+        const unit = Number(da.charged_unit_price ?? da.contracted_price ?? da.agreedPrice ?? 0);
+        const total = Number(da.charged_total_price ?? da.contracted_total_price ?? da.total_price ?? (unit * qty));
+        return sum + (total > 0 ? total : unit * qty);
+      }, 0);
     }
 
     const experienceTotal = Math.max(itineraryActTotal, dbActTotal);

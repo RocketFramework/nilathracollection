@@ -312,7 +312,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       type: b.type,
       agreedPrice: b.agreedPrice,
       hotelId: b.hotelId,
-      quantity: b.quantity || b.transportQuantity || b.restaurantQuantity || 1,
+      quantity: b.quantity || (b as any).headCount || b.transportQuantity || b.restaurantQuantity || totalPax || 1,
       dayNumber: b.dayNumber
     }));
 
