@@ -15,8 +15,7 @@ export class EmailService {
             throw new Error('EmailService cannot be executed in browser environment.');
         }
         if (!this.transporter) {
-            const req = eval('require');
-            const nodemailer = req('nodemailer');
+            const nodemailer = require('nodemailer');
             this.transporter = nodemailer.createTransport({
                 host: process.env.SMTP_HOST,
                 port: Number(process.env.SMTP_PORT) || 587,
