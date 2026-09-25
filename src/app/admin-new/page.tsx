@@ -1921,10 +1921,13 @@ function PlannerWizardWorkspace() {
     // Update itinerary block state to persist via debounced saveTourAction
     setItinerary(prev =>
       prev.map(b => {
-        const isMatch = targetActIds.includes(b.id);
+        const isMatch = targetActIds.includes(b.id) || (b.type === ItineraryBlockTypes.SLEEP && targetDayNums.includes(Number(b.dayNumber)));
         if (!isMatch) return b;
+        const calcAgreed = totalPrice !== undefined ? totalPrice : (unitPrice ? unitPrice : b.agreedPrice);
         return {
           ...b,
+          agreedPrice: calcAgreed,
+          priceFinalized: true,
           driverMealIncluded: customRateDriverMeal,
           driverAccIncluded: customRateDriverAcc,
           parkingIncluded: customRateParking,
@@ -23618,7 +23621,29 @@ function AIItineraryBuilder({
       ? overrides.hotel
       : blocksForDay
         .filter(b => b.type === ItineraryBlockTypes.SLEEP)
-        .reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+        .reduce((sum, b) => {
+          const dayB = Number(b.dayNumber || (b as any).day_number || dayNum);
+          const acc = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === dayB);
+          const da = (dbActivities || []).find((a: any) => a.id === b.id || a.itinerary_id === b.id || (Number(a.tour_itineraries?.day_number || a.day_number || a.dayNumber) === dayB && a.activity_type === 'sleep'));
+
+          let rate = 0;
+          if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+            rate = Number(b.agreedPrice);
+          } else if (acc?.customContractedTotalPrice !== undefined && acc?.customContractedTotalPrice !== null && Number(acc.customContractedTotalPrice) > 0) {
+            rate = Number(acc.customContractedTotalPrice);
+          } else if (da?.contracted_total_price !== undefined && da?.contracted_total_price !== null && Number(da.contracted_total_price) > 0) {
+            rate = Number(da.contracted_total_price);
+          } else if (acc?.customContractedUnitPrice !== undefined && acc?.customContractedUnitPrice !== null && Number(acc.customContractedUnitPrice) > 0) {
+            const qty = b.quantity || b.headCount || (singleRoomsCount + doubleRoomsCount + tripleRoomsCount + familyRoomsCount) || 1;
+            rate = Number(acc.customContractedUnitPrice) * qty;
+          } else if (da?.contracted_price !== undefined && da?.contracted_price !== null && Number(da.contracted_price) > 0) {
+            const qty = b.quantity || b.headCount || (singleRoomsCount + doubleRoomsCount + tripleRoomsCount + familyRoomsCount) || 1;
+            rate = Number(da.contracted_price) * qty;
+          } else if (b.baseRoomRate !== undefined && b.baseRoomRate !== null && Number(b.baseRoomRate) > 0) {
+            rate = Number(b.baseRoomRate);
+          }
+          return sum + rate;
+        }, 0);
 
     // 2. Pax Count
     const pax = (adults || 0) + (children || 0);
@@ -24252,6 +24277,22 @@ function AIItineraryBuilder({
               (familyRoomsCount * 1.8);
             const activeFactor = factor > 0 ? factor : 1.0;
             updated.baseRoomRate = Math.round((Number(value) / activeFactor) * 100) / 100;
+            updated.priceFinalized = true;
+
+            const dayNum = updated.dayNumber || 1;
+            if (tripData && tripData.accommodations) {
+              const updatedAccs = tripData.accommodations.map((a: any) => {
+                if (Number(a.nightIndex) === Number(dayNum)) {
+                  return {
+                    ...a,
+                    customContractedTotalPrice: Number(value),
+                    customContractedUnitPrice: Math.round((Number(value) / activeFactor) * 100) / 100
+                  };
+                }
+                return a;
+              });
+              setTripData((prev: any) => prev ? { ...prev, accommodations: updatedAccs } : prev);
+            }
           } else if (field === 'hotelId' || field === 'hotelName' || field === 'mealPlan' || field === 'roomName') {
             const hId = field === 'hotelId' ? value : b.hotelId;
             const hName = field === 'hotelName' ? value : b.hotelName;
