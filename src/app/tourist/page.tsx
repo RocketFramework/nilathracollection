@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, Calendar, Clock, ArrowRight, UserCircle2, Phone, Mail, FileText } from "lucide-react";
 
+import { getMyTouristToursAction } from "@/actions/tourist.actions";
+
 export default function TouristDashboard() {
     const [tours, setTours] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -12,9 +14,10 @@ export default function TouristDashboard() {
         const fetchTours = async () => {
             setIsLoading(true);
             try {
-                const { TouristService } = await import('@/services/tourist.service');
-                const data = await TouristService.getMyTours();
-                setTours(data);
+                const res = await getMyTouristToursAction();
+                if (res.success && res.data) {
+                    setTours(res.data);
+                }
             } catch (error) {
                 console.error("Failed to load tours:", error);
             } finally {

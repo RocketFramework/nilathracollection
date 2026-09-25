@@ -9,6 +9,8 @@ import { createClient } from "@/utils/supabase/client";
 import { ItineraryPdfTemplate } from "@/app/admin/(authenticated)/planner/components/ItineraryPdfTemplate";
 import { ItineraryBuilder } from "@/app/admin/(authenticated)/planner/steps/ItineraryBuilder";
 
+import { getTouristTourDetailsAction, addTouristCommentToBlockAction } from "@/actions/tourist.actions";
+
 export default function TourDetailsPage() {
     const params = useParams();
     const id = params.id as string;
@@ -25,43 +27,43 @@ export default function TourDetailsPage() {
 
         setSavingNote(blockId);
         try {
-            const { TouristService } = await import('@/services/tourist.service');
-            await TouristService.addCommentToBlock(id, blockId, 'tourist', text.trim());
-            
-            // Optimistic update
-            setTour((prev: any) => {
-                const newTour = { ...prev };
-                if (newTour.detailedItinerary) {
-                    newTour.detailedItinerary = newTour.detailedItinerary.map((b: any) => {
-                        if (b.id === blockId) {
-                            const newComment = {
-                                id: Math.random().toString(),
-                                role: 'tourist',
-                                text: text.trim(),
-                                timestamp: new Date().toISOString()
-                            };
-                            return { ...b, comments: b.comments ? [...b.comments, newComment] : [newComment] };
-                        }
-                        return b;
-                    });
-                }
-                if (newTour.rawPlannerData && newTour.rawPlannerData.itinerary) {
-                    newTour.rawPlannerData.itinerary = newTour.rawPlannerData.itinerary.map((b: any) => {
-                        if (b.id === blockId) {
-                            const newComment = {
-                                id: Math.random().toString(),
-                                role: 'tourist',
-                                text: text.trim(),
-                                timestamp: new Date().toISOString()
-                            };
-                            return { ...b, comments: b.comments ? [...b.comments, newComment] : [newComment] };
-                        }
-                        return b;
-                    });
-                }
-                return newTour;
-            });
-            setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+            const res = await addTouristCommentToBlockAction(id, blockId, text.trim());
+            if (res.success) {
+                // Optimistic update
+                setTour((prev: any) => {
+                    const newTour = { ...prev };
+                    if (newTour.detailedItinerary) {
+                        newTour.detailedItinerary = newTour.detailedItinerary.map((b: any) => {
+                            if (b.id === blockId) {
+                                const newComment = {
+                                    id: Math.random().toString(),
+                                    role: 'tourist',
+                                    text: text.trim(),
+                                    timestamp: new Date().toISOString()
+                                };
+                                return { ...b, comments: b.comments ? [...b.comments, newComment] : [newComment] };
+                            }
+                            return b;
+                        });
+                    }
+                    if (newTour.rawPlannerData && newTour.rawPlannerData.itinerary) {
+                        newTour.rawPlannerData.itinerary = newTour.rawPlannerData.itinerary.map((b: any) => {
+                            if (b.id === blockId) {
+                                const newComment = {
+                                    id: Math.random().toString(),
+                                    role: 'tourist',
+                                    text: text.trim(),
+                                    timestamp: new Date().toISOString()
+                                };
+                                return { ...b, comments: b.comments ? [...b.comments, newComment] : [newComment] };
+                            }
+                            return b;
+                        });
+                    }
+                    return newTour;
+                });
+                setCommentDrafts(prev => ({ ...prev, [blockId]: '' }));
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -77,9 +79,12 @@ export default function TourDetailsPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user) setUserId(user.id);
 
-                const { TouristService } = await import('@/services/tourist.service');
-                const data = await TouristService.getTourDetails(id);
-                setTour(data);
+                const res = await getTouristTourDetailsAction(id);
+                if (res.success && res.data) {
+                    setTour(res.data);
+                } else {
+                    console.error("Failed to load tour details:", res.error);
+                }
             } catch (error) {
                 console.error("Failed to load tour details:", error);
             } finally {
