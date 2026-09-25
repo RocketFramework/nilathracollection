@@ -23626,8 +23626,16 @@ function AIItineraryBuilder({
           const acc = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === dayB);
           const da = (dbActivities || []).find((a: any) => a.id === b.id || a.itinerary_id === b.id || (Number(a.tour_itineraries?.day_number || a.day_number || a.dayNumber) === dayB && a.activity_type === 'sleep'));
 
+          const selectedRoomsTotal = (acc?.selectedRooms || []).reduce((rSum: number, r: any) => {
+            const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+            const rQty = Number(r.quantity || 1);
+            return rSum + (rRate * rQty);
+          }, 0);
+
           let rate = 0;
-          if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+          if (selectedRoomsTotal > 0) {
+            rate = selectedRoomsTotal;
+          } else if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
             rate = Number(b.agreedPrice);
           } else if (acc?.customContractedTotalPrice !== undefined && acc?.customContractedTotalPrice !== null && Number(acc.customContractedTotalPrice) > 0) {
             rate = Number(acc.customContractedTotalPrice);
@@ -24413,6 +24421,19 @@ function AIItineraryBuilder({
       selectedRooms[roomIdx] = targetRoom;
     }
 
+    const totalSelectedRoomsCost = selectedRooms.reduce((sum: number, r: any) => {
+      const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+      const rQty = Number(r.quantity || 1);
+      return sum + (rRate * rQty);
+    }, 0);
+
+    if (totalSelectedRoomsCost > 0) {
+      currentAcc.customContractedTotalPrice = totalSelectedRoomsCost;
+      if (selectedRooms[0]?.pricePerNight !== undefined) {
+        currentAcc.customContractedUnitPrice = Number(selectedRooms[0].pricePerNight);
+      }
+    }
+
     currentAcc.selectedRooms = selectedRooms;
 
     const updatedAccs = [...accs];
@@ -24423,6 +24444,19 @@ function AIItineraryBuilder({
     }
 
     setTripData((prev: any) => prev ? { ...prev, accommodations: updatedAccs } : prev);
+
+    if (totalSelectedRoomsCost > 0) {
+      setItinerary(prev => prev.map(b => {
+        if (b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === Number(dayNum)) {
+          return {
+            ...b,
+            agreedPrice: totalSelectedRoomsCost,
+            priceFinalized: true
+          };
+        }
+        return b;
+      }));
+    }
   };
 
   const handleMoveBlock = (id: string, direction: 'up' | 'down') => {

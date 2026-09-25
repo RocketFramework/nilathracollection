@@ -37,6 +37,7 @@ export interface InvoiceCalculationParams {
   dailyVehicleAssignments?: Record<number, any[]>;
   dbActivities?: any[];
   tourConcierges?: any[];
+  accommodations?: any[];
 }
 
 export class InvoiceCalculationService {
@@ -56,7 +57,8 @@ export class InvoiceCalculationService {
       dailyDriverAssignments = {},
       dailyVehicleAssignments = {},
       dbActivities = [],
-      tourConcierges
+      tourConcierges,
+      accommodations = []
     } = params;
 
     const invoiceItems: InvoiceItem[] = [];
@@ -160,7 +162,19 @@ export class InvoiceCalculationService {
 
       // 1. Accommodation
       const daySleepBlocks = itinerary.filter(b => b.dayNumber === d && b.type === 'sleep');
-      const baseHotelCost = daySleepBlocks.reduce((sum, b) => sum + (Number(b.agreedPrice) || 0), 0);
+      const baseHotelCost = daySleepBlocks.reduce((sum, b) => {
+        const acc = (accommodations || []).find((a: any) => Number(a.nightIndex) === Number(d));
+        const selectedRoomsTotal = (acc?.selectedRooms || []).reduce((rSum: number, r: any) => {
+          const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+          const rQty = Number(r.quantity || 1);
+          return rSum + (rRate * rQty);
+        }, 0);
+
+        if (selectedRoomsTotal > 0) return sum + selectedRoomsTotal;
+        if (acc?.customContractedTotalPrice !== undefined && acc?.customContractedTotalPrice !== null && Number(acc.customContractedTotalPrice) > 0) return sum + Number(acc.customContractedTotalPrice);
+        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) return sum + Number(b.agreedPrice);
+        return sum + (Number(b.agreedPrice) || 0);
+      }, 0);
       const hotelCost = overrides.hotel !== undefined ? overrides.hotel : baseHotelCost;
       hotelTotal += hotelCost;
 

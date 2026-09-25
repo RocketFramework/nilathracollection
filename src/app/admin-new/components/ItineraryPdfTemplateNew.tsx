@@ -341,7 +341,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       dailyDriverAssignments: dailyDriverAssignments || {},
       dailyVehicleAssignments: dailyVehicleAssignments || {},
       dbActivities: dbActivities || [],
-      tourConcierges: enrichedTourConcierges
+      tourConcierges: enrichedTourConcierges,
+      accommodations: accommodations || []
     });
 
     console.log("PDF calculation debug:", {
@@ -363,7 +364,19 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       const override = dayCostOverrides?.[dayNum]?.hotel;
       if (override !== undefined) return sum + override;
       const daySleepBlocks = itinerary.filter(b => b.dayNumber === dayNum && b.type === ItineraryBlockTypes.SLEEP);
-      return sum + daySleepBlocks.reduce((s, b) => s + (Number(b.agreedPrice) || 0), 0);
+      return sum + daySleepBlocks.reduce((s, b) => {
+        const acc = accommodations?.find((a: any) => Number(a.nightIndex) === Number(dayNum));
+        const selectedRoomsTotal = (acc?.selectedRooms || []).reduce((rSum: number, r: any) => {
+          const rRate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+          const rQty = Number(r.quantity || 1);
+          return rSum + (rRate * rQty);
+        }, 0);
+
+        if (selectedRoomsTotal > 0) return s + selectedRoomsTotal;
+        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) return s + Number(b.agreedPrice);
+        if (acc?.customContractedTotalPrice !== undefined && acc?.customContractedTotalPrice !== null && Number(acc.customContractedTotalPrice) > 0) return s + Number(acc.customContractedTotalPrice);
+        return s + (Number(b.agreedPrice || b.baseRoomRate) || 0);
+      }, 0);
     }, 0);
 
     // Select activity cover images (prioritize itinerary images if available, else pool)
