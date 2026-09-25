@@ -2745,55 +2745,65 @@ function PlannerWizardWorkspace() {
 
       async function loadShareTemplate() {
         try {
-          const res = await getEmailTemplatesAction();
-          if (res.success && res.templates) {
-            const template = res.templates.find((t: any) => t.name === 'Draft Itinerary Share');
-            if (template) {
-              setShareEmailSubject(template.subject || 'Your Journey to Sri Lanka — A First Look');
+          let templateSubject = 'Your Journey to Sri Lanka — A First Look';
+          let templateFrom = '';
+          let rawBodyHtml = `<p>Dear [Guest Name],</p>\n<p>Attached is your custom draft itinerary based on our initial conversation. Please note:</p>\n<ul>\n  <li>Accommodations and experiences are specifically curated for you.</li>\n  <li>Budget estimates are indicative; final rates will be locked upon booking.</li>\n  <li>No bookings or holds are active yet—take your time to review.</li>\n</ul>\n<p>Please share your feedback so we can refine this to perfection. Feel free to reach out with any questions.</p>\n<p>Warm regards,<br/><strong>[Your Name]</strong><br/>Nilathra Collection | +94 777 27 8282</p>`;
 
-              if (template.from_email) {
-                setShareEmailFrom(template.from_email);
-              } else {
-                const supabase = createClient();
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user && user.email) {
-                  setShareEmailFrom(user.email);
-                }
+          try {
+            const res = await getEmailTemplatesAction();
+            if (res.success && res.templates) {
+              const template = res.templates.find((t: any) => t.name === 'Draft Itinerary Share');
+              if (template) {
+                if (template.subject) templateSubject = template.subject;
+                if (template.from_email) templateFrom = template.from_email;
+                if (template.body_html) rawBodyHtml = template.body_html;
               }
+            }
+          } catch (tErr) {
+            console.warn("Could not fetch email templates from DB, using default share template", tErr);
+          }
 
-              let bodyHtml = template.body_html || '';
-
-              const guestName = touristData?.profile
-                ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
-                : 'Valued Guest';
-
-              let agentName = 'Your Concierge Team';
-              const supabase = createClient();
-              const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
-              }
-
-              const itineraryUrl = typeof window !== 'undefined'
-                ? `${window.location.origin}/tourist/tour/${tourId}`
-                : `https://www.nilathra.com/tourist/tour/${tourId}`;
-
-              bodyHtml = bodyHtml.replace(/\[Guest Name\]/g, guestName);
-              bodyHtml = bodyHtml.replace(/\[Your Name\]/g, agentName);
-              bodyHtml = bodyHtml.replace(/\[Itinerary Link\]/g, itineraryUrl);
-              bodyHtml = bodyHtml.replace(/\[Portal Link\]/g, itineraryUrl);
-
-              setShareEmailBody(bodyHtml);
-              setShareTemplateLoaded(cacheKey);
-
-              // Sync editor HTML after DOM mounts
-              setTimeout(() => {
-                if (shareEditorRef.current) {
-                  shareEditorRef.current.innerHTML = bodyHtml;
-                }
-              }, 150);
+          if (templateFrom) {
+            setShareEmailFrom(templateFrom);
+          } else {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && user.email) {
+              setShareEmailFrom(user.email);
             }
           }
+
+          const guestName = touristData?.profile
+            ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
+            : 'Valued Guest';
+
+          let agentName = 'Your Concierge Team';
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            agentName = user.user_metadata?.full_name || user.user_metadata?.first_name || user.email?.split('@')[0] || 'Your Concierge Team';
+          }
+
+          const itineraryUrl = typeof window !== 'undefined'
+            ? `${window.location.origin}/tourist/tour/${tourId}`
+            : `https://www.nilathra.com/tourist/tour/${tourId}`;
+
+          let bodyHtml = rawBodyHtml
+            .replace(/\[Guest Name\]/g, guestName)
+            .replace(/\[Your Name\]/g, agentName)
+            .replace(/\[Itinerary Link\]/g, itineraryUrl)
+            .replace(/\[Portal Link\]/g, itineraryUrl);
+
+          setShareEmailSubject(templateSubject);
+          setShareEmailBody(bodyHtml);
+          setShareTemplateLoaded(cacheKey);
+
+          // Sync editor HTML after DOM mounts
+          setTimeout(() => {
+            if (shareEditorRef.current) {
+              shareEditorRef.current.innerHTML = bodyHtml;
+            }
+          }, 150);
         } catch (err) {
           console.error("Error loading share template:", err);
         }
