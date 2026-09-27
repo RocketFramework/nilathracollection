@@ -152,7 +152,20 @@ export namespace TouristDataDTO {
             return '';
         })();
 
-        const durationDays = requestMsg?.duration_nights ? (Number(requestMsg.duration_nights) + (requestMsg.start_date ? 1 : 0)) : (Number(activeProfile.duration_days) || 0);
+        const calcDateDays = (arrivalDate && departureDate) ? (() => {
+            const arr = new Date(arrivalDate);
+            const dep = new Date(departureDate);
+            if (!isNaN(arr.getTime()) && !isNaN(dep.getTime()) && dep >= arr) {
+                return Math.ceil(Math.abs(dep.getTime() - arr.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            }
+            return 0;
+        })() : 0;
+
+        const durationDays = Math.max(
+            calcDateDays,
+            requestMsg?.duration_nights ? (Number(requestMsg.duration_nights) + (requestMsg.start_date ? 1 : 0)) : 0,
+            Number(activeProfile.duration_days) || 0
+        );
         const budgetTotal = Number(requestMsg?.budget) || Number(activeProfile.budget_total) || 0;
         const adults = requestMsg?.adults !== null && requestMsg?.adults !== undefined ? requestMsg.adults : (activeProfile.adults ?? 2);
         const children = requestMsg?.children !== null && requestMsg?.children !== undefined ? requestMsg.children : (activeProfile.children ?? 0);

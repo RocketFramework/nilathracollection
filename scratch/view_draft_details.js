@@ -5,34 +5,20 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function run() {
-  const tourId = '60dec7e8-cbd9-4801-9f97-b41e5062fcc2';
-  
-  const { data: tour } = await supabase.from('tours').select('planner_data, updated_at').eq('id', tourId).single();
-  console.log("Tour updated_at:", tour.updated_at);
-  console.log("Tour accommodations for Night 9, 10, 11:");
-  const accs = tour.planner_data?.accommodations || [];
-  accs.filter(a => [9, 10, 11].includes(a.nightIndex)).forEach(a => {
-    console.log(`Night ${a.nightIndex}: Hotel Name: ${a.hotelName}, Hotel ID: ${a.hotelId}, Room ID: ${a.roomId}`);
-  });
-
-  const { data: drafts } = await supabase
+async function inspectDraft() {
+  const { data: draft } = await supabase
     .from('draft_itinerary_versions')
     .select('*')
-    .eq('tour_id', tourId)
-    .order('version_number', { ascending: false })
-    .limit(1);
+    .eq('tour_id', 'c0569dc7-0eb6-4362-a071-668b643f3b54')
+    .eq('version_number', 17)
+    .single();
 
-  if (drafts && drafts.length > 0) {
-    const draft = drafts[0];
-    console.log(`Latest Draft: Version ${draft.version_number}, Created At ${draft.created_at}`);
-    const itinerary = draft.itinerary_data || [];
-    itinerary.filter(b => b.type === 'sleep' && [9, 10, 11].includes(b.dayNumber)).forEach(b => {
-      console.log(`Day ${b.dayNumber}: Hotel ID: ${b.hotelId}, Hotel Name: ${b.hotelName}, Room Name: ${b.roomName}`);
-    });
-  } else {
-    console.log("No drafts found.");
-  }
+  if (!draft) return;
+  console.log('Version 17 label:', draft.label);
+  console.log('Sample blocks from Version 17:');
+  (draft.itinerary_data || []).forEach(b => {
+    console.log(`Day ${b.dayNumber} [${b.type}] ${b.name}: agreedPrice=${b.agreedPrice}, baseRoomRate=${b.baseRoomRate}, hotelName=${b.hotelName}, hotelId=${b.hotelId}, qty=${b.quantity}`);
+  });
 }
 
-run();
+inspectDraft();

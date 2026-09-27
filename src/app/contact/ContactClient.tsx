@@ -288,7 +288,7 @@ export default function ContactClient() {
                                     <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.full_name || "Full Name"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.full_name || "Full Name"} <span className="text-red-500 font-bold">*</span></label>
                                                 <input
                                                     type="text"
                                                     required
@@ -298,7 +298,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.email_address || "Email Address"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.email_address || "Email Address"} <span className="text-red-500 font-bold">*</span></label>
                                                 <input
                                                     type="email"
                                                     required
@@ -311,7 +311,7 @@ export default function ContactClient() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.phone_number || "Phone Number"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.phone_number || "Phone Number"} <span className="text-red-500 font-bold">*</span></label>
                                                 <PhoneInput
                                                     required={true}
                                                     value={form.phone}
@@ -321,7 +321,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.departure_country || "Departure Country"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.departure_country || "Departure Country"} <span className="text-red-500 font-bold">*</span></label>
                                                 <input
                                                     type="text"
                                                     required
@@ -334,7 +334,7 @@ export default function ContactClient() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.start_date || "Expected Start Date"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.start_date || "Expected Start Date"} <span className="text-red-500 font-bold">*</span></label>
                                                 <input
                                                     type="date"
                                                     required
@@ -344,7 +344,7 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.duration || "Duration (Days)"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.duration || "Duration (Days)"} <span className="text-red-500 font-bold">*</span></label>
                                                 <input
                                                     type="number"
                                                     min={1}
@@ -357,13 +357,14 @@ export default function ContactClient() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.party_composition || "Party Composition"}</label>
+                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.party_composition || "Party Composition"} <span className="text-red-500 font-bold">*</span></label>
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div className="relative">
                                                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] text-brand-charcoal/30 uppercase font-bold pl-1">A</span>
                                                     <input
                                                         type="number"
                                                         min={1}
+                                                        required
                                                         value={form.adults}
                                                         onChange={e => setForm({ ...form, adults: parseInt(e.target.value) || 0 })}
                                                         className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 pl-6 outline-none focus:border-brand-gold transition-colors"
@@ -397,7 +398,7 @@ export default function ContactClient() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.estimated_budget || "Estimated Budget (USD)"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.estimated_budget || "Estimated Budget (USD)"} <span className="text-red-500 font-bold">*</span></label>
                                                 <input
                                                     type="number"
                                                     min={500}
@@ -409,8 +410,9 @@ export default function ContactClient() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.inquiry_type || "Inquiry Type"}</label>
+                                                <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.inquiry_type || "Inquiry Type"} <span className="text-red-500 font-bold">*</span></label>
                                                 <select
+                                                    required
                                                     value={form.inquiryType}
                                                     onChange={e => setForm({ ...form, inquiryType: e.target.value })}
                                                     className="w-full bg-white/50 border-b border-brand-charcoal/20 p-3 outline-none focus:border-brand-gold transition-colors appearance-none"
@@ -432,7 +434,7 @@ export default function ContactClient() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.message || "Message"}</label>
+                                            <label className="text-[10px] uppercase tracking-widest font-bold text-brand-charcoal/40">{c.message || "Message"} <span className="text-red-500 font-bold">*</span></label>
                                             <textarea
                                                 rows={4}
                                                 required

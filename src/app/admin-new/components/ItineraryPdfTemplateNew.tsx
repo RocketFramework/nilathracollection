@@ -67,7 +67,21 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
     const arrivalDate = touristData.preferences?.arrival_date || '';
     const departureDate = touristData.preferences?.departure_date || '';
-    const durationDays = touristData.preferences?.duration_days || itinerary.reduce((max, b) => Math.max(max, b.dayNumber), 0) || 5;
+    const calculatedDateDays = (arrivalDate && departureDate) ? (() => {
+      const arr = new Date(arrivalDate);
+      const dep = new Date(departureDate);
+      if (!isNaN(arr.getTime()) && !isNaN(dep.getTime()) && dep >= arr) {
+        return Math.ceil(Math.abs(dep.getTime() - arr.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      }
+      return 0;
+    })() : 0;
+    const maxItineraryDay = itinerary.reduce((max, b) => Math.max(max, b.dayNumber), 0);
+    const durationDays = Math.max(
+      calculatedDateDays,
+      touristData.preferences?.duration_days || 0,
+      maxItineraryDay,
+      1
+    );
 
     // Calculate metrics
     let totalDistance = 0;
@@ -838,7 +852,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     'mirissa': { lat: 5.9483, lng: 80.4578 },
                     'tangalle': { lat: 6.0243, lng: 80.7941 },
                     'hambantota': { lat: 6.1241, lng: 81.1185 },
-                    'yala': { lat: 6.3725, lng: 81.5165 },
+                    'yala': { lat: 6.3300, lng: 81.5200 },
                     'tissamaharama': { lat: 6.2843, lng: 81.3320 },
                     'kataragama': { lat: 6.4133, lng: 81.3344 },
                     'ella': { lat: 6.8667, lng: 81.0466 },
@@ -861,81 +875,132 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     'belihuloya': { lat: 6.7167, lng: 80.7667 }
                   };
 
-                  // Helper function to resolve (lat, lng) for a location string
-                  const resolveLocationCoords = (locName: string): { lat: number; lng: number } => {
-                    const clean = locName.toLowerCase().trim();
+                  const getHubCityName = (locStr: string, hotelStr?: string): string => {
+                    const combined = `${locStr || ''} ${hotelStr || ''}`.toLowerCase();
+                    for (const cityKey of Object.keys(SRI_LANKA_CITY_COORDS)) {
+                      if (combined.includes(cityKey)) {
+                        return cityKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                      }
+                    }
+                    const clean = (locStr || hotelStr || 'Sri Lanka').split('-')[0].split(',')[0].trim();
+                    return clean || 'Sri Lanka';
+                  };
+
+                  const resolveLocationCoords = (cityName: string): { lat: number; lng: number } => {
+                    const clean = cityName.toLowerCase().trim();
                     for (const [key, coords] of Object.entries(SRI_LANKA_CITY_COORDS)) {
                       if (clean.includes(key) || key.includes(clean)) {
                         return coords;
                       }
                     }
-                    // Fallback to center-west default if unknown
                     return { lat: 7.0, lng: 80.2 };
                   };
 
-                  // Project (lat, lng) to SVG viewBox coordinates (width: 320, height: 440)
                   const projectToMap = (lat: number, lng: number): { x: number; y: number } => {
-                    const minLat = 5.7;
-                    const maxLat = 9.8;
-                    const minLng = 79.3;
-                    const maxLng = 82.1;
+                    const minLat = 5.85;
+                    const maxLat = 9.85;
+                    const minLng = 79.60;
+                    const maxLng = 81.95;
 
-                    const minX = 40;
-                    const maxX = 280;
-                    const minY = 40;
-                    const maxY = 400;
+                    const minX = 115;
+                    const maxX = 295;
+                    const minY = 55;
+                    const maxY = 435;
 
                     const x = minX + ((lng - minLng) / (maxLng - minLng)) * (maxX - minX);
                     const y = maxY - ((lat - minLat) / (maxLat - minLat)) * (maxY - minY);
                     return { x: Math.round(x), y: Math.round(y) };
                   };
 
-                  // Group itinerary blocks by unique location/coordinates
-                  const sortedBlocks = [...itinerary].sort((a, b) => a.dayNumber - b.dayNumber);
+                  // 1. Build day-by-day mapping for all durationDays
+                  const dailyBreakdown: Array<{
+                    dayNum: number;
+                    shortDate: string;
+                    fullDate: string;
+                    cityName: string;
+                    locationName: string;
+                    hotelName: string;
+                    coords: { lat: number; lng: number };
+                    mapXY: { x: number; y: number };
+                    activitiesCount: number;
+                  }> = [];
+
+                  for (let d = 1; d <= durationDays; d++) {
+                    const dayBlocks = itinerary.filter(b => b.dayNumber === d);
+                    const sleepBlock = dayBlocks.find(b => b.type === ItineraryBlockTypes.SLEEP);
+                    const accObj = accommodations?.find((a: any) => Number(a.nightIndex) === Number(d));
+
+                    const locBlock = sleepBlock || dayBlocks.find(b => b.locationName && !b.locationName.toLowerCase().includes('travel') && !b.locationName.toLowerCase().includes('transfer')) || dayBlocks[0];
+
+                    const rawLoc = locBlock?.locationName || sleepBlock?.locationName || accObj?.address || '';
+                    const hotelName = sleepBlock?.hotelName || accObj?.hotelName || '';
+                    const cityName = getHubCityName(rawLoc, hotelName);
+                    const coords = resolveLocationCoords(cityName);
+                    const mapXY = projectToMap(coords.lat, coords.lng);
+
+                    dailyBreakdown.push({
+                      dayNum: d,
+                      shortDate: getShortFormattedDate(d),
+                      fullDate: getLongFormattedDate(d),
+                      cityName,
+                      locationName: rawLoc || cityName,
+                      hotelName,
+                      coords,
+                      mapXY,
+                      activitiesCount: dayBlocks.filter(b => b.type === ItineraryBlockTypes.ACTIVITY).length
+                    });
+                  }
+
+                  // 2. Group days by unique location hub coordinate
                   const cityStopsMap = new Map<string, {
                     name: string;
                     startDay: number;
                     endDay: number;
                     coords: { lat: number; lng: number };
                     mapXY: { x: number; y: number };
-                    hotelName?: string;
+                    days: Array<{ dayNum: number; shortDate: string; fullDate: string; hotelName: string }>;
+                    hotelName: string;
                   }>();
 
-                  sortedBlocks.forEach(block => {
-                    const rawLoc = block.locationName || block.hotelName || block.name || '';
-                    if (!rawLoc || rawLoc.toLowerCase().includes('travel') || rawLoc.toLowerCase().includes('transfer')) return;
-
-                    let cityName = rawLoc.split('-')[0].split(',')[0].trim();
-                    if (!cityName) return;
-
-                    const coords = resolveLocationCoords(cityName);
-                    const cityKey = `${coords.lat.toFixed(2)},${coords.lng.toFixed(2)}`;
-                    const mapXY = projectToMap(coords.lat, coords.lng);
-
+                  dailyBreakdown.forEach(dayObj => {
+                    const cityKey = `${dayObj.coords.lat.toFixed(2)},${dayObj.coords.lng.toFixed(2)}`;
                     if (cityStopsMap.has(cityKey)) {
                       const existing = cityStopsMap.get(cityKey)!;
-                      existing.startDay = Math.min(existing.startDay, block.dayNumber);
-                      existing.endDay = Math.max(existing.endDay, block.dayNumber);
-                      if (block.type === ItineraryBlockTypes.SLEEP && block.hotelName) {
-                        existing.hotelName = block.hotelName;
+                      existing.startDay = Math.min(existing.startDay, dayObj.dayNum);
+                      existing.endDay = Math.max(existing.endDay, dayObj.dayNum);
+                      existing.days.push({
+                        dayNum: dayObj.dayNum,
+                        shortDate: dayObj.shortDate,
+                        fullDate: dayObj.fullDate,
+                        hotelName: dayObj.hotelName
+                      });
+                      if (dayObj.hotelName && !existing.hotelName) {
+                        existing.hotelName = dayObj.hotelName;
                       }
                     } else {
                       cityStopsMap.set(cityKey, {
-                        name: cityName,
-                        startDay: block.dayNumber,
-                        endDay: block.dayNumber,
-                        coords,
-                        mapXY,
-                        hotelName: block.type === ItineraryBlockTypes.SLEEP ? block.hotelName : undefined
+                        name: dayObj.cityName,
+                        startDay: dayObj.dayNum,
+                        endDay: dayObj.dayNum,
+                        coords: dayObj.coords,
+                        mapXY: dayObj.mapXY,
+                        days: [{
+                          dayNum: dayObj.dayNum,
+                          shortDate: dayObj.shortDate,
+                          fullDate: dayObj.fullDate,
+                          hotelName: dayObj.hotelName
+                        }],
+                        hotelName: dayObj.hotelName
                       });
                     }
                   });
 
                   const locationStops = Array.from(cityStopsMap.values()).sort((a, b) => a.startDay - b.startDay);
-
                   if (locationStops.length === 0) return null;
 
-                  const pathPointsString = locationStops.map(s => `${s.mapXY.x},${s.mapXY.y}`).join(' L ');
+                  // Track used Y positions for collision avoidance
+                  const usedLeftY: number[] = [];
+                  const usedRightY: number[] = [];
 
                   return (
                     <div className="print-page-break w-full px-8 py-6 box-border">
@@ -944,15 +1009,16 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                         <h3 className="text-2xl font-serif text-[#111827] font-light italic">Route Map & Destination Sequence</h3>
                       </div>
 
-                      <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6">
-                        <div className="w-full bg-white rounded-xl border border-[#E8DFD1] p-6 flex flex-col items-center justify-center relative shadow-sm min-h-[680px]">
+                      <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-6">
+                        {/* Map Container */}
+                        <div className="w-full bg-white rounded-xl border border-[#E8DFD1] p-6 flex flex-col items-center justify-center relative shadow-sm min-h-[640px]">
                           <span className="text-[10px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-4 text-center">
-                            Sri Lanka Private Tour Route • {locationStops.length} Destination Hubs
+                            Sri Lanka Private Tour Route • {locationStops.length} Destination Hubs ({durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights)
                           </span>
 
                           <svg
-                            viewBox="0 0 320 440"
-                            className="w-full h-auto max-h-[620px] drop-shadow-sm"
+                            viewBox="0 0 380 480"
+                            className="w-full h-auto max-h-[600px] drop-shadow-sm"
                             style={{ overflow: 'visible' }}
                           >
                             <defs>
@@ -968,7 +1034,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                             {/* Stylized Vector Path of Sri Lanka Silhouette */}
                             <path
-                              d="M 142,42 C 150,38 165,40 174,48 C 182,56 186,66 180,78 C 174,88 158,94 153,105 C 148,116 150,126 146,138 C 140,154 122,165 112,180 C 102,195 98,215 94,235 C 90,255 88,275 86,295 C 84,315 83,335 82,350 C 81,365 82,380 86,395 C 92,410 102,422 115,432 C 128,442 145,448 165,450 C 185,451 205,448 225,441 C 242,434 256,420 268,402 C 278,386 284,365 285,344 C 286,323 282,302 278,282 C 274,262 272,242 270,222 C 267,202 261,182 252,163 C 244,144 233,126 218,111 C 206,97 192,83 182,68 C 172,55 158,45 142,42 Z"
+                              d="M 162,52 C 170,48 185,50 194,58 C 202,66 206,76 200,88 C 194,98 178,104 173,115 C 168,126 170,136 166,148 C 160,164 142,175 132,190 C 122,205 118,225 114,245 C 110,265 108,285 106,305 C 104,325 103,345 102,360 C 101,375 102,390 106,405 C 112,420 122,432 135,442 C 148,452 165,458 185,460 C 205,461 225,458 245,451 C 262,444 276,430 288,412 C 298,396 304,375 305,354 C 306,333 302,312 298,292 C 294,272 292,252 290,232 C 287,212 281,192 272,173 C 264,154 253,136 238,121 C 226,107 212,93 202,78 C 192,65 178,55 162,52 Z"
                               fill="url(#sriLankaBg)"
                               stroke="#D4AF37"
                               strokeWidth="1.5"
@@ -976,57 +1042,144 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             />
 
                             {/* Coastal Grid Reference Lines */}
-                            <circle cx="160" cy="240" r="180" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.25" />
-                            <circle cx="160" cy="240" r="120" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.2" />
+                            <circle cx="190" cy="250" r="190" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.2" />
+                            <circle cx="190" cy="250" r="130" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.15" />
 
-                            {/* Route Trajectory Polyline */}
-                            {locationStops.length > 1 && (
-                              <path
-                                d={`M ${pathPointsString}`}
-                                stroke="#D4AF37"
-                                strokeWidth="2.5"
-                                strokeDasharray="5,4"
-                                fill="none"
-                                filter="url(#goldGlow)"
-                              />
-                            )}
-
-                            {/* Location Pins showing Day numbers */}
+                            {/* Location Callout Boxes & Pins */}
                             {locationStops.map((stop, sIdx) => {
-                              const isStart = sIdx === 0;
-                              const isEnd = sIdx === locationStops.length - 1;
-                              const pinColor = isStart ? "#0A251D" : isEnd ? "#8C6D3F" : "#111827";
-                              const dayLabel = stop.startDay === stop.endDay 
-                                ? `D${stop.startDay}` 
-                                : `D${stop.startDay}-${stop.endDay}`;
+                              const isWest = stop.mapXY.x < 180;
+                              const side = isWest ? 'left' : 'right';
+
+                              // Callout box dimensions & positioning
+                              const dayPillWidth = 48;
+                              const boxWidth = Math.max(115, stop.days.length * dayPillWidth + 12);
+                              const boxHeight = stop.hotelName ? 42 : 28;
+
+                              let calloutX = isWest ? Math.max(8, stop.mapXY.x - boxWidth - 25) : Math.min(372 - boxWidth, stop.mapXY.x + 25);
+                              let calloutY = stop.mapXY.y;
+
+                              // Vertical collision avoidance
+                              const yList = isWest ? usedLeftY : usedRightY;
+                              while (yList.some(y => Math.abs(y - calloutY) < 44)) {
+                                calloutY += 46;
+                              }
+                              yList.push(calloutY);
+
+                              const leaderStartX = isWest ? calloutX + boxWidth : calloutX;
+                              const leaderStartY = calloutY;
 
                               return (
                                 <g key={sIdx}>
-                                  {/* Circle Pin Badge */}
-                                  <circle
-                                    cx={stop.mapXY.x}
-                                    cy={stop.mapXY.y}
-                                    r="14"
-                                    fill={pinColor}
+                                  {/* Dotted Leader Line from Callout Box to Location Pin */}
+                                  <line
+                                    x1={leaderStartX}
+                                    y1={leaderStartY}
+                                    x2={stop.mapXY.x}
+                                    y2={stop.mapXY.y}
                                     stroke="#D4AF37"
-                                    strokeWidth="1.5"
+                                    strokeWidth="1.2"
+                                    strokeDasharray="3,3"
+                                    opacity="0.9"
                                   />
-                                  <text
-                                    x={stop.mapXY.x}
-                                    y={stop.mapXY.y + 3.5}
+
+                                  {/* Map Location Pin Marker */}
+                                  <circle cx={stop.mapXY.x} cy={stop.mapXY.y} r="6" fill="#0A251D" stroke="#D4AF37" strokeWidth="1.5" />
+                                  <circle cx={stop.mapXY.x} cy={stop.mapXY.y} r="2.5" fill="#D4AF37" />
+
+                                  {/* Callout Box Background */}
+                                  <rect
+                                    x={calloutX}
+                                    y={calloutY - 16}
+                                    width={boxWidth}
+                                    height={boxHeight}
+                                    rx="5"
+                                    ry="5"
                                     fill="#FFFFFF"
-                                    fontSize="8"
+                                    stroke="#D4AF37"
+                                    strokeWidth="1"
+                                    style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.08))" }}
+                                  />
+
+                                  {/* City Hub Name Header */}
+                                  <text
+                                    x={calloutX + 6}
+                                    y={calloutY - 5}
+                                    fill="#0A251D"
+                                    fontSize="8.5"
                                     fontWeight="bold"
-                                    fontFamily="sans-serif"
-                                    textAnchor="middle"
+                                    fontFamily="serif"
                                   >
-                                    {dayLabel}
+                                    {stop.name}
                                   </text>
+
+                                  {/* Line of Day Pills placed side-by-side */}
+                                  {stop.days.map((dayObj, dIdx) => (
+                                    <g key={dIdx} transform={`translate(${calloutX + 6 + dIdx * dayPillWidth}, ${calloutY + 1})`}>
+                                      <rect x="0" y="0" width="44" height="12" rx="3" fill="#0A251D" stroke="#D4AF37" strokeWidth="0.5" />
+                                      <text x="22" y="8.5" fill="#FFFFFF" fontSize="6.5" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle">
+                                        D{dayObj.dayNum} • {dayObj.shortDate}
+                                      </text>
+                                    </g>
+                                  ))}
+
+                                  {/* Hotel Name (if available) with ample top spacing */}
+                                  {stop.hotelName && (
+                                    <text
+                                      x={calloutX + 6}
+                                      y={calloutY + 22}
+                                      fill="#4B5563"
+                                      fontSize="6.5"
+                                      fontFamily="sans-serif"
+                                    >
+                                      🏨 {stop.hotelName.length > 22 ? stop.hotelName.substring(0, 20) + '…' : stop.hotelName}
+                                    </text>
+                                  )}
                                 </g>
                               );
                             })}
                           </svg>
                         </div>
+
+                        {/* Day-by-Day Destination & Overnight Stay Summary Table */}
+                        <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                          <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 flex justify-between items-center text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold">
+                            <span>Daily Sequence & Date</span>
+                            <span>Destination Hub</span>
+                            <span>Overnight Stay / Hotel</span>
+                          </div>
+
+                          <div className="divide-y divide-neutral-100">
+                            {dailyBreakdown.map((item, idx) => (
+                              <div key={idx} className="px-5 py-3 flex justify-between items-center text-xs hover:bg-neutral-50/50 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <span className="px-2.5 py-1 bg-[#0A251D] text-[#D4AF37] font-mono text-[10px] font-bold rounded-md">
+                                    Day {String(item.dayNum).padStart(2, '0')}
+                                  </span>
+                                  <span className="font-semibold text-neutral-800 font-mono text-xs">
+                                    {item.fullDate || item.shortDate}
+                                  </span>
+                                </div>
+
+                                <div className="font-serif font-bold text-neutral-800 text-sm">
+                                  {item.cityName}
+                                </div>
+
+                                <div className="text-right">
+                                  {item.hotelName ? (
+                                    <span className="font-serif italic text-neutral-700 font-medium">
+                                      🏨 {item.hotelName}
+                                    </span>
+                                  ) : (
+                                    <span className="text-neutral-400 font-mono text-[11px] uppercase tracking-wider">
+                                      {item.dayNum === durationDays ? 'Departure / Checkout' : 'Standard Stay'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
                       </div>
                     </div>
                   );

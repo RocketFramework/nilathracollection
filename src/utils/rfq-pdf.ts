@@ -181,7 +181,8 @@ export const generateHotelRfqPdf = async (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(hotel?.name || 'Hotel Partner', col1X, topY + 5);
+    const pdfHotelName = hotel?.name || hotel?.hotel_name || sortedStays.find((s: any) => s.hotelName || s.hotel_name)?.hotelName || 'Hotel Partner';
+    doc.text(pdfHotelName, col1X, topY + 5);
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
@@ -195,8 +196,8 @@ export const generateHotelRfqPdf = async (
         doc.text(`Class: ${hotel.hotel_class}`, col1X, supplierY);
         supplierY += 4.5;
     }
-    if (hotel?.reservation_email) {
-        doc.text(`Email: ${hotel.reservation_email}`, col1X, supplierY);
+    if (hotel?.reservation_email || hotel?.email || hotel?.contact_email) {
+        doc.text(`Email: ${hotel.reservation_email || hotel.email || hotel.contact_email}`, col1X, supplierY);
         supplierY += 4.5;
     }
 
@@ -255,27 +256,45 @@ export const generateHotelRfqPdf = async (
         for (const act of sleepStays) {
             const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
             const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-            const dateVal = act.tour_itineraries?.date;
+            const dateVal = act.tour_itineraries?.date || act.service_date || act.date;
             const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-            const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
-            const activeRooms = sizes.map(size => {
-                const count = (act as any)[`${size}_count`] || 0;
-                const label = size.split('_')[0];
-                const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-                return { type: displayType, count };
-            }).filter(r => r.count > 0);
-
+            const selRooms = act.selectedRooms || act.selected_rooms;
             let roomDesc = '';
             let totalQty = 0;
-            let mealPlanText = act.meal_plan || 'BB';
+            let mealPlanText = act.meal_plan || act.mealPlan || 'BB';
 
-            if (activeRooms.length === 0) {
-                roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
+            if (Array.isArray(selRooms) && selRooms.length > 0) {
+                roomDesc = selRooms.map((r: any) => {
+                    const rName = r.roomName || r.room_name || r.name || r.roomStandard || 'Room';
+                    const rStd = r.roomStandard && r.roomStandard !== rName ? ` (${r.roomStandard})` : '';
+                    return `${r.quantity || 1} x ${rName}${rStd}`;
+                }).join(', ');
+                totalQty = selRooms.reduce((sum: number, r: any) => sum + (r.quantity || 1), 0);
+                if (selRooms[0]?.mealPlan || selRooms[0]?.meal_plan) {
+                    mealPlanText = selRooms[0].mealPlan || selRooms[0].meal_plan;
+                }
+            } else if (act.roomName || act.room_name) {
+                const rName = act.roomName || act.room_name;
+                const rStd = act.roomStandard || act.room_standard;
+                roomDesc = rStd && rStd !== rName ? `${rName} (${rStd})` : rName;
                 totalQty = act.quantity || 1;
             } else {
-                roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
-                totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+                const sizes: RoomSizeName[] = ['single_room', 'double_room', 'twin_room', 'triple_room', 'family_room'];
+                const activeRooms = sizes.map(size => {
+                    const count = (act as any)[`${size}_count`] || 0;
+                    const label = size.split('_')[0];
+                    const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                    return { type: displayType, count };
+                }).filter(r => r.count > 0);
+
+                if (activeRooms.length === 0) {
+                    roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Standard Room';
+                    totalQty = act.quantity || 1;
+                } else {
+                    roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+                    totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
+                }
             }
 
             if (act.description) {

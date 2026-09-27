@@ -437,7 +437,8 @@ const parseTimeToMinutes = (timeStr: string): number => {
 };
 
 const sortItineraryChronologically = (blocks: InternalItineraryBlock[]): InternalItineraryBlock[] => {
-  return [...blocks].sort((a, b) => {
+  const filtered = (blocks || []).filter(b => b.id !== '__ai_rules_snapshot__' && b.type !== ('AI_RULES_META' as any));
+  return [...filtered].sort((a, b) => {
     if (a.dayNumber !== b.dayNumber) {
       return a.dayNumber - b.dayNumber;
     }
@@ -766,6 +767,10 @@ function PlannerWizardWorkspace() {
   const [isLockedByOther, setIsLockedByOther] = useState<boolean>(false);
   const [lockOwnerName, setLockOwnerName] = useState<string>('');
   const [draftVersions, setDraftVersions] = useState<Omit<DraftItineraryVersion, 'itinerary_data'>[]>([]);
+  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
+
+  // AI & Rules configuration state
+  const [aiRules, setAiRules] = useState({ generic: '', specific: '' });
 
   // 4. Interactive Tourist Data Form States
   const [touristData, setTouristData] = useState<TouristDataDTO>(MOCK_TOURIST_DATA);
@@ -2468,25 +2473,6 @@ function PlannerWizardWorkspace() {
         }
       }
 
-      // Automatically create a draft version snapshot when saving progress
-      if (track === 'basic' && currentStepObj?.id === 'ai-builder') {
-        const autoLabel = `Auto-saved on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        const counts = {
-          adults: touristData?.preferences?.adults || 2,
-          children: touristData?.preferences?.children || 0,
-          infants: touristData?.preferences?.infants || 0,
-          single_rooms: manualSingle,
-          double_rooms: manualDouble,
-          triple_rooms: manualTriple,
-          family_rooms: manualFamily
-        };
-        const draftRes = await saveDraftVersionAction(tourId, cleanItinerary, autoLabel, null, counts);
-        if (draftRes.success && draftRes.version) {
-          // Update draft versions list
-          setDraftVersions(prev => [draftRes.version as DraftItineraryVersion, ...prev]);
-        }
-      }
-
       alert('Workflow state, client profile and itinerary saved to database successfully.');
     } catch (error: any) {
       console.error("Failed to save progress detailed error:", error);
@@ -2501,7 +2487,162 @@ function PlannerWizardWorkspace() {
       try {
         const res = await getDraftVersionAction(version.id);
         if (res.success && res.version) {
-          setItinerary(sortItineraryChronologically(res.version.itinerary_data || []));
+          setActiveVersionId(version.id);
+          const rawBlocks = res.version.itinerary_data || [];
+          
+          // Restore AI Rules snapshot if embedded in draft version
+          const aiRulesBlock = rawBlocks.find((b: any) => b.id === '__ai_rules_snapshot__' || b.type === 'AI_RULES_META');
+          if (aiRulesBlock && aiRulesBlock.internalNotes) {
+            try {
+              const parsedRules = JSON.parse(aiRulesBlock.internalNotes);
+              if (parsedRules && (parsedRules.generic !== undefined || parsedRules.specific !== undefined)) {
+                const restoredRules = {
+                  generic: parsedRules.generic || '',
+                  specific: parsedRules.specific || ''
+                };
+                setAiRules(restoredRules);
+                saveAIRuleAction({ rule_type: 'generic', content: restoredRules.generic, tour_id: null });
+                saveAIRuleAction({ rule_type: 'specific', content: restoredRules.specific, tour_id: tourId || null });
+              }
+            } catch (e) {
+              console.error("Failed to parse AI rules snapshot from version:", e);
+            }
+          }
+
+          const sortedItinerary = sortItineraryChronologically(rawBlocks);
+          setItinerary(sortedItinerary);
+
+          // 1. Sync tripData state with the loaded version blocks and guest/room counts
+          setTripData((prev: any) => {
+            if (!prev) return prev;
+            const existingAccs = prev.accommodations || [];
+            const updatedAccs = existingAccs.map((acc: any) => {
+              const matchingSleep = sortedItinerary.find(
+                (b: any) => b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === Number(acc.nightIndex)
+              );
+              if (matchingSleep) {
+                const hotelChanged = matchingSleep.hotelId && matchingSleep.hotelId !== acc.hotelId;
+                return {
+                  ...acc,
+                  hotelId: matchingSleep.hotelId || acc.hotelId,
+                  hotelName: matchingSleep.hotelName || acc.hotelName,
+                  mealPlan: matchingSleep.mealPlan || acc.mealPlan,
+                  customContractedTotalPrice: matchingSleep.agreedPrice !== undefined ? matchingSleep.agreedPrice : acc.customContractedTotalPrice,
+                  customContractedUnitPrice: matchingSleep.baseRoomRate !== undefined ? matchingSleep.baseRoomRate : acc.customContractedUnitPrice,
+                  selectedRooms: matchingSleep.selectedRooms && matchingSleep.selectedRooms.length > 0
+                    ? matchingSleep.selectedRooms
+                    : (hotelChanged ? [] : (acc.selectedRooms || []))
+                };
+              }
+              return acc;
+            });
+
+            sortedItinerary.filter((b: any) => b.type === ItineraryBlockTypes.SLEEP).forEach((b: any) => {
+              const exists = updatedAccs.some((a: any) => Number(a.nightIndex) === Number(b.dayNumber));
+              if (!exists) {
+                updatedAccs.push({
+                  id: crypto.randomUUID(),
+                  nightIndex: Number(b.dayNumber),
+                  hotelId: b.hotelId,
+                  hotelName: b.hotelName || 'Selected Hotel',
+                  stayClass: 'Luxury',
+                  address: '',
+                  mapLink: '',
+                  contactPerson: '',
+                  contactNumber: '',
+                  email: '',
+                  rateCardUrl: '',
+                  status: 'Tentative',
+                  confirmationReference: '',
+                  paymentStatus: 'Pending',
+                  cancellationDeadline: '',
+                  beddingConfiguration: '',
+                  specialRequests: '',
+                  mealPlan: b.mealPlan || 'BB',
+                  customContractedTotalPrice: b.agreedPrice,
+                  customContractedUnitPrice: b.baseRoomRate,
+                  selectedRooms: b.selectedRooms || []
+                });
+              }
+            });
+
+            return {
+              ...prev,
+              itinerary: sortedItinerary,
+              accommodations: updatedAccs,
+              manualSingle: res.version.single_rooms ?? prev.manualSingle,
+              manualDouble: res.version.double_rooms ?? prev.manualDouble,
+              manualTriple: res.version.triple_rooms ?? prev.manualTriple,
+              manualFamily: res.version.family_rooms ?? prev.manualFamily,
+              profile: {
+                ...prev.profile,
+                adults: res.version.adults !== undefined && res.version.adults !== null ? res.version.adults : prev.profile?.adults,
+                children: res.version.children !== undefined && res.version.children !== null ? res.version.children : prev.profile?.children,
+                infants: res.version.infants !== undefined && res.version.infants !== null ? res.version.infants : prev.profile?.infants,
+              }
+            };
+          });
+
+          // 2. Sync dbActivities in memory with loaded version blocks so all line item details match
+          setDbActivities((prev: any[]) => {
+            const blockMap = new Map(sortedItinerary.map((b: any) => [b.id, b]));
+            const updatedDbActs = prev.map((act: any) => {
+              const block = blockMap.get(act.id) || sortedItinerary.find(
+                (b: any) => Number(b.dayNumber) === Number(act.tour_itineraries?.day_number || act.day_number) && b.name === act.title
+              );
+              if (block) {
+                const qty = block.quantity || block.headCount || act.quantity || 1;
+                return {
+                  ...act,
+                  title: block.name,
+                  activity_type: block.type,
+                  location_name: block.locationName !== undefined ? block.locationName : act.location_name,
+                  distance: block.distance !== undefined ? block.distance : act.distance,
+                  time_start: block.startTime || act.time_start,
+                  time_end: block.endTime || act.time_end,
+                  meal_plan: block.mealPlan || act.meal_plan,
+                  hotel_id: block.hotelId !== undefined ? block.hotelId : act.hotel_id,
+                  restaurant_id: block.restaurantId !== undefined ? block.restaurantId : act.restaurant_id,
+                  vendor_id: block.vendorId !== undefined ? block.vendorId : act.vendor_id,
+                  contracted_price: block.contractedPrice !== undefined ? block.contractedPrice : act.contracted_price,
+                  charged_unit_price: block.agreedPrice !== undefined ? block.agreedPrice : act.charged_unit_price,
+                  charged_total_price: block.agreedPrice !== undefined ? (block.agreedPrice * qty) : act.charged_total_price,
+                  quantity: qty
+                };
+              }
+              return act;
+            });
+
+            sortedItinerary.forEach((block: any) => {
+              const exists = updatedDbActs.some(a => a.id === block.id || (Number(a.tour_itineraries?.day_number || a.day_number) === Number(block.dayNumber) && a.title === block.name));
+              if (!exists) {
+                const qty = block.quantity || block.headCount || 1;
+                updatedDbActs.push({
+                  id: block.id,
+                  tour_id: tourId,
+                  tour_itineraries: { day_number: block.dayNumber },
+                  day_number: block.dayNumber,
+                  title: block.name,
+                  activity_type: block.type,
+                  location_name: block.locationName || '',
+                  distance: block.distance || '',
+                  description: block.internalNotes || '',
+                  time_start: block.startTime || '09:00',
+                  time_end: block.endTime || '11:00',
+                  meal_plan: block.mealPlan || 'BB',
+                  contracted_price: block.contractedPrice || 0,
+                  charged_unit_price: block.agreedPrice || 0,
+                  charged_total_price: (block.agreedPrice || 0) * qty,
+                  quantity: qty,
+                  hotel_id: block.hotelId || null,
+                  restaurant_id: block.restaurantId || null,
+                  vendor_id: block.vendorId || null
+                });
+              }
+            });
+
+            return updatedDbActs;
+          });
 
           // Fetch any assigned hotels and restaurants to populate masterData
           const hotelIds = (res.version.itinerary_data || [])
@@ -2576,10 +2717,45 @@ function PlannerWizardWorkspace() {
         triple_rooms: manualTriple,
         family_rooms: manualFamily
       };
-      // Clean itinerary to ensure it's a completely plain, JSON-serializable structure with no React or circular references
+
+      // 1. Save AI Rules to database tables (ai_builder_rules)
+      if (aiRules) {
+        await Promise.all([
+          saveAIRuleAction({
+            rule_type: 'generic',
+            content: aiRules.generic || '',
+            tour_id: null
+          }),
+          saveAIRuleAction({
+            rule_type: 'specific',
+            content: aiRules.specific || '',
+            tour_id: tourId || null
+          })
+        ]);
+      }
+
+      // 2. Clean itinerary and embed AI Rules snapshot block
       const cleanItinerary = JSON.parse(JSON.stringify(itinerary));
-      const res = await saveDraftVersionAction(tourId, cleanItinerary, label, null, counts);
+      if (aiRules && (aiRules.generic || aiRules.specific)) {
+        cleanItinerary.push({
+          id: '__ai_rules_snapshot__',
+          dayNumber: 0,
+          type: 'AI_RULES_META',
+          name: 'AI Rules Snapshot',
+          startTime: '00:00',
+          endTime: '00:00',
+          bufferMins: 0,
+          durationHours: 0,
+          confirmationStatus: 'Confirmed',
+          paymentStatus: 'Paid',
+          internalNotes: JSON.stringify(aiRules)
+        });
+      }
+
+      // Pass null for versionId so a new version snapshot is explicitly created with next version_number
+      const res = await saveDraftVersionAction(tourId, cleanItinerary, label, null, activeVersionId, counts);
       if (res.success && res.version) {
+        setActiveVersionId(res.version.id);
         setDraftVersions(prev => [res.version as any, ...prev]);
         alert("Draft version snapshot saved successfully!");
         return true;
@@ -3212,9 +3388,25 @@ function PlannerWizardWorkspace() {
                   infants: fullTripData.profile.infants !== undefined && fullTripData.profile.infants !== null
                     ? fullTripData.profile.infants
                     : prev.preferences.infants,
-                  duration_days: (itinCountRes && itinCountRes.success && (itinCountRes.count ?? 0) > 0)
-                    ? (itinCountRes.count ?? 0)
-                    : (fullTripData.profile.durationDays || prev.preferences.duration_days || 5)
+                  duration_days: (() => {
+                    const arrStr = fullTripData.profile?.arrivalDate || prev.preferences?.arrival_date;
+                    const depStr = fullTripData.profile?.departureDate || prev.preferences?.departure_date;
+                    let calcDateDays = 0;
+                    if (arrStr && depStr) {
+                      const arr = new Date(arrStr);
+                      const dep = new Date(depStr);
+                      if (!isNaN(arr.getTime()) && !isNaN(dep.getTime()) && dep >= arr) {
+                        calcDateDays = Math.ceil(Math.abs(dep.getTime() - arr.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      }
+                    }
+                    return Math.max(
+                      calcDateDays,
+                      (itinCountRes && itinCountRes.success && (itinCountRes.count ?? 0) > 0) ? (itinCountRes.count ?? 0) : 0,
+                      fullTripData.profile?.durationDays || 0,
+                      prev.preferences?.duration_days || 0,
+                      1
+                    );
+                  })()
                 }
               }));
             }
@@ -3224,6 +3416,9 @@ function PlannerWizardWorkspace() {
 
           if (versionsRes.success && versionsRes.versions) {
             setDraftVersions(versionsRes.versions);
+            if (versionsRes.versions.length > 0) {
+              setActiveVersionId(prev => prev || versionsRes.versions[0].id);
+            }
           } else {
             console.error("Failed to load draft versions:", versionsRes.error);
           }
@@ -5227,10 +5422,11 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{Children}}/g, String(children));
           bodyHtml = bodyHtml.replace(/{{Infants}}/g, String(infants));
           bodyHtml = bodyHtml.replace(/{{Pax}}/g, paxDetails);
-          bodyHtml = bodyHtml.replace(/{{Itinerary Details}}/g, itineraryDetailsText);
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         } else {
-          subject = subject.replace(/{{Hotel Name}}/g, hotel?.name || '');
+          const targetHotelName = hotel?.name || hotel?.hotel_name || block?.hotelName || sortedStays.find((s: any) => s.hotelName || s.hotel_name)?.hotelName || 'Hotel Partner';
+
+          subject = subject.replace(/{{Hotel Name}}/g, targetHotelName);
           subject = subject.replace(/{{from-Dates}}/g, checkInDateFormatted);
           subject = subject.replace(/{{to-Date}}/g, checkOutDateFormatted);
           setRfqEmailSubject(subject);
@@ -5240,25 +5436,79 @@ function PlannerWizardWorkspace() {
           const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
 
           const roomsByDate = sleepStays.map(act => {
-            const dayNum = act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0;
-            const dateVal = act.tour_itineraries?.date;
+            const dayNum = Number(act.tour_itineraries?.day_number || act.day_number || act.dayNumber || 0);
+            const dateVal = act.tour_itineraries?.date || act.service_date || act.date;
             const displayDate = dateVal ? formatDate(dateVal) : `Day ${dayNum}`;
 
-            let reqStr = '';
-            const room = hotel?.hotel_rooms?.find((r: any) => r.id === act.hotel_room_id);
-            const activeRooms = sizes.map(size => {
-              const count = (act as any)[`${size}_count`] || 0;
-              const label = size.split('_')[0];
-              const displayType = label.charAt(0).toUpperCase() + label.slice(1);
-              return { type: displayType, count };
-            }).filter(r => r.count > 0);
+            const accObj = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === dayNum);
+            const itinBlockObj = itinerary.find((b: any) => b.type === 'sleep' && Number(b.dayNumber) === dayNum);
 
-            if (activeRooms.length === 0) {
-              const fallbackLabel = room?.room_standard ? ` (${room.room_standard})` : '';
-              reqStr = `${act.quantity || 1} x ${room?.room_name || 'Room'}${fallbackLabel}`;
-            } else {
-              reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+            let reqStr = '';
+
+            // 1. Check selectedRooms array (multi-room category selection)
+            const selRooms = act.selectedRooms || act.selected_rooms || accObj?.selectedRooms || itinBlockObj?.selectedRooms;
+            if (Array.isArray(selRooms) && selRooms.length > 0) {
+              const roomStrings = selRooms.map((r: any) => {
+                const qty = r.quantity || 1;
+                const rName = r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard || 'Room';
+                const rStd = r.roomStandard && r.roomStandard !== rName ? ` (${r.roomStandard})` : '';
+                const mp = r.mealPlan || r.meal_plan || act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+                const mpStr = mp ? ` [${mp}]` : '';
+                return `${qty} x ${rName}${rStd}${mpStr}`;
+              });
+              if (roomStrings.length > 0) {
+                reqStr = roomStrings.join(', ');
+              }
             }
+
+            // 2. Check explicit roomName / room_name / roomStandard on act, accObj, or itinBlockObj
+            if (!reqStr) {
+              const explicitRoomName = act.roomName || act.room_name || accObj?.roomName || itinBlockObj?.roomName;
+              const explicitRoomStd = act.roomStandard || act.room_standard || accObj?.roomStandard || (itinBlockObj as any)?.roomStandard;
+              const mp = act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+              const mpStr = mp ? ` [${mp}]` : '';
+
+              if (explicitRoomName) {
+                const stdPart = explicitRoomStd && explicitRoomStd !== explicitRoomName ? ` (${explicitRoomStd})` : '';
+                reqStr = `${act.quantity || 1} x ${explicitRoomName}${stdPart}${mpStr}`;
+              }
+            }
+
+            // 3. Check hotel_room_id lookup in hotel.hotel_rooms or masterData
+            if (!reqStr && act.hotel_room_id) {
+              const allHotelRooms = hotel?.hotel_rooms || hotel?.rooms || masterData?.hotelRooms || masterData?.rooms || [];
+              const foundRoom = allHotelRooms.find((r: any) => r.id === act.hotel_room_id);
+              if (foundRoom) {
+                const stdPart = foundRoom.room_standard ? ` (${foundRoom.room_standard})` : '';
+                const mp = act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+                const mpStr = mp ? ` [${mp}]` : '';
+                reqStr = `${act.quantity || 1} x ${foundRoom.room_name || foundRoom.name || 'Room'}${stdPart}${mpStr}`;
+              }
+            }
+
+            // 4. Check room size count fields
+            if (!reqStr) {
+              const activeRooms = sizes.map(size => {
+                const count = (act as any)[`${size}_count`] || 0;
+                const label = size.split('_')[0];
+                const displayType = label.charAt(0).toUpperCase() + label.slice(1);
+                return { type: displayType, count };
+              }).filter(r => r.count > 0);
+
+              if (activeRooms.length > 0) {
+                const mp = act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+                const mpStr = mp ? ` [${mp}]` : '';
+                reqStr = activeRooms.map(r => `${r.count} x ${r.type} Room`).join(', ') + mpStr;
+              }
+            }
+
+            // 5. Fallback if no specific room details found
+            if (!reqStr) {
+              const mp = act.mealPlan || act.meal_plan || accObj?.mealPlan || itinBlockObj?.mealPlan || '';
+              const mpStr = mp ? ` [${mp}]` : '';
+              reqStr = `${act.quantity || 1} x Standard Room${mpStr}`;
+            }
+
             if (act.description) {
               reqStr += ` (${act.description})`;
             }
@@ -5326,7 +5576,7 @@ function PlannerWizardWorkspace() {
             }
           }
 
-          bodyHtml = bodyHtml.replace(/{{Hotel Name}}/g, hotel?.name || '');
+          bodyHtml = bodyHtml.replace(/{{Hotel Name}}/g, targetHotelName);
           bodyHtml = bodyHtml.replace(/{{from-Dates}}/g, checkInDateFormatted);
           bodyHtml = bodyHtml.replace(/{{to-Date}}/g, checkOutDateFormatted);
 
@@ -5338,9 +5588,15 @@ function PlannerWizardWorkspace() {
 
           bodyHtml = bodyHtml.replace(/{{X}}/g, String(nightsCount));
           bodyHtml = bodyHtml.replace(/{{Number and room category}}/g, roomsRequiredText + (customServicesText ? '<br />' + customServicesText : ''));
-          bodyHtml = bodyHtml.replace(/{{e.g., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
+          bodyHtml = bodyHtml.replace(/{{e\.g\., 2\s*Adults\s*\/\s*2\s*Adults\s*\+\s*1\s*Child\s*\(age\)}}/gi, occupancyStr);
           bodyHtml = bodyHtml.replace(/{{e\.g\.,.*}}/gi, occupancyStr);
-          bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/g, uniqueMealPlans || 'BB');
+          bodyHtml = bodyHtml.replace(/{{Occupancy}}/gi, occupancyStr);
+          bodyHtml = bodyHtml.replace(/{{Pax}}/gi, occupancyStr);
+
+          bodyHtml = bodyHtml.replace(/{{BB \/ HB \/ FB \/ AI}}/gi, uniqueMealPlans || 'BB');
+          bodyHtml = bodyHtml.replace(/{{Meal Basis}}/gi, uniqueMealPlans || 'BB');
+          bodyHtml = bodyHtml.replace(/{{Meal Plan}}/gi, uniqueMealPlans || 'BB');
+
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         }
 
@@ -8177,7 +8433,7 @@ ${chauffeurHtml}
         const dep = nextPrefs.departure_date ? new Date(nextPrefs.departure_date) : null;
         if (arr && dep && dep >= arr) {
           const diffTime = Math.abs(dep.getTime() - arr.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
           nextPrefs.duration_days = diffDays;
         }
       }
@@ -18201,6 +18457,8 @@ ${chauffeurHtml}
                   </div>
                 ) : track === 'basic' && currentStep.id === 'ai-builder' ? (
                   <AIItineraryBuilder
+                    aiRules={aiRules}
+                    setAiRules={setAiRules}
                     itinerary={itinerary}
                     setItinerary={setItinerary}
                     tripData={tripData}
@@ -18228,6 +18486,7 @@ ${chauffeurHtml}
                     isLockedByOther={isLockedByOther}
                     lockOwnerName={lockOwnerName}
                     versions={draftVersions}
+                    activeVersionId={activeVersionId}
                     onLoadVersion={handleLoadVersion}
                     onSaveNewVersion={handleSaveNewVersion}
                     manualSingle={manualSingle}
@@ -20849,17 +21108,20 @@ ${chauffeurHtml}
                     Request for Quotation (RFQ)
                   </h3>
                   <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                    {rfqIsGuide ? (
-                      <>Tour Guide: {selectedRfqHotel.first_name || ''} {selectedRfqHotel.last_name || ''} &bull; {selectedRfqStays.length} Days</>
-                    ) : rfqIsDriver ? (
-                      <>Chauffeur / Driver: {selectedRfqHotel.first_name || ''} {selectedRfqHotel.last_name || ''} &bull; {selectedRfqStays.length} Days</>
-                    ) : rfqIsTransport ? (
-                      <>Transport Partner: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Days</>
-                    ) : rfqIsRestaurant ? (
-                      <>Restaurant: {selectedRfqHotel.name} &bull; Meal Reservation</>
-                    ) : (
-                      <>Hotel Stay: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Nights</>
-                    )}
+                    {(() => {
+                      const sleepStaysCount = selectedRfqStays.filter((s: any) => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep')).length || selectedRfqStays.length;
+                      return rfqIsGuide ? (
+                        <>Tour Guide: {selectedRfqHotel.first_name || ''} {selectedRfqHotel.last_name || ''} &bull; {selectedRfqStays.length} Days</>
+                      ) : rfqIsDriver ? (
+                        <>Chauffeur / Driver: {selectedRfqHotel.first_name || ''} {selectedRfqHotel.last_name || ''} &bull; {selectedRfqStays.length} Days</>
+                      ) : rfqIsTransport ? (
+                        <>Transport Partner: {selectedRfqHotel.name} &bull; {selectedRfqStays.length} Days</>
+                      ) : rfqIsRestaurant ? (
+                        <>Restaurant: {selectedRfqHotel.name} &bull; Meal Reservation</>
+                      ) : (
+                        <>Hotel Stay: {selectedRfqHotel.name || selectedRfqHotel.hotel_name || 'Hotel Partner'} &bull; {sleepStaysCount} {sleepStaysCount === 1 ? 'Night' : 'Nights'}</>
+                      );
+                    })()}
                   </p>
                 </div>
                 <button
@@ -21240,7 +21502,10 @@ ${chauffeurHtml}
                     Generate Purchase Order (PO)
                   </h3>
                   <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                    Hotel Partner: {selectedPoHotel.name} &bull; {selectedPoStays.length} Nights
+                    {(() => {
+                      const sleepStaysCount = selectedPoStays.filter((s: any) => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep')).length || selectedPoStays.length;
+                      return <>Hotel Partner: {selectedPoHotel.name || selectedPoHotel.hotel_name || 'Hotel Partner'} &bull; {sleepStaysCount} {sleepStaysCount === 1 ? 'Night' : 'Nights'}</>;
+                    })()}
                   </p>
                 </div>
                 <button
@@ -22549,6 +22814,8 @@ export default function NewPlannerWizard() {
 }
 
 interface AIItineraryBuilderProps {
+  aiRules: { generic: string; specific: string };
+  setAiRules: React.Dispatch<React.SetStateAction<{ generic: string; specific: string }>>;
   itinerary: InternalItineraryBlock[];
   setItinerary: React.Dispatch<React.SetStateAction<InternalItineraryBlock[]>>;
   tripData: TripData | null;
@@ -22576,6 +22843,7 @@ interface AIItineraryBuilderProps {
   isLockedByOther: boolean;
   lockOwnerName: string;
   versions: Omit<DraftItineraryVersion, 'itinerary_data'>[];
+  activeVersionId: string | null;
   onLoadVersion: (version: Omit<DraftItineraryVersion, 'itinerary_data'>) => void;
   onSaveNewVersion: (label: string) => Promise<boolean>;
   manualSingle: number;
@@ -22628,6 +22896,8 @@ interface AIItineraryBuilderProps {
 }
 
 function AIItineraryBuilder({
+  aiRules,
+  setAiRules,
   itinerary,
   setItinerary,
   tripData,
@@ -22655,6 +22925,7 @@ function AIItineraryBuilder({
   isLockedByOther,
   lockOwnerName,
   versions,
+  activeVersionId,
   onLoadVersion,
   onSaveNewVersion,
   manualSingle,
@@ -23538,7 +23809,6 @@ function AIItineraryBuilder({
   }, [tripData, setItinerary]);
 
   // AI & Rules configuration state
-  const [aiRules, setAiRules] = useState({ generic: '', specific: '' });
   const [isLoadingRules, setIsLoadingRules] = useState(false);
   const [isSavingRules, setIsSavingRules] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -23633,10 +23903,12 @@ function AIItineraryBuilder({
           }, 0);
 
           let rate = 0;
-          if (selectedRoomsTotal > 0) {
+          if (selectedRoomsTotal > 0 && acc?.hotelId && b.hotelId && acc.hotelId === b.hotelId) {
             rate = selectedRoomsTotal;
           } else if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
             rate = Number(b.agreedPrice);
+          } else if (selectedRoomsTotal > 0) {
+            rate = selectedRoomsTotal;
           } else if (acc?.customContractedTotalPrice !== undefined && acc?.customContractedTotalPrice !== null && Number(acc.customContractedTotalPrice) > 0) {
             rate = Number(acc.customContractedTotalPrice);
           } else if (da?.contracted_total_price !== undefined && da?.contracted_total_price !== null && Number(da.contracted_total_price) > 0) {
@@ -24445,13 +24717,15 @@ function AIItineraryBuilder({
 
     setTripData((prev: any) => prev ? { ...prev, accommodations: updatedAccs } : prev);
 
-    if (totalSelectedRoomsCost > 0) {
+    if (totalSelectedRoomsCost > 0 || selectedRooms.length > 0) {
       setItinerary(prev => prev.map(b => {
         if (b.type === ItineraryBlockTypes.SLEEP && Number(b.dayNumber) === Number(dayNum)) {
           return {
             ...b,
-            agreedPrice: totalSelectedRoomsCost,
-            priceFinalized: true
+            selectedRooms: selectedRooms,
+            agreedPrice: totalSelectedRoomsCost > 0 ? totalSelectedRoomsCost : b.agreedPrice,
+            baseRoomRate: selectedRooms[0]?.pricePerNight !== undefined ? Number(selectedRooms[0].pricePerNight) : b.baseRoomRate,
+            priceFinalized: totalSelectedRoomsCost > 0 ? true : b.priceFinalized
           };
         }
         return b;
@@ -24734,7 +25008,7 @@ function AIItineraryBuilder({
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Version:</span>
             <select
-              value=""
+              value={activeVersionId || ''}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val) {
@@ -24982,7 +25256,7 @@ function AIItineraryBuilder({
                   placeholder="Specify universal rules, e.g. 'Always place breakfast first', 'Schedule lunch around 1:00 PM'."
                   value={aiRules.generic}
                   disabled={isLockedByOther}
-                  onChange={(e) => setAiRules(prev => ({ ...prev, generic: e.target.value }))}
+                  onChange={(e) => setAiRules((prev: { generic: string; specific: string }) => ({ ...prev, generic: e.target.value }))}
                   className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium resize-y shadow-inner disabled:opacity-50"
                 />
               </div>
@@ -24993,7 +25267,7 @@ function AIItineraryBuilder({
                   placeholder="Specify rules for this client, e.g. 'Must plan Sigiriya rock climb for morning due to heat', 'Avoid travel after 6 PM'."
                   value={aiRules.specific}
                   disabled={isLockedByOther}
-                  onChange={(e) => setAiRules(prev => ({ ...prev, specific: e.target.value }))}
+                  onChange={(e) => setAiRules((prev: { generic: string; specific: string }) => ({ ...prev, specific: e.target.value }))}
                   className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium resize-y shadow-inner disabled:opacity-50"
                 />
               </div>
@@ -26307,7 +26581,7 @@ function AIItineraryBuilder({
                       {/* Selected Room Options Breakdown Table (Category, Meal Plan, Quantity, Rate) */}
                       {(() => {
                         const acc = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === Number(block.dayNumber));
-                        const selectedRooms = acc?.selectedRooms || [];
+                        const selectedRooms = acc?.selectedRooms || (block as any).selectedRooms || [];
 
                         let roomRows: Array<{ reqId?: string; roomName?: string; category: string; mealPlan: string; qty: number; rate?: number }> = [];
 
@@ -26318,16 +26592,23 @@ function AIItineraryBuilder({
                             category: sr.roomName || sr.reqId || 'Standard Room',
                             mealPlan: sr.mealPlan || acc?.mealPlan || block.mealPlan || 'BB',
                             qty: sr.quantity || 1,
-                            rate: sr.pricePerNight !== undefined ? sr.pricePerNight : sr.contractedPrice
+                            rate: sr.pricePerNight !== undefined ? sr.pricePerNight : (sr.contractedPrice !== undefined ? sr.contractedPrice : (block.baseRoomRate || block.agreedPrice || 0))
                           }));
                         } else {
                           const defaultMp = block.mealPlan || acc?.mealPlan || 'BB';
-                          if (singleRoomsCount > 0) roomRows.push({ reqId: 'Single', roomName: 'Single Room', category: 'Single Room', mealPlan: defaultMp, qty: singleRoomsCount, rate: 0 });
-                          if (doubleRoomsCount > 0) roomRows.push({ reqId: 'Double', roomName: 'Double Room', category: 'Double Room', mealPlan: defaultMp, qty: doubleRoomsCount, rate: 0 });
-                          if (tripleRoomsCount > 0) roomRows.push({ reqId: 'Triple', roomName: 'Triple Room', category: 'Triple Room', mealPlan: defaultMp, qty: tripleRoomsCount, rate: 0 });
-                          if (familyRoomsCount > 0) roomRows.push({ reqId: 'Family', roomName: 'Family Room', category: 'Family Room', mealPlan: defaultMp, qty: familyRoomsCount, rate: 0 });
-                          if (roomRows.length === 0 && block.roomName) {
-                            roomRows.push({ reqId: 'Room', roomName: block.roomName, category: block.roomName, mealPlan: defaultMp, qty: 1, rate: 0 });
+                          const defaultRate = block.baseRoomRate !== undefined && block.baseRoomRate > 0
+                            ? block.baseRoomRate
+                            : (block.agreedPrice !== undefined && block.agreedPrice > 0
+                              ? block.agreedPrice / Math.max(1, (singleRoomsCount + doubleRoomsCount + tripleRoomsCount + familyRoomsCount))
+                              : 0);
+                          const roomCategoryName = block.roomName || 'Standard Room';
+
+                          if (singleRoomsCount > 0) roomRows.push({ reqId: 'Single', roomName: 'Single Room', category: 'Single Room', mealPlan: defaultMp, qty: singleRoomsCount, rate: defaultRate });
+                          if (doubleRoomsCount > 0) roomRows.push({ reqId: 'Double', roomName: 'Double Room', category: 'Double Room', mealPlan: defaultMp, qty: doubleRoomsCount, rate: defaultRate });
+                          if (tripleRoomsCount > 0) roomRows.push({ reqId: 'Triple', roomName: 'Triple Room', category: 'Triple Room', mealPlan: defaultMp, qty: tripleRoomsCount, rate: defaultRate });
+                          if (familyRoomsCount > 0) roomRows.push({ reqId: 'Family', roomName: 'Family Room', category: 'Family Room', mealPlan: defaultMp, qty: familyRoomsCount, rate: defaultRate });
+                          if (roomRows.length === 0) {
+                            roomRows.push({ reqId: 'Room', roomName: roomCategoryName, category: roomCategoryName, mealPlan: defaultMp, qty: 1, rate: defaultRate });
                           }
                         }
 

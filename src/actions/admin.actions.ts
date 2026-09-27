@@ -1951,6 +1951,7 @@ export async function saveDraftVersionAction(
     tourId: string,
     itineraryData: InternalItineraryBlock[],
     label: string | null,
+    versionId?: string | null,
     parentVersionId?: string | null,
     counts?: {
         adults: number;
@@ -1972,6 +1973,7 @@ export async function saveDraftVersionAction(
             itineraryData,
             label,
             user.id,
+            versionId || null,
             parentVersionId || null,
             counts
         );

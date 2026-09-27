@@ -21,12 +21,13 @@ export class ItineraryDraftService {
         return data as Omit<DraftItineraryVersion, 'itinerary_data'>[];
     }
 
-    // 2. Save a new draft version
+    // 2. Save or update a draft version
     static async saveDraftVersion(
         tourId: string,
         itineraryData: InternalItineraryBlock[],
         label: string | null,
         userId: string | null,
+        versionId: string | null = null,
         parentVersionId: string | null = null,
         counts?: {
             adults: number;
@@ -39,8 +40,35 @@ export class ItineraryDraftService {
         }
     ): Promise<DraftItineraryVersion> {
         const supabaseAdmin = createAdminClient();
-        
-        // Find latest version number
+
+        // If versionId is provided, try updating the existing version
+        if (versionId) {
+            const updatePayload: any = {
+                itinerary_data: itineraryData,
+                adults: counts?.adults ?? 2,
+                children: counts?.children ?? 0,
+                infants: counts?.infants ?? 0,
+                single_rooms: counts?.single_rooms ?? 0,
+                double_rooms: counts?.double_rooms ?? 0,
+                triple_rooms: counts?.triple_rooms ?? 0,
+                family_rooms: counts?.family_rooms ?? 0
+            };
+            if (label && label.trim() !== '') {
+                updatePayload.label = label;
+            }
+            const { data, error } = await supabaseAdmin
+                .from('draft_itinerary_versions')
+                .update(updatePayload)
+                .eq('id', versionId)
+                .select('*')
+                .maybeSingle();
+
+            if (!error && data) {
+                return data as DraftItineraryVersion;
+            }
+        }
+
+        // Otherwise create a new version snapshot
         const { data: latest, error: fetchError } = await supabaseAdmin
             .from('draft_itinerary_versions')
             .select('version_number')

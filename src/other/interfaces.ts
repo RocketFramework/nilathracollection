@@ -267,6 +267,7 @@ export interface InternalItineraryBlock {
     roomName?: string;
     mealPlan?: string;
     imageUrl?: string;
+    selectedRooms?: any[];
 
     // Binding IDs (Relational Links)
     hotelId?: string;
@@ -397,6 +398,7 @@ export interface DraftItineraryVersion {
     double_rooms?: number;
     triple_rooms?: number;
     family_rooms?: number;
+    ai_rules?: { generic: string; specific: string };
 }
 
 export interface ItineraryLock {
