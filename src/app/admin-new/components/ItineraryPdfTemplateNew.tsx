@@ -536,7 +536,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           <div
             style={{
               position: "absolute",
-              top: "16mm",
+              top: "29mm",
               left: 0,
               right: 0,
               height: "140px",
@@ -570,7 +570,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           </div>
 
           {/* Header Subtitle Area */}
-          <div className="z-10 text-center flex flex-col items-center mt-36">
+          <div className="z-10 text-center flex flex-col items-center mt-52">
             <span className="text-[#D4AF37] text-[10px] tracking-[0.5em] uppercase font-light">
               The Collection
             </span>
@@ -1139,47 +1139,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             })}
                           </svg>
                         </div>
-
-                        {/* Day-by-Day Destination & Overnight Stay Summary Table */}
-                        <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
-                          <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 flex justify-between items-center text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold">
-                            <span>Daily Sequence & Date</span>
-                            <span>Destination Hub</span>
-                            <span>Overnight Stay / Hotel</span>
-                          </div>
-
-                          <div className="divide-y divide-neutral-100">
-                            {dailyBreakdown.map((item, idx) => (
-                              <div key={idx} className="px-5 py-3 flex justify-between items-center text-xs hover:bg-neutral-50/50 transition-colors">
-                                <div className="flex items-center gap-3">
-                                  <span className="px-2.5 py-1 bg-[#0A251D] text-[#D4AF37] font-mono text-[10px] font-bold rounded-md">
-                                    Day {String(item.dayNum).padStart(2, '0')}
-                                  </span>
-                                  <span className="font-semibold text-neutral-800 font-mono text-xs">
-                                    {item.fullDate || item.shortDate}
-                                  </span>
-                                </div>
-
-                                <div className="font-serif font-bold text-neutral-800 text-sm">
-                                  {item.cityName}
-                                </div>
-
-                                <div className="text-right">
-                                  {item.hotelName ? (
-                                    <span className="font-serif italic text-neutral-700 font-medium">
-                                      🏨 {item.hotelName}
-                                    </span>
-                                  ) : (
-                                    <span className="text-neutral-400 font-mono text-[11px] uppercase tracking-wider">
-                                      {item.dayNum === durationDays ? 'Departure / Checkout' : 'Standard Stay'}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
                       </div>
                     </div>
                   );

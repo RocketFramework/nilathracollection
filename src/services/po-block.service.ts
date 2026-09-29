@@ -1043,7 +1043,7 @@ export class POBlockService {
                 );
 
                 const matchingActIds = remainingActivities
-                    .filter(a => a.activity_type === 'travel' && (a.itinerary_id ? providerItinIds.has(a.itinerary_id) : true))
+                    .filter(a => a.activity_type === 'travel' && ((a as any).itinerary_id ? providerItinIds.has((a as any).itinerary_id) : true))
                     .map(a => a.id);
 
                 travelDescriptors.push({

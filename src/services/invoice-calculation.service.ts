@@ -345,12 +345,15 @@ export class InvoiceCalculationService {
     }
 
     // --- CATEGORY 7: TAX & SERVICE FEE ---
+    const itemsSubtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+    const hasOverridesAgencyFee = Object.values(dayCostOverrides).some(o => o.agencyFee !== undefined || o.agencyFeePercent !== undefined);
+
     const serviceFeeAmount = customServiceFee !== undefined 
       ? customServiceFee 
-      : agencyFeeTotal;
+      : (hasOverridesAgencyFee ? agencyFeeTotal : itemsSubtotal * (serviceFeePercent / 100));
 
-    const effectiveFeePercent = baseSubtotalTotal > 0
-      ? parseFloat(((serviceFeeAmount / baseSubtotalTotal) * 100).toFixed(2))
+    const effectiveFeePercent = (itemsSubtotal > 0 && (customServiceFee !== undefined || hasOverridesAgencyFee))
+      ? parseFloat(((serviceFeeAmount / itemsSubtotal) * 100).toFixed(2))
       : serviceFeePercent;
 
     const effectiveFeePercentStr = (effectiveFeePercent % 1 === 0)
@@ -362,7 +365,7 @@ export class InvoiceCalculationService {
     
     invoiceItems.push({
       description: `Tax & Nilathra Collection Service Fee (${effectiveFeePercentStr}%)`,
-      amount: serviceFeeAmount,
+      amount: Number(serviceFeeAmount.toFixed(2)),
       dailyActivityIds: curationBlocks.map(b => b.id).filter(Boolean) as string[]
     });
 
