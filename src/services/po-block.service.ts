@@ -1188,69 +1188,84 @@ export class POBlockService {
     static async getDriverDailyActivitiesForTour(tourId: string): Promise<any[]> {
         const adminSupabase = createAdminClient();
         const { data, error } = await adminSupabase
-            .from('daily_activities')
+            .from('tour_itinerary_drivers')
             .select('*, tour_itineraries(day_number, date)')
-            .eq('tour_id', tourId)
-            .eq('activity_type', 'travel')
-            .is('vendor_id', null)
-            .not('driver_id', 'is', null);
+            .eq('tour_id', tourId);
         if (error) throw error;
-        return data || [];
+        
+        return (data || []).map((row: any) => {
+            const itin = row.tour_itineraries;
+            const dayNum = itin?.day_number || 1;
+            const dateStr = itin?.date ? new Date(itin.date).toISOString().split('T')[0] : null;
+
+            const rate = Number(row.contracted_per_day_rate ?? row.per_day_rate ?? 0);
+            const acc = Number(row.contracted_accommodation_cost ?? row.accommodation_cost ?? 0);
+            const meals = Number(row.contracted_meal_cost ?? row.meal_cost ?? 0);
+            const allow = Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
+            const dayTotal = rate;
+
+            return {
+                id: row.id,
+                activity_type: 'driver',
+                title: `Driver Services - Day ${dayNum}`,
+                service_date: dateStr,
+                day_number: dayNum,
+                tour_itineraries: itin,
+                contracted_price: dayTotal,
+                contracted_total_price: dayTotal,
+                charged_unit_price: dayTotal,
+                charged_total_price: dayTotal,
+                quantity: 1,
+                driver_id: row.driver_id,
+                contracted_per_day_rate: rate,
+                contracted_accommodation_cost: acc,
+                contracted_meal_cost: meals,
+                contracted_other_allowance: allow
+            };
+        });
     }
 
     static async saveDriverDailyActivities(tourId: string, driverId: string, activities: any[]): Promise<void> {
         const adminSupabase = createAdminClient();
         
-        // Fetch itineraries to map to itinerary_id
         const { data: itineraries, error: itinErr } = await adminSupabase
             .from('tour_itineraries')
             .select('id, day_number, date')
             .eq('tour_id', tourId);
         if (itinErr) throw itinErr;
 
-        // 1. Delete existing driver activities for this driver
-        const { error: deleteErr } = await adminSupabase
-            .from('daily_activities')
-            .delete()
-            .eq('tour_id', tourId)
-            .eq('activity_type', 'travel')
-            .is('vendor_id', null)
-            .eq('driver_id', driverId);
-            
-        if (deleteErr) throw deleteErr;
-        
-        // 2. Insert new ones
-        if (activities.length > 0) {
-            const insertPayload = activities.map(act => {
-                const itin = (itineraries || []).find(i => 
-                    (act.day_number && i.day_number === act.day_number) || 
-                    (act.service_date && i.date && i.date.split('T')[0] === act.service_date.split('T')[0])
-                ) || (itineraries || [])[act.day_number - 1] || (itineraries || [])[0];
-
-                if (!itin) {
-                    throw new Error(`Could not find itinerary day for Day ${act.day_number || act.service_date}`);
-                }
-
-                return {
-                    tour_id: tourId,
-                    itinerary_id: itin.id,
-                    activity_type: 'travel',
-                    driver_id: driverId,
-                    service_date: act.service_date,
-                    quantity: act.quantity || 1,
-                    contracted_price: act.contracted_price || 0,
-                    contracted_total_price: act.contracted_total_price || 0,
-                    charged_unit_price: act.charged_unit_price || 0,
-                    charged_total_price: act.charged_total_price || 0,
-                    title: 'Driver Services',
-                    description: act.description || ''
-                };
-            });
-
-            const { error: insertErr } = await adminSupabase
-                .from('daily_activities')
-                .insert(insertPayload);
-            if (insertErr) throw insertErr;
+        if (!activities || activities.length === 0) {
+            await adminSupabase
+                .from('tour_itinerary_drivers')
+                .delete()
+                .eq('tour_id', tourId)
+                .eq('driver_id', driverId);
+            return;
         }
+
+        const payloads = activities.map(act => {
+            const itin = (itineraries || []).find(i => 
+                (act.day_number && i.day_number === act.day_number) || 
+                (act.service_date && i.date && i.date.split('T')[0] === act.service_date.split('T')[0])
+            ) || (itineraries || [])[act.day_number - 1] || (itineraries || [])[0];
+
+            if (!itin) {
+                throw new Error(`Could not find itinerary day for Day ${act.day_number || act.service_date}`);
+            }
+
+            const rate = Number(act.contracted_per_day_rate ?? act.contracted_price ?? 0);
+            return {
+                tour_id: tourId,
+                tour_itinerary_id: itin.id,
+                driver_id: driverId,
+                contracted_per_day_rate: rate,
+                charged_per_day_rate: Number(act.charged_per_day_rate ?? rate),
+                updated_at: new Date().toISOString()
+            };
+        });
+
+        await adminSupabase
+            .from('tour_itinerary_drivers')
+            .upsert(payloads, { onConflict: 'tour_itinerary_id,driver_id' });
     }
 }

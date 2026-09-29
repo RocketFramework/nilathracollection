@@ -242,17 +242,19 @@ export class InvoiceCalculationService {
       agencyFeeTotal += dayAgencyFee;
     }
 
-    // --- CATEGORY 1: ACCOMMODATION & MEALS ---
+    // --- CATEGORY 1: ACCOMMODATION ---
     const mealBlocks = itinerary.filter(b => b.type === 'meal');
-    const combinedAccommodationMealTotal = hotelTotal + mealsTotal;
+    const combinedAccommodationMealTotal = hotelTotal;
     const combinedAccommodationMealActivityIds = [
       ...sleepBlocks.map(b => b.id),
       ...mealBlocks.map(b => b.id)
     ].filter(Boolean) as string[];
 
-    if (combinedAccommodationMealTotal > 0 || sleepBlocks.length > 0) {
-      const description = nights > 0 
-        ? `Luxury Accommodation throughout (${nights} Night${nights > 1 ? 's' : ''})`
+    const effectiveNights = accommodations.length > 0 ? accommodations.length : (nights > 0 ? nights : Math.max(0, durationDays - 1));
+
+    if (combinedAccommodationMealTotal > 0 || sleepBlocks.length > 0 || accommodations.length > 0) {
+      const description = effectiveNights > 0 
+        ? `Luxury Accommodation throughout (${effectiveNights} Night${effectiveNights > 1 ? 's' : ''})`
         : "Luxury Accommodation throughout";
       invoiceItems.push({
         description,

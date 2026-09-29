@@ -18,7 +18,7 @@ export class CustomerInvoiceService {
     /**
      * Preview consolidated experience category invoice items for a tour
      */
-    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO>): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
+    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO> = {}): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
         const supabaseAdmin = createAdminClient();
 
         // 1. Fetch tour details
@@ -109,7 +109,7 @@ export class CustomerInvoiceService {
                 .eq('tour_id', tourId),
             supabaseAdmin
                 .from('tour_itinerary_concierges')
-                .select('*')
+                .select('*, cost_item:seamless_concierge_cost_items(*)')
                 .eq('tour_id', tourId)
         ]);
 
@@ -161,6 +161,7 @@ export class CustomerInvoiceService {
             flightsQuotedPrice: options.flightsQuotedPrice,
             customServiceFee: options.customServiceFee !== undefined ? Number(options.customServiceFee) : undefined,
             dayCostOverrides: tour?.planner_data?.dayCostOverrides || {},
+            accommodations: tour?.planner_data?.accommodations || [],
             dailyDriverAssignments,
             dailyVehicleAssignments,
             dbActivities: activities || [],
