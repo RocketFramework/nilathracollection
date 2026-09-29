@@ -132,14 +132,21 @@ export class CustomerInvoiceService {
         });
 
         // 7. Map daily activities to InvoiceCalculationService format
-        const simplifiedItinerary = (activities || []).map(act => ({
-            id: act.id,
-            type: act.activity_type || '',
-            agreedPrice: Number(act.charged_total_price) || 0,
-            hotelId: act.hotel_id || undefined,
-            quantity: act.quantity || 1,
-            dayNumber: act.tour_itineraries?.day_number || 1
-        }));
+        const simplifiedItinerary = (activities || []).map(act => {
+            const qty = act.quantity || 1;
+            const unitPrice = (act.charged_unit_price !== undefined && act.charged_unit_price !== null)
+                ? Number(act.charged_unit_price)
+                : (act.charged_total_price ? Number(act.charged_total_price) / qty : Number(act.agreedPrice || 0));
+
+            return {
+                id: act.id,
+                type: act.activity_type || '',
+                agreedPrice: unitPrice,
+                hotelId: act.hotel_id || undefined,
+                quantity: qty,
+                dayNumber: act.tour_itineraries?.day_number || 1
+            };
+        });
 
         // 8. Calculate unified invoice items
         const rawItems = InvoiceCalculationService.calculateInvoiceItems({
