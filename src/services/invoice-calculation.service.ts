@@ -242,25 +242,22 @@ export class InvoiceCalculationService {
       agencyFeeTotal += dayAgencyFee;
     }
 
-    // --- CATEGORY 1: ACCOMMODATION ---
-    if (hotelTotal > 0 || sleepBlocks.length > 0) {
+    // --- CATEGORY 1: ACCOMMODATION & MEALS ---
+    const mealBlocks = itinerary.filter(b => b.type === 'meal');
+    const combinedAccommodationMealTotal = hotelTotal + mealsTotal;
+    const combinedAccommodationMealActivityIds = [
+      ...sleepBlocks.map(b => b.id),
+      ...mealBlocks.map(b => b.id)
+    ].filter(Boolean) as string[];
+
+    if (combinedAccommodationMealTotal > 0 || sleepBlocks.length > 0) {
       const description = nights > 0 
         ? `Luxury Accommodation throughout (${nights} Night${nights > 1 ? 's' : ''})`
         : "Luxury Accommodation throughout";
       invoiceItems.push({
         description,
-        amount: hotelTotal,
-        dailyActivityIds: sleepBlocks.map(b => b.id).filter(Boolean) as string[]
-      });
-    }
-
-    // --- CATEGORY 2: DINING & MEALS ---
-    const mealBlocks = itinerary.filter(b => b.type === 'meal');
-    if (mealsTotal > 0) {
-      invoiceItems.push({
-        description: "Bespoke Dining & Culinary Experiences",
-        amount: mealsTotal,
-        dailyActivityIds: mealBlocks.map(b => b.id).filter(Boolean) as string[]
+        amount: combinedAccommodationMealTotal,
+        dailyActivityIds: combinedAccommodationMealActivityIds
       });
     }
 
