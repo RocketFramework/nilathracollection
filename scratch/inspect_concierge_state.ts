@@ -1,4 +1,4 @@
-import { createAdminClient } from '../src/utils/supabase/admin.ts';
+import { createAdminClient } from '../src/utils/supabase/admin';
 
 async function main() {
     const tourId = 'c0569dc7-0eb6-4362-a071-668b643f3b54';
