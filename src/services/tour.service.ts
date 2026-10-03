@@ -584,12 +584,12 @@ export class TourService {
 
         blocks.forEach(b => {
             if (b.distance) {
-                const num = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                const num = parseFloat(b.distance.toString().replace(/[^\d.]/g, ''));
                 if (!isNaN(num) && num > 0) {
                     const dedupeKey = `${b.dayNumber}-${b.locationName}-${num}`;
                     if (!processedDistances.has(dedupeKey)) {
                         processedDistances.add(dedupeKey);
-                        totalKm += num;
+                        totalKm += Math.round(num);
                     }
                 }
             }
@@ -1245,7 +1245,7 @@ export class TourService {
                         if (b.type === 'travel') {
                             let distanceNum = 0;
                             if (b.distance) {
-                                const d = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                                const d = parseFloat(b.distance.toString().replace(/[^\d.]/g, ''));
                                 if (!isNaN(d)) distanceNum = d;
                             }
                             

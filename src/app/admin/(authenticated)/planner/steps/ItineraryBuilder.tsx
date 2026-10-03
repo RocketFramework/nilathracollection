@@ -532,7 +532,7 @@ export function ItineraryBuilder({
             if (b.type === 'travel') {
                 let distanceNum = 0;
                 if (b.distance) {
-                    const d = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                    const d = parseFloat(b.distance.toString().replace(/[^\d.]/g, ''));
                     if (!isNaN(d)) distanceNum = d;
                 }
 
@@ -653,7 +653,7 @@ export function ItineraryBuilder({
         const processedDistances = new Set<string>();
         const totalKm = blocks.reduce((sum, b) => {
             if (b.distance) {
-                const num = parseInt(b.distance.toString().replace(/[^0-9]/g, ''));
+                const num = parseFloat(b.distance.toString().replace(/[^\d.]/g, ''));
                 if (isNaN(num) || num === 0) return sum;
 
                 const dedupeKey = `${b.dayNumber}-${b.locationName}-${num}`;

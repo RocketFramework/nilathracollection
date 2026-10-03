@@ -94,7 +94,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
         destinations.add(block.locationName.trim());
       }
       if (block.distance) {
-        const distVal = parseInt(block.distance.replace(/[^0-9]/g, ''));
+        const distVal = parseFloat(block.distance.replace(/[^\d.]/g, ''));
         if (!isNaN(distVal)) {
           totalDistance += distVal;
         }

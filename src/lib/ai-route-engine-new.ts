@@ -172,7 +172,7 @@ ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.
             plan.forEach(day => {
                 day.events.forEach(e => {
                     if (e.type === 'travel' && e.distance) {
-                        const distVal = parseInt(e.distance.replace(/[^0-9]/g, ''));
+                        const distVal = parseFloat(e.distance.replace(/[^\d.]/g, ''));
                         if (!isNaN(distVal)) {
                             totalDistance += distVal;
                             totalTravelTime += (distVal / 35); // 35 km/h avg speed
