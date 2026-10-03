@@ -1269,7 +1269,12 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                   const ACTIVITY_ITEMS_PER_PAGE = 10;
                   const activityBlocks = itinerary
-                    .filter(b => b.type === ItineraryBlockTypes.ACTIVITY && Boolean(getActivityImage(b)))
+                    .filter(b => {
+                      if (b.type !== ItineraryBlockTypes.ACTIVITY && String(b.type).toUpperCase() !== 'ACTIVITY') return false;
+                      const hasImage = Boolean(getActivityImage(b));
+                      const isBound = Boolean(b.activityId) || Boolean(b.vendorActivityId) || Boolean(b.vendorId);
+                      return hasImage || isBound;
+                    })
                     .sort((a, b) => a.dayNumber - b.dayNumber);
 
                   const activityChunks: any[][] = [];
@@ -1296,7 +1301,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             Excursions & Ticket Inclusions
                           </span>
                           <p className="text-xs text-neutral-500 font-serif italic">
-                            Curated featured excursions, entrance passes, safari charters, and guided experiences for {clientName}.
+                            Curated featured excursions, temple visits, entrance passes, safari charters, and guided experiences for {clientName}.
                           </p>
                         </div>
 
@@ -1304,14 +1309,14 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                           <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-2.5 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
                             <span className="col-span-2">Day & Date</span>
                             <span className="col-span-3">Location</span>
-                            <span className="col-span-4">Experience / Excursion Name</span>
-                            <span className="col-span-3 text-right pr-2">Inclusion Status</span>
+                            <span className="col-span-6">Experience / Excursion Name</span>
+                            <span className="col-span-1 text-center">Included</span>
                           </div>
 
                           <div className="divide-y divide-neutral-100">
                             {chunk.length === 0 ? (
                               <div className="p-6 text-center text-xs text-neutral-400 font-serif italic">
-                                No specific featured excursions listed with images. Leisure & scenic travel days.
+                                No specific featured excursions or bound activities listed. Leisure & scenic travel days.
                               </div>
                             ) : (
                               chunk.map((block, idx) => {
@@ -1326,7 +1331,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 const actLoc = block.locationName || activityDetail?.location_name || 'Sri Lanka';
                                 const actCat = activityDetail?.category || block.category || 'Sightseeing';
                                 const dateFormatted = getShortFormattedDate(block.dayNumber);
-                                const actImg = getActivityImage(block);
 
                                 return (
                                   <div key={idx} className="px-5 py-3.5 hover:bg-neutral-50/50 transition-colors text-xs grid grid-cols-12 items-center text-left">
@@ -1342,26 +1346,19 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       </span>
                                     </div>
 
-                                    <div className="col-span-4 flex items-center gap-3 pr-3">
-                                      {actImg && (
-                                        <img
-                                          src={getAbsoluteUrl(actImg)}
-                                          alt={actName}
-                                          className="w-10 h-10 rounded-lg object-cover border border-[#E8DFD1] flex-shrink-0"
-                                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                        />
+                                    <div className="col-span-6 space-y-0.5 pr-4">
+                                      <span className="font-medium text-neutral-900 text-xs block font-serif">{actName}</span>
+                                      {block.description && (
+                                        <span className="text-[9.5px] text-neutral-500 font-serif italic block">{block.description}</span>
                                       )}
-                                      <div className="space-y-0.5 min-w-0">
-                                        <span className="font-medium text-neutral-900 text-xs block truncate">{actName}</span>
-                                        {block.description && (
-                                          <span className="text-[9.5px] text-neutral-500 line-clamp-1 font-serif italic block">{block.description}</span>
-                                        )}
-                                      </div>
                                     </div>
 
-                                    <div className="col-span-3 text-right pr-2">
-                                      <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded text-[10px] inline-block">
-                                        ✓ Included in Package
+                                    <div className="col-span-1 text-center">
+                                      <span
+                                        className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 font-bold text-xs shadow-xs mx-auto"
+                                        title="Included in Package"
+                                      >
+                                        ✓
                                       </span>
                                     </div>
                                   </div>
@@ -1475,41 +1472,34 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                     {invoiceItems.length > 0 && grandTotal > 0 ? (
                       <div className="space-y-4 bg-white p-6 rounded-xl border border-[#E8DFD1] text-left text-xs font-sans text-neutral-600 shadow-sm">
-                        <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-3 flex justify-between items-center">
-                          <span>Service Category Included</span>
-                          <span>Package Inclusions</span>
+                        <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-2.5 flex justify-between items-center">
+                          <span>Category Description</span>
+                          <span>Estimated Cost (USD)</span>
                         </div>
 
-                        <div className="space-y-3 pt-1">
-                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
-                            <span className="text-neutral-800 font-semibold text-sm">🏨 Luxury Accommodations & all En-Route Meals</span>
-                            <span className="text-neutral-600 text-xs">{durationDays > 1 ? durationDays - 1 : 1} Nights on Half-Board Basis</span>
-                          </div>
-                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
-                            <span className="text-neutral-800 font-semibold text-sm">🚗 Private Vehicle & Licensed Chauffeur</span>
-                            <span className="text-neutral-600 text-xs">Full {durationDays}-Day Private Transport & Fuel</span>
-                          </div>
-                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
-                            <span className="text-neutral-800 font-semibold text-sm">🎟️ Curated Experiences & Safaris</span>
-                            <span className="text-neutral-600 text-xs">All Scheduled Entrance Tickets & Jeeps</span>
-                          </div>
-                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
-                            <span className="text-neutral-800 font-semibold text-sm">🛎️ 24/7 Nilathra Concierge Support</span>
-                            <span className="text-neutral-600 text-xs">VIP Airport Meet-and-Greet & Host On-Call</span>
-                          </div>
-                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
-                            <span className="text-neutral-800 font-semibold text-sm">📜 All Government Taxes & Charges</span>
-                            <span className="text-neutral-600 text-xs">Included in Total (No Hidden Fees)</span>
-                          </div>
+                        <div className="space-y-2 pt-1">
+                          {invoiceItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center border-b border-neutral-100 pb-2 text-xs">
+                              <span className="text-neutral-700 font-medium">{item.description}</span>
+                              <span className="font-semibold text-neutral-900 font-mono text-sm">${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                            </div>
+                          ))}
                         </div>
+
+                        {invoiceItems.length > 1 && (
+                          <div className="flex justify-between items-center pt-2 px-1 text-xs font-semibold text-neutral-600 border-t border-neutral-100">
+                            <span className="uppercase tracking-wider text-[10px] text-neutral-500 font-sans">Subtotal (Direct Services)</span>
+                            <span className="font-mono text-sm text-neutral-800">${invoiceItems.filter(i => !i.description.includes('Tax &')).reduce((sum, i) => sum + i.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                          </div>
+                        )}
 
                         {/* Grand Total Highlight Banner */}
-                        <div className="border-t-2 border-[#D4AF37]/40 pt-5 mt-3 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-5 rounded-xl border border-[#E8DFD1]">
+                        <div className="border-t-2 border-[#D4AF37]/40 pt-4 mt-2 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-4 rounded-xl border border-[#E8DFD1]">
                           <div className="flex flex-col">
-                            <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Total Package Investment</span>
-                            <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest mt-0.5">All taxes & luxury services included</span>
+                            <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Estimated Grand Total</span>
+                            <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest">Inclusive of taxes & concierge coordination</span>
                           </div>
-                          <span className="text-3xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                          <span className="text-2xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
                         </div>
 
                         {/* Per Person & Per Day Metrics */}

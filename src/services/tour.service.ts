@@ -979,7 +979,7 @@ export class TourService {
                     title: b.name,
                     activity_type: b.type || null,
                     location_name: b.locationName || null,
-                    distance: (b.distance !== undefined && b.distance !== null && b.distance !== '') ? String(b.distance) : null,
+                    distance: (b.distance !== undefined && b.distance !== null && b.distance !== '') ? (Math.round(parseFloat(String(b.distance).replace(/[^\d.]/g, ''))) || null) : null,
                     description: b.comments && b.comments.length > 0 ? JSON.stringify(b.comments) : (b.internalNotes || ''),
                     time_start: b.startTime || null,
                     time_end: b.endTime || null,
@@ -1326,9 +1326,31 @@ export class TourService {
         }
 
         if (allActivitiesToUpsert.length > 0) {
+            const integerFields = [
+                'quantity',
+                'single_room_count',
+                'double_room_count',
+                'twin_room_count',
+                'triple_room_count',
+                'family_room_count',
+                'adults',
+                'children',
+                'infants'
+            ];
+            const sanitizedUpsert = allActivitiesToUpsert.map(act => {
+                const copy = { ...act };
+                for (const field of integerFields) {
+                    if (copy[field] !== undefined && copy[field] !== null) {
+                        const num = Number(copy[field]);
+                        copy[field] = !isNaN(num) ? Math.round(num) : null;
+                    }
+                }
+                return copy;
+            });
+
             const { error: upsertErr } = await supabaseAdmin
                 .from('daily_activities')
-                .upsert(allActivitiesToUpsert);
+                .upsert(sanitizedUpsert);
 
             if (upsertErr) {
                 console.error("Failed to upsert daily activities:", upsertErr);
@@ -2553,7 +2575,7 @@ export class TourService {
             title: customItem.title,
             activity_type: customItem.activityType || 'activity',
             location_name: customItem.locationName || null,
-            distance: customItem.distance ? String(customItem.distance) : null,
+            distance: (customItem.distance !== undefined && customItem.distance !== null && customItem.distance !== '') ? (Math.round(parseFloat(String(customItem.distance).replace(/[^\d.]/g, ''))) || null) : null,
             description: customItem.description || '',
             time_start: customItem.timeStart || null,
             time_end: customItem.timeEnd || null,
