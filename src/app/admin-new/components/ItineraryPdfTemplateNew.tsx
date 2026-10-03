@@ -1,10 +1,9 @@
 import React from 'react';
 import { InternalItineraryBlock } from '@/other/interfaces';
 import { TouristDataDTO } from '@/dtos/tourist-data.dto';
-import { TravelStyle, ItineraryBlockTypes, TierSettingDefinitions, TravelStylePolicyKeys, TRAVEL_STYLES, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings } from '@/types/types';
+import { TravelStyle, ItineraryBlockTypes, Settings } from '@/types/types';
 import { InvoiceCalculationService } from '@/services/invoice-calculation.service';
 import { WeatherService } from '@/services/weather.service';
-
 
 interface ItineraryPdfTemplateNewProps {
   itinerary: InternalItineraryBlock[];
@@ -83,7 +82,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       1
     );
 
-    // Calculate metrics
+    // Calculate overall journey metrics
     let totalDistance = 0;
     let activityCount = 0;
     const destinations = new Set<string>();
@@ -191,7 +190,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       } else {
         highlightText = `${highlightElements.slice(0, -1).join(', ')}, or ${highlightElements[highlightElements.length - 1]}`;
       }
-      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. Whether ${highlightText}, this draft serves as your travel blueprint.`;
+      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. Whether ${highlightText}, this proposal serves as your travel blueprint.`;
     } else if (highlightElements.length === 1) {
       let singlePhrase = "";
       if (hasSigiriya) {
@@ -205,11 +204,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       } else if (hasCoastline) {
         singlePhrase = "As you rest in boutique oceanfront pavilions";
       }
-      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. ${singlePhrase}, this draft serves as your travel blueprint.`;
+      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. ${singlePhrase}, this proposal serves as your travel blueprint.`;
     } else {
-      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. This draft serves as your travel blueprint to guide your journey.`;
+      highlightsSentence = `Every accommodation, experience, and pathway curated in this proposal has been structured to honor your personal pacing. This proposal serves as your travel blueprint to guide your journey.`;
     }
-
 
     const getShortFormattedDate = (dayNum: number) => {
       if (!arrivalDate) return `Day ${dayNum}`;
@@ -233,91 +231,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       } catch (e) {
         return '';
       }
-    };
-
-    const getResolvedBindingDisplay = (block: InternalItineraryBlock) => {
-      if (!masterData) return null;
-
-      if (block.type === ItineraryBlockTypes.SLEEP && block.hotelId) {
-        const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
-        let label = h?.name || block.hotelName || 'Linked Hotel';
-        if (block.roomName) {
-          label += ` — Room: ${block.roomName}`;
-        }
-        if (block.mealPlan) {
-          label += ` (${block.mealPlan})`;
-        }
-        return {
-          label,
-          type: ItineraryBlockTypes.SLEEP,
-        };
-      }
-      if (block.type === ItineraryBlockTypes.MEAL && block.restaurantId) {
-        const r = masterData.restaurants?.find((x: any) => x.id === block.restaurantId);
-        let label = r?.name || 'Linked Restaurant';
-        if (block.mealType) {
-          label += ` — ${block.mealType}`;
-        }
-        return {
-          label,
-          type: ItineraryBlockTypes.MEAL,
-        };
-      }
-      if (block.type === ItineraryBlockTypes.ACTIVITY) {
-        if (block.hotelId) {
-          const h = masterData.hotels?.find((x: any) => x.id === block.hotelId);
-          let label = `Hotel Provider: ${h?.name || block.hotelName || 'Linked Hotel'}`;
-          return {
-            label,
-            type: ItineraryBlockTypes.ACTIVITY,
-          };
-        }
-        if (block.vendorId || block.vendorActivityId || block.activityId) {
-          const v = masterData.vendors?.find((x: any) => x.id === block.vendorId);
-          const resolvedActId = block.activityId;
-          const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
-            v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId));
-
-          const activityLabel = va?.activity_name || block.name || 'Activity';
-          let label = v ? `${v.name} — ${activityLabel}` : (block.name || 'Activity');
-          return {
-            label,
-            type: ItineraryBlockTypes.ACTIVITY,
-          };
-        }
-      }
-      if (block.type === ItineraryBlockTypes.TRAVEL && (block.driverId || block.transportId || block.vehicleId)) {
-        const d = masterData.drivers?.find((x: any) => x.id === block.driverId);
-        const p = masterData.transportProviders?.find((x: any) => x.id === block.transportId);
-        const v = p?.transport_vehicles?.find((x: any) => x.id === block.vehicleId);
-
-        let label = p?.name || 'Transport';
-        if (v) {
-          label = `${p?.name || ''} — ${[v.make, v.model].filter(Boolean).join(' ') || v.make_and_model || v.vehicle_type}`;
-          if (block.transportQuantity) {
-            label += ` [${block.transportQuantity} ${block.transportRateType === 'km' ? 'KM' : 'Day(s)'}]`;
-          }
-          if (v.with_driver) {
-            label += ' [Incl. Driver]';
-          } else if (d) {
-            label += ` [Driver: ${d.first_name}]`;
-          }
-        } else if (d) {
-          label = `Driver: ${d.first_name} ${d.last_name}`;
-        }
-        return {
-          label,
-          type: ItineraryBlockTypes.TRAVEL,
-        };
-      }
-      if (block.type === ItineraryBlockTypes.GUIDE && block.guideId) {
-        const g = masterData.guides?.find((x: any) => x.id === block.guideId);
-        return {
-          label: g ? `Guide: ${g.first_name} ${g.last_name}` : 'Linked Guide',
-          type: ItineraryBlockTypes.GUIDE,
-        };
-      }
-      return null;
     };
 
     // Calculate overall itinerary costs summary using InvoiceCalculationService
@@ -359,21 +272,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       accommodations: accommodations || []
     });
 
-    console.log("PDF calculation debug:", {
-      travelStyle,
-      chauffeurNeeded,
-      guideNeeded,
-      pax: totalPax,
-      durationDays,
-      appSettingsExists: !!appSettings,
-      appSettingsKeys: appSettings ? Object.keys(appSettings) : [],
-      simplifiedItineraryLength: simplifiedItinerary.length,
-      invoiceItems
-    });
-
     const grandTotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
 
-    // Calculate total price of hotel blocks in the skeleton itinerary, considering overrides
     const hotelPriceTotal = Array.from(new Set(itinerary.map(b => b.dayNumber))).reduce((sum, dayNum) => {
       const override = dayCostOverrides?.[dayNum]?.hotel;
       if (override !== undefined) return sum + override;
@@ -393,7 +293,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
       }, 0);
     }, 0);
 
-    // Select activity cover images (prioritize itinerary images if available, else pool)
+    // Select activity cover images for cover grid
     const coverImagesPool = [
       '/images/activities/nine_arch_bridge_visit.webp',
       '/images/activities/whale_watching_mirissa.webp',
@@ -580,7 +480,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
           {/* Central Title Block */}
           <div className="z-10 text-center flex flex-col items-center my-auto space-y-8 max-w-lg">
             <span className="text-[#D4AF37] text-[10px] tracking-[0.4em] uppercase font-semibold">
-              Curated Private Journey
+              Curated Private Journey Proposal
             </span>
             <h2 className="text-5xl font-serif text-white font-extralight italic leading-tight tracking-wide">
               {clientName}
@@ -666,85 +566,165 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   </div>
                 </div>
 
-                {/* 3. TRIP BLUEPRINT / METRICS OVERVIEW */}
+                {/* 3. TRIP BLUEPRINT & WHAT YOUR TRIP INCLUDES OVERVIEW */}
                 <div className="print-page-break w-full px-8 py-6 box-border">
-                  <div className="text-center mb-8">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">The Blueprint</span>
-                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Journey Details</h3>
+                  <div className="text-center mb-6">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">The Blueprint</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Journey Details & Inclusions</h3>
                   </div>
 
-                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-8">
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-8">
+                  <div className="space-y-6">
+                    {/* Journey Details Summary Grid */}
+                    <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-6">
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
 
-                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Party Details</span>
-                        <span className="font-serif text-lg text-neutral-800 font-medium">
-                          {adults} Adults {children > 0 ? `• ${children} Children` : ''} {infants > 0 ? `• ${infants} Infants` : ''} ({totalPax} Pax)
-                        </span>
+                        <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Party Details</span>
+                          <span className="font-serif text-base text-neutral-800 font-medium">
+                            {adults} Adults {children > 0 ? `• ${children} Children` : ''} {infants > 0 ? `• ${infants} Infants` : ''} ({totalPax} Pax)
+                          </span>
+                        </div>
+
+                        <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Duration</span>
+                          <span className="font-serif text-base text-neutral-800 font-medium">
+                            {durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights
+                          </span>
+                        </div>
+
+                        <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Style & Character</span>
+                          <span className="font-serif text-base text-neutral-800 font-medium">
+                            {travelStyle} Travel Tier
+                          </span>
+                        </div>
+
+                        <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Travel Window</span>
+                          <span className="font-serif text-base text-neutral-800 font-medium">
+                            {arrivalDate ? `${new Date(arrivalDate).toLocaleDateString()} to ${new Date(departureDate).toLocaleDateString()}` : 'Dates to be confirmed'}
+                          </span>
+                        </div>
+
+                        <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Chauffeur & Guide Service</span>
+                          <span className="font-serif text-base text-neutral-700 font-medium">
+                            {chauffeurNeeded ? '✓ Private Vehicle & Licensed Chauffeur ' : ''}
+                            {guideNeeded ? '• ✓ National Tour Guide ' : ''}
+                            {!guideNeeded && !chauffeurNeeded ? 'Standard Package' : ''}
+                          </span>
+                        </div>
+
+                        <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Accommodations Requested</span>
+                          <span className="font-serif text-base text-neutral-700 font-medium">
+                            {[
+                              singleRoomsCount > 0 ? `${singleRoomsCount} Single` : null,
+                              doubleRoomsCount > 0 ? `${doubleRoomsCount} Double` : null,
+                              tripleRoomsCount > 0 ? `${tripleRoomsCount} Triple` : null,
+                              familyRoomsCount > 0 ? `${familyRoomsCount} Family` : null,
+                            ].filter(Boolean).join(', ') || 'Bespoke Selection'}
+                          </span>
+                        </div>
+
                       </div>
 
-                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Duration</span>
-                        <span className="font-serif text-lg text-neutral-800 font-medium">
-                          {durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights
-                        </span>
-                      </div>
+                      <div className="h-[0.5px] bg-[#E8DFD1] w-full"></div>
 
-                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Style & Character</span>
-                        <span className="font-serif text-lg text-neutral-800 font-medium">
-                          {travelStyle} Travel Style
-                        </span>
+                      {/* Quick Stats Grid */}
+                      <div className="grid grid-cols-3 gap-6 text-center">
+                        <div>
+                          <span className="font-serif text-3xl text-neutral-800 block font-light">{destinations.size}</span>
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Destinations Visited</span>
+                        </div>
+                        <div>
+                          <span className="font-serif text-3xl text-neutral-800 block font-light">{activityCount}</span>
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Curated Activities</span>
+                        </div>
+                        <div>
+                          <span className="font-serif text-3xl text-neutral-800 block font-light">{totalDistance > 0 ? `${Math.round(totalDistance)} km` : 'TBD'}</span>
+                          <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Estimated Road Travel</span>
+                        </div>
                       </div>
-
-                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Proposed Window</span>
-                        <span className="font-serif text-lg text-neutral-800 font-medium">
-                          {arrivalDate ? `${new Date(arrivalDate).toLocaleDateString()} to ${new Date(departureDate).toLocaleDateString()}` : 'Dates to be determined'}
-                        </span>
-                      </div>
-
-                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Services Included</span>
-                        <span className="font-serif text-base text-neutral-700 font-medium">
-                          {guideNeeded ? '✓ National Tour Guide ' : ''}
-                          {chauffeurNeeded ? '✓ Chauffeur Driven Vehicle ' : ''}
-                          {!guideNeeded && !chauffeurNeeded ? 'Standard Package' : ''}
-                        </span>
-                      </div>
-
-                      <div className="border-l-[1.5px] border-[#D4AF37] pl-4">
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400 block mb-1">Required Accommodations</span>
-                        <span className="font-serif text-base text-neutral-700 font-medium">
-                          {[
-                            singleRoomsCount > 0 ? `${singleRoomsCount} Single` : null,
-                            doubleRoomsCount > 0 ? `${doubleRoomsCount} Double` : null,
-                            tripleRoomsCount > 0 ? `${tripleRoomsCount} Triple` : null,
-                            familyRoomsCount > 0 ? `${familyRoomsCount} Family` : null,
-                          ].filter(Boolean).join(', ') || 'Not Specified'}
-                        </span>
-                      </div>
-
                     </div>
 
-                    <div className="h-[0.5px] bg-[#E8DFD1] w-full"></div>
+                    {/* What Your Package Includes & Excludes */}
+                    <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
+                      <div className="text-center">
+                        <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                          Transparency & Value Promise
+                        </span>
+                        <h4 className="text-xl font-serif text-[#111827] italic">What Your Package Includes</h4>
+                      </div>
 
-                    {/* Quick Stats Grid */}
-                    <div className="grid grid-cols-3 gap-6 text-center">
-                      <div>
-                        <span className="font-serif text-3xl text-neutral-800 block font-light">{destinations.size}</span>
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Cities Visited</span>
-                      </div>
-                      <div>
-                        <span className="font-serif text-3xl text-neutral-800 block font-light">{activityCount}</span>
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Curated Activities</span>
-                      </div>
-                      <div>
-                        <span className="font-serif text-3xl text-neutral-800 block font-light">{totalDistance > 0 ? `${totalDistance} km` : 'TBD'}</span>
-                        <span className="text-[8px] font-sans uppercase tracking-[0.2em] text-neutral-400">Total Road Travel</span>
+                      <div className="grid grid-cols-2 gap-4 text-xs font-sans text-neutral-700 pt-2">
+                        {/* Included Column */}
+                        <div className="bg-white p-5 rounded-xl border border-[#E8DFD1] space-y-3">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#0A251D] block border-b border-neutral-100 pb-2">
+                            ✓ All-Inclusive Amenities Covered
+                          </span>
+                          <ul className="space-y-2.5 text-[11px] leading-relaxed text-neutral-600">
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>Bespoke Accommodations:</strong> All luxury stay sanctuaries on Half-Board (Breakfast & Dinner) basis.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>Private Luxury Vehicle:</strong> Dedicated air-conditioned executive transport with unlimited tour mileage.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>Licensed Chauffeur:</strong> Tourist Board certified English-speaking chauffeur (all meals, lodging & allowances included).</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>Transit Logistics & Tolls:</strong> Express highway toll fees, fuel costs, and airport parking fees.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>Sightseeing & Activities:</strong> Scheduled entrance tickets, safari jeeps, and guided experiences.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>24/7 Nilathra Concierge:</strong> Airport assistance, bottled water, transfer refreshments & local concierge hotline.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-[#D4AF37] font-bold">✓</span>
+                              <span><strong>Taxes & Charges:</strong> All Sri Lankan government taxes, service charges & levies.</span>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* Excluded Column */}
+                        <div className="bg-white p-5 rounded-xl border border-[#E8DFD1] space-y-3">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#8C6D3F] block border-b border-neutral-100 pb-2">
+                            ✕ Exclusions & Personal Expense
+                          </span>
+                          <ul className="space-y-2.5 text-[11px] leading-relaxed text-neutral-600">
+                            <li className="flex items-start gap-2">
+                              <span className="text-neutral-400">✕</span>
+                              <span><strong>International Flights:</strong> International air tickets to/from Sri Lanka (quoted separately upon request).</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neutral-400">✕</span>
+                              <span><strong>Visa Entry Fees:</strong> Sri Lanka Electronic Travel Authorization (ETA) visa fees.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neutral-400">✕</span>
+                              <span><strong>Unspecified Lunches & Beverages:</strong> Lunches on leisure days and alcoholic beverages unless specified.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neutral-400">✕</span>
+                              <span><strong>Optional Gratuities:</strong> Tipping for chauffeur, national guide, hotel staff, and safari drivers.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neutral-400">✕</span>
+                              <span><strong>Personal Expenses:</strong> Souvenirs, laundry, phone calls, and travel insurance.</span>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
                     </div>
-
                   </div>
                 </div>
 
@@ -753,7 +733,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   const weatherReport = WeatherService.generateWeatherReport(arrivalDate, departureDate, itinerary, masterData);
 
                   if (!weatherReport.items || weatherReport.items.length === 0) return null;
-
 
                   const renderStarRating = (rating: number) => {
                     if (rating <= 0) return <span className="text-neutral-300 font-mono text-xs">—</span>;
@@ -787,7 +766,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                             <span className="col-span-2">Swimming</span>
                             <span className="col-span-2">Snorkelling / Outdoor</span>
                             <span className="col-span-2">{weatherReport.monthName} Weather</span>
-                            <span className="col-span-2 text-right pr-2">Overall for Your Trip</span>
+                            <span className="col-span-3 text-right pr-2">Overall for Your Trip</span>
                           </div>
 
                           <div className="divide-y divide-neutral-100">
@@ -831,7 +810,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                 {/* 3.3 SRI LANKA ROUTE MAP & DESTINATION SEQUENCE */}
                 {(() => {
-                  // Coordinate lookup dictionary for Sri Lanka cities
                   const SRI_LANKA_CITY_COORDS: Record<string, { lat: number; lng: number }> = {
                     'colombo': { lat: 6.9271, lng: 79.8612 },
                     'negombo': { lat: 7.1895, lng: 79.8897 },
@@ -912,7 +890,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     return { x: Math.round(x), y: Math.round(y) };
                   };
 
-                  // 1. Build day-by-day mapping for all durationDays
                   const dailyBreakdown: Array<{
                     dayNum: number;
                     shortDate: string;
@@ -951,7 +928,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     });
                   }
 
-                  // 2. Group days by unique location hub coordinate
                   const cityStopsMap = new Map<string, {
                     name: string;
                     startDay: number;
@@ -998,7 +974,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   const locationStops = Array.from(cityStopsMap.values()).sort((a, b) => a.startDay - b.startDay);
                   if (locationStops.length === 0) return null;
 
-                  // Track used Y positions for collision avoidance
                   const usedLeftY: number[] = [];
                   const usedRightY: number[] = [];
 
@@ -1010,7 +985,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       </div>
 
                       <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-6">
-                        {/* Map Container */}
                         <div className="w-full bg-white rounded-xl border border-[#E8DFD1] p-6 flex flex-col items-center justify-center relative shadow-sm min-h-[640px]">
                           <span className="text-[10px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-4 text-center">
                             Sri Lanka Private Tour Route • {locationStops.length} Destination Hubs ({durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights)
@@ -1026,10 +1000,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 <stop offset="0%" stopColor="#F5F2EA" />
                                 <stop offset="100%" stopColor="#EBE5D8" />
                               </linearGradient>
-                              <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="2" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                              </filter>
                             </defs>
 
                             {/* Stylized Vector Path of Sri Lanka Silhouette */}
@@ -1041,16 +1011,12 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                               strokeLinejoin="round"
                             />
 
-                            {/* Coastal Grid Reference Lines */}
                             <circle cx="190" cy="250" r="190" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.2" />
                             <circle cx="190" cy="250" r="130" stroke="#D4AF37" strokeWidth="0.5" strokeDasharray="2,4" fill="none" opacity="0.15" />
 
-                            {/* Location Callout Boxes & Pins */}
                             {locationStops.map((stop, sIdx) => {
                               const isWest = stop.mapXY.x < 180;
-                              const side = isWest ? 'left' : 'right';
 
-                              // Callout box dimensions & positioning
                               const dayPillWidth = 48;
                               const boxWidth = Math.max(115, stop.days.length * dayPillWidth + 12);
                               const boxHeight = stop.hotelName ? 42 : 28;
@@ -1058,7 +1024,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                               let calloutX = isWest ? Math.max(8, stop.mapXY.x - boxWidth - 25) : Math.min(372 - boxWidth, stop.mapXY.x + 25);
                               let calloutY = stop.mapXY.y;
 
-                              // Vertical collision avoidance
                               const yList = isWest ? usedLeftY : usedRightY;
                               while (yList.some(y => Math.abs(y - calloutY) < 44)) {
                                 calloutY += 46;
@@ -1070,7 +1035,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                               return (
                                 <g key={sIdx}>
-                                  {/* Dotted Leader Line from Callout Box to Location Pin */}
                                   <line
                                     x1={leaderStartX}
                                     y1={leaderStartY}
@@ -1082,11 +1046,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     opacity="0.9"
                                   />
 
-                                  {/* Map Location Pin Marker */}
                                   <circle cx={stop.mapXY.x} cy={stop.mapXY.y} r="6" fill="#0A251D" stroke="#D4AF37" strokeWidth="1.5" />
                                   <circle cx={stop.mapXY.x} cy={stop.mapXY.y} r="2.5" fill="#D4AF37" />
 
-                                  {/* Callout Box Background */}
                                   <rect
                                     x={calloutX}
                                     y={calloutY - 16}
@@ -1100,7 +1062,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.08))" }}
                                   />
 
-                                  {/* City Hub Name Header */}
                                   <text
                                     x={calloutX + 6}
                                     y={calloutY - 5}
@@ -1112,7 +1073,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     {stop.name}
                                   </text>
 
-                                  {/* Line of Day Pills placed side-by-side */}
                                   {stop.days.map((dayObj, dIdx) => (
                                     <g key={dIdx} transform={`translate(${calloutX + 6 + dIdx * dayPillWidth}, ${calloutY + 1})`}>
                                       <rect x="0" y="0" width="44" height="12" rx="3" fill="#0A251D" stroke="#D4AF37" strokeWidth="0.5" />
@@ -1122,7 +1082,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     </g>
                                   ))}
 
-                                  {/* Hotel Name (if available) with ample top spacing */}
                                   {stop.hotelName && (
                                     <text
                                       x={calloutX + 6}
@@ -1144,169 +1103,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   );
                 })()}
 
-                {/* 3.4 CONCIERGES & DESTINATION SUPPORT PAGES */}
-                {(() => {
-                  const CONCIERGE_ITEMS_PER_PAGE = 9;
-                  const hasConcierges = enrichedTourConcierges && enrichedTourConcierges.length > 0;
-                  const conciergeChunks: any[][] = [];
-
-                  if (hasConcierges) {
-                    for (let i = 0; i < enrichedTourConcierges.length; i += CONCIERGE_ITEMS_PER_PAGE) {
-                      conciergeChunks.push(enrichedTourConcierges.slice(i, i + CONCIERGE_ITEMS_PER_PAGE));
-                    }
-                  } else {
-                    conciergeChunks.push([]);
-                  }
-
-                  return conciergeChunks.map((chunk, chunkIdx) => (
-                    <div key={`concierge-chunk-page-${chunkIdx}`} className="print-page-break w-full px-8 py-6 box-border">
-                      <div className="text-center mb-6">
-                        <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Exclusive Services</span>
-                        <h3 className="text-2xl font-serif text-[#111827] font-light italic">
-                          Concierges & Destination Support {conciergeChunks.length > 1 ? `(Page ${chunkIdx + 1} of ${conciergeChunks.length})` : ''}
-                        </h3>
-                      </div>
-
-                      {chunk.length > 0 ? (
-                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
-                          <div className="text-center max-w-lg mx-auto mb-1">
-                            <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-0.5">
-                              Tailored Concierge Services
-                            </span>
-                            <p className="text-xs text-neutral-500 font-serif italic">
-                              Bespoke concierge services and VIP support protocols integrated into your Ceylon journey for {clientName}.
-                            </p>
-                          </div>
-
-                          <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
-                            <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-2.5 flex justify-between items-center text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold">
-                              <span>Service & Category</span>
-                              <div className="flex items-center gap-12 pr-2">
-                                <span>Service Basis</span>
-                                <span>Quantity</span>
-                              </div>
-                            </div>
-
-                            <div className="divide-y divide-neutral-100">
-                              {chunk.map((item: any, idx: number) => {
-                                const title = item.cost_item?.title || item.title || 'Bespoke Concierge Service';
-                                const details = item.cost_item?.details || item.details || '';
-                                const category = item.cost_item?.category || item.category || 'Support';
-                                const rawBasis = (item.costing_basis || item.cost_item?.costing_basis || 'per_service').toLowerCase();
-                                const costingBasis = rawBasis.includes('day') ? 'Per Day' : (rawBasis.includes('person') ? 'Per Guest' : 'Per Service');
-                                const qty = item.quantity || 1;
-
-                                return (
-                                  <div key={idx} className="px-5 py-2.5 flex justify-between items-start text-left hover:bg-neutral-50/50 transition-colors">
-                                    <div className="space-y-0.5 max-w-md">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-serif font-bold text-sm text-[#111827]">{title}</span>
-                                        <span className="text-[7.5px] font-sans uppercase tracking-[0.2em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
-                                          {category}
-                                        </span>
-                                      </div>
-                                      {details && (
-                                        <p className="text-[11px] text-neutral-500 font-sans leading-normal">
-                                          {details}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-12 text-xs font-sans text-right pt-0.5">
-                                      <span className="text-neutral-500 font-medium text-[11px] min-w-[70px]">{costingBasis}</span>
-                                      <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-0.5 rounded text-xs min-w-[50px] text-center">
-                                        {qty} {qty > 1 ? 'Pax' : 'Unit'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 text-center space-y-3">
-                          <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                            Complimentary Destination Support Included
-                          </span>
-                          <p className="text-xs text-neutral-600 font-serif italic max-w-md mx-auto">
-                            24/7 dedicated local concierge manager on standby, airport coordination, luxury transfer logistics, and real-time itinerary support throughout your Ceylon travel experience.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ));
-                })()}
-
-                {/* 3.5 FINANCIAL BLUEPRINT / ESTIMATED PACKAGE COST OVERVIEW PAGE */}
-                <div className="print-page-break w-full px-8 py-6 box-border">
-                  <div className="text-center mb-8">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Commercial Overview</span>
-                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Estimated Package Cost Overview</h3>
-                  </div>
-
-                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
-                    <div className="text-center max-w-md mx-auto mb-4">
-                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                        Investment Summary
-                      </span>
-                      <p className="text-xs text-neutral-500 font-serif italic">
-                        Bespoke package cost estimation structured for {clientName} ({totalPax} Guest{totalPax > 1 ? 's' : ''} &bull; {durationDays} Days)
-                      </p>
-                    </div>
-
-                    {invoiceItems.length > 0 && grandTotal > 0 ? (
-                      <div className="space-y-3 bg-white p-6 rounded-xl border border-[#E8DFD1] text-left text-xs font-sans text-neutral-600 shadow-sm">
-                        <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-2.5 flex justify-between items-center">
-                          <span>Category Description</span>
-                          <span>Estimated Cost (USD)</span>
-                        </div>
-
-                        <div className="space-y-2 pt-1">
-                          {invoiceItems.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center border-b border-neutral-100 pb-2 text-xs">
-                              <span className="text-neutral-700 font-medium">{item.description}</span>
-                              <span className="font-semibold text-neutral-900 font-mono text-sm">${item.amount.toFixed(2)} USD</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {invoiceItems.length > 1 && (
-                          <div className="flex justify-between items-center pt-2 px-1 text-xs font-semibold text-neutral-600">
-                            <span className="uppercase tracking-wider text-[10px] text-neutral-500 font-sans">Subtotal (Direct Services)</span>
-                            <span className="font-mono text-sm text-neutral-800">${invoiceItems.filter(i => !i.description.includes('Tax &')).reduce((sum, i) => sum + i.amount, 0).toFixed(2)} USD</span>
-                          </div>
-                        )}
-
-                        <div className="border-t-2 border-[#D4AF37]/40 pt-4 mt-2 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-4 rounded-xl border border-[#E8DFD1]">
-                          <div className="flex flex-col">
-                            <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Estimated Grand Total</span>
-                            <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest">Inclusive of taxes & concierge coordination</span>
-                          </div>
-                          <span className="text-2xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toFixed(2)} USD</span>
-                        </div>
-
-                        <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium pt-2 border-t border-neutral-100">
-                          <span>Per Head Cost (Trip Total — {totalPax} Pax):</span>
-                          <span className="font-semibold text-neutral-700 font-mono">${(grandTotal / (totalPax || 1)).toFixed(2)} USD</span>
-                        </div>
-                        <div className="flex justify-between text-[10.5px] text-neutral-500 font-medium">
-                          <span>Per Head Cost (Per Day):</span>
-                          <span className="font-semibold text-neutral-700 font-mono">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toFixed(2)} USD</span>
-                        </div>
-                      </div>
-                    ) : (
-                      hotelPriceTotal > 0 && (
-                        <div className="bg-white p-6 rounded-xl border border-[#E8DFD1] flex justify-between items-center text-sm font-serif font-bold text-neutral-800">
-                          <span className="uppercase tracking-widest text-[10px] text-[#D4AF37]">Estimated Hotel Cost Summary</span>
-                          <span className="text-lg text-neutral-900 font-sans font-bold">${hotelPriceTotal.toFixed(2)} USD</span>
-                        </div>
-                      )
-                    )}
-
-                  </div>
-                </div>
-
-                {/* 3.6 ACCOMMODATION SUMMARY PAGES */}
+                {/* 3.4 ACCOMMODATIONS PORTFOLIO */}
                 {(() => {
                   const SLEEP_ITEMS_PER_PAGE = 9;
                   const sleepBlocks = itinerary.filter(b => b.type === ItineraryBlockTypes.SLEEP).sort((a, b) => a.dayNumber - b.dayNumber);
@@ -1325,7 +1122,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       <div className="text-center mb-6">
                         <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Accommodations</span>
                         <h3 className="text-2xl font-serif text-[#111827] font-light italic">
-                          Sanctuaries & Stay Schedule {sleepChunks.length > 1 ? `(Page ${chunkIdx + 1} of ${sleepChunks.length})` : ''}
+                          Stay Sanctuaries & Accommodations {sleepChunks.length > 1 ? `(Page ${chunkIdx + 1} of ${sleepChunks.length})` : ''}
                         </h3>
                       </div>
 
@@ -1343,7 +1140,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                           <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-2.5 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
                             <span className="col-span-3">Night & Date</span>
                             <span className="col-span-4">Hotel Sanctuary</span>
-                            <span className="col-span-2">Star Rating</span>
+                            <span className="col-span-2">Star Tier</span>
                             <span className="col-span-3 text-right pr-2">Meal Plan</span>
                           </div>
 
@@ -1362,9 +1159,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                   )
                                   : null;
 
-                                const hName = block.hotelName || block.name || hotelDetail?.name || 'Pending Assignment';
+                                const hName = block.hotelName || block.name || hotelDetail?.name || 'Bespoke Selection';
                                 const starClass = hotelDetail?.hotel_class || hotelDetail?.star_rating || (travelStyle === 'Ultra VIP' ? '5 Star Super Luxury' : '5 Star Luxury');
-                                const mealPlan = block.mealPlan || 'HB';
+                                const mealPlan = block.mealPlan || 'HB (Half Board)';
                                 const dateFormatted = getShortFormattedDate(block.dayNumber);
 
                                 return (
@@ -1390,24 +1187,23 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                       <div className="col-span-3 text-right pr-2">
                                         <span className="font-mono font-bold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded text-xs inline-block">
-                                          {mealPlan} Basis
+                                          {mealPlan}
                                         </span>
                                       </div>
                                     </div>
 
-                                    {/* Room Options Breakdown Table (Room Category / Type | Meal Plan | Quantity / Rooms | Rate (USD)) */}
+                                    {/* Room Options Breakdown */}
                                     {(() => {
                                       const acc = accommodations?.find((a: any) => Number(a.nightIndex) === Number(block.dayNumber));
                                       const selectedRooms = acc?.selectedRooms || (block as any).selectedRooms || [];
 
-                                      let roomRows: Array<{ category: string; mealPlan: string; qty: number; rate?: number }> = [];
+                                      let roomRows: Array<{ category: string; mealPlan: string; qty: number }> = [];
 
                                       if (selectedRooms.length > 0) {
                                         roomRows = selectedRooms.map((sr: any) => ({
                                           category: [sr.reqId, sr.roomName].filter(Boolean).join(' - ') || 'Standard Room',
                                           mealPlan: sr.mealPlan || acc?.mealPlan || block.mealPlan || mealPlan || 'HB',
                                           qty: sr.quantity || 1,
-                                          rate: sr.pricePerNight || sr.contractedPrice
                                         }));
                                       } else {
                                         if (singleRoomsCount > 0) roomRows.push({ category: 'Single Room', mealPlan: mealPlan, qty: singleRoomsCount });
@@ -1426,7 +1222,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                           <div className="grid grid-cols-12 gap-2 uppercase tracking-wider font-bold text-[#8C6D3F] text-[8px] border-b border-[#E8DFD1] pb-1 mb-1">
                                             <span className="col-span-5">Room Category / Type</span>
                                             <span className="col-span-3 text-center">Meal Plan</span>
-                                            <span className="col-span-4 text-right pr-2">Quantity / Rooms</span>
+                                            <span className="col-span-4 text-right pr-2">Rooms Assigned</span>
                                           </div>
                                           <div className="divide-y divide-[#E8DFD1]/50">
                                             {roomRows.map((r, rIdx) => (
@@ -1451,296 +1247,309 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                   ));
                 })()}
 
-                {/* 3.7 PRIVATE TRANSPORT & CHAUFFEUR LOGISTICS PAGE */}
+                {/* 3.4.5 CURATED EXPERIENCES & ACTIVITIES PORTFOLIO */}
+                {(() => {
+                  const getActivityImage = (block: any) => {
+                    if (block.imageUrl && block.imageUrl !== 'none' && block.imageUrl.trim() !== '') {
+                      return block.imageUrl;
+                    }
+                    const resolvedActId = block.activityId;
+                    const v = block.vendorId ? masterData?.vendors?.find((x: any) => x.id === block.vendorId) : null;
+                    const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                      (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+                    const activityDetail = masterData?.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id)) ||
+                      dbActivities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+
+                    const img = activityDetail?.image_url || activityDetail?.imageUrl || activityDetail?.image || va?.image_url || va?.imageUrl;
+                    if (img && img !== 'none' && img.trim() !== '') {
+                      return img;
+                    }
+                    return null;
+                  };
+
+                  const ACTIVITY_ITEMS_PER_PAGE = 10;
+                  const activityBlocks = itinerary
+                    .filter(b => b.type === ItineraryBlockTypes.ACTIVITY && Boolean(getActivityImage(b)))
+                    .sort((a, b) => a.dayNumber - b.dayNumber);
+
+                  const activityChunks: any[][] = [];
+                  if (activityBlocks.length > 0) {
+                    for (let i = 0; i < activityBlocks.length; i += ACTIVITY_ITEMS_PER_PAGE) {
+                      activityChunks.push(activityBlocks.slice(i, i + ACTIVITY_ITEMS_PER_PAGE));
+                    }
+                  } else {
+                    activityChunks.push([]);
+                  }
+
+                  return activityChunks.map((chunk, chunkIdx) => (
+                    <div key={`act-chunk-page-${chunkIdx}`} className="print-page-break w-full px-8 py-6 box-border">
+                      <div className="text-center mb-6">
+                        <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Excursions & Experiences</span>
+                        <h3 className="text-2xl font-serif text-[#111827] font-light italic">
+                          Curated Activities Portfolio {activityChunks.length > 1 ? `(Page ${chunkIdx + 1} of ${activityChunks.length})` : ''}
+                        </h3>
+                      </div>
+
+                      <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
+                        <div className="text-center max-w-lg mx-auto mb-1">
+                          <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-0.5">
+                            Excursions & Ticket Inclusions
+                          </span>
+                          <p className="text-xs text-neutral-500 font-serif italic">
+                            Curated featured excursions, entrance passes, safari charters, and guided experiences for {clientName}.
+                          </p>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
+                          <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-2.5 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
+                            <span className="col-span-2">Day & Date</span>
+                            <span className="col-span-3">Location</span>
+                            <span className="col-span-4">Experience / Excursion Name</span>
+                            <span className="col-span-3 text-right pr-2">Inclusion Status</span>
+                          </div>
+
+                          <div className="divide-y divide-neutral-100">
+                            {chunk.length === 0 ? (
+                              <div className="p-6 text-center text-xs text-neutral-400 font-serif italic">
+                                No specific featured excursions listed with images. Leisure & scenic travel days.
+                              </div>
+                            ) : (
+                              chunk.map((block, idx) => {
+                                const resolvedActId = block.activityId;
+                                const v = block.vendorId ? masterData?.vendors?.find((x: any) => x.id === block.vendorId) : null;
+                                const va = v?.vendor_activities?.find((x: any) => x.id === block.vendorActivityId) ||
+                                  (resolvedActId ? v?.vendor_activities?.find((x: any) => Number(x.activity_id) === Number(resolvedActId)) : null);
+                                const activityDetail = masterData?.activities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id)) ||
+                                  dbActivities?.find((a: any) => Number(a.id) === Number(resolvedActId || va?.activity_id));
+
+                                const actName = block.name || activityDetail?.activity_name || block.title || 'Curated Excursion';
+                                const actLoc = block.locationName || activityDetail?.location_name || 'Sri Lanka';
+                                const actCat = activityDetail?.category || block.category || 'Sightseeing';
+                                const dateFormatted = getShortFormattedDate(block.dayNumber);
+                                const actImg = getActivityImage(block);
+
+                                return (
+                                  <div key={idx} className="px-5 py-3.5 hover:bg-neutral-50/50 transition-colors text-xs grid grid-cols-12 items-center text-left">
+                                    <div className="col-span-2 space-y-0.5">
+                                      <span className="font-bold text-[#111827] block">Day {String(block.dayNumber).padStart(2, '0')}</span>
+                                      <span className="text-[10px] text-neutral-500 font-sans block">{dateFormatted !== `Day ${block.dayNumber}` ? dateFormatted : `Day ${block.dayNumber}`}</span>
+                                    </div>
+
+                                    <div className="col-span-3 space-y-0.5 pr-2">
+                                      <span className="font-serif font-bold text-sm text-[#111827] block">{actLoc}</span>
+                                      <span className="text-[8.5px] font-sans uppercase tracking-wider font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded inline-block">
+                                        {actCat}
+                                      </span>
+                                    </div>
+
+                                    <div className="col-span-4 flex items-center gap-3 pr-3">
+                                      {actImg && (
+                                        <img
+                                          src={getAbsoluteUrl(actImg)}
+                                          alt={actName}
+                                          className="w-10 h-10 rounded-lg object-cover border border-[#E8DFD1] flex-shrink-0"
+                                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                        />
+                                      )}
+                                      <div className="space-y-0.5 min-w-0">
+                                        <span className="font-medium text-neutral-900 text-xs block truncate">{actName}</span>
+                                        {block.description && (
+                                          <span className="text-[9.5px] text-neutral-500 line-clamp-1 font-serif italic block">{block.description}</span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="col-span-3 text-right pr-2">
+                                      <span className="font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded text-[10px] inline-block">
+                                        ✓ Included in Package
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-3.5 rounded-xl text-left flex items-center justify-between text-[10px] text-[#8C6D3F] font-medium">
+                          <span>* All entrance tickets, site passes, private safari jeeps, and local guides specified above are included in your luxury tour package investment.</span>
+                          <span className="font-bold">Nilathra All-Inclusive Standard</span>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+
+                {/* 3.5 PRIVATE TRANSPORT & LOGISTICS SUMMARY PAGE */}
                 <div className="print-page-break w-full px-8 py-6 box-border">
-                  <div className="text-center mb-8">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Transport & Chauffeur</span>
-                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Private Vehicles & Chauffeur Logistics</h3>
+                  <div className="text-center mb-6">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Transport & Logistics</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Private Chauffeur & Fleet Experience</h3>
                   </div>
 
                   <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
                     <div className="text-center max-w-lg mx-auto mb-2">
                       <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                        Private Fleet & Logistics
+                        Private Chauffeur Fleet Services
                       </span>
                       <p className="text-xs text-neutral-500 font-serif italic">
-                        Private vehicle specification, comfort amenities, and dedicated chauffeur logistics assigned for {clientName}.
+                        Dedicated private executive vehicle, licensed tourist chauffeur, and full travel logistics for {clientName}.
                       </p>
                     </div>
 
-                    {(() => {
-                      const formatDayNumbers = (days: number[], durationDays: number): string => {
-                        const sorted = Array.from(new Set(days.map(Number).filter(d => !isNaN(d) && d > 0))).sort((a, b) => a - b);
-                        if (sorted.length === 0) {
-                          return `Days 01 to ${String(durationDays).padStart(2, '0')}`;
-                        }
-                        if (sorted.length === durationDays && sorted[0] === 1 && sorted[sorted.length - 1] === durationDays) {
-                          return `Days 01 to ${String(durationDays).padStart(2, '0')}`;
-                        }
-
-                        const ranges: Array<{ start: number; end: number }> = [];
-                        let currentStart = sorted[0];
-                        let currentEnd = sorted[0];
-
-                        for (let i = 1; i < sorted.length; i++) {
-                          if (sorted[i] === currentEnd + 1) {
-                            currentEnd = sorted[i];
-                          } else {
-                            ranges.push({ start: currentStart, end: currentEnd });
-                            currentStart = sorted[i];
-                            currentEnd = sorted[i];
-                          }
-                        }
-                        ranges.push({ start: currentStart, end: currentEnd });
-
-                        const parts = ranges.map(r => {
-                          const sStr = String(r.start).padStart(2, '0');
-                          const eStr = String(r.end).padStart(2, '0');
-                          if (r.start === r.end) {
-                            return sStr;
-                          } else if (r.end === r.start + 1) {
-                            return `${sStr} & ${eStr}`;
-                          } else {
-                            return `${sStr} to ${eStr}`;
-                          }
-                        });
-
-                        if (ranges.length === 1 && ranges[0].start === ranges[0].end) {
-                          return `Day ${parts[0]}`;
-                        }
-
-                        return `Days ${parts.join(', ')}`;
-                      };
-
-                      // Collect assigned vehicles with specific day numbers
-                      const vehicleDaysMap = new Map<string, { vehicleObj: any; days: Set<number> }>();
-
-                      if (dailyVehicleAssignments) {
-                        Object.entries(dailyVehicleAssignments).forEach(([dayStr, assList]) => {
-                          const dayNum = Number(dayStr);
-                          if (isNaN(dayNum) || !Array.isArray(assList)) return;
-                          assList.forEach((ass: any) => {
-                            const vId = ass.vehicle_id || ass.vehicleId;
-                            const vObj = masterData?.transportVehicles?.find((mv: any) => mv.id === vId) || ass.vehicles || ass.vehicle;
-                            const key = vId || ass.vehicle_name || 'default_veh';
-                            if (vObj || ass.vehicle_name) {
-                              const itemObj = vObj || { name: ass.vehicle_name, license_plate: ass.registration_number };
-                              if (!vehicleDaysMap.has(key)) {
-                                vehicleDaysMap.set(key, { vehicleObj: itemObj, days: new Set<number>() });
-                              }
-                              vehicleDaysMap.get(key)!.days.add(dayNum);
-                            }
-                          });
-                        });
-                      }
-
-                      itinerary.filter(b => b.type === 'travel' || b.type === 'train').forEach(block => {
-                        if (block.vehicleId && masterData?.transportVehicles) {
-                          const vObj = masterData.transportVehicles.find((v: any) => v.id === block.vehicleId);
-                          if (vObj) {
-                            const key = vObj.id || block.vehicleId;
-                            if (!vehicleDaysMap.has(key)) {
-                              vehicleDaysMap.set(key, { vehicleObj: vObj, days: new Set<number>() });
-                            }
-                            if (block.dayNumber) {
-                              vehicleDaysMap.get(key)!.days.add(block.dayNumber);
-                            }
-                          }
-                        }
-                      });
-
-                      const assignedVehicleList = Array.from(vehicleDaysMap.values());
-
-                      // Collect assigned drivers with specific day numbers
-                      const driverDaysMap = new Map<string, { driverObj: any; days: Set<number> }>();
-
-                      if (dailyDriverAssignments) {
-                        Object.entries(dailyDriverAssignments).forEach(([dayStr, assList]) => {
-                          const dayNum = Number(dayStr);
-                          if (isNaN(dayNum) || !Array.isArray(assList)) return;
-                          assList.forEach((ass: any) => {
-                            const dId = ass.driver_id || ass.driverId;
-                            const dObj = masterData?.drivers?.find((md: any) => md.id === dId) || ass.driver;
-                            const key = dId || ass.driver_name || 'default_drv';
-                            if (dObj || ass.driver_name) {
-                              const itemObj = dObj || { first_name: ass.driver_name, phone: ass.phone };
-                              if (!driverDaysMap.has(key)) {
-                                driverDaysMap.set(key, { driverObj: itemObj, days: new Set<number>() });
-                              }
-                              driverDaysMap.get(key)!.days.add(dayNum);
-                            }
-                          });
-                        });
-                      }
-
-                      itinerary.filter(b => b.type === 'travel' || b.type === 'train').forEach(block => {
-                        if (block.driverId && masterData?.drivers) {
-                          const dObj = masterData.drivers.find((d: any) => d.id === block.driverId);
-                          if (dObj) {
-                            const key = dObj.id || block.driverId;
-                            if (!driverDaysMap.has(key)) {
-                              driverDaysMap.set(key, { driverObj: dObj, days: new Set<number>() });
-                            }
-                            if (block.dayNumber) {
-                              driverDaysMap.get(key)!.days.add(block.dayNumber);
-                            }
-                          }
-                        }
-                      });
-
-                      const assignedDriverList = Array.from(driverDaysMap.values());
-
-                      // Fallback vehicle category description if none explicitly bound yet
-                      const vehicleCategoryName = totalPax <= 2 
-                        ? 'Luxury Air-Conditioned Executive Sedan (Toyota Premier / Mercedes Class)'
-                        : totalPax <= 4
-                          ? 'Luxury Air-Conditioned Mini-Van (Toyota KDH Luxury VIP Edition)'
-                          : 'Luxury Executive Passenger Coach / VIP Van';
-
-                      return (
-                        <div className="space-y-6">
-                          {/* Vehicles Table */}
-                          <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
-                            <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
-                              <span className="col-span-4">Vehicle Category & Model</span>
-                              <span className="col-span-3">Reg. / License Plate</span>
-                              <span className="col-span-2">Service Period</span>
-                              <span className="col-span-3 text-right pr-2">Comfort & Amenities</span>
-                            </div>
-
-                            <div className="divide-y divide-neutral-100">
-                              {assignedVehicleList.length > 0 ? (
-                                assignedVehicleList.map(({ vehicleObj: veh, days }, vIdx) => {
-                                  const vName = veh.name || veh.model || veh.vehicle_name || 'Executive Private Vehicle';
-                                  const vPlate = veh.license_plate || veh.registration_number || veh.plate_number || 'Assigned Fleet';
-                                  const vType = veh.vehicle_type || veh.type || 'Fully Air-Conditioned';
-                                  const servicePeriodStr = formatDayNumbers(Array.from(days), durationDays);
-
-                                  return (
-                                    <div key={vIdx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
-                                      <div className="col-span-4 space-y-0.5">
-                                        <span className="font-serif font-bold text-sm text-[#111827] block">{vName}</span>
-                                        <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">{vType}</span>
-                                      </div>
-                                      <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
-                                        {vPlate}
-                                      </div>
-                                      <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                        {servicePeriodStr}
-                                      </div>
-                                      <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
-                                        Air-Conditioned, Chilled Water, Wi-Fi
-                                      </div>
-                                    </div>
-                                  );
-                                })
-                              ) : (
-                                <div className="px-5 py-4 grid grid-cols-12 items-center text-left text-xs">
-                                  <div className="col-span-4 space-y-0.5">
-                                    <span className="font-serif font-bold text-sm text-[#111827] block">{vehicleCategoryName}</span>
-                                    <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">Dedicated Private Fleet</span>
-                                  </div>
-                                  <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
-                                    Assigned Executive Vehicle
-                                  </div>
-                                  <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                    Days 01 to {durationDays}
-                                  </div>
-                                  <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
-                                    A/C, Chilled Towels, Refreshments
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                    <div className="space-y-4">
+                      {/* Vehicle & Chauffeur Main Summary Card */}
+                      <div className="bg-white p-6 rounded-xl border border-[#E8DFD1] space-y-4 shadow-sm text-left">
+                        <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+                          <div>
+                            <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block">Assigned Transport Class</span>
+                            <h4 className="text-lg font-serif font-bold text-[#111827] mt-0.5">
+                              {totalPax <= 2
+                                ? 'Executive Luxury Sedan (Toyota Premier / Mercedes Class)'
+                                : totalPax <= 4
+                                  ? 'Luxury VIP Mini-Van (Toyota KDH Luxury VIP Edition)'
+                                  : 'Luxury Executive Passenger Coach / VIP Van'}
+                            </h4>
                           </div>
+                          <span className="px-3 py-1 bg-emerald-50 border border-emerald-200/60 text-emerald-800 rounded-full text-[10px] font-bold font-mono">
+                            Full Trip Duration ({durationDays} Days)
+                          </span>
+                        </div>
 
-                          {/* Chauffeur / Driver Table */}
-                          <div className="bg-white rounded-xl border border-[#E8DFD1] overflow-hidden shadow-sm">
-                            <div className="bg-[#FAF8F5] border-b border-[#E8DFD1] px-5 py-3 grid grid-cols-12 text-[9px] font-sans uppercase tracking-widest text-[#8C6D3F] font-bold text-left">
-                              <span className="col-span-4">Chauffeur / Driver Name</span>
-                              <span className="col-span-3">Contact Phone</span>
-                              <span className="col-span-2">Service Period</span>
-                              <span className="col-span-3 text-right pr-2">Licensing & Languages</span>
-                            </div>
-
-                            <div className="divide-y divide-neutral-100">
-                              {assignedDriverList.length > 0 ? (
-                                assignedDriverList.map(({ driverObj: drv, days }, dIdx) => {
-                                  const dName = drv.first_name ? `${drv.first_name} ${drv.last_name || ''}`.trim() : (drv.driver_name || drv.name || 'Private Chauffeur');
-                                  const dPhone = drv.phone || drv.contact_number || 'Direct Operational Hotline';
-                                  const dLangs = Array.isArray(drv.languages) ? drv.languages.join(', ') : (drv.languages || 'English Speaking');
-                                  const servicePeriodStr = formatDayNumbers(Array.from(days), durationDays);
-
-                                  return (
-                                    <div key={dIdx} className="px-5 py-4 grid grid-cols-12 items-center text-left hover:bg-neutral-50/50 transition-colors text-xs">
-                                      <div className="col-span-4 space-y-0.5">
-                                        <span className="font-serif font-bold text-sm text-[#111827] block">{dName}</span>
-                                        <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">National Tourist Chauffeur</span>
-                                      </div>
-                                      <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
-                                        {dPhone}
-                                      </div>
-                                      <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                        {servicePeriodStr}
-                                      </div>
-                                      <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
-                                        {dLangs} &bull; SLTDA Certified
-                                      </div>
-                                    </div>
-                                  );
-                                })
-                              ) : (
-                                <div className="px-5 py-4 grid grid-cols-12 items-center text-left text-xs">
-                                  <div className="col-span-4 space-y-0.5">
-                                    <span className="font-serif font-bold text-sm text-[#111827] block">Dedicated National Tourist Chauffeur</span>
-                                    <span className="text-[9px] text-[#8C6D3F] uppercase tracking-wider font-semibold block">Professional Chauffeur Service</span>
-                                  </div>
-                                  <div className="col-span-3 font-mono font-bold text-xs text-neutral-700">
-                                    Provided at Airport Arrival
-                                  </div>
-                                  <div className="col-span-2 text-xs font-semibold text-neutral-600">
-                                    Full Trip Duration ({durationDays} Days)
-                                  </div>
-                                  <div className="col-span-3 text-right pr-2 text-[10px] text-neutral-500 font-serif italic">
-                                    English Speaking &bull; Tourist Board Licensed
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                        <div className="grid grid-cols-2 gap-4 text-xs font-sans text-neutral-600 pt-1">
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">Vehicle Features</span>
+                            <p className="text-neutral-800 font-medium">Fully Air-Conditioned, Leather Reclining Seating, High-Speed Wi-Fi Router, Extra Luggage Space.</p>
                           </div>
-
-                          {/* Transport Inclusions Footer Box */}
-                          <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-4 rounded-xl text-left flex flex-wrap justify-between items-center gap-4 text-[10.5px] text-[#8C6D3F] font-medium">
-                            <div className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                              <span>Fuel, Express Highway Tolls & Parking Included</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                              <span>Chauffeur Meals & Night Accommodation Covered</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                              <span>Unlimited Mileage for Itinerary Program</span>
-                            </div>
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">Chauffeur Service</span>
+                            <p className="text-neutral-800 font-medium">Tourist Board Certified, English-Speaking, Experienced in Sri Lanka Travel Routes & VIP Hospitality.</p>
                           </div>
                         </div>
-                      );
-                    })()}
+                      </div>
+
+                      {/* Inclusions Banner */}
+                      <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-5 rounded-xl text-left space-y-3">
+                        <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block">
+                          Transport Package Inclusions
+                        </span>
+                        <div className="grid grid-cols-2 gap-3 text-[11px] text-neutral-700 font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>All Fuel & Unlimited Mileage for Itinerary Program</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>All Express Highway Tolls & Airport Parking Charges</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>Chauffeur Meals, Lodging & Daily Allowances Covered</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>Chilled King Coconuts & Bottled Water on Transfer Days</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3.6 FINANCIAL BLUEPRINT / ESTIMATED PACKAGE COST OVERVIEW PAGE */}
+                <div className="print-page-break w-full px-8 py-6 box-border">
+                  <div className="text-center mb-6">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Commercial Overview</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Package Investment Summary</h3>
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
+                    <div className="text-center max-w-md mx-auto mb-2">
+                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                        Commercial Proposal
+                      </span>
+                      <p className="text-xs text-neutral-500 font-serif italic">
+                        All-inclusive private Ceylon tour package crafted for {clientName} ({totalPax} Guest{totalPax > 1 ? 's' : ''} &bull; {durationDays} Days / {durationDays > 1 ? durationDays - 1 : 1} Nights)
+                      </p>
+                    </div>
+
+                    {invoiceItems.length > 0 && grandTotal > 0 ? (
+                      <div className="space-y-4 bg-white p-6 rounded-xl border border-[#E8DFD1] text-left text-xs font-sans text-neutral-600 shadow-sm">
+                        <div className="uppercase tracking-widest text-[9.5px] font-bold text-[#D4AF37] font-serif border-b border-neutral-100 pb-3 flex justify-between items-center">
+                          <span>Service Category Included</span>
+                          <span>Package Inclusions</span>
+                        </div>
+
+                        <div className="space-y-3 pt-1">
+                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
+                            <span className="text-neutral-800 font-semibold text-sm">🏨 Luxury Accommodations & all En-Route Meals</span>
+                            <span className="text-neutral-600 text-xs">{durationDays > 1 ? durationDays - 1 : 1} Nights on Half-Board Basis</span>
+                          </div>
+                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
+                            <span className="text-neutral-800 font-semibold text-sm">🚗 Private Vehicle & Licensed Chauffeur</span>
+                            <span className="text-neutral-600 text-xs">Full {durationDays}-Day Private Transport & Fuel</span>
+                          </div>
+                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
+                            <span className="text-neutral-800 font-semibold text-sm">🎟️ Curated Experiences & Safaris</span>
+                            <span className="text-neutral-600 text-xs">All Scheduled Entrance Tickets & Jeeps</span>
+                          </div>
+                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
+                            <span className="text-neutral-800 font-semibold text-sm">🛎️ 24/7 Nilathra Concierge Support</span>
+                            <span className="text-neutral-600 text-xs">VIP Airport Meet-and-Greet & Host On-Call</span>
+                          </div>
+                          <div className="flex justify-between items-center border-b border-neutral-100 pb-2.5 text-xs">
+                            <span className="text-neutral-800 font-semibold text-sm">📜 All Government Taxes & Charges</span>
+                            <span className="text-neutral-600 text-xs">Included in Total (No Hidden Fees)</span>
+                          </div>
+                        </div>
+
+                        {/* Grand Total Highlight Banner */}
+                        <div className="border-t-2 border-[#D4AF37]/40 pt-5 mt-3 flex justify-between items-center text-base font-serif font-black text-neutral-900 bg-[#FAF8F5] p-5 rounded-xl border border-[#E8DFD1]">
+                          <div className="flex flex-col">
+                            <span className="uppercase tracking-wider text-[11px] text-[#8C6D3F]">Total Package Investment</span>
+                            <span className="text-[9px] font-sans text-neutral-400 font-normal uppercase tracking-widest mt-0.5">All taxes & luxury services included</span>
+                          </div>
+                          <span className="text-3xl font-mono text-[#0A251D] font-extrabold">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                        </div>
+
+                        {/* Per Person & Per Day Metrics */}
+                        <div className="grid grid-cols-2 gap-4 text-[11px] text-neutral-600 font-medium pt-3 border-t border-neutral-100">
+                          <div className="bg-[#FAF9F6] p-3 rounded-lg border border-[#EBE6DC] flex justify-between items-center">
+                            <span>Per Guest Investment ({totalPax} Pax):</span>
+                            <span className="font-bold text-neutral-900 font-mono text-sm">${(grandTotal / (totalPax || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                          </div>
+                          <div className="bg-[#FAF9F6] p-3 rounded-lg border border-[#EBE6DC] flex justify-between items-center">
+                            <span>Per Guest (Per Day Rate):</span>
+                            <span className="font-bold text-neutral-900 font-mono text-sm">${(grandTotal / (totalPax || 1) / (durationDays || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      hotelPriceTotal > 0 && (
+                        <div className="bg-white p-6 rounded-xl border border-[#E8DFD1] flex justify-between items-center text-sm font-serif font-bold text-neutral-800">
+                          <span className="uppercase tracking-widest text-[10px] text-[#D4AF37]">Estimated Hotel Cost Summary</span>
+                          <span className="text-lg text-neutral-900 font-sans font-bold">${hotelPriceTotal.toFixed(2)} USD</span>
+                        </div>
+                      )
+                    )}
+
+                    {/* Booking Terms Notice */}
+                    <div className="text-[10px] text-neutral-400 font-serif italic text-center">
+                      * All prices are quoted in US Dollars (USD) and include all applicable taxes, service charges, fuel tolls, and concierge coordination. Rates are guaranteed upon confirmation.
+                    </div>
                   </div>
                 </div>
 
                 {/* 4. CHRONOLOGY - DAY-BY-DAY TIMELINE */}
                 <div className="w-full px-8 py-6 box-border">
-                  <div className="text-center mb-10">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">Chronology</span>
+                  <div className="text-center mb-8">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Chronology</span>
                     <h3 className="text-3xl font-serif text-[#111827] font-light italic">Your Custom Itinerary</h3>
                   </div>
 
-                  <div className="space-y-10">
+                  <div className="space-y-8">
                     {Array.from(new Set(itinerary.map(b => b.dayNumber))).sort((a, b) => a - b).map(dayNum => {
 
-                      // Filter blocks for active day, sorted by time
                       const timeToMins = (timeStr?: string, type?: string) => {
                         if (!timeStr || !timeStr.includes(':')) return type === ItineraryBlockTypes.SLEEP ? 1440 : -1;
                         const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
@@ -1764,31 +1573,31 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       const sleepBlock = dayBlocks.find(b => b.type === ItineraryBlockTypes.SLEEP);
 
                       return (
-                        <div key={dayNum} className="print-page-break space-y-6">
+                        <div key={dayNum} className="print-page-break space-y-4">
 
-                          {/* Centered Day Header with Day, Weather, and stay details */}
+                          {/* Centered Day Header */}
                           <div className="text-center flex flex-col items-center">
-                            <div className="border border-[#E8DFD1] bg-[#FAF8F5] p-5 rounded-2xl max-w-xl w-full text-center shadow-sm">
-                              <span className="text-[9px] uppercase tracking-[0.25em] text-[#8C6D3F] font-sans font-bold block mb-1">
+                            <div className="border border-[#E8DFD1] bg-[#FAF8F5] p-4 rounded-2xl max-w-xl w-full text-center shadow-sm">
+                              <span className="text-[9px] uppercase tracking-[0.25em] text-[#8C6D3F] font-sans font-bold block mb-0.5">
                                 Day {String(dayNum).padStart(2, '0')}
                               </span>
                               <h4 className="text-lg font-serif text-[#111827] font-bold mb-1">
                                 {getLongFormattedDate(dayNum)}
                               </h4>
                               {weatherInfo && (
-                                <span className="text-[9px] font-sans font-semibold text-neutral-500 bg-white border border-[#E8DFD1]/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-2.5">
+                                <span className="text-[9px] font-sans font-semibold text-neutral-500 bg-white border border-[#E8DFD1]/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-2">
                                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-amber-500">
                                     <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
                                   </svg>
                                   {weatherInfo}
                                 </span>
                               )}
-                              <div className="h-[0.5px] bg-[#E8DFD1] my-2 w-full"></div>
+                              <div className="h-[0.5px] bg-[#E8DFD1] my-1.5 w-full"></div>
                               {(() => {
                                 if (!sleepBlock) {
                                   return (
                                     <div className="text-[10px] text-neutral-400 italic">
-                                      Accommodation: Pending Assignment
+                                      Accommodation: Bespoke Selection
                                     </div>
                                   );
                                 }
@@ -1800,84 +1609,29 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                     (sleepBlock.name && x.name.toLowerCase() === sleepBlock.name.toLowerCase())
                                   )
                                   : null;
-                                const starClass = hotelDetail?.hotel_class;
+                                const starClass = hotelDetail?.hotel_class || hotelDetail?.star_rating;
 
                                 return (
-                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed space-y-1">
-                                    <div className="font-bold text-[#8C6D3F] text-[11px] mb-0.5">
-                                      {sleepBlock.hotelName || sleepBlock.name} {starClass ? `• ${starClass}` : ''}
+                                  <div className="text-[10px] text-neutral-600 font-sans leading-relaxed">
+                                    <div className="font-bold text-[#8C6D3F] text-[11px]">
+                                      🏨 {sleepBlock.hotelName || sleepBlock.name} {starClass ? `• ${starClass}` : ''}
                                     </div>
-
-                                    {sleepBlock.locationName && (
-                                      <div className="text-neutral-400 font-bold uppercase tracking-wider text-[8px] mb-1">
-                                        Location: {sleepBlock.locationName}
-                                      </div>
-                                    )}
-
-                                    {(() => {
-                                      const acc = accommodations?.find((a: any) => Number(a.nightIndex) === Number(sleepBlock.dayNumber));
-                                      const selectedRooms = acc?.selectedRooms || (sleepBlock as any).selectedRooms || [];
-
-                                      let roomRows: Array<{ category: string; mealPlan: string; qty: number; rate?: number }> = [];
-
-                                      if (selectedRooms.length > 0) {
-                                        roomRows = selectedRooms.map((sr: any) => ({
-                                          category: [sr.reqId, sr.roomName].filter(Boolean).join(' - ') || 'Standard Room',
-                                          mealPlan: sr.mealPlan || acc?.mealPlan || sleepBlock.mealPlan || 'HB',
-                                          qty: sr.quantity || 1,
-                                          rate: sr.pricePerNight || sr.contractedPrice
-                                        }));
-                                      } else {
-                                        if (singleRoomsCount > 0) roomRows.push({ category: 'Single Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: singleRoomsCount });
-                                        if (doubleRoomsCount > 0) roomRows.push({ category: 'Double Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: doubleRoomsCount });
-                                        if (tripleRoomsCount > 0) roomRows.push({ category: 'Triple Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: tripleRoomsCount });
-                                        if (familyRoomsCount > 0) roomRows.push({ category: 'Family Room', mealPlan: sleepBlock.mealPlan || 'HB', qty: familyRoomsCount });
-                                        if (roomRows.length === 0 && sleepBlock.roomName) {
-                                          roomRows.push({ category: sleepBlock.roomName, mealPlan: sleepBlock.mealPlan || 'HB', qty: 1 });
-                                        }
-                                      }
-
-                                      if (roomRows.length === 0) {
-                                        return (
-                                          <div className="font-medium">
-                                            Standard Room &bull; {sleepBlock.mealPlan || 'HB'} Basis
-                                          </div>
-                                        );
-                                      }
-
-                                      return (
-                                        <div className="bg-[#FAF8F5] rounded border border-[#E8DFD1] p-1.5 text-[9px] font-sans mt-1">
-                                          <div className="grid grid-cols-12 gap-1 uppercase tracking-wider font-bold text-[#8C6D3F] text-[7.5px] border-b border-[#E8DFD1] pb-0.5 mb-1">
-                                            <span className="col-span-5">Room Category / Type</span>
-                                            <span className="col-span-3 text-center">Meal Plan</span>
-                                            <span className="col-span-4 text-right pr-2">Quantity / Rooms</span>
-                                          </div>
-                                          <div className="divide-y divide-[#E8DFD1]/40">
-                                            {roomRows.map((r, rIdx) => (
-                                              <div key={rIdx} className="grid grid-cols-12 gap-1 items-center py-0.5 text-neutral-800">
-                                                <span className="col-span-5 font-semibold text-neutral-900">{r.category}</span>
-                                                <span className="col-span-3 text-center font-mono font-bold text-emerald-855 bg-emerald-50 border border-emerald-200/60 rounded px-1 text-[8px]">{r.mealPlan}</span>
-                                                <span className="col-span-4 text-right pr-2 font-medium">{r.qty} {r.qty > 1 ? 'Rooms' : 'Room'}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
+                                    <div className="text-neutral-500 font-medium text-[9px] mt-0.5">
+                                      {sleepBlock.locationName ? `${sleepBlock.locationName} • ` : ''}{sleepBlock.mealPlan || 'HB (Half Board)'} Basis
+                                    </div>
                                   </div>
                                 );
                               })()}
-
                             </div>
                           </div>
 
-                          {/* Itinerary Events Flow - Full Width, Box-free */}
-                          <div className="space-y-2">
+                          {/* Itinerary Events Flow */}
+                          <div className="space-y-3">
                             {dayBlocks.map((block) => {
                               return (
-                                <div key={block.id} className="print-avoid-break pb-1">
+                                <div key={block.id} className="print-avoid-break bg-white p-4 rounded-xl border border-[#E8DFD1] shadow-xs hover:shadow-sm transition-all space-y-2 text-left">
 
-                                  {/* Event Image (rendered above data) */}
+                                  {/* Event Image */}
                                   {(() => {
                                     let imgUrl = block.imageUrl;
                                     if (imgUrl === 'none') {
@@ -1908,84 +1662,52 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                     if (!imgUrl) return null;
                                     return (
-                                      <div className="w-full mb-3 overflow-hidden rounded-xl">
+                                      <div className="w-full mb-2 overflow-hidden rounded-lg">
                                         <img
                                           src={imgUrl}
                                           alt={block.name}
-                                          className="w-full object-cover max-h-[60mm]"
+                                          className="w-full object-cover max-h-[45mm]"
                                         />
                                       </div>
                                     );
                                   })()}
 
-                                  {/* Row 1: Location, Description/Name, Time (from - to) */}
-                                  <div className="flex justify-between items-baseline py-0.5 text-sm border-b border-neutral-100">
-                                    {/* Location (Left) */}
-                                    <div className="w-1/3 text-left text-[#D4AF37] font-serif italic tracking-wide text-[11.5px] font-semibold truncate">
-                                      {block.locationName || 'TBD Location'}
+                                  {/* Title & Time Header */}
+                                  <div className="flex justify-between items-start gap-4 border-b border-neutral-100 pb-2">
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-[7.5px] font-sans uppercase tracking-[0.2em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
+                                          {block.type === 'sleep' ? 'Stay Sanctuary' : (block.type === 'meal' ? 'Dining' : (block.type === 'travel' ? 'Private Transfer' : 'Experience'))}
+                                        </span>
+                                        {block.locationName && (
+                                          <span className="text-[10px] text-[#D4AF37] font-serif italic">
+                                            {block.locationName}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <h5 className="text-sm font-bold text-neutral-900 font-serif">
+                                        {block.name}
+                                      </h5>
                                     </div>
-                                    {/* Description / Title (Center) */}
-                                    <div className="w-5/12 text-center text-neutral-800 font-bold text-[12.5px]">
-                                      {block.name}
-                                    </div>
-                                    {/* Time (Right) */}
-                                    <div className="w-1/4 text-right text-neutral-400 font-sans font-bold tracking-wider text-[9.5px] uppercase">
-                                      {block.startTime || 'TBD'} {block.endTime ? `— ${block.endTime}` : ''}
-                                    </div>
+
+                                    {block.startTime && (
+                                      <span className="text-[9.5px] font-sans font-bold text-neutral-500 bg-neutral-100 px-2 py-1 rounded shrink-0">
+                                        {block.startTime} {block.endTime ? `— ${block.endTime}` : ''}
+                                      </span>
+                                    )}
                                   </div>
 
-                                  {/* Bound Item Details (if any) */}
-                                  {(() => {
-                                    const bind = getResolvedBindingDisplay(block);
-                                    if (!bind) return null;
-                                    return (
-                                      <div className="mt-1 px-2.5 py-1 bg-[#FAF9F6] border border-[#EBE6DC] rounded-xl flex items-center justify-between text-[10.5px] text-neutral-700 font-sans">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[7.5px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
-                                            {bind.type.charAt(0).toUpperCase() + bind.type.slice(1)}
-                                          </span>
-                                          <span className="font-semibold">{bind.label}</span>
-                                        </div>
-                                        {block.agreedPrice !== undefined && block.agreedPrice !== null && block.type !== ItineraryBlockTypes.SLEEP && !block.restaurantId && !block.vendorId && (
-                                          <span className="font-bold text-[#8C6D3F] text-[10px]">
-                                            ${block.agreedPrice.toLocaleString()} USD
-                                          </span>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
+                                  {/* Notes & Description */}
+                                  {block.internalNotes && block.internalNotes.trim() !== '' && (
+                                    <p className="text-[11px] text-neutral-600 font-sans leading-relaxed font-light">
+                                      {block.internalNotes}
+                                    </p>
+                                  )}
 
-                                  {/* Row 2: Notes / Additional Data (Only rendered when content exists) */}
-                                  {(() => {
-                                    const hasNotes = Boolean(block.internalNotes && block.internalNotes.trim());
-                                    const hasDistance = Boolean(block.distance);
-
-                                    if (!hasNotes && !hasDistance) return null;
-
-                                    return (
-                                      <div className="py-0.5 text-xs text-neutral-500 flex flex-wrap gap-4 justify-between items-start leading-relaxed">
-                                        {/* Notes / Description */}
-                                        <div className="flex-1 min-w-[200px] text-left font-light text-[11px]">
-                                          {hasNotes ? block.internalNotes : null}
-                                        </div>
-
-                                        {/* Distance */}
-                                        {hasDistance && (
-                                          <div className="flex flex-col items-end shrink-0 space-y-0.5 text-[9.5px]">
-                                            <span className="font-semibold text-neutral-500">
-                                              Distance: {block.distance}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-
-                                  {/* Agent Comments */}
-                                  {block.comments && block.comments.length > 0 && (
-                                    <div className="mt-1 text-[9.5px] italic text-[#8C6D3F] bg-[#FAF8F5] p-2 rounded-lg border border-[#E8DFD1]/30 pl-6 relative w-full text-left">
-                                      <span className="absolute left-2 top-0.5 text-[#D4AF37] font-serif font-black text-xs">“</span>
-                                      {block.comments.map(c => c.text).join(' | ')}
+                                  {/* Distance Indicator */}
+                                  {block.distance && (
+                                    <div className="text-[9.5px] font-sans font-medium text-neutral-400 text-right">
+                                      Travel Distance: {block.distance}
                                     </div>
                                   )}
 
@@ -2002,14 +1724,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                 {/* 5. POLICIES & IMPORTANT TERMS */}
                 {(() => {
-                  const getTierPolicyKey = (style: string) => {
-                    return TravelStylePolicyKeys[style as keyof typeof TravelStylePolicyKeys] || null;
-                  };
-
-                  const isDraft = tripStatus?.toLowerCase() === 'draft';
                   const genericPolicyText = appSettings?.[Settings.Policy_Generic] || '';
-                  const tierKey = travelStyle ? getTierPolicyKey(travelStyle) : null;
-                  const tierPolicyText = (tierKey && appSettings?.[tierKey]) || '';
 
                   const parsePolicyLines = (text: string) => {
                     if (!text) return [];
@@ -2022,36 +1737,28 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       });
                   };
 
-                  const rawPolicies = isDraft
-                    ? parsePolicyLines(appSettings?.[Settings.Policy_Draft] || '')
-                    : [
-                      ...parsePolicyLines(genericPolicyText),
-                      ...parsePolicyLines(tierPolicyText)
-                    ];
-
-                  const allPolicies = rawPolicies.filter(p => {
-                    if (!p) return false;
-                    const cleaned = p.replace(/[\uE000-\uF8FF]/g, '').replace(/^["'\s]+|["'\s]+$/g, '').trim();
-                    return /[a-zA-Z0-9]/.test(cleaned);
-                  });
-
-                  if (allPolicies.length === 0) return null;
+                  const rawPolicies = parsePolicyLines(genericPolicyText);
+                  const allPolicies = rawPolicies.length > 0 ? rawPolicies : [
+                    "Deposit & Confirmation: A deposit is required to confirm hotel reservations and driver assignments.",
+                    "Cancellation Policy: Cancellations made within 30 days of arrival are subject to hotel cancellation fees.",
+                    "Travel Insurance: Comprehensive personal travel insurance is strongly recommended for all guests."
+                  ];
 
                   return (
                     <div className="print-avoid-break">
-                      <div className="px-16 py-12 max-w-[850px] mx-auto border-t border-[#E8DFD1]/55 mt-8">
-                        <div className="text-center mb-8">
-                          <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-2">
-                            {isDraft ? "Draft Itinerary Terms" : "Policies & Terms"}
+                      <div className="px-16 py-10 max-w-[850px] mx-auto border-t border-[#E8DFD1]/55 mt-8">
+                        <div className="text-center mb-6">
+                          <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">
+                            Terms & Conditions
                           </span>
-                          <h3 className="text-3xl font-serif text-[#111827] font-light italic">
-                            {isDraft ? "Proposal Terms" : "Important Information"}
+                          <h3 className="text-2xl font-serif text-[#111827] font-light italic">
+                            Proposal Terms & Booking Conditions
                           </h3>
                         </div>
 
-                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-4 font-sans text-xs text-[#4B5563] leading-relaxed relative text-left">
+                        <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-3 font-sans text-xs text-[#4B5563] leading-relaxed relative text-left">
                           <div className="absolute left-0 top-6 bottom-6 w-[2px] bg-gradient-to-b from-[#D4AF37]/20 via-[#D4AF37] to-[#D4AF37]/20"></div>
-                          <ul className="space-y-3 pl-4 list-none">
+                          <ul className="space-y-2.5 pl-4 list-none">
                             {allPolicies.map((policy, idx) => {
                               const isHeader = policy.trim().endsWith(':');
                               if (isHeader) {
@@ -2062,9 +1769,9 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                 );
                               }
                               return (
-                                <li key={idx} className="relative pl-6">
+                                <li key={idx} className="relative pl-5">
                                   <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                                  <span className="font-medium text-[11.5px] text-[#374151]">{policy}</span>
+                                  <span className="font-medium text-[11px] text-[#374151]">{policy}</span>
                                 </li>
                               );
                             })}
@@ -2072,8 +1779,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                         </div>
                       </div>
 
-                      <div className="mt-16 pt-8 border-t border-[#E8DFD1]/55 text-center pb-8 break-inside-avoid max-w-[850px] mx-auto">
-                        <div className="mb-6">
+                      <div className="mt-12 pt-6 border-t border-[#E8DFD1]/55 text-center pb-8 break-inside-avoid max-w-[850px] mx-auto">
+                        <div className="mb-4">
                           <img src="/images/nilathra_logo-02.webp" alt="Nilathra" className="w-12 mx-auto opacity-20 filter grayscale" onError={(e) => e.currentTarget.style.display = 'none'} />
                         </div>
                         <div className="flex justify-center items-center gap-8 text-[8px] uppercase tracking-[0.2em] font-sans">
