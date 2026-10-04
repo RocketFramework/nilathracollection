@@ -250,7 +250,18 @@ export class InvoiceCalculationService {
       ...mealBlocks.map(b => b.id)
     ].filter(Boolean) as string[];
 
-    const effectiveNights = accommodations.length > 0 ? accommodations.length : (nights > 0 ? nights : Math.max(0, durationDays - 1));
+    const maxNights = Math.max(0, durationDays - 1);
+    const validAccommodations = (accommodations || []).filter((a: any) => {
+      const nIdx = Number(a.nightIndex);
+      if (!isNaN(nIdx) && nIdx > 0) {
+        return nIdx <= maxNights;
+      }
+      return true;
+    });
+
+    const effectiveNights = validAccommodations.length > 0 
+      ? Math.min(validAccommodations.length, maxNights) 
+      : (nights > 0 ? Math.min(nights, maxNights) : maxNights);
 
     if (combinedAccommodationMealTotal > 0 || sleepBlocks.length > 0 || accommodations.length > 0) {
       const description = effectiveNights > 0 

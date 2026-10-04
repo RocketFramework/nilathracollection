@@ -33,6 +33,9 @@ export interface GenerateCustomerInvoiceDTO {
     customServiceFee?: number;
     flightsQuotedSeparately?: boolean;
     flightsQuotedPrice?: number;
+    dayCostOverrides?: Record<number, any>;
+    dailyDriverAssignments?: Record<number, any[]>;
+    dailyVehicleAssignments?: Record<number, any[]>;
     billingDetails: {
         name: string;
         email: string;

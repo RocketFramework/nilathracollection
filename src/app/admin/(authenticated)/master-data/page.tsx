@@ -644,6 +644,11 @@ export default function MasterDataPage() {
                                                 <td className="p-4 text-neutral-500">
                                                     <div className="font-medium text-xs">Transport Provider</div>
                                                     <div className="text-[11px] text-neutral-400">{(row.transport_vehicles || []).length} Vehicles</div>
+                                                    {row.transport_vehicles && row.transport_vehicles.length > 0 && (
+                                                        <div className="text-[10px] text-neutral-500 max-w-[220px] truncate" title={row.transport_vehicles.map(v => [v.vehicle_type, v.make_and_model || [v.make, v.model].filter(Boolean).join(' '), v.vehicle_number, v.year_of_manufacture ? `(${v.year_of_manufacture})` : ''].filter(Boolean).join(' ')).join(', ')}>
+                                                            {row.transport_vehicles.map(v => [v.vehicle_type, v.vehicle_number || v.make_and_model || v.model, v.year_of_manufacture ? `(${v.year_of_manufacture})` : ''].filter(Boolean).join(' ')).join(', ')}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="p-4 text-neutral-500 text-xs">
                                                     <div>{row.phone || row.email || 'No Contact'}</div>

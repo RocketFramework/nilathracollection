@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react";
+import { X, CheckCircle, AlertCircle, Image as ImageIcon, Upload, Trash2, Loader2 } from "lucide-react";
 import { Activity } from "@/services/master-data.service";
-import { saveActivityAction } from "@/actions/admin.actions";
+import { saveActivityAction, uploadActivityImageAction } from "@/actions/admin.actions";
 
 interface ActivityFormModalProps {
     isOpen: boolean;
@@ -36,6 +36,7 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
     });
 
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -82,6 +83,31 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
             currentImages[index] = val;
             return { ...prev, images: currentImages };
         });
+    };
+
+    const handleFileUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingIndex(index);
+        setError(null);
+
+        try {
+            const formDataPayload = new FormData();
+            formDataPayload.append("file", file);
+
+            const res = await uploadActivityImageAction(formDataPayload);
+            if (res.success && res.url) {
+                handleImageChange(index, res.url);
+            } else {
+                setError(res.error || "Failed to upload image");
+            }
+        } catch (err: any) {
+            setError(err.message || "Error uploading image");
+        } finally {
+            setUploadingIndex(null);
+            e.target.value = ""; // reset file input
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -263,21 +289,91 @@ export default function ActivityFormModal({ isOpen, onClose, onSave, activity }:
                                 Activity Images (Up to 3)
                             </h3>
                             <p className="text-xs text-neutral-400">
-                                Enter the image paths. Use the default path prefix <code className="bg-neutral-100 px-1 py-0.5 rounded">/images/activities/</code>.
+                                Upload image files (automatically converted and optimized to WebP) or enter relative paths.
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {[0, 1, 2].map((index) => (
-                                    <div key={index} className="space-y-2">
-                                        <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Image Path {index + 1}</label>
-                                        <input
-                                            type="text"
-                                            value={formData.images?.[index] ?? "/images/activities/"}
-                                            onChange={(e) => handleImageChange(index, e.target.value)}
-                                            className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-gold/20 focus:border-brand-gold text-sm"
-                                            placeholder="/images/activities/image.avif"
-                                        />
-                                    </div>
-                                ))}
+                                {[0, 1, 2].map((index) => {
+                                    const imgVal = formData.images?.[index] ?? "/images/activities/";
+                                    const isValidImg = imgVal && imgVal.trim() !== "" && imgVal !== "/images/activities/";
+                                    const isUploading = uploadingIndex === index;
+
+                                    return (
+                                        <div key={index} className="space-y-2 bg-neutral-50 p-3 rounded-xl border border-neutral-200/80 flex flex-col justify-between">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Image {index + 1}</label>
+                                                {isValidImg && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleImageChange(index, "/images/activities/")}
+                                                        className="text-neutral-400 hover:text-red-600 transition-colors p-1"
+                                                        title="Remove Image"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Preview Box */}
+                                            <div className="relative w-full h-28 bg-white rounded-lg border border-neutral-200 overflow-hidden flex items-center justify-center group mb-2">
+                                                {isValidImg ? (
+                                                    <img
+                                                        src={imgVal}
+                                                        alt={`Activity Preview ${index + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLElement).style.display = 'none';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-1 text-neutral-300">
+                                                        <ImageIcon size={28} />
+                                                        <span className="text-[10px] text-neutral-400">No Image</span>
+                                                    </div>
+                                                )}
+
+                                                {/* Uploading Overlay */}
+                                                {isUploading && (
+                                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-2">
+                                                        <Loader2 size={24} className="animate-spin" />
+                                                        <span className="text-[10px] font-bold">Optimizing...</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Upload Button */}
+                                            <div>
+                                                <label
+                                                    htmlFor={`activity-upload-file-${index}`}
+                                                    className={`w-full py-2 px-3 text-xs font-bold rounded-lg border flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                                                        isUploading
+                                                            ? "bg-neutral-100 border-neutral-200 text-neutral-400 cursor-not-allowed"
+                                                            : "bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-100 hover:border-neutral-400"
+                                                    }`}
+                                                >
+                                                    {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                                    {isUploading ? "Uploading..." : "Upload File"}
+                                                </label>
+                                                <input
+                                                    type="file"
+                                                    id={`activity-upload-file-${index}`}
+                                                    accept="image/*"
+                                                    disabled={isUploading}
+                                                    onChange={(e) => handleFileUpload(index, e)}
+                                                    className="hidden"
+                                                />
+                                            </div>
+
+                                            {/* Path Input */}
+                                            <input
+                                                type="text"
+                                                value={imgVal}
+                                                onChange={(e) => handleImageChange(index, e.target.value)}
+                                                className="w-full p-2 bg-white border border-neutral-200 rounded-lg outline-none focus:ring-1 focus:ring-brand-gold text-xs text-neutral-600 truncate mt-1"
+                                                placeholder="/images/activities/image.avif"
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 

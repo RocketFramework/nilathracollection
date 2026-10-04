@@ -504,7 +504,43 @@ export class MasterDataService {
             }
 
             if (options?.searchTerm) {
-                query = query.or(`name.ilike.%${options.searchTerm}%,email.ilike.%${options.searchTerm}%,phone.ilike.%${options.searchTerm}%`);
+                const term = options.searchTerm.trim();
+                if (term) {
+                    const vehicleOrFilters = [
+                        `vehicle_type.ilike.%${term}%`,
+                        `make.ilike.%${term}%`,
+                        `model.ilike.%${term}%`,
+                        `make_and_model.ilike.%${term}%`,
+                        `vehicle_number.ilike.%${term}%`
+                    ];
+                    const numTerm = parseInt(term, 10);
+                    if (!isNaN(numTerm)) {
+                        vehicleOrFilters.push(`year_of_manufacture.eq.${numTerm}`);
+                    }
+
+                    const { data: matchingVehicles } = await supabaseClient
+                        .from('transport_vehicles')
+                        .select('provider_id')
+                        .or(vehicleOrFilters.join(','));
+
+                    const matchingProviderIds = Array.from(
+                        new Set((matchingVehicles || []).map((v: any) => v.provider_id).filter(Boolean))
+                    );
+
+                    const providerOrFilters = [
+                        `name.ilike.%${term}%`,
+                        `email.ilike.%${term}%`,
+                        `phone.ilike.%${term}%`,
+                        `nic_number.ilike.%${term}%`,
+                        `contact_person.ilike.%${term}%`
+                    ];
+
+                    if (matchingProviderIds.length > 0) {
+                        providerOrFilters.push(`id.in.(${matchingProviderIds.join(',')})`);
+                    }
+
+                    query = query.or(providerOrFilters.join(','));
+                }
             }
 
             if (options?.sortBy) {

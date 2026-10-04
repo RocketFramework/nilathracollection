@@ -788,6 +788,61 @@ export async function saveActivityAction(activityData: any) {
     }
 }
 
+export async function uploadActivityImageAction(formData: FormData) {
+    try {
+        const file = formData.get("file") as File;
+        if (!file) {
+            return { error: "No file provided" };
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        let optimizedBuffer: Buffer;
+        try {
+            optimizedBuffer = await sharp(buffer)
+                .webp({ quality: 80 })
+                .toBuffer();
+        } catch (err) {
+            console.warn("Sharp optimization failed, fallback to original buffer:", err);
+            optimizedBuffer = buffer;
+        }
+
+        const adminSupabase = createAdminClient();
+        const fileName = `activities/${Math.random().toString(36).substring(2, 15)}_${Date.now()}.webp`;
+
+        let bucketName = 'partner-documents';
+        let { error: uploadError } = await adminSupabase.storage
+            .from(bucketName)
+            .upload(fileName, optimizedBuffer, {
+                contentType: 'image/webp',
+                cacheControl: '31536000',
+                upsert: true
+            });
+
+        if (uploadError) {
+            bucketName = 'payment-proofs';
+            const fallbackRes = await adminSupabase.storage
+                .from(bucketName)
+                .upload(fileName, optimizedBuffer, {
+                    contentType: 'image/webp',
+                    cacheControl: '31536000',
+                    upsert: true
+                });
+            if (fallbackRes.error) throw fallbackRes.error;
+        }
+
+        const { data } = adminSupabase.storage
+            .from(bucketName)
+            .getPublicUrl(fileName);
+
+        return { success: true, url: data.publicUrl };
+    } catch (error: any) {
+        console.error("Error uploading activity image:", error);
+        return { error: error.message || "Failed to upload activity image." };
+    }
+}
+
 export async function getDriversAction(options?: any) {
     try {
         if (options && Object.keys(options).length > 0) {

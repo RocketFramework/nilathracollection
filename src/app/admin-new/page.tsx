@@ -7885,6 +7885,9 @@ ${chauffeurHtml}
         customServiceFee: invoiceCustomServiceFee ? parseFloat(invoiceCustomServiceFee) : undefined,
         flightsQuotedSeparately: invoiceFlightsQuotedSeparately,
         flightsQuotedPrice: parseFloat(invoiceFlightsQuotedPrice) || 0,
+        dayCostOverrides: tripData?.dayCostOverrides,
+        dailyDriverAssignments,
+        dailyVehicleAssignments,
       });
       if (res.success && res.items) {
         setCustomerInvoicePreviewItems(res.items);
@@ -7919,6 +7922,9 @@ ${chauffeurHtml}
         customServiceFee: invoiceCustomServiceFee ? parseFloat(invoiceCustomServiceFee) : undefined,
         flightsQuotedSeparately: invoiceFlightsQuotedSeparately,
         flightsQuotedPrice: parseFloat(invoiceFlightsQuotedPrice) || 0,
+        dayCostOverrides: tripData?.dayCostOverrides,
+        dailyDriverAssignments,
+        dailyVehicleAssignments,
         billingDetails: {
           name: invoiceBillingName,
           email: invoiceBillingEmail,
