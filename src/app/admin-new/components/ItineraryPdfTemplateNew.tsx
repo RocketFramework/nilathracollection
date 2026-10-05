@@ -666,7 +666,30 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                           <ul className="space-y-2.5 text-[11px] leading-relaxed text-neutral-600">
                             <li className="flex items-start gap-2">
                               <span className="text-[#D4AF37] font-bold">✓</span>
-                              <span><strong>Bespoke Accommodations:</strong> All luxury stay sanctuaries on Half-Board (Breakfast & Dinner) basis.</span>
+                              <span><strong>Bespoke Accommodations:</strong> {(() => {
+                                const planLabels: Record<string, string> = {
+                                  RO: 'Room Only',
+                                  BB: 'Bed & Breakfast',
+                                  HB: 'Half-Board (Breakfast & Dinner)',
+                                  FB: 'Full-Board (Breakfast, Lunch & Dinner)',
+                                  AI: 'All-Inclusive'
+                                };
+                                const counts: Record<string, number> = {};
+                                const seenDays = new Set<number>();
+                                itinerary.forEach(b => {
+                                  if (b.type !== ItineraryBlockTypes.SLEEP || seenDays.has(b.dayNumber)) return;
+                                  seenDays.add(b.dayNumber);
+                                  const raw = String(b.mealPlan || '').trim().toUpperCase();
+                                  const plan = planLabels[raw] ? raw : 'RO';
+                                  counts[plan] = (counts[plan] || 0) + 1;
+                                });
+                                const parts = ['BB', 'HB', 'FB', 'AI', 'RO']
+                                  .filter(p => counts[p])
+                                  .map(p => `${counts[p]} night${counts[p] > 1 ? 's' : ''} on ${planLabels[p]} basis`);
+                                return parts.length > 0
+                                  ? `Luxury stay sanctuaries — ${parts.join('; ')}.`
+                                  : 'Luxury stay sanctuaries as per your itinerary.';
+                              })()}</span>
                             </li>
                             <li className="flex items-start gap-2">
                               <span className="text-[#D4AF37] font-bold">✓</span>

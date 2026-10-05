@@ -244,7 +244,7 @@ export class InvoiceCalculationService {
 
     // --- CATEGORY 1: ACCOMMODATION ---
     const mealBlocks = itinerary.filter(b => b.type === 'meal');
-    const combinedAccommodationMealTotal = hotelTotal;
+    const combinedAccommodationMealTotal = hotelTotal + mealsTotal;
     const combinedAccommodationMealActivityIds = [
       ...sleepBlocks.map(b => b.id),
       ...mealBlocks.map(b => b.id)
@@ -264,9 +264,10 @@ export class InvoiceCalculationService {
       : (nights > 0 ? Math.min(nights, maxNights) : maxNights);
 
     if (combinedAccommodationMealTotal > 0 || sleepBlocks.length > 0 || accommodations.length > 0) {
+      const lineLabel = mealsTotal > 0 ? 'Luxury Accommodation & Meals' : 'Luxury Accommodation';
       const description = effectiveNights > 0 
-        ? `Luxury Accommodation throughout (${effectiveNights} Night${effectiveNights > 1 ? 's' : ''})`
-        : "Luxury Accommodation throughout";
+        ? `${lineLabel} throughout (${effectiveNights} Night${effectiveNights > 1 ? 's' : ''})`
+        : `${lineLabel} throughout`;
       invoiceItems.push({
         description,
         amount: combinedAccommodationMealTotal,
@@ -357,15 +358,19 @@ export class InvoiceCalculationService {
 
     // --- CATEGORY 7: TAX & SERVICE FEE ---
     const itemsSubtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0);
-    const hasOverridesAgencyFee = Object.values(dayCostOverrides).some(o => o.agencyFee !== undefined || o.agencyFeePercent !== undefined);
+    // Percentage: the itinerary's own agency fee % (if set on any day), otherwise the app_settings value.
+    const itineraryFeePercent = Object.values(dayCostOverrides)
+      .map(o => o.agencyFeePercent)
+      .find(p => p !== undefined && p !== null);
+    const feePercent = itineraryFeePercent !== undefined ? Number(itineraryFeePercent) : serviceFeePercent;
 
-    const serviceFeeAmount = customServiceFee !== undefined 
-      ? customServiceFee 
-      : (hasOverridesAgencyFee ? agencyFeeTotal : itemsSubtotal * (serviceFeePercent / 100));
+    const serviceFeeAmount = customServiceFee !== undefined
+      ? customServiceFee
+      : itemsSubtotal * (feePercent / 100);
 
-    const effectiveFeePercent = (itemsSubtotal > 0 && (customServiceFee !== undefined || hasOverridesAgencyFee))
+    const effectiveFeePercent = (itemsSubtotal > 0 && customServiceFee !== undefined)
       ? parseFloat(((serviceFeeAmount / itemsSubtotal) * 100).toFixed(2))
-      : serviceFeePercent;
+      : feePercent;
 
     const effectiveFeePercentStr = (effectiveFeePercent % 1 === 0)
       ? effectiveFeePercent.toFixed(0)

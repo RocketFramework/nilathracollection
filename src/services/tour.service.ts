@@ -736,18 +736,20 @@ export class TourService {
             if (b.id) existingBlockIds.add(b.id);
             const da = daMap.get(b.id);
             if (da) {
-                const dayNumFromSql = (da.tour_itineraries as any)?.day_number;
-                if (dayNumFromSql !== undefined && dayNumFromSql !== null) {
-                    b.dayNumber = dayNumFromSql;
-                }
+                // NOTE: dayNumber intentionally NOT overridden from SQL here; the UI's day
+                // numbering is authoritative on save (e.g. after "Delete Day" shifts later days).
                 if (da.title) b.name = da.title;
             }
         });
 
-        // Append any SQL daily_activities rows missing from JSON itinerary
+        // Append any SQL daily_activities rows missing from JSON itinerary.
+        // Rows belonging to days beyond the tour's current duration were intentionally removed
+        // (e.g. via "Delete Day"), so they must not be resurrected here.
+        const savedDurationDays = Number(tripData.profile?.durationDays) || 0;
         (existingDaRows || []).forEach((da: any) => {
             if (da.id && !existingBlockIds.has(da.id)) {
                 const dayNumFromSql = (da.tour_itineraries as any)?.day_number || 1;
+                if (savedDurationDays > 0 && dayNumFromSql > savedDurationDays) return;
                 tripData.itinerary.push({
                     id: da.id,
                     dayNumber: dayNumFromSql,

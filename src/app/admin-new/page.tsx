@@ -8444,6 +8444,22 @@ ${chauffeurHtml}
         }
       }
 
+      // If duration is reduced below the arrival→departure span, shorten the departure date
+      // so the date range doesn't re-inflate the duration on reload.
+      if (key === 'duration_days' && nextPrefs.arrival_date && nextPrefs.departure_date) {
+        const arr = new Date(nextPrefs.arrival_date);
+        const dep = new Date(nextPrefs.departure_date);
+        const newDays = Number(value);
+        if (!isNaN(arr.getTime()) && !isNaN(dep.getTime()) && newDays >= 1) {
+          const spanDays = Math.round((dep.getTime() - arr.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          if (spanDays > newDays) {
+            const newDep = new Date(arr.getTime());
+            newDep.setUTCDate(newDep.getUTCDate() + newDays - 1);
+            nextPrefs.departure_date = newDep.toISOString().split('T')[0];
+          }
+        }
+      }
+
       // Auto per-person budget recalculation
       if (key === 'budget_total' || key === 'adults') {
         const total = Number(nextPrefs.budget_total) || 0;
@@ -24832,7 +24848,13 @@ function AIItineraryBuilder({
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete Day ${activeDay}? All activities on this day will be deleted.`)) {
+    const activeDayBlockCount = itinerary.filter(b => b.dayNumber === activeDay).length;
+    if (activeDayBlockCount > 0) {
+      alert(`Day ${activeDay} still has ${activeDayBlockCount} item(s). Please delete all activities of Day ${activeDay} first, then click "Delete Day".`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete Day ${activeDay}?`)) {
       return;
     }
 

@@ -296,6 +296,9 @@ export namespace TouristDataDTO {
                     departure_country: data.preferences.departure_country || data.profile.country || null,
                     budget: data.preferences.budget_total || null,
                     start_date: data.preferences.arrival_date || null,
+                    ...(data.preferences.duration_days && data.preferences.duration_days >= 1
+                        ? { duration_nights: data.preferences.duration_days - (data.preferences.arrival_date ? 1 : 0) }
+                        : {}),
                     adults: data.preferences.adults ?? 2,
                     children: data.preferences.children ?? 0,
                     infants: data.preferences.infants ?? 0,
