@@ -97,16 +97,17 @@ export class CustomerInvoiceService {
         const travelStyle = tour?.travel_style || touristProfile?.travel_style || touristProfile?.preferences?.travel_style || tour?.planner_data?.profile?.travelStyle || 'Luxury';
         
         const plannerItinerary = tour?.planner_data?.itinerary || [];
-        const maxItineraryDay = Math.max(
-          plannerItinerary.reduce((max: number, b: any) => Math.max(max, b.dayNumber || 0), 0),
-          (itineraries || []).reduce((max: number, i: any) => Math.max(max, i.day_number || 0), 0)
-        );
+
+        // Same rule as the PDF template: max(date span, saved duration, last itinerary day, 1)
+        const profileArr = touristProfile?.arrival_date ? new Date(touristProfile.arrival_date) : null;
+        const profileDep = touristProfile?.departure_date ? new Date(touristProfile.departure_date) : null;
+        const calculatedDateDays = (profileArr && profileDep && !isNaN(profileArr.getTime()) && !isNaN(profileDep.getTime()) && profileDep >= profileArr)
+          ? Math.ceil(Math.abs(profileDep.getTime() - profileArr.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          : 0;
         const durationDays = Math.max(
-          itineraries?.length || 0,
+          calculatedDateDays,
           touristProfile?.duration_days || 0,
-          touristProfile?.preferences?.duration_days || 0,
-          tour?.planner_data?.profile?.durationDays || 0,
-          maxItineraryDay,
+          plannerItinerary.reduce((max: number, b: any) => Math.max(max, b.dayNumber || 0), 0),
           1
         );
 
@@ -147,24 +148,14 @@ export class CustomerInvoiceService {
         // 7. Map daily activities / planner itinerary to InvoiceCalculationService format
         let simplifiedItinerary: any[] = [];
         if (plannerItinerary.length > 0) {
-          simplifiedItinerary = plannerItinerary.map((b: any) => {
-            const dbAct = (activities || []).find((a: any) => a.id === b.id);
-            const qty = dbAct?.quantity || b.quantity || (b as any).headCount || b.transportQuantity || b.restaurantQuantity || pax || 1;
-            const unitPrice = dbAct
-              ? ((dbAct.charged_unit_price !== undefined && dbAct.charged_unit_price !== null)
-                  ? Number(dbAct.charged_unit_price)
-                  : (dbAct.charged_total_price ? Number(dbAct.charged_total_price) / qty : Number(dbAct.agreedPrice || 0)))
-              : Number(b.agreedPrice || 0);
-
-            return {
-              id: b.id,
-              type: b.type || dbAct?.activity_type || '',
-              agreedPrice: unitPrice,
-              hotelId: b.hotelId || dbAct?.hotel_id || undefined,
-              quantity: qty,
-              dayNumber: b.dayNumber || dbAct?.tour_itineraries?.day_number || 1
-            };
-          });
+          simplifiedItinerary = plannerItinerary.map((b: any) => ({
+            id: b.id,
+            type: b.type || '',
+            agreedPrice: b.agreedPrice,
+            hotelId: b.hotelId,
+            quantity: b.quantity || b.headCount || b.transportQuantity || b.restaurantQuantity || pax || 1,
+            dayNumber: b.dayNumber
+          }));
         } else {
           simplifiedItinerary = (activities || []).map(act => {
             const qty = act.quantity || 1;
@@ -199,7 +190,7 @@ export class CustomerInvoiceService {
             accommodations: tour?.planner_data?.accommodations || [],
             dailyDriverAssignments: options.dailyDriverAssignments || dailyDriverAssignments,
             dailyVehicleAssignments: options.dailyVehicleAssignments || dailyVehicleAssignments,
-            dbActivities: activities || [],
+            dbActivities: [],
             tourConcierges: conciergeRows || []
         });
 

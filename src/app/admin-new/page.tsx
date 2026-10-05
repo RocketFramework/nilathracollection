@@ -23964,25 +23964,14 @@ function AIItineraryBuilder({
     const meals = dayMealBlocks.reduce((sum, b) => {
       const da = (dbActivities || []).find((a: any) => a.id === b.id || a.itinerary_id === b.id || a.title === b.name);
       
-      const hasVendor = Boolean(
-        b.restaurantId || b.hotelId || b.vendorId ||
-        da?.restaurant_id || da?.hotel_id || da?.vendor_id || da?.restaurantId || da?.hotelId || da?.vendorId
-      );
-
-      // Rule: Only add meal charged cost if it has a restaurant_id or hotel_id assigned!
-      if (!hasVendor) return sum;
+      // Every priced meal counts (consistent with the invoice calculation), whether or not a
+      // restaurant/hotel is linked.
 
       const qty = b.quantity || b.restaurantQuantity || da?.quantity || (pax > 0 ? pax : 1);
 
       let unitPrice = 0;
       if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
         unitPrice = Number(b.agreedPrice);
-      } else if (da?.charged_unit_price !== undefined && da?.charged_unit_price !== null && Number(da.charged_unit_price) > 0) {
-        unitPrice = Number(da.charged_unit_price);
-      } else if (da?.charged_total_price !== undefined && da?.charged_total_price !== null && Number(da.charged_total_price) > 0 && qty > 0) {
-        unitPrice = Number(da.charged_total_price) / qty;
-      } else {
-        unitPrice = 0;
       }
 
       return sum + (unitPrice * qty);

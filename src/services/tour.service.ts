@@ -1213,27 +1213,13 @@ export class TourService {
                     let agreedUnitPrice: number | null = null;
 
                     if (b.type === 'meal') {
-                        const styleKeyMap: Record<string, string> = {
-                            'Regular': 'regular',
-                            'Premium': 'premium',
-                            'Luxury': 'luxury',
-                            'Ultra VIP': 'ultra_vip'
-                        };
-                        const styleKey = styleKeyMap[travelStyle] || 'luxury';
-                        const mType = b.mealType || 'Lunch';
-                        const appSettingKey = `${styleKey}_${mType.toLowerCase()}_cost`;
-                        const baseCost = settingsMap[appSettingKey] || (mType === 'Breakfast' ? 15 : mType === 'Dinner' ? 35 : 25);
-                        const markupPercent = settingsMap['restaurant_markup'] !== undefined
-                            ? Number(settingsMap['restaurant_markup'])
-                            : 10;
-                        const defaultMealCost = baseCost * (1 + markupPercent / 100);
-
+                        // Only charge a meal when a price has been explicitly given; otherwise it is free/included.
                         if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
                             agreedUnitPrice = Number(b.agreedPrice);
                             agreedTotalPrice = agreedUnitPrice * quantity;
                         } else {
-                            agreedUnitPrice = defaultMealCost;
-                            agreedTotalPrice = defaultMealCost * quantity;
+                            agreedUnitPrice = 0;
+                            agreedTotalPrice = 0;
                         }
                     } else if (b.agreedPrice !== undefined && b.agreedPrice !== null) {
                         if (b.type === 'activity' || b.type === 'train' || b.type === 'custom') {
