@@ -211,6 +211,7 @@ import { generateAIRoutePlan } from '@/lib/ai-route-engine-new';
 import { GeoLocation } from '@/lib/route-engine-new';
 import { AIRule } from '@/types/ai';
 import { ItineraryPdfTemplateNew } from './components/ItineraryPdfTemplateNew';
+import { ItineraryPdfTemplateSimple } from './components/ItineraryPdfTemplateSimple';
 import { generateHotelRfqPdf } from '@/utils/rfq-pdf';
 import { generateHotelPoPdf, generateTransportPoPdf, generateDriverPoPdf } from '@/utils/po-pdf';
 
@@ -23624,6 +23625,7 @@ function AIItineraryBuilder({
   };
 
   const printRef = React.useRef<HTMLDivElement>(null);
+  const [pdfTemplateType, setPdfTemplateType] = useState<'detailed' | 'simple'>('detailed');
 
   const clientName = touristData.profile
     ? `${touristData.profile.first_name || ''} ${touristData.profile.last_name || ''}`.trim() || 'Valued Guest'
@@ -25074,6 +25076,15 @@ function AIItineraryBuilder({
           </button>
 
           {/* Download PDF */}
+          <select
+            value={pdfTemplateType}
+            onChange={(e) => setPdfTemplateType(e.target.value as 'detailed' | 'simple')}
+            className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all cursor-pointer shadow-sm"
+            title="PDF template"
+          >
+            <option value="detailed">PDF: Detailed</option>
+            <option value="simple">PDF: Simple</option>
+          </select>
           <button
             onClick={handleDownloadPdf}
             disabled={itinerary.length === 0}
@@ -27065,6 +27076,30 @@ function AIItineraryBuilder({
 
       {/* Hidden PDF template container for printing */}
       <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', overflow: 'hidden' }}>
+        {pdfTemplateType === 'simple' ? (
+          <ItineraryPdfTemplateSimple
+            ref={printRef}
+            itinerary={itinerary}
+            touristData={touristData}
+            travelStyle={travelStyle}
+            guideNeeded={guideNeeded}
+            chauffeurNeeded={chauffeurNeeded}
+            appSettings={appSettings}
+            masterData={masterData}
+            dayCostOverrides={tripData?.dayCostOverrides}
+            dailyDriverAssignments={dailyDriverAssignments}
+            dailyVehicleAssignments={dailyVehicleAssignments}
+            accommodations={tripData?.accommodations}
+            tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
+              const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
+              return {
+                ...v,
+                costing_basis: v.costing_basis || costObj?.costing_basis || '',
+                cost_item: v.cost_item || costObj
+              };
+            })}
+          />
+        ) : (
         <ItineraryPdfTemplateNew
           ref={printRef}
           itinerary={itinerary}
@@ -27091,6 +27126,7 @@ function AIItineraryBuilder({
             };
           })}
         />
+        )}
       </div>
     </div>
   );
