@@ -27,6 +27,7 @@ interface ItineraryPdfTemplateSimpleProps {
 }
 
 
+
 /** Simplified, text-first proposal. Cost summary is shared with the detailed template. */
 export const ItineraryPdfTemplateSimple = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateSimpleProps>(
   (props, ref) => {
