@@ -45,3 +45,5 @@ text.txt
 devpromptexperts-a57169ef8ea4.json
 error.log
 *.log
+# generated PDF/HTML output (contains tokens)
+/generated/

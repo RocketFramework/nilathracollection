@@ -1797,7 +1797,8 @@ export async function sendPurchaseOrderEmailAction(options: {
     try {
         const { to, from, subject, body, pdfBase64, pdfFilename, poId, sentToName } = options;
         
-        if (!to) {
+        const recipients = (to || '').split(/[,;]/).map(e => e.trim()).filter(Boolean);
+        if (recipients.length === 0) {
             return { success: false, error: "Recipient email is required." };
         }
         
@@ -1821,7 +1822,7 @@ export async function sendPurchaseOrderEmailAction(options: {
         
         const emailPayload: any = {
             from: sender,
-            to: to,
+            to: recipients,
             subject: subject,
             html: html
         };

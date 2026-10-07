@@ -26,13 +26,6 @@ interface ItineraryPdfTemplateSimpleProps {
   tripStatus?: string;
 }
 
-const typeLabel: Record<string, string> = {
-  [ItineraryBlockTypes.ACTIVITY]: 'Activity',
-  [ItineraryBlockTypes.SLEEP]: 'Stay',
-  [ItineraryBlockTypes.MEAL]: 'Meal',
-  [ItineraryBlockTypes.TRAVEL]: 'Transfer',
-  [ItineraryBlockTypes.TRAIN]: 'Train'
-};
 
 /** Simplified, text-first proposal. Cost summary is shared with the detailed template. */
 export const ItineraryPdfTemplateSimple = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateSimpleProps>(
@@ -106,28 +99,36 @@ export const ItineraryPdfTemplateSimple = React.forwardRef<HTMLDivElement, Itine
         {/* Day by day */}
         <div className="px-10 py-6 space-y-5">
           {days.map(dayNum => {
-            const blocks = itinerary.filter(b => b.dayNumber === dayNum);
+            const dayBlocks = itinerary.filter(b => b.dayNumber === dayNum);
+            const stay = dayBlocks.find(b => b.type === ItineraryBlockTypes.SLEEP);
+            const activities = dayBlocks.filter(b => b.type === ItineraryBlockTypes.ACTIVITY);
             return (
               <div key={dayNum} className="print-avoid-break">
                 <div className="flex items-baseline justify-between border-b border-neutral-200 pb-1 mb-2">
                   <h2 className="text-sm font-bold text-[#0A251D] uppercase tracking-wider">Day {dayNum}</h2>
-                  <span className="text-[10px] text-neutral-500">{dayDate(dayNum)}</span>
+                  <span className="text-[10px] text-neutral-500">
+                    {dayDate(dayNum)}{dayDate(dayNum) ? ' · ' : ''}{activities.length} {activities.length === 1 ? 'Activity' : 'Activities'}
+                  </span>
                 </div>
-                {blocks.length === 0 ? (
-                  <p className="text-[11px] text-neutral-400 italic">Leisure / no scheduled items.</p>
+                {!stay && activities.length === 0 ? (
+                  <p className="text-[11px] text-neutral-400 italic">Leisure day.</p>
                 ) : (
                   <ul className="space-y-1">
-                    {blocks.map(b => (
-                      <li key={b.id} className="text-[11px] text-neutral-700 flex gap-3">
-                        <span className="w-24 shrink-0 text-neutral-500 font-mono">
-                          {b.startTime ? `${b.startTime}${b.endTime ? ` – ${b.endTime}` : ''}` : ''}
-                        </span>
-                        <span className="w-16 shrink-0 text-[#8C6D3F] uppercase text-[9px] tracking-wider pt-[1px]">
-                          {typeLabel[b.type] || 'Item'}
-                        </span>
+                    {stay && (
+                      <li className="text-[11px] text-neutral-700 flex gap-3">
+                        <span className="w-16 shrink-0 text-[#8C6D3F] uppercase text-[9px] tracking-wider pt-[1px]">Stay</span>
                         <span className="flex-1">
-                          {b.type === ItineraryBlockTypes.SLEEP ? (b.hotelName || b.name) : b.name}
-                          {b.type === ItineraryBlockTypes.SLEEP && b.mealPlan ? ` (${b.mealPlan})` : ''}
+                          {stay.hotelName || stay.name}
+                          {stay.mealPlan ? ` (${stay.mealPlan})` : ''}
+                          {stay.locationName ? <span className="text-neutral-400"> · {stay.locationName}</span> : null}
+                        </span>
+                      </li>
+                    )}
+                    {activities.map(b => (
+                      <li key={b.id} className="text-[11px] text-neutral-700 flex gap-3">
+                        <span className="w-16 shrink-0 text-[#8C6D3F] uppercase text-[9px] tracking-wider pt-[1px]">Activity</span>
+                        <span className="flex-1">
+                          {b.name}
                           {b.locationName ? <span className="text-neutral-400"> · {b.locationName}</span> : null}
                         </span>
                       </li>

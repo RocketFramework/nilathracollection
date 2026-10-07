@@ -10986,7 +10986,19 @@ ${chauffeurHtml}
                                           </div>
                                           <div>
                                             <span className="text-xs font-bold text-neutral-800 block">
-                                              {room?.room_name || 'Room Name Not Specified'}
+                                              {(() => {
+                                                const itinBlock = itinerary.find((b: any) => b.type === 'sleep' && Number(b.dayNumber) === Number(dayNum));
+                                                const selRooms = (stay as any).selectedRooms || (stay as any).selected_rooms || (acc as any)?.selectedRooms || (itinBlock as any)?.selectedRooms;
+                                                const selNames = Array.isArray(selRooms)
+                                                  ? selRooms.map((r: any) => r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard).filter(Boolean).join(', ')
+                                                  : '';
+                                                return selNames
+                                                  || (stay as any).roomName || (stay as any).room_name
+                                                  || (acc as any)?.roomName
+                                                  || (itinBlock as any)?.roomName
+                                                  || room?.room_name
+                                                  || 'Room Name Not Specified';
+                                              })()}
                                             </span>
                                             {stay.title && (
                                               <span className="text-[10px] text-neutral-400 block mt-0.5">
@@ -21550,9 +21562,9 @@ ${chauffeurHtml}
                         Recipient (Reservation Email)
                       </label>
                       <input
-                        type="email"
+                        type="text"
                         required
-                        placeholder="e.g. reservations@hotel.com"
+                        placeholder="e.g. reservations@hotel.com, sales@hotel.com"
                         value={poEmailTo}
                         onChange={(e) => { const val = e.target.value; startTransition(() => setPoEmailTo(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"
