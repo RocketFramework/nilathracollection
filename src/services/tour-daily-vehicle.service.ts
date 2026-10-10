@@ -42,9 +42,9 @@ export class TourDailyVehicleService {
             const contractedMileage = Number(row.contracted_excess_mileage_cost ?? row.excess_mileage_cost ?? 0);
             const contractedOther = Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
-            const chargedRate = Number(row.charged_per_day_rate ?? contractedRate);
-            const chargedMileage = Number(row.charged_excess_mileage_cost ?? contractedMileage);
-            const chargedOther = Number(row.charged_other_allowance ?? contractedOther);
+            const chargedRate = Number(row.charged_per_day_rate ?? 0);
+            const chargedMileage = Number(row.charged_excess_mileage_cost ?? 0);
+            const chargedOther = Number(row.charged_other_allowance ?? 0);
 
             return {
                 id: row.id,
@@ -102,9 +102,9 @@ export class TourDailyVehicleService {
             const contractedMileage = Number(p.contracted_excess_mileage_cost ?? p.excess_mileage_cost ?? 0);
             const contractedOther = Number(p.contracted_other_allowance ?? p.other_allowance ?? 0);
 
-            const chargedRate = Number(p.charged_per_day_rate ?? contractedRate);
-            const chargedMileage = Number(p.charged_excess_mileage_cost ?? contractedMileage);
-            const chargedOther = Number(p.charged_other_allowance ?? contractedOther);
+            const chargedRate = Number(p.charged_per_day_rate ?? 0);
+            const chargedMileage = Number(p.charged_excess_mileage_cost ?? 0);
+            const chargedOther = Number(p.charged_other_allowance ?? 0);
 
             if (p.applyScope === 'all') {
                 (itineraries || []).forEach((it: any) => {
@@ -198,9 +198,9 @@ export class TourDailyVehicleService {
             const contractedMileage = Number(row.contracted_excess_mileage_cost ?? row.excess_mileage_cost ?? 0);
             const contractedOther = Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
-            const chargedRate = Number(row.charged_per_day_rate ?? contractedRate);
-            const chargedMileage = Number(row.charged_excess_mileage_cost ?? contractedMileage);
-            const chargedOther = Number(row.charged_other_allowance ?? contractedOther);
+            const chargedRate = Number(row.charged_per_day_rate ?? 0);
+            const chargedMileage = Number(row.charged_excess_mileage_cost ?? 0);
+            const chargedOther = Number(row.charged_other_allowance ?? 0);
 
             return {
                 id: row.id,

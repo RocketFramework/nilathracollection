@@ -328,7 +328,7 @@ export const generateHotelPoPdf = async (
                 roomDesc += ` - ${act.description}`;
             }
 
-            const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+            const unitCost = Number(act.contracted_price ?? 0);
             const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
             calculatedSubtotal += totalCost;
 
@@ -404,7 +404,7 @@ export const generateHotelPoPdf = async (
             const roomDesc = `${act.title || act.name || 'Additional Service'}${descSuffix}`;
             const totalQty = act.quantity || 1;
 
-            const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
+            const unitCost = Number(act.contracted_price ?? 0);
             const totalCost = Number(act.contracted_total_price ?? (totalQty * unitCost));
             calculatedSubtotal += totalCost;
 

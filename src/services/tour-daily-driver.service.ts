@@ -43,10 +43,10 @@ export class TourDailyDriverService {
             const contractedMeal = Number(row.contracted_meal_cost ?? row.meal_cost ?? 0);
             const contractedOther = Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
-            const chargedRate = Number(row.charged_per_day_rate ?? contractedRate);
-            const chargedAcc = Number(row.charged_accommodation_cost ?? contractedAcc);
-            const chargedMeal = Number(row.charged_meal_cost ?? contractedMeal);
-            const chargedOther = Number(row.charged_other_allowance ?? contractedOther);
+            const chargedRate = Number(row.charged_per_day_rate ?? 0);
+            const chargedAcc = Number(row.charged_accommodation_cost ?? 0);
+            const chargedMeal = Number(row.charged_meal_cost ?? 0);
+            const chargedOther = Number(row.charged_other_allowance ?? 0);
 
             return {
                 id: row.id,
@@ -122,10 +122,10 @@ export class TourDailyDriverService {
             const contractedMeal = p.contracted_meal_cost ?? p.meal_cost ?? 0;
             const contractedOther = p.contracted_other_allowance ?? p.other_allowance ?? 0;
 
-            const chargedRate = p.charged_per_day_rate ?? contractedRate;
-            const chargedAcc = p.charged_accommodation_cost ?? contractedAcc;
-            const chargedMeal = p.charged_meal_cost ?? contractedMeal;
-            const chargedOther = p.charged_other_allowance ?? contractedOther;
+            const chargedRate = p.charged_per_day_rate ?? 0;
+            const chargedAcc = p.charged_accommodation_cost ?? 0;
+            const chargedMeal = p.charged_meal_cost ?? 0;
+            const chargedOther = p.charged_other_allowance ?? 0;
 
             if (p.applyScope === 'all') {
                 // Replicate across all itineraries
@@ -225,10 +225,10 @@ export class TourDailyDriverService {
             const contractedMeal = Number(row.contracted_meal_cost ?? row.meal_cost ?? 0);
             const contractedOther = Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
-            const chargedRate = Number(row.charged_per_day_rate ?? contractedRate);
-            const chargedAcc = Number(row.charged_accommodation_cost ?? contractedAcc);
-            const chargedMeal = Number(row.charged_meal_cost ?? contractedMeal);
-            const chargedOther = Number(row.charged_other_allowance ?? contractedOther);
+            const chargedRate = Number(row.charged_per_day_rate ?? 0);
+            const chargedAcc = Number(row.charged_accommodation_cost ?? 0);
+            const chargedMeal = Number(row.charged_meal_cost ?? 0);
+            const chargedOther = Number(row.charged_other_allowance ?? 0);
 
             return {
                 id: row.id,

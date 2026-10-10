@@ -1,5 +1,6 @@
 "use client";
 
+import { PriceResolutionService, NOT_NEGOTIATED_LABEL } from '@/services/price-resolution.service';
 import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -812,7 +813,7 @@ function PlannerWizardWorkspace() {
   const handleAssignDefaultDriverToAllDays = async (driverId: string) => {
     if (!driverId) return;
     const driver = masterData.drivers?.find((d: any) => d.id === driverId);
-    const baseRate = driver?.per_day_rate ? Number(driver.per_day_rate) : 15;
+    const baseRate = driver?.per_day_rate ? Number(driver.per_day_rate) : 0;
     const totalDays = touristData?.preferences?.duration_days || tripData?.profile?.durationDays || 5;
 
     const driverMarkupPercent = appSettings?.diver_markup !== undefined
@@ -831,7 +832,7 @@ function PlannerWizardWorkspace() {
           accommodation_cost: 0,
           meal_cost: 0,
           other_allowance: 0,
-          contracted_per_day_rate: baseRate,
+          contracted_per_day_rate: 0, // not negotiated yet (final track sets this)
           contracted_accommodation_cost: 0,
           contracted_meal_cost: 0,
           contracted_other_allowance: 0,
@@ -1077,7 +1078,13 @@ function PlannerWizardWorkspace() {
               day_number: dNum,
               driver_id: dAss.driver_id,
               contracted_per_day_rate: Number(dAss.contracted_per_day_rate ?? dAss.per_day_rate ?? 0),
-              charged_per_day_rate: Number(dAss.charged_per_day_rate ?? dAss.per_day_rate ?? 0),
+              contracted_accommodation_cost: Number(dAss.contracted_accommodation_cost ?? 0),
+              contracted_meal_cost: Number(dAss.contracted_meal_cost ?? 0),
+              contracted_other_allowance: Number(dAss.contracted_other_allowance ?? 0),
+              charged_per_day_rate: Number(dAss.charged_per_day_rate ?? 0),
+              charged_accommodation_cost: Number(dAss.charged_accommodation_cost ?? 0),
+              charged_meal_cost: Number(dAss.charged_meal_cost ?? 0),
+              charged_other_allowance: Number(dAss.charged_other_allowance ?? 0),
               notes: dAss.notes || ''
             } as TourDailyDriverDTO);
           }
@@ -1425,7 +1432,6 @@ function PlannerWizardWorkspace() {
     else if (field === 'restaurantId' && block.type === ItineraryBlockTypes.MEAL) {
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
-        const contractedPrice = restaurant.lunch_rate_per_head || 25;
         const travelStyle = tripData?.profile?.travelStyle || 'Luxury';
         const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
         const mealLabel = block.mealType || 'Lunch';
@@ -1441,7 +1447,7 @@ function PlannerWizardWorkspace() {
         setItinerary(prev => prev.map(b => b.id === blockId ? {
           ...b,
           restaurantId: value,
-          contractedPrice: b.contractedPrice ?? contractedPrice,
+          contractedPrice: b.contractedPrice,
           agreedPrice: unitCharged
         } : b));
       }
@@ -1506,7 +1512,7 @@ function PlannerWizardWorkspace() {
             vendorId: value,
             activityId: blockActivityId,
             vendorActivityId: va.id,
-            contractedPrice: b.contractedPrice ?? contractedRate,
+            contractedPrice: b.contractedPrice,
             agreedPrice: b.agreedPrice ?? agreedPrice,
             imageUrl: autoImageUrl
           } : b));
@@ -1929,10 +1935,9 @@ function PlannerWizardWorkspace() {
       prev.map(b => {
         const isMatch = targetActIds.includes(b.id) || (b.type === ItineraryBlockTypes.SLEEP && targetDayNums.includes(Number(b.dayNumber)));
         if (!isMatch) return b;
-        const calcAgreed = totalPrice !== undefined ? totalPrice : (unitPrice ? unitPrice : b.agreedPrice);
+        // Final-track negotiated rate = CONTRACTED price only; the charged price (agreedPrice) stays as set in the AI builder.
         return {
           ...b,
-          agreedPrice: calcAgreed,
           priceFinalized: true,
           driverMealIncluded: customRateDriverMeal,
           driverAccIncluded: customRateDriverAcc,
@@ -2460,6 +2465,7 @@ function PlannerWizardWorkspace() {
                 concierge_cost_item_id: concItemId,
                 quantity: val.quantity > 0 ? val.quantity : 1,
                 cost: val.cost,
+                charged_cost: val.charged_cost || 0,
                 tour_itinerary_id: val.tour_itinerary_id || null
               });
             }
@@ -2528,8 +2534,6 @@ function PlannerWizardWorkspace() {
                   hotelId: matchingSleep.hotelId || acc.hotelId,
                   hotelName: matchingSleep.hotelName || acc.hotelName,
                   mealPlan: matchingSleep.mealPlan || acc.mealPlan,
-                  customContractedTotalPrice: matchingSleep.agreedPrice !== undefined ? matchingSleep.agreedPrice : acc.customContractedTotalPrice,
-                  customContractedUnitPrice: matchingSleep.baseRoomRate !== undefined ? matchingSleep.baseRoomRate : acc.customContractedUnitPrice,
                   selectedRooms: matchingSleep.selectedRooms && matchingSleep.selectedRooms.length > 0
                     ? matchingSleep.selectedRooms
                     : (hotelChanged ? [] : (acc.selectedRooms || []))
@@ -2560,8 +2564,6 @@ function PlannerWizardWorkspace() {
                   beddingConfiguration: '',
                   specialRequests: '',
                   mealPlan: b.mealPlan || 'BB',
-                  customContractedTotalPrice: b.agreedPrice,
-                  customContractedUnitPrice: b.baseRoomRate,
                   selectedRooms: b.selectedRooms || []
                 });
               }
@@ -3135,10 +3137,10 @@ function PlannerWizardWorkspace() {
                 Number(row.contracted_other_allowance ?? row.other_allowance ?? 0);
 
               const chargedTotal =
-                Number(row.charged_per_day_rate ?? row.contracted_per_day_rate ?? row.per_day_rate ?? 0) +
-                Number(row.charged_accommodation_cost ?? row.contracted_accommodation_cost ?? row.accommodation_cost ?? 0) +
-                Number(row.charged_meal_cost ?? row.contracted_meal_cost ?? row.meal_cost ?? 0) +
-                Number(row.charged_other_allowance ?? row.contracted_other_allowance ?? row.other_allowance ?? 0);
+                Number(row.charged_per_day_rate ?? 0) +
+                Number(row.charged_accommodation_cost ?? 0) +
+                Number(row.charged_meal_cost ?? 0) +
+                Number(row.charged_other_allowance ?? 0);
 
               const noteText = row.notes || '';
               let rateType = 'Driver Agreement Rate';
@@ -3160,7 +3162,7 @@ function PlannerWizardWorkspace() {
             for (let idx = 0; idx < numDays; idx++) {
               const dayNum = idx + 1;
               const driver = masterData.drivers?.find((d: any) => d.id === driverId);
-              const driverDefaultRate = driver?.per_day_rate || 15;
+              const driverDefaultRate = Number(driver?.per_day_rate) || 0;
               const defaultRate = Number(appSettings?.regular_chauffeur_day_rate) || driverDefaultRate;
               const defaultRateType = appSettings?.regular_chauffeur_day_rate ? 'Regular Chauffeur Rate' : 'Chauffeur Default';
 
@@ -3267,7 +3269,7 @@ function PlannerWizardWorkspace() {
           const savedConcierges = savedConcRes?.success && savedConcRes.items ? savedConcRes.items : [];
           const defaultPax = touristRes?.data ? (Number(touristRes.data.preferences?.adults || 0) + Number(touristRes.data.preferences?.children || 0)) || 1 : 1;
 
-          const conciergeMap = new Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>();
+          const conciergeMap = new Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; charged_cost: number; tour_itinerary_id?: string | null }>();
           if (savedConcierges && savedConcierges.length > 0) {
             savedConcierges.forEach((saved: any, idx: number) => {
               const item = activeItems.find((i: any) => i.id === saved.concierge_cost_item_id);
@@ -3278,6 +3280,7 @@ function PlannerWizardWorkspace() {
                 selected: true,
                 quantity: Number(saved.quantity) > 0 ? Number(saved.quantity) : defaultPax,
                 cost: saved.cost !== null && saved.cost !== undefined ? Number(saved.cost) : Number(item?.default_cost || 0),
+                charged_cost: Number(saved.charged_cost) || 0,
                 tour_itinerary_id: saved.tour_itinerary_id || null
               });
             });
@@ -3638,7 +3641,7 @@ function PlannerWizardWorkspace() {
                   confirmationStatus: 'Pending',
                   paymentStatus: 'Pending',
                   contractedPrice: po.contracted_price || 0,
-                  agreedPrice: po.contracted_price || po.charged_unit_price || 0,
+                  agreedPrice: po.charged_unit_price || 0,
                   quantity: po.quantity || 1,
                   contractedTotalPrice: po.contracted_total_price || 0,
                   isCustomPO: true
@@ -4106,7 +4109,7 @@ function PlannerWizardWorkspace() {
 
   // Concierge Configuration state
   const [availableConciergeCostItems, setAvailableConciergeCostItems] = useState<SeamlessConciergeCostItem[]>([]);
-  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>(new Map());
+  const [selectedTourConcierges, setSelectedTourConcierges] = useState<Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; charged_cost: number; tour_itinerary_id?: string | null }>>(new Map());
   const [conciergeSearchQuery, setConciergeSearchQuery] = useState<string>('');
   const [conciergeCategoryFilter, setConciergeCategoryFilter] = useState<string>('All');
 
@@ -4175,15 +4178,22 @@ function PlannerWizardWorkspace() {
       .map(da => {
         const dayNum = da.tour_itineraries?.day_number || da.day_number || 1;
 
-        let contractedTotal = da.contracted_total_price !== undefined && da.contracted_total_price !== null
-          ? Number(da.contracted_total_price)
-          : (Number(da.contracted_price) || 0) * (da.quantity || 1);
-        let contractedPrice = Number(da.contracted_price) || (da.quantity > 0 ? contractedTotal / da.quantity : contractedTotal);
-
+        // Charged = saved charged columns only (never derived from contracted).
         let chargedTotal = da.charged_total_price !== undefined && da.charged_total_price !== null && Number(da.charged_total_price) > 0
           ? Number(da.charged_total_price)
-          : (Number(da.charged_unit_price) > 0 ? Number(da.charged_unit_price) * (da.quantity || 1) : contractedTotal);
+          : (Number(da.charged_unit_price) > 0 ? Number(da.charged_unit_price) * (da.quantity || 1) : 0);
         let chargedPrice = Number(da.charged_unit_price) || (da.quantity > 0 ? chargedTotal / da.quantity : chargedTotal);
+
+        // Contracted = saved final-track value; if not negotiated yet, DISPLAY-ONLY estimate = charged x 0.9 (flagged).
+        const savedContractedTotal = da.contracted_total_price !== undefined && da.contracted_total_price !== null
+          ? Number(da.contracted_total_price)
+          : (Number(da.contracted_price) || 0) * (da.quantity || 1);
+        const resolvedContracted = PriceResolutionService.resolveContractedForDisplay(savedContractedTotal, chargedTotal);
+        const contractedNegotiated = resolvedContracted.negotiated;
+        let contractedTotal = resolvedContracted.value;
+        let contractedPrice = contractedNegotiated
+          ? (Number(da.contracted_price) || (da.quantity > 0 ? contractedTotal / da.quantity : contractedTotal))
+          : (da.quantity > 0 ? contractedTotal / da.quantity : contractedTotal);
 
         // Find linked PO items
         const linkedPOItems = purchaseOrders
@@ -4315,6 +4325,7 @@ function PlannerWizardWorkspace() {
           quantity: da.quantity || 1,
           contractedPrice,
           contractedTotal,
+          contractedNegotiated,
           chargedPrice,
           chargedTotal,
           invoicedQty,
@@ -4387,18 +4398,22 @@ function PlannerWizardWorkspace() {
 
       if (driverAssList.length > 0) {
         driverAssList.forEach((driverAss, idx) => {
-          const contractedTotal =
+          const savedContractedTotal =
             Number(driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
             Number(driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
             Number(driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
             Number(driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
 
+          // Charged = saved charged columns only (no fallback to contracted).
           const chargedTotal =
-            Number(driverAss.charged_per_day_rate ?? driverAss.contracted_per_day_rate ?? driverAss.per_day_rate ?? 0) +
-            Number(driverAss.charged_accommodation_cost ?? driverAss.contracted_accommodation_cost ?? driverAss.accommodation_cost ?? 0) +
-            Number(driverAss.charged_meal_cost ?? driverAss.contracted_meal_cost ?? driverAss.meal_cost ?? 0) +
-            Number(driverAss.charged_other_allowance ?? driverAss.contracted_other_allowance ?? driverAss.other_allowance ?? 0);
+            Number(driverAss.charged_per_day_rate ?? 0) +
+            Number(driverAss.charged_accommodation_cost ?? 0) +
+            Number(driverAss.charged_meal_cost ?? 0) +
+            Number(driverAss.charged_other_allowance ?? 0);
 
+          const resolvedContracted = PriceResolutionService.resolveContractedForDisplay(savedContractedTotal, chargedTotal);
+          const contractedNegotiated = resolvedContracted.negotiated;
+          const contractedTotal = resolvedContracted.value;
           const contractedPrice = contractedTotal;
           const chargedPrice = chargedTotal;
 
@@ -4433,6 +4448,7 @@ function PlannerWizardWorkspace() {
             quantity: 1,
             contractedPrice,
             contractedTotal,
+            contractedNegotiated,
             chargedPrice,
             chargedTotal,
             invoicedQty,
@@ -4458,18 +4474,16 @@ function PlannerWizardWorkspace() {
         });
       } else {
         // Fallback if no drivers assigned but we have travel activities or defaults
-        let contractedTotal = 15;
-        let chargedTotal = 15;
-        if (dayTravelActs.length > 0) {
-          let sumContracted = 0;
-          let sumCharged = 0;
-          dayTravelActs.forEach(act => {
-            sumContracted += Number(act.contracted_total_price ?? act.contracted_price ?? 0);
-            sumCharged += Number(act.charged_total_price ?? act.charged_unit_price ?? act.contracted_price ?? 0);
-          });
-          contractedTotal = sumContracted > 0 ? sumContracted : 15;
-          chargedTotal = sumCharged > 0 ? sumCharged : contractedTotal;
-        }
+        // No driver assignment saved: use saved travel-activity prices only (no invented default amounts).
+        let sumContracted = 0;
+        let chargedTotal = 0;
+        dayTravelActs.forEach(act => {
+          sumContracted += Number(act.contracted_total_price ?? act.contracted_price ?? 0);
+          chargedTotal += Number(act.charged_total_price ?? act.charged_unit_price ?? 0);
+        });
+        const resolvedContracted = PriceResolutionService.resolveContractedForDisplay(sumContracted, chargedTotal);
+        const contractedNegotiated = resolvedContracted.negotiated;
+        const contractedTotal = resolvedContracted.value;
 
         const contractedPrice = contractedTotal;
         const chargedPrice = chargedTotal;
@@ -4496,6 +4510,7 @@ function PlannerWizardWorkspace() {
           quantity: 1,
           contractedPrice,
           contractedTotal,
+          contractedNegotiated,
           chargedPrice,
           chargedTotal,
           invoicedQty,
@@ -4565,16 +4580,20 @@ function PlannerWizardWorkspace() {
       });
 
       vehicleAssList.forEach((vehicleAss, idx) => {
-        const contractedTotal =
+        const savedContractedTotal =
           Number(vehicleAss.contracted_per_day_rate ?? vehicleAss.per_day_rate ?? 0) +
           Number(vehicleAss.contracted_excess_mileage_cost ?? vehicleAss.excess_mileage_cost ?? 0) +
           Number(vehicleAss.contracted_other_allowance ?? vehicleAss.other_allowance ?? 0);
 
+        // Charged = saved charged columns only (no fallback to contracted).
         const chargedTotal =
-          Number(vehicleAss.charged_per_day_rate ?? vehicleAss.contracted_per_day_rate ?? vehicleAss.per_day_rate ?? 0) +
-          Number(vehicleAss.charged_excess_mileage_cost ?? vehicleAss.contracted_excess_mileage_cost ?? vehicleAss.excess_mileage_cost ?? 0) +
-          Number(vehicleAss.charged_other_allowance ?? vehicleAss.contracted_other_allowance ?? vehicleAss.other_allowance ?? 0);
+          Number(vehicleAss.charged_per_day_rate ?? 0) +
+          Number(vehicleAss.charged_excess_mileage_cost ?? 0) +
+          Number(vehicleAss.charged_other_allowance ?? 0);
 
+        const resolvedContracted = PriceResolutionService.resolveContractedForDisplay(savedContractedTotal, chargedTotal);
+        const contractedNegotiated = resolvedContracted.negotiated;
+        const contractedTotal = resolvedContracted.value;
         const contractedPrice = contractedTotal;
         const chargedPrice = chargedTotal;
 
@@ -4623,6 +4642,7 @@ function PlannerWizardWorkspace() {
           quantity: 1,
           contractedPrice,
           contractedTotal,
+          contractedNegotiated,
           chargedPrice,
           chargedTotal,
           invoicedQty,
@@ -4674,7 +4694,7 @@ function PlannerWizardWorkspace() {
         }
 
         const contractedTotal = (val.cost || 0) * totalQty;
-        const chargedTotal = contractedTotal;
+        const chargedTotal = (val.charged_cost || 0) * totalQty;
 
         supplierPLItems.push({
           dailyActivityId: `concierge-${itemId}-${val.tour_itinerary_id || 'trip'}`,
@@ -4686,7 +4706,7 @@ function PlannerWizardWorkspace() {
           quantity: totalQty,
           contractedPrice: val.cost || 0,
           contractedTotal,
-          chargedPrice: val.cost || 0,
+          chargedPrice: val.charged_cost || 0,
           chargedTotal,
           invoicedQty: 0,
           invoicedUnitPrice: 0,
@@ -8160,6 +8180,7 @@ ${chauffeurHtml}
                     concierge_cost_item_id: concItemId,
                     quantity: val.quantity > 0 ? val.quantity : 1,
                     cost: val.cost,
+                    charged_cost: val.charged_cost || 0,
                     tour_itinerary_id: val.tour_itinerary_id || null
                   });
                 }
@@ -9714,6 +9735,7 @@ ${chauffeurHtml}
                                       concierge_cost_item_id: concItemId,
                                       quantity: val.quantity > 0 ? val.quantity : 1,
                                       cost: val.cost,
+                                      charged_cost: val.charged_cost || 0,
                                       tour_itinerary_id: val.tour_itinerary_id || null
                                     });
                                   }
@@ -9835,6 +9857,7 @@ ${chauffeurHtml}
                           const defaultPax = touristData ? (Number(touristData.preferences?.adults || 0) + Number(touristData.preferences?.children || 0)) || 1 : 1;
                           const quantity = primaryEntry ? primaryEntry.quantity : defaultPax;
                           const cost = primaryEntry ? primaryEntry.cost : Number(item.default_cost || 0);
+                          const chargedCost = primaryEntry ? Number(primaryEntry.charged_cost) || 0 : 0;
                           const itemTotal = itemAssignments.reduce((sum, [_, e]) => sum + (e.quantity * e.cost), 0) || (quantity * cost);
 
                           // Determine selected value for the primary dropdown
@@ -9915,6 +9938,7 @@ ${chauffeurHtml}
                                           selected: true,
                                           quantity: quantity,
                                           cost: cost,
+                                          charged_cost: chargedCost,
                                           tour_itinerary_id: null
                                         });
                                       } else {
@@ -9931,6 +9955,7 @@ ${chauffeurHtml}
                                           selected: true,
                                           quantity: quantity,
                                           cost: cost,
+                                          charged_cost: chargedCost,
                                           tour_itinerary_id: val
                                         });
                                       }
@@ -10003,6 +10028,7 @@ ${chauffeurHtml}
                                             selected: true,
                                             quantity: quantity,
                                             cost: cost,
+                                            charged_cost: chargedCost,
                                             tour_itinerary_id: addItinId === 'trip' ? null : addItinId
                                           });
                                           setSelectedTourConcierges(newMap);
@@ -10074,6 +10100,29 @@ ${chauffeurHtml}
                                         newMap.forEach((v, k) => {
                                           if (v.concierge_cost_item_id === item.id! && v.selected) {
                                             newMap.set(k, { ...v, cost: val });
+                                          }
+                                        });
+                                        setSelectedTourConcierges(newMap);
+                                      }}
+                                      className="w-24 px-2.5 py-1.5 text-xs font-mono font-bold text-neutral-800 border border-neutral-200 rounded-xl outline-none focus:ring-1 focus:ring-emerald-800 disabled:bg-neutral-100 disabled:opacity-50"
+                                    />
+                                  </div>
+
+                                  {/* Charged (customer) Input */}
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">Charged ({item.currency || 'USD'})</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      disabled={!isSelected}
+                                      value={chargedCost}
+                                      onChange={(e) => {
+                                        const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                        const newMap = new Map(selectedTourConcierges);
+                                        newMap.forEach((v, k) => {
+                                          if (v.concierge_cost_item_id === item.id! && v.selected) {
+                                            newMap.set(k, { ...v, charged_cost: val });
                                           }
                                         });
                                         setSelectedTourConcierges(newMap);
@@ -10170,6 +10219,7 @@ ${chauffeurHtml}
                                       concierge_cost_item_id: concItemId,
                                       quantity: val.quantity > 0 ? val.quantity : 1,
                                       cost: val.cost,
+                                      charged_cost: val.charged_cost || 0,
                                       tour_itinerary_id: val.tour_itinerary_id || null
                                     });
                                   }
@@ -13985,8 +14035,7 @@ ${chauffeurHtml}
                                                     [day.dayNum]: {
                                                       ...prev[guideId][day.dayNum],
                                                       rateType: 'Custom',
-                                                      contractedPrice: contracted,
-                                                      chargedPrice: contracted
+                                                      contractedPrice: contracted
                                                     }
                                                   }
                                                 }));
@@ -14670,7 +14719,7 @@ ${chauffeurHtml}
                                   <tbody className="divide-y divide-neutral-100">
                                     {tourDays.filter((day) => Boolean(rates[day.dayNum])).map((day) => {
                                       const dayRate = rates[day.dayNum];
-                                      const driverDefaultRate = driver?.per_day_rate || 15;
+                                      const driverDefaultRate = Number(driver?.per_day_rate) || 0;
 
                                       return (
                                         <tr key={day.dayNum} className="hover:bg-neutral-50/40 transition-colors">
@@ -14709,7 +14758,6 @@ ${chauffeurHtml}
                                                       ...prev[driverId][day.dayNum],
                                                       rateType: type,
                                                       contractedPrice: contracted,
-                                                      chargedPrice: contracted,
                                                       note: `Rate Type: ${type}`
                                                     }
                                                   }
@@ -14741,8 +14789,7 @@ ${chauffeurHtml}
                                                     [day.dayNum]: {
                                                       ...prev[driverId][day.dayNum],
                                                       rateType: 'Custom',
-                                                      contractedPrice: contracted,
-                                                      chargedPrice: contracted
+                                                      contractedPrice: contracted
                                                     }
                                                   }
                                                 }));
@@ -17523,7 +17570,7 @@ ${chauffeurHtml}
 
                                               const selectedConciergesSum = Array.from(selectedTourConcierges.values()).filter(v => v.selected).reduce((sum, c) => {
                                                  const costObj = availableConciergeCostItems.find(item => item.id === c.concierge_cost_item_id);
-                                                 const cost = Number(c.cost ?? costObj?.default_cost ?? 0);
+                                                 const cost = Number(c.charged_cost || 0);
                                                  const qty = Number(c.quantity || 1);
                                                  const lineCost = cost * qty;
                                                  const cb = (costObj?.costing_basis || '').toLowerCase();
@@ -18282,6 +18329,9 @@ ${chauffeurHtml}
                                                 <div className="font-bold text-xs">${item.contractedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                 <div className="text-[9px] text-neutral-500 font-medium">≈ {formatLkr(item.contractedTotal)}</div>
                                                 <div className="text-[10px] text-neutral-400 font-normal mt-0.5">Unit: ${item.contractedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({formatLkr(item.contractedPrice)})</div>
+                                                {item.contractedNegotiated === false && (
+                                                  <div className="text-[9px] text-amber-600 font-bold mt-0.5">{NOT_NEGOTIATED_LABEL} (est. 90% of charged)</div>
+                                                )}
                                               </td>
                                               <td className="px-4 py-2.5 text-right font-mono text-neutral-850">
                                                 <div className="font-bold text-xs">${item.chargedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
@@ -19342,7 +19392,6 @@ ${chauffeurHtml}
                                                               roomName: room.room_name,
                                                               roomStandard: room.room_standard,
                                                               quantity: displayCount,
-                                                              contractedPrice: contractedPrice,
                                                               pricePerNight: agreedUnitPrice,
                                                               mealPlan: currentMealPlan
                                                             });
@@ -19450,7 +19499,6 @@ ${chauffeurHtml}
                                                                   mealPlan: currentMealPlan,
                                                                   agreedPrice: totalAgreedVal > 0 ? Math.round(totalAgreedVal * 100) / 100 : b.agreedPrice,
                                                                   baseRoomRate: avgContracted > 0 ? avgContracted : b.baseRoomRate,
-                                                                  contractedPrice: avgContracted > 0 ? avgContracted : b.contractedPrice,
                                                                   priceFinalized: true,
                                                                   locationName: h.location_address || h.closest_city || ''
                                                                 };
@@ -19631,8 +19679,7 @@ ${chauffeurHtml}
                                                 transportId: tp.id,
                                                 transportRateType: 'day',
                                                 transportQuantity: 1,
-                                                contractedPrice: v.day_rate || 0,
-                                                agreedPrice: (v.day_rate || 0) * 1.1 // fallback markup
+                                                agreedPrice: (v.day_rate || 0) * (1 + ((appSettings?.diver_markup !== undefined ? Number(appSettings.diver_markup) : (Number(appSettings?.driver_markup) || 0)) / 100)) // charged = master rate + app_settings driver markup
                                               };
                                               if (v.with_driver) {
                                                 updates.driverId = undefined;
@@ -19798,7 +19845,6 @@ ${chauffeurHtml}
                                               type="button"
                                               onClick={() => updateBlock(activeAssignment.blockId, {
                                                 mealType: meal.label,
-                                                contractedPrice: contractedRate,
                                                 agreedPrice: unitCharged
                                               })}
                                               className={`p-2.5 rounded-xl border text-center transition-all bg-white ${isMealSelected ? 'border-emerald-800 bg-emerald-50/5 ring-1 ring-emerald-800/10' : 'border-neutral-200 hover:border-neutral-350'}`}
@@ -20632,7 +20678,6 @@ ${chauffeurHtml}
                                                             roomName: room.room_name,
                                                             roomStandard: room.room_standard,
                                                             quantity: displayCount,
-                                                            contractedPrice: contractedPrice,
                                                             pricePerNight: agreedUnitPrice,
                                                             mealPlan: currentMealPlan
                                                           };
@@ -22923,8 +22968,8 @@ interface AIItineraryBuilderProps {
   handleUpdateDailyDriverField: (dayNum: number, field: keyof TourDailyDriverDTO, value: any) => void;
   dbActivities: any[];
   availableConciergeCostItems: SeamlessConciergeCostItem[];
-  selectedTourConcierges: Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>;
-  setSelectedTourConcierges: React.Dispatch<React.SetStateAction<Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; tour_itinerary_id?: string | null }>>>;
+  selectedTourConcierges: Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; charged_cost: number; tour_itinerary_id?: string | null }>;
+  setSelectedTourConcierges: React.Dispatch<React.SetStateAction<Map<string, { id?: string; concierge_cost_item_id: string; selected: boolean; quantity: number; cost: number; charged_cost: number; tour_itinerary_id?: string | null }>>>;
   conciergeSearchQuery: string;
   setConciergeSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   dayToItinIdMap?: Record<number, string>;
@@ -23465,7 +23510,6 @@ function AIItineraryBuilder({
     else if (field === 'restaurantId' && block.type === ItineraryBlockTypes.MEAL) {
       const restaurant = masterData.restaurants.find((r: any) => r.id === value);
       if (restaurant) {
-        const contractedRate = restaurant.lunch_rate_per_head || 25;
         const styleKey = TravelStyleSettingKeys[travelStyle as Exclude<TravelStyle, 'Mixed'>] || 'luxury';
         const mealLabel = block.mealType || 'Lunch';
         const appSettingKey = `${styleKey}_${mealLabel.toLowerCase()}_cost`;
@@ -23480,7 +23524,7 @@ function AIItineraryBuilder({
         setItinerary(prev => prev.map(b => b.id === blockId ? {
           ...b,
           restaurantId: value,
-          contractedPrice: b.contractedPrice ?? contractedRate,
+          contractedPrice: b.contractedPrice,
           agreedPrice: unitCharged
         } : b));
       }
@@ -23545,7 +23589,7 @@ function AIItineraryBuilder({
             vendorId: value,
             activityId: blockActivityId,
             vendorActivityId: va.id,
-            contractedPrice: b.contractedPrice ?? contractedRate,
+            contractedPrice: b.contractedPrice,
             agreedPrice: b.agreedPrice ?? agreedPrice,
             imageUrl: autoImageUrl
           } : b));
@@ -24713,7 +24757,6 @@ function AIItineraryBuilder({
         targetRoom.quantity = Number(value) || 1;
       } else if (field === 'pricePerNight' || field === 'rate') {
         targetRoom.pricePerNight = value !== '' ? Number(value) : 0;
-        targetRoom.contractedPrice = value !== '' ? Number(value) : 0;
       }
       selectedRooms[roomIdx] = targetRoom;
     }
@@ -24723,13 +24766,6 @@ function AIItineraryBuilder({
       const rQty = Number(r.quantity || 1);
       return sum + (rRate * rQty);
     }, 0);
-
-    if (totalSelectedRoomsCost > 0) {
-      currentAcc.customContractedTotalPrice = totalSelectedRoomsCost;
-      if (selectedRooms[0]?.pricePerNight !== undefined) {
-        currentAcc.customContractedUnitPrice = Number(selectedRooms[0].pricePerNight);
-      }
-    }
 
     currentAcc.selectedRooms = selectedRooms;
 

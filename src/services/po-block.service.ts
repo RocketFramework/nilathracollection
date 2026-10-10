@@ -1213,8 +1213,8 @@ export class POBlockService {
                 tour_itineraries: itin,
                 contracted_price: dayTotal,
                 contracted_total_price: dayTotal,
-                charged_unit_price: dayTotal,
-                charged_total_price: dayTotal,
+                charged_unit_price: Number(row.charged_per_day_rate ?? 0),
+                charged_total_price: Number(row.charged_per_day_rate ?? 0),
                 quantity: 1,
                 driver_id: row.driver_id,
                 contracted_per_day_rate: rate,
@@ -1259,7 +1259,7 @@ export class POBlockService {
                 tour_itinerary_id: itin.id,
                 driver_id: driverId,
                 contracted_per_day_rate: rate,
-                charged_per_day_rate: Number(act.charged_per_day_rate ?? rate),
+                charged_per_day_rate: Number(act.charged_per_day_rate ?? 0),
                 updated_at: new Date().toISOString()
             };
         });

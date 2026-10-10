@@ -165,9 +165,7 @@ export class VendorBookingService {
                             const itin = (act as any).tour_itineraries;
                             const dateVal = itin?.date || act.service_date || null;
                             const dayNum = itin?.day_number || act.day_number || null;
-                            const unitPrice = (act.contracted_price !== undefined && act.contracted_price !== null)
-                                ? Number(act.contracted_price)
-                                : Number(act.charged_unit_price ?? 0);
+                            const unitPrice = Number(act.contracted_price ?? 0);
                             const totalPrice = (act.contracted_total_price !== undefined && act.contracted_total_price !== null)
                                 ? Number(act.contracted_total_price)
                                 : unitPrice;
@@ -567,7 +565,9 @@ export class VendorBookingService {
             .select(`
                 *,
                 items:purchase_order_items(
-                    daily_activity_id
+                    daily_activity_id,
+                    unit_price,
+                    total_price
                 )
             `)
             .eq('id', bookingId)
@@ -642,22 +642,41 @@ export class VendorBookingService {
         if (vType === 'transport') vType = 'transport_provider';
         else if (vType === 'guide') vType = 'tour_guide';
 
-        const dailyActivityUpdates: any = {
-            contracted_price: targetPO.total_amount,
-            contracted_total_price: targetPO.total_amount
-        };
+        // Contracted prices are written per activity from that activity's own PO item
+        // (never the whole-PO total). Transport/driver PO items aggregate several legs
+        // into one line, so their contracted prices are left untouched here.
+        const dailyActivityUpdates: any = {};
+        const itemLevelPricing = vType !== 'transport_provider' && vType !== 'driver';
 
         if (vType === 'hotel') dailyActivityUpdates.hotel_id = vendor_id;
         else if (vType === 'vendor') dailyActivityUpdates.vendor_id = vendor_id;
         else if (vType === 'tour_guide') dailyActivityUpdates.guide_id = vendor_id;
         else if (vType === 'restaurant') dailyActivityUpdates.restaurant_id = vendor_id;
 
-        const { error: daError } = await supabase
-            .from('daily_activities')
-            .update(dailyActivityUpdates)
-            .in('id', activityIds);
+        if (Object.keys(dailyActivityUpdates).length > 0) {
+            const { error: daError } = await supabase
+                .from('daily_activities')
+                .update(dailyActivityUpdates)
+                .in('id', activityIds);
 
-        if (daError) throw daError;
+            if (daError) throw daError;
+        }
+
+        if (itemLevelPricing) {
+            for (const item of (targetPO.items || [])) {
+                if (!item.daily_activity_id) continue;
+                if (item.unit_price === null || item.unit_price === undefined ||
+                    item.total_price === null || item.total_price === undefined) continue;
+                const { error: priceErr } = await supabase
+                    .from('daily_activities')
+                    .update({
+                        contracted_price: Number(item.unit_price),
+                        contracted_total_price: Number(item.total_price)
+                    })
+                    .eq('id', item.daily_activity_id);
+                if (priceErr) throw priceErr;
+            }
+        }
 
         return true;
     }

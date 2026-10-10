@@ -5,6 +5,7 @@ export interface TourConciergeDTO {
     concierge_cost_item_id: string;
     quantity: number;
     cost: number | null;
+    charged_cost?: number | null;
     created_at?: string;
     updated_at?: string;
 }
@@ -13,6 +14,7 @@ export interface SaveTourConciergeItemDTO {
     concierge_cost_item_id: string;
     quantity: number;
     cost: number;
+    charged_cost: number;
     tour_itinerary_id?: string | null;
 }
 

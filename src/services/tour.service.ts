@@ -1082,8 +1082,11 @@ export class TourService {
                             }
 
                             const baseContractedUnit = (room as any).contractedPrice !== undefined ? (room as any).contractedPrice : room.pricePerNight;
-                            const roomContractedTotal = baseContractedUnit * room.quantity;
-                            totalContractedPrice += roomContractedTotal;
+                            // Only an explicitly negotiated room rate counts as contracted (set by final track / rate-card hotel change).
+                            // The builder's pricePerNight is a CHARGED value and must never become contracted.
+                            if ((room as any).contractedNegotiated === true && (room as any).contractedPrice > 0) {
+                                totalContractedPrice += (room as any).contractedPrice * room.quantity;
+                            }
 
                             // Calculate agreed price dynamically using fetched markup
                             const dynamicAgreedUnit = baseContractedUnit * (1 + (roomMarkup / 100));
@@ -1108,7 +1111,16 @@ export class TourService {
                         }
 
                         basePayload.quantity = totalRooms > 0 ? totalRooms : 1;
-                        if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
+                        // SINGLE SOURCE OF TRUTH (charged): the AI-builder room rate (selectedRooms[].pricePerNight).
+                        // block.agreedPrice is only a derived mirror and must never override it.
+                        const builderChargedTotal = acc.selectedRooms.reduce((sum: number, r: any) => {
+                            const rate = r.pricePerNight !== undefined && r.pricePerNight !== null ? Number(r.pricePerNight) : Number(r.contractedPrice || 0);
+                            return sum + rate * Number(r.quantity || 1);
+                        }, 0);
+                        if (builderChargedTotal > 0) {
+                            basePayload.charged_total_price = builderChargedTotal;
+                            basePayload.charged_unit_price = basePayload.quantity > 0 ? builderChargedTotal / basePayload.quantity : builderChargedTotal;
+                        } else if (b.agreedPrice !== undefined && b.agreedPrice !== null && Number(b.agreedPrice) > 0) {
                             basePayload.charged_total_price = Number(b.agreedPrice);
                             basePayload.charged_unit_price = basePayload.quantity > 0 ? Number(b.agreedPrice) / basePayload.quantity : Number(b.agreedPrice);
                         } else {
@@ -1238,18 +1250,14 @@ export class TourService {
                             }
                             
                             if (distanceNum > 0) {
-                                const dynamicVehicleKmRate = vehicleKmRate;
-                                contractedPrice = dynamicVehicleKmRate;
+                                // No charged price entered: default CHARGED from app_settings (km rate + transport markup).
+                                // contractedPrice is left untouched (set only by the final track).
                                 quantity = distanceNum > 0 ? distanceNum : 1;
-                                agreedUnitPrice = (contractedPrice || 0) * (1 + (transportMarkup / 100));
-                                agreedTotalPrice = agreedUnitPrice * quantity;
-                            }
-                        } else if (b.type === 'activity') {
-                            if (contractedPrice !== undefined && contractedPrice !== null) {
-                                agreedUnitPrice = contractedPrice * (1 + (activityMarkup / 100));
+                                agreedUnitPrice = (vehicleKmRate || 0) * (1 + (transportMarkup / 100));
                                 agreedTotalPrice = agreedUnitPrice * quantity;
                             }
                         }
+                        // Activities: charged must be entered in the AI builder; never derived from contracted here.
                     }
 
                     b.contractedPrice = contractedPrice;
@@ -1527,6 +1535,7 @@ export class TourService {
                 }
 
                 room.contractedPrice = baseRate;
+                (room as any).contractedNegotiated = true; // rate-card contract for the replacement hotel
                 room.pricePerNight = baseRate * (1 + markup / 100);
 
                 totalContracted += baseRate * room.quantity;

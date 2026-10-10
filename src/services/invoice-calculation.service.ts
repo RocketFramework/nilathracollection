@@ -124,7 +124,7 @@ export class InvoiceCalculationService {
     let hasCustomConcierge = false;
     if (tourConcierges !== undefined && tourConcierges !== null && tourConcierges.length > 0) {
       const calculatedCustomConcierge = (tourConcierges || []).reduce((sum, item) => {
-        const cost = Number(item.cost ?? item.default_cost ?? item.cost_item?.default_cost ?? 0);
+        const cost = Number(item.charged_cost || 0);
         const qty = Number(item.quantity || 1);
         const lineCost = cost * qty;
 
@@ -201,10 +201,10 @@ export class InvoiceCalculationService {
 
       if (assignedDrivers.length > 0 || assignedVehicles.length > 0) {
         assignedDrivers.forEach((drv: any) => {
-          dayTransportCost += Number(drv.charged_per_day_rate ?? drv.contracted_per_day_rate ?? drv.per_day_rate ?? 0);
+          dayTransportCost += Number(drv.charged_per_day_rate ?? 0);
         });
         assignedVehicles.forEach((veh: any) => {
-          dayTransportCost += Number(veh.charged_per_day_rate ?? veh.contracted_per_day_rate ?? veh.per_day_rate ?? 0);
+          dayTransportCost += Number(veh.charged_per_day_rate ?? 0);
         });
       } else {
         dayTransportCost = baseDailyTransportCost;
@@ -322,8 +322,8 @@ export class InvoiceCalculationService {
       });
       dbActTotal = actItems.reduce((sum, da) => {
         const qty = Number(da.quantity || (da as any).headCount || pax || 1);
-        const unit = Number(da.charged_unit_price ?? da.contracted_price ?? da.agreedPrice ?? 0);
-        const total = Number(da.charged_total_price ?? da.contracted_total_price ?? da.total_price ?? (unit * qty));
+        const unit = Number(da.charged_unit_price ?? da.agreedPrice ?? 0);
+        const total = Number(da.charged_total_price ?? da.total_price ?? (unit * qty));
         return sum + (total > 0 ? total : unit * qty);
       }, 0);
     }

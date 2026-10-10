@@ -77,6 +77,7 @@ export class TourConciergeService {
                 concierge_cost_item_id: item.concierge_cost_item_id,
                 quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
                 cost: item.cost !== undefined && item.cost !== null ? Number(item.cost) : null,
+                charged_cost: item.charged_cost !== undefined && item.charged_cost !== null ? Number(item.charged_cost) : null,
                 updated_at: new Date().toISOString()
             }));
 

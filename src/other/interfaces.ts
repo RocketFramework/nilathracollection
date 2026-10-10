@@ -530,6 +530,7 @@ export interface ProfitLossLineItem {
     quantity: number;
     contractedPrice: number; // agreed unit price with supplier (USD) (contracted_unit_price)
     contractedTotal: number; // contractedPrice * quantity (USD) (contracted_total_price)
+    contractedNegotiated?: boolean; // false => contracted is a display-only estimate (charged x 0.9), not a saved negotiated value
     chargedPrice: number; // charged unit price from customer (USD) (charged_unit_price)
     chargedTotal: number; // chargedPrice * quantity (USD) (charged_total_price)
     invoicedQty: number; // invoiced quantity from supplier_invoice_items
