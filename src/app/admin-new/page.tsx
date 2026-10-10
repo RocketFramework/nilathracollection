@@ -83,6 +83,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu
+  Ticket,
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES } from '../../types/types';
 import { ItineraryElements, TouristActivity, TripData, InternalItineraryBlock, BlockComment, DraftItineraryVersion, ItineraryLock, TourSharedEmail, TourRfqEmail, TourRfpEmail, ProfitLossLineItem, ProfitLossCustomerItem, ProfitLossSummary } from '../../other/interfaces';
@@ -24034,6 +24035,14 @@ function AIItineraryBuilder({
 
       return sum + (unitPrice * qty);
     }, 0);
+    // 3b. Activity Cost (same basis as the invoice: charged agreedPrice x quantity per activity/custom block)
+    const activities = blocksForDay
+      .filter(b => (b.type as string) === 'activity' || (b.type as string) === 'custom')
+      .reduce((sum, b) => {
+        const qty = b.quantity || (b as any).headCount || pax || 1;
+        return sum + (Number(b.agreedPrice) || 0) * qty;
+      }, 0);
+
     // 4. Transport Cost
     let dailyTransportCost = 0;
     const assignedDrivers = dailyDriverAssignments[dayNum] || [];
@@ -24106,7 +24115,7 @@ function AIItineraryBuilder({
       ? overrides.agencyFeePercent
       : getTierValue(TierSettingDefinitions.SERVICE_FEE);
 
-    const subtotal = hotel + meals + transport + concierge;
+    const subtotal = hotel + meals + activities + transport + concierge;
     const agencyFee = overrides.agencyFee !== undefined
       ? overrides.agencyFee
       : subtotal * (agencyFeePercent / 100);
@@ -24118,6 +24127,7 @@ function AIItineraryBuilder({
     return {
       hotel,
       meals,
+      activities,
       km,
       transport,
       concierge,
@@ -26221,13 +26231,13 @@ function AIItineraryBuilder({
             {(() => {
               const renderCostCard = (
                 label: string,
-                field: 'hotel' | 'meals' | 'transport' | 'concierge' | 'agencyFeePercent',
+                field: 'hotel' | 'meals' | 'activities' | 'transport' | 'concierge' | 'agencyFeePercent',
                 value: number,
                 icon: React.ReactNode,
                 paxText?: string
               ) => {
                 const isEditing = editingDayField?.dayNum === activeDay && editingDayField?.field === field;
-                const isOverridden = field !== 'transport' && field !== 'meals' && tripData?.dayCostOverrides?.[activeDay]?.[field] !== undefined;
+                const isOverridden = field !== 'transport' && field !== 'meals' && field !== 'activities' && tripData?.dayCostOverrides?.[activeDay]?.[field] !== undefined;
 
                 return (
                   <div className="bg-white p-4 rounded-xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-2 relative group min-h-[90px]">
@@ -26236,7 +26246,7 @@ function AIItineraryBuilder({
                         {icon}
                         <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
                       </div>
-                      {!isEditing && field !== 'transport' && field !== 'meals' && (
+                      {!isEditing && field !== 'transport' && field !== 'meals' && field !== 'activities' && (
                         <button
                           onClick={() => {
                             setEditingDayField({ dayNum: activeDay, field });
@@ -26294,9 +26304,10 @@ function AIItineraryBuilder({
               const dayTotalObj = calculateDayTotal(activeDay);
 
               return (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   {renderCostCard('Hotel Cost', 'hotel', dayTotalObj.hotel, <BedDouble className="w-4 h-4 text-amber-605 shrink-0" />)}
                   {renderCostCard('Meals', 'meals', dayTotalObj.meals, <Utensils className="w-4 h-4 text-rose-600 shrink-0" />, `(${(adults || 0) + (children || 0)} Pax)`)}
+                  {renderCostCard('Activities', 'activities', dayTotalObj.activities, <Ticket className="w-4 h-4 text-violet-600 shrink-0" />)}
                   {renderCostCard(
                     'Transport',
                     'transport',
