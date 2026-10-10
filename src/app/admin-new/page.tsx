@@ -82,7 +82,7 @@ import {
   RefreshCw,
   PanelLeftClose,
   PanelLeftOpen,
-  Menu
+  Menu,
   Ticket,
 } from 'lucide-react';
 import { TrackType, BasicStep, PrepareBasicSubStep, FinalStep, TravelStyle, Gender, RequestType, RequestStatus, TRAVEL_STYLES, GENDERS, REQUEST_TYPES, REQUEST_STATUSES, BINDABLE_BLOCK_TYPES, BindableBlockType, ITINERARY_BLOCK_TYPES, ItineraryBlockType, ItineraryBlockTypes, TierSettingDefinitions, RoomSizeName, GUIDE_RATE_KEYS, TravelStyleSettingKeys, Settings, VendorEmailStatus, VENDOR_EMAIL_STATUSES } from '../../types/types';

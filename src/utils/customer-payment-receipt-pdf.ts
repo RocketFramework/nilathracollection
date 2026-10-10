@@ -99,11 +99,11 @@ export const generateCustomerPaymentReceiptPdf = async (
     doc.setFontSize(8);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
 
-    const companyAddress = appSettings?.company_address || 'Colombo, Sri Lanka';
+    const companyAddress = appSettings?.company_address || '145/1 Vajira Rd, Colombo 00500, Sri Lanka';
     const addressLines = doc.splitTextToSize(companyAddress, 70);
     doc.text(addressLines, 190, 23, { align: 'right' });
-    const companyPhone = appSettings?.company_phone || '+94 77 123 4567';
-    const companyEmail = appSettings?.company_email || 'info@nilathracollection.com';
+    const companyPhone = appSettings?.company_phone || '+94 77 727 8282';
+    const companyEmail = appSettings?.company_email || 'finance@nilathra.com';
     doc.text(`${companyPhone} | ${companyEmail}`, 190, 23 + (addressLines.length * 3.5), { align: 'right' });
 
     topY = Math.max(logoBottomY + 5, 40);
