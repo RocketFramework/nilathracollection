@@ -281,9 +281,9 @@ export class TourService {
             : (tourMsg.request?.name || tourist?.email || 'New Client Inquiry');
 
         const mergedProfile = {
-            adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2,
-            children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0,
-            infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
+            adults: tourMsg.request?.adults ?? (touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2),
+            children: tourMsg.request?.children ?? (touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0),
+            infants: tourMsg.request?.infants ?? (touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0),
             arrivalDate: touristProfile.arrival_date || tourMsg.start_date || tourMsg.request?.start_date || '',
             departureDate: touristProfile.departure_date || tourMsg.end_date || '',
             durationDays: touristProfile.duration_days || 0,
@@ -325,9 +325,9 @@ export class TourService {
                 clientAddress: touristProfile.address || '',
                 status: tourMsg.status as TripData['status'],
                 profile: {
-                    adults: touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : (reqInfo?.adults || 2),
-                    children: touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : (reqInfo?.children || 0),
-                    infants: touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0,
+                    adults: reqInfo?.adults ?? (touristProfile.adults !== null && touristProfile.adults !== undefined ? touristProfile.adults : 2),
+                    children: reqInfo?.children ?? (touristProfile.children !== null && touristProfile.children !== undefined ? touristProfile.children : 0),
+                    infants: reqInfo?.infants ?? (touristProfile.infants !== null && touristProfile.infants !== undefined ? touristProfile.infants : 0),
                     arrivalDate: touristProfile.arrival_date || reqInfo?.start_date || '',
                     departureDate: touristProfile.departure_date || (() => {
                         const start = reqInfo?.start_date;
