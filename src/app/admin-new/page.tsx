@@ -23894,7 +23894,7 @@ function AIItineraryBuilder({
   const [isSavingRules, setIsSavingRules] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showRulesConfig, setShowRulesConfig] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-pro");
+  const [selectedModel, setSelectedModel] = useState("gemini-3.5-flash");
 
   // Compute days list based on durationDays (default to 5 if 0 or invalid)
   const totalDays = durationDays > 0 ? durationDays : 5;
@@ -25041,11 +25041,25 @@ function AIItineraryBuilder({
               disabled={isLockedByOther}
               className="text-xs border border-neutral-200/80 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 font-bold hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
-              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-              <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-              <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <optgroup label="Google Gemini">
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              </optgroup>
+              <optgroup label="OpenAI">
+                <option value="gpt-6-astra">GPT-6 Astra</option>
+                <option value="gpt-6.1-sol">GPT-6.1 Sol</option>
+                <option value="gpt-6-luna">GPT-6 Luna</option>
+              </optgroup>
+              <optgroup label="Anthropic Claude">
+                <option value="claude-opus-5-5">Claude Opus 5.5</option>
+                <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
+              </optgroup>
             </select>
           </div>
 

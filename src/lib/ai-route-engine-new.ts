@@ -9,11 +9,65 @@ export class AdvancedAiRouteEngine {
 
     constructor(
         startLocation: GeoLocation = { lat: 7.1725, lng: 79.8853, name: 'Katunayake Airport' },
-        modelName: string = "gemini-2.5-pro"
+        modelName: string = "gemini-3.5-flash"
     ) {
         this.genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
         this.startLocation = startLocation;
         this.modelName = modelName;
+    }
+
+    /** Sends the prompt to the provider that owns the selected model and returns the raw JSON text. */
+    private async callModel(prompt: string): Promise<string> {
+        const name = this.modelName;
+
+        if (name.startsWith('gpt-') || /^o\d/.test(name)) {
+            const key = process.env.NEXT_PUBLIC_OPENAI_API_KEY || '';
+            const isReasoning = /^o\d/.test(name) || /^gpt-([5-9]|\d{2})/.test(name);
+            const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                body: JSON.stringify({
+                    model: name,
+                    messages: [{ role: 'user', content: prompt }],
+                    response_format: { type: 'json_object' },
+                    ...(isReasoning ? {} : { temperature: 0.2 })
+                })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json?.error?.message || `OpenAI request failed (${res.status})`);
+            return json.choices?.[0]?.message?.content || '{}';
+        }
+
+        if (name.startsWith('claude-')) {
+            const key = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '';
+            const res = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': key,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                    model: name,
+                    max_tokens: 16000,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json?.error?.message || `Anthropic request failed (${res.status})`);
+            return (json.content || []).filter((c: any) => c.type === 'text').map((c: any) => c.text).join('') || '{}';
+        }
+
+        const model = this.genAI.getGenerativeModel({ model: name });
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.2
+            }
+        });
+        return result.response.text() || '{}';
     }
 
     async generatePlan(
@@ -145,19 +199,10 @@ ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.
     `;
 
         try {
-            const model = this.genAI.getGenerativeModel({ model: this.modelName });
             const prompt = systemPrompt + "\n\n" + userPrompt;
-
-            const result = await model.generateContent({
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    temperature: 0.2
-                }
-            });
-
-            const responseText = result.response.text() || '{}';
-            const aiResult = JSON.parse(responseText);
+            const responseText = await this.callModel(prompt);
+            const cleaned = responseText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+            const aiResult = JSON.parse(cleaned || '{}');
 
             const plan: ItineraryDay[] = aiResult.plan || [];
             const droppedIds: any[] = aiResult.droppedActivities || [];
@@ -215,7 +260,7 @@ export async function generateAIRoutePlan(
     chauffeurNeeded?: boolean,
     modelName?: string
 ): Promise<RoutePlan> {
-    const engine = new AdvancedAiRouteEngine({ lat: 7.1725, lng: 79.8853, name: 'Katunayake Airport' }, modelName || 'gemini-2.5-pro');
+    const engine = new AdvancedAiRouteEngine({ lat: 7.1725, lng: 79.8853, name: 'Katunayake Airport' }, modelName || 'gemini-3.5-flash');
     return engine.generatePlan(activities, locations, durationDays, customRules, travelStyle, arrivalDate, departureDate, adults, children, infants, guideNeeded, chauffeurNeeded);
 }
 
