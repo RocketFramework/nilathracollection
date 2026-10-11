@@ -25,11 +25,15 @@ export async function registerTouristAction(email: string, name?: string, phone?
             });
 
             if (authError) {
-                if (authError.message.includes('already registered')) {
+                if ((authError as any).code === 'email_exists' || /already (been )?registered/i.test(authError.message)) {
                     // Fallback to exact match via listUsers if public.users query failed
-                    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-                    const fallbackUser = users.find(u => u.email === email);
+                    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+                    const fallbackUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
                     if (fallbackUser) {
+                        const { data: publicRow } = await supabaseAdmin.from('users').select('email').eq('id', fallbackUser.id).maybeSingle();
+                        if (publicRow && publicRow.email?.toLowerCase() !== email.toLowerCase()) {
+                            return { success: false, error: `Auth email ${email} belongs to a user renamed to ${publicRow.email}. Sync the auth email first.` };
+                        }
                         userId = fallbackUser.id;
                     } else {
                         return { success: false, error: authError.message };

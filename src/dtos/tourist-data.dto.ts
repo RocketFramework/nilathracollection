@@ -221,8 +221,33 @@ export namespace TouristDataDTO {
         if (tourErr) throw tourErr;
         if (!tour) throw new Error("Tour not found");
 
-        const touristId = tour.tourist_id;
+        let touristId = tour.tourist_id;
         const requestId = tour.request_id;
+
+        // 1.5 Email is the tourist's identity. If it changed (or the tour has no tourist yet),
+        // link this tour/request to the tourist owning that email (existing or newly created).
+        const newEmail = (data.profile.email || '').trim();
+        if (newEmail) {
+            let currentEmail = '';
+            if (touristId) {
+                const { data: curUser } = await supabaseAdmin.from('users').select('email').eq('id', touristId).maybeSingle();
+                currentEmail = curUser?.email || '';
+            }
+            if (!touristId || currentEmail.toLowerCase() !== newEmail.toLowerCase()) {
+                const fullName = `${data.profile.first_name || ''} ${data.profile.last_name || ''}`.trim();
+                const { registerTouristAction } = await import('@/actions/contact.actions');
+                const reg = await registerTouristAction(newEmail, fullName || undefined, data.profile.phone || undefined);
+                if (!reg.success || !reg.user) throw new Error(reg.error || `Could not find or create a tourist for ${newEmail}`);
+                touristId = reg.user.id;
+
+                const { error: tourLinkErr } = await supabaseAdmin.from('tours').update({ tourist_id: touristId }).eq('id', tourId);
+                if (tourLinkErr) throw tourLinkErr;
+                if (requestId) {
+                    const { error: reqLinkErr } = await supabaseAdmin.from('requests').update({ tourist_id: touristId }).eq('id', requestId);
+                    if (reqLinkErr) throw reqLinkErr;
+                }
+            }
+        }
 
         // 2. Update tours table basic start/end dates
         const { error: tourUpdateErr } = await supabaseAdmin
@@ -267,21 +292,6 @@ export namespace TouristDataDTO {
                 });
 
             if (profileErr) throw profileErr;
-
-            // Update user email if provided
-            if (data.profile.email) {
-                const { error: userUpdateErr } = await supabaseAdmin
-                    .from('users')
-                    .update({
-                        email: data.profile.email,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', touristId);
-
-                if (userUpdateErr) {
-                    console.error("Failed to save user email:", userUpdateErr);
-                }
-            }
         }
 
         // 4. Update requests table if requestId exists
