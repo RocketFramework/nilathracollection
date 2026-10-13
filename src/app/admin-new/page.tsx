@@ -183,6 +183,7 @@ import {
   updateCustomerPaymentAction,
   deleteCustomerPaymentAction,
   uploadPayslipAction,
+  uploadSupplierInvoiceFileAction,
   getPayslipSignedUrlAction,
   finalizeActivityPricesAction,
   getTransportRfqTemplateAction,
@@ -3852,6 +3853,8 @@ function PlannerWizardWorkspace() {
   const [invoiceAmount, setInvoiceAmount] = useState<string>('');
   const [invoiceDate, setInvoiceDate] = useState<string>('');
   const [invoiceAttachment, setInvoiceAttachment] = useState<string>('');
+  const [invoiceType, setInvoiceType] = useState<'Pro Forma' | 'Final'>('Final');
+  const [isUploadingInvoiceFile, setIsUploadingInvoiceFile] = useState<boolean>(false);
 
   // Payment input states
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
@@ -4009,7 +4012,7 @@ function PlannerWizardWorkspace() {
 
   const handleDownloadInvoicePdf = async (inv: any) => {
     try {
-      const doc = await generateCustomerInvoicePdf(inv, appSettings, touristData);
+      const doc = await generateCustomerInvoicePdf(inv, appSettings, touristData, guideRfqDetails?.tour);
       if (doc) {
         doc.save(`Customer_Invoice_${inv.invoice_number || 'Draft'}.pdf`);
       } else {
@@ -4076,7 +4079,7 @@ function PlannerWizardWorkspace() {
       let pdfBase64 = undefined;
       let pdfFilename = undefined;
       if (selectedShareInvoice) {
-        const doc = await generateCustomerInvoicePdf(selectedShareInvoice, appSettings, touristData);
+        const doc = await generateCustomerInvoicePdf(selectedShareInvoice, appSettings, touristData, guideRfqDetails?.tour);
         if (doc) {
           const dataUrl = doc.output('datauristring');
           pdfBase64 = dataUrl.split(',')[1];
@@ -5622,6 +5625,18 @@ function PlannerWizardWorkspace() {
           bodyHtml = bodyHtml.replace(/{{Agent Name}}/g, agentName);
         }
 
+        const rfqGuestName = `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim();
+        if (rfqGuestName) {
+          if (/{{Guest Name}}/i.test(bodyHtml)) {
+            bodyHtml = bodyHtml.replace(/{{Guest Name}}/gi, rfqGuestName);
+          } else {
+            const guestLine = `<p><strong>Guest Name:</strong> ${rfqGuestName}</p>`;
+            bodyHtml = bodyHtml.includes('</p>')
+              ? bodyHtml.replace('</p>', `</p>\n${guestLine}`)
+              : `${guestLine}\n${bodyHtml}`;
+          }
+        }
+
         setRfqEmailBodyOriginal(bodyHtml);
         const initialProcessed = getProcessedEmailBody(bodyHtml, {
           adjacentRooms: false,
@@ -5697,7 +5712,7 @@ function PlannerWizardWorkspace() {
 
   const handleRfqEmailToChange = (newEmail: string) => {
     setRfqEmailTo(newEmail);
-    const newBrand = getBrandFromEmail(newEmail);
+    const newBrand = getBrandFromEmail(newEmail.split(',')[0].trim());
     if (!newBrand) return;
 
     setRfqEmailSubject((prevSubject) => {
@@ -6865,6 +6880,10 @@ ${chauffeurHtml}
 <p>Please find attached the formal Purchase Order <strong>${poNumber}</strong> for the guest stays detailed below:</p>
 <div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
   <strong>Reservation Details:</strong><br />
+  ${[
+    `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim() ? `Guest Name: ${`${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim()}<br />` : '',
+    touristData?.profile?.passport_number ? `Passport Number: ${touristData.profile.passport_number}<br />` : ''
+  ].join('')}
   Check-in: ${checkInDateFormatted}<br />
   Check-out: ${checkOutDateFormatted}<br />
   Nights: ${nightsCount}<br /><br />
@@ -7604,6 +7623,7 @@ ${chauffeurHtml}
         is_tallied: isTallied,
         discrepancy_amount: discrepancy,
         attachment_url: invoiceAttachment || undefined,
+        invoice_type: invoiceType,
         items: invoiceItems.map(item => ({
           purchase_order_item_id: item.purchase_order_item_id,
           description: item.description,
@@ -7618,6 +7638,7 @@ ${chauffeurHtml}
         setInvoiceAmount('');
         setInvoiceDate('');
         setInvoiceAttachment('');
+        setInvoiceType('Final');
         setInvoiceItems([]);
         setEnteringInvoicePoId(null);
         loadProcurementData(tourId);
@@ -16024,6 +16045,7 @@ ${chauffeurHtml}
                                           setInvoiceExchangeRate(plRate.toString());
                                           setInvoiceDate(new Date().toISOString().split('T')[0]);
                                           setInvoiceAttachment('');
+                                          setInvoiceType('Final');
                                           initInvoiceItems(po);
                                         }}
                                         className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-850 hover:text-emerald-950 border border-neutral-250 bg-white rounded-lg transition-all shadow-sm"
@@ -16129,14 +16151,62 @@ ${chauffeurHtml}
                                         </div>
 
                                         <div className="space-y-1">
-                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Attachment URL</label>
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Type</label>
+                                          <select
+                                            value={invoiceType}
+                                            onChange={(e) => setInvoiceType(e.target.value as 'Pro Forma' | 'Final')}
+                                            className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
+                                          >
+                                            <option value="Pro Forma">Pro Forma Invoice</option>
+                                            <option value="Final">Final Invoice</option>
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1 sm:col-span-2">
+                                          <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Invoice Document (PDF / Image)</label>
                                           <input
-                                            type="text"
-                                            value={invoiceAttachment}
-                                            onChange={(e) => setInvoiceAttachment(e.target.value)}
-                                            placeholder="https://..."
+                                            type="file"
+                                            accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                            disabled={isUploadingInvoiceFile}
+                                            onChange={async (e) => {
+                                              const file = e.target.files?.[0];
+                                              if (!file) return;
+                                              setIsUploadingInvoiceFile(true);
+                                              try {
+                                                const formData = new FormData();
+                                                formData.append("file", file);
+                                                const uploadRes = await uploadSupplierInvoiceFileAction(formData);
+                                                if (uploadRes.error) {
+                                                  alert("Failed to upload invoice: " + uploadRes.error);
+                                                } else if (uploadRes.url) {
+                                                  setInvoiceAttachment(uploadRes.url);
+                                                }
+                                              } catch (err: any) {
+                                                alert("Error uploading file: " + err.message);
+                                              } finally {
+                                                setIsUploadingInvoiceFile(false);
+                                                e.target.value = '';
+                                              }
+                                            }}
                                             className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-2 text-xs outline-none"
                                           />
+                                          {isUploadingInvoiceFile && (
+                                            <span className="text-[10px] text-neutral-500">Uploading...</span>
+                                          )}
+                                          {invoiceAttachment && !isUploadingInvoiceFile && (
+                                            <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-800">
+                                              <Check className="w-3 h-3" />
+                                              <span>{invoiceType} invoice uploaded</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => setInvoiceAttachment('')}
+                                                className="text-red-500 hover:text-red-700 font-bold"
+                                                title="Remove file"
+                                              >
+                                                ✕
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
 
@@ -16321,6 +16391,30 @@ ${chauffeurHtml}
                                               <div>
                                                 <div className="flex items-center gap-2">
                                                   <span className="text-xs font-bold text-neutral-805">#{inv.invoice_number}</span>
+                                                  <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full border ${inv.invoice_type === 'Pro Forma' ? 'bg-violet-50 border-violet-200 text-violet-800' : 'bg-neutral-100 border-neutral-200 text-neutral-700'}`}>
+                                                    {inv.invoice_type === 'Pro Forma' ? 'Pro Forma' : 'Final'}
+                                                  </span>
+                                                  {inv.attachment_url && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={async () => {
+                                                        try {
+                                                          const res = await getPayslipSignedUrlAction(inv.attachment_url);
+                                                          if (res.success && res.url) {
+                                                            window.open(res.url, '_blank');
+                                                          } else {
+                                                            alert("Failed to generate secure view link: " + res.error);
+                                                          }
+                                                        } catch (err: any) {
+                                                          alert("Error generating secure link: " + err.message);
+                                                        }
+                                                      }}
+                                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-neutral-100 hover:bg-emerald-50 text-neutral-600 hover:text-emerald-800 border border-neutral-200 transition-all text-[9px] font-bold cursor-pointer focus:outline-none"
+                                                    >
+                                                      <Receipt className="w-2.5 h-2.5" />
+                                                      View Invoice
+                                                    </button>
+                                                  )}
                                                   <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${calculatedStatus === 'Paid' ? 'bg-emerald-100 border border-emerald-200 text-emerald-800' :
                                                     calculatedStatus === 'Partial Paid' ? 'bg-amber-100 border border-amber-200 text-amber-800' :
                                                       'bg-blue-100 border border-blue-200 text-blue-800'
@@ -21224,9 +21318,9 @@ ${chauffeurHtml}
                         Recipient (Reservation Email)
                       </label>
                       <input
-                        type="email"
+                        type="text"
                         required
-                        placeholder="e.g. reservations@hotel.com"
+                        placeholder="e.g. reservations@hotel.com, sales@hotel.com"
                         value={rfqEmailTo}
                         onChange={(e) => { const val = e.target.value; startTransition(() => handleRfqEmailToChange(val)); }}
                         className="w-full text-xs border border-neutral-200 rounded-xl px-3.5 py-2.5 bg-white text-neutral-800 focus:outline-none focus:ring-4 focus:ring-emerald-800/10 focus:border-emerald-800 transition-all font-medium shadow-sm"

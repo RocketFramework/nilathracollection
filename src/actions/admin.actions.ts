@@ -445,6 +445,49 @@ export async function uploadPayslipAction(formData: FormData) {
     }
 }
 
+export async function uploadSupplierInvoiceFileAction(formData: FormData) {
+    try {
+        const file = formData.get("file") as File;
+        if (!file) {
+            return { error: "No file provided" };
+        }
+
+        const allowedTypes: Record<string, string> = {
+            'application/pdf': 'pdf',
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp'
+        };
+        const ext = allowedTypes[file.type];
+        if (!ext) {
+            return { error: "Unsupported file type. Please upload a PDF, JPG, PNG or WebP." };
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            return { error: "File is too large (max 10 MB)." };
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const adminSupabase = createAdminClient();
+        const filePath = `supplier-invoices/${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${ext}`;
+
+        const { error: uploadError } = await adminSupabase.storage
+            .from('payslips')
+            .upload(filePath, buffer, {
+                contentType: file.type,
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        return { success: true, url: filePath };
+    } catch (error: any) {
+        console.error("Error uploading supplier invoice file:", error);
+        return { error: error.message || "Failed to upload invoice file." };
+    }
+}
+
 export async function getPayslipSignedUrlAction(filePath: string) {
     try {
         const adminSupabase = createAdminClient();
@@ -2592,8 +2635,13 @@ export async function sendHotelRfqEmailAction(options: {
 }) {
     try {
         const { to, from, subject, body, pdfBase64, pdfFilename, quotationRequestId } = options;
-        if (!to) {
+        const recipients = (to || '').split(/[,;]/).map(e => e.trim()).filter(Boolean);
+        if (recipients.length === 0) {
             return { success: false, error: "Recipient email is required." };
+        }
+        const invalidRecipient = recipients.find(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        if (invalidRecipient) {
+            return { success: false, error: `Invalid email address: ${invalidRecipient}` };
         }
         const apiKey = process.env.RESEND_API_KEY;
         if (!apiKey) {
@@ -2627,7 +2675,7 @@ export async function sendHotelRfqEmailAction(options: {
             },
             body: JSON.stringify({
                 from: sender,
-                to: to,
+                to: recipients,
                 subject: subject,
                 html: html,
                 attachments

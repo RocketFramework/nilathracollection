@@ -163,7 +163,14 @@ export const generateHotelRfqPdf = async (
     doc.text(`Check-out: ${formatDate(checkOutDate)}`, 108, 44);
     doc.text(`Nights: ${nightsCount}`, 108, 49);
 
-    const lineY = Math.max(logoBottomY + 6, 54);
+    const guestFullName = `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim();
+    let headerBottomY = 54;
+    if (guestFullName) {
+        doc.text(`Guest Name: ${guestFullName}`, 108, 54);
+        headerBottomY = 59;
+    }
+
+    const lineY = Math.max(logoBottomY + 6, headerBottomY);
     doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.setLineWidth(0.5);
     doc.line(20, lineY, 190, lineY);

@@ -199,7 +199,13 @@ ${JSON.stringify(activities.map(a => ({ id: a.id, name: a.activity_name, lat: a.
     `;
 
         try {
-            const prompt = systemPrompt + "\n\n" + userPrompt;
+            const finalReminder = `
+
+FINAL MANDATORY CHECKLIST (verify before answering):
+- EVERY day MUST contain separate events of type "meal" named Breakfast (~8:00 AM), Lunch (~1:00 PM) and Dinner (~7:30 PM). Do not omit any meal on any day.
+- Every day MUST end with a "sleep" event.
+${customRules ? `- Follow ALL the GENERIC and SPECIFIC agent rules given above exactly:\n${customRules}\n` : ''}- Output ONLY the JSON object.`;
+            const prompt = systemPrompt + "\n\n" + userPrompt + finalReminder;
             const responseText = await this.callModel(prompt);
             const cleaned = responseText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
             const aiResult = JSON.parse(cleaned || '{}');

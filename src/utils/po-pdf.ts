@@ -257,8 +257,17 @@ export const generateHotelPoPdf = async (
     if (children > 0) occupancyStr += `, ${children} Children`;
     if (infants > 0) occupancyStr += `, ${infants} Infants`;
 
+    const poGuestName = `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim();
+    const poGuestPassport = touristData?.profile?.passport_number || '';
+    let poGuestLine = '';
+    if (poGuestName) {
+        poGuestLine = `Guest: ${poGuestName}${poGuestPassport ? `   |   Passport No: ${poGuestPassport}` : ''}`;
+    } else if (poGuestPassport) {
+        poGuestLine = `Passport No: ${poGuestPassport}`;
+    }
+
     doc.setFillColor(245, 243, 239);
-    doc.rect(20, topY, 170, 15, 'F');
+    doc.rect(20, topY, 170, poGuestLine ? 20 : 15, 'F');
     
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -268,9 +277,14 @@ export const generateHotelPoPdf = async (
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
-    doc.text(occupancyStr, 24, topY + 11);
+    let guestTextY = topY + 11;
+    if (poGuestLine) {
+        doc.text(poGuestLine, 24, guestTextY);
+        guestTextY += 5;
+    }
+    doc.text(occupancyStr, 24, guestTextY);
 
-    topY += 21;
+    topY += poGuestLine ? 26 : 21;
 
     const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
     const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));

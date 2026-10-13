@@ -50,7 +50,8 @@ const getImageDimensions = (base64: string): Promise<{ width: number; height: nu
 export const generateCustomerInvoicePdf = async (
     invoice: DBCustomerInvoice,
     appSettings: any,
-    touristData?: any
+    touristData?: any,
+    tour?: any
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
     if (!jspdfModule) return null;
@@ -310,6 +311,64 @@ export const generateCustomerInvoicePdf = async (
     doc.text("Balance Due:", totalsX, topY);
     doc.text(`${currency} ${balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsValX, topY, { align: 'right' });
     topY += 10;
+
+    // Trip Details (so the bank / payer knows what the invoice is for)
+    const tripFormatDate = (d?: string) => d
+        ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '';
+    const tripGuestName = invoice.billing_details?.name
+        || `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim()
+        || 'the guest';
+    const tripAdults = touristData?.preferences?.adults || 0;
+    const tripChildren = touristData?.preferences?.children || 0;
+    const tripInfants = touristData?.preferences?.infants || 0;
+    const paxParts: string[] = [];
+    if (tripAdults > 0) paxParts.push(`${tripAdults} Adult${tripAdults > 1 ? 's' : ''}`);
+    if (tripChildren > 0) paxParts.push(`${tripChildren} Child${tripChildren > 1 ? 'ren' : ''}`);
+    if (tripInfants > 0) paxParts.push(`${tripInfants} Infant${tripInfants > 1 ? 's' : ''}`);
+
+    let tripSummary = `Payment for a bespoke Sri Lanka travel itinerary arranged by Nilathra Collection for ${tripGuestName}`;
+    if (tour?.start_date && tour?.end_date) {
+        tripSummary += `, travelling ${tripFormatDate(tour.start_date)} to ${tripFormatDate(tour.end_date)}`;
+    } else if (tour?.start_date) {
+        tripSummary += `, starting ${tripFormatDate(tour.start_date)}`;
+    }
+    if (paxParts.length > 0) tripSummary += ` (${paxParts.join(', ')})`;
+    tripSummary += '. Covers accommodation, transport, guide and experiences as itemised above.';
+
+    const splitTrip = doc.splitTextToSize(tripSummary, 170);
+    if (topY + 12 + splitTrip.length * 4.5 > 270) {
+        doc.addPage();
+        topY = 20;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("TRIP DETAILS:", 20, topY);
+    topY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    doc.text(splitTrip, 20, topY);
+    topY += splitTrip.length * 4.5 + 5;
+
+    // Terms
+    if (topY + 16 > 270) {
+        doc.addPage();
+        topY = 20;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("TERMS:", 20, topY);
+    topY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    doc.text(`- Please mention this invoice number (${invoice.invoice_number || 'INV-DRAFT'}) when payments are made.`, 20, topY);
+    topY += 4.5;
+    doc.text("- 50% of this invoice is to be paid immediately and the remainder is to be paid before arrival or on arrival.", 20, topY);
+    topY += 9;
 
     // Agency Notes / Bank Details Section
     if (invoice.agency_note) {
