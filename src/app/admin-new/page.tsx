@@ -148,6 +148,7 @@ import {
   savePurchaseOrderAction,
   saveSupplierInvoiceAction,
   saveSupplierPaymentAction,
+  sendPaymentConfirmationEmailAction,
   deleteSupplierPaymentAction,
   deleteSupplierInvoiceAction,
   getExchangeRateAction,
@@ -451,6 +452,29 @@ const sortItineraryChronologically = (blocks: InternalItineraryBlock[]): Interna
     return minutesA - minutesB;
   });
 };
+
+/**
+ * The "Estimated Concierge Total" shown on the concierge-config page. The page footer and the
+ * itinerary PDFs both use this one function so the PDF always carries the displayed value.
+ */
+function computeConciergeDisplayTotal(
+  selectedTourConcierges: Map<string, any>,
+  availableConciergeCostItems: any[],
+  touristData: any,
+  itinerary: any[]
+): number {
+  const tourDaysCount = touristData?.preferences?.duration_days || itinerary.length || 5;
+  let totalUSD = 0;
+  selectedTourConcierges.forEach((val, itemId) => {
+    if (!val.selected) return;
+    const costObj = availableConciergeCostItems.find((c: any) => c.id === val.concierge_cost_item_id || c.id === itemId);
+    const cb = (costObj?.costing_basis || '').toLowerCase();
+    const isDaily = cb.includes('day') || cb.includes('daily');
+    const lineCost = (val.quantity || 0) * (val.cost || 0);
+    totalUSD += isDaily && !val.tour_itinerary_id ? lineCost * tourDaysCount : lineCost;
+  });
+  return totalUSD;
+}
 
 function PlannerWizardWorkspace() {
   const [tourId, setTourId] = useState<string>('60dec7e8-cbd9-4801-9f97-b41e5062fcc2');
@@ -3869,6 +3893,8 @@ function PlannerWizardWorkspace() {
   const [advancePaymentPayslipUrl, setAdvancePaymentPayslipUrl] = useState<string>('');
   const [isUploadingPayslip, setIsUploadingPayslip] = useState<boolean>(false);
   const [invoicePaymentPayslipUrl, setInvoicePaymentPayslipUrl] = useState<string>('');
+  const [payEmailEnabled, setPayEmailEnabled] = useState<boolean>(true);
+  const [payEmailTo, setPayEmailTo] = useState<string | null>(null);
   const [isUploadingInvoicePayslip, setIsUploadingInvoicePayslip] = useState<boolean>(false);
   const [invoiceCurrency, setInvoiceCurrency] = useState<string>('USD');
   const [invoiceExchangeRate, setInvoiceExchangeRate] = useState<string>('1.0');
@@ -6160,11 +6186,12 @@ function PlannerWizardWorkspace() {
 
       let reqStr = '';
       let totalQty = 0;
+      const resolvedRoomName = resolvePoRoomName(act, hotel);
       if (activeRooms.length === 0) {
-        reqStr = room?.room_name || act.title || act.name || 'Room';
+        reqStr = resolvedRoomName || act.title || act.name || 'Room';
         totalQty = act.quantity || 1;
       } else {
-        reqStr = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+        reqStr = resolvedRoomName || activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
         totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
       }
 
@@ -6882,7 +6909,8 @@ ${chauffeurHtml}
   <strong>Reservation Details:</strong><br />
   ${[
     `${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim() ? `Guest Name: ${`${touristData?.profile?.first_name || ''} ${touristData?.profile?.last_name || ''}`.trim()}<br />` : '',
-    touristData?.profile?.passport_number ? `Passport Number: ${touristData.profile.passport_number}<br />` : ''
+    touristData?.profile?.passport_number ? `Passport Number: ${touristData.profile.passport_number}<br />` : '',
+    touristData?.profile?.email ? `Guest Email: ${touristData.profile.email}<br />` : ''
   ].join('')}
   Check-in: ${checkInDateFormatted}<br />
   Check-out: ${checkOutDateFormatted}<br />
@@ -6908,6 +6936,28 @@ ${chauffeurHtml}
         poEditorRef.current.innerHTML = defaultBody;
       }
     }, 150);
+  };
+
+  // Same room-name source chain as the hotel-selection main page rows.
+  const resolvePoRoomName = (stay: any, hotel: any): string => {
+    const room = hotel?.hotel_rooms?.find((r: any) => r.id === stay.hotel_room_id);
+    const dayNum = stay.tour_itineraries?.day_number || stay.day_number || stay.dayNumber || 0;
+    const acc: any = tripData?.accommodations?.find((a: any) => Number(a.nightIndex) === Number(dayNum));
+    const itinBlock: any = itinerary.find((b: any) => b.type === 'sleep' && Number(b.dayNumber) === Number(dayNum));
+    const selRooms = stay.selectedRooms || stay.selected_rooms || acc?.selectedRooms || itinBlock?.selectedRooms;
+    const selNames = Array.isArray(selRooms)
+      ? selRooms.map((r: any) => r.roomName || r.room_name || r.name || r.roomStandard || r.room_standard).filter(Boolean).join(', ')
+      : '';
+    return selNames || stay.roomName || stay.room_name || acc?.roomName || itinBlock?.roomName || room?.room_name || '';
+  };
+
+  const buildPoRoomNames = (stays: any[], hotel: any): Record<string, string> => {
+    const map: Record<string, string> = {};
+    stays.forEach((s: any) => {
+      const n = resolvePoRoomName(s, hotel);
+      if (s?.id && n) map[s.id] = n;
+    });
+    return map;
   };
 
   const handleDownloadHotelPo = async (hotel: any, stays: any[]) => {
@@ -6978,7 +7028,8 @@ ${chauffeurHtml}
             discount: poDiscount,
             tax: poTax,
             mealProvided: poMealProvided,
-            accommodationProvided: poAccommodationProvided
+            accommodationProvided: poAccommodationProvided,
+            roomNames: buildPoRoomNames(stays, hotel)
           }
         );
       }
@@ -7147,7 +7198,8 @@ ${chauffeurHtml}
               discount: poDiscount,
               tax: poTax,
               mealProvided: poMealProvided,
-              accommodationProvided: poAccommodationProvided
+              accommodationProvided: poAccommodationProvided,
+              roomNames: buildPoRoomNames(selectedPoStays, selectedPoHotel)
             }
           );
         }
@@ -7650,6 +7702,56 @@ ${chauffeurHtml}
     }
   };
 
+  // Emails the hotel team a payment confirmation (slip attached) and logs it. Returns a note for the alert.
+  const sendPaymentConfirmationForPo = async (args: {
+    poId: string;
+    invoiceId: string | null;
+    paymentId?: string;
+    amount: number;
+    slipPath?: string;
+  }): Promise<string> => {
+    const { poId, invoiceId, paymentId, amount, slipPath } = args;
+    const poRec: any = purchaseOrders.find(p => p.id === poId);
+    const recipients = (payEmailTo ?? (poRec?.sent_email || '')).trim();
+    if (!payEmailEnabled || !recipients) return '';
+    try {
+      const invRec: any = invoiceId ? (poRec?.invoices || []).find((i: any) => i.id === invoiceId) : null;
+      const hotelName = poRec?.vendor_name || 'Hotel';
+      const payDateStr = paymentDate || new Date().toISOString().split('T')[0];
+      const intro = invRec
+        ? `payment has been made against your invoice${invRec.invoice_number ? ` <strong>${invRec.invoice_number}</strong>` : ''} for Purchase Order <strong>${poRec?.po_number || ''}</strong>`
+        : `an advance payment has been made against Purchase Order <strong>${poRec?.po_number || ''}</strong>`;
+      const emailBody = `<p>Dear ${hotelName} Team,</p>
+<p>We are pleased to confirm that ${intro}.</p>
+<div style="background-color:#F5F3EF; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #E6E4E0;">
+  <strong>Payment Details:</strong><br />
+  Amount Paid: ${paymentCurrency} ${amount.toFixed(2)}<br />
+  Payment Date: ${payDateStr}<br />
+  Method: ${paymentMethod}<br />
+  ${paymentNotes ? `Reference: ${paymentNotes}<br />` : ''}
+</div>
+<p>${slipPath ? 'Please find the payment slip attached. ' : ''}Kindly acknowledge receipt of this payment.</p>
+<p>Thank you for partnering with Nilathra Collection.</p>
+<p>Best regards,<br /><strong>Nilathra Collection Operations</strong></p>`;
+      const emailRes = await sendPaymentConfirmationEmailAction({
+        to: recipients,
+        from: 'concierge@nilathra.com',
+        subject: invRec
+          ? `Payment Confirmation${invRec.invoice_number ? ` - Invoice ${invRec.invoice_number}` : ''} - PO ${poRec?.po_number || ''}`
+          : `Advance Payment Confirmation - PO ${poRec?.po_number || ''}`,
+        body: emailBody,
+        slipPath: slipPath || undefined,
+        tourId,
+        purchaseOrderId: poId,
+        supplierInvoiceId: invoiceId,
+        supplierPaymentId: paymentId
+      });
+      return emailRes.success ? "\nConfirmation email sent to the hotel team." : "\nPayment saved, but the confirmation email failed: " + emailRes.error;
+    } catch (mailErr: any) {
+      return "\nPayment saved, but the confirmation email failed: " + mailErr.message;
+    }
+  };
+
   const handleRecordAdvancePayment = async (poId: string) => {
     const amount = parseFloat(paymentAmount);
     const rate = parseFloat(paymentExchangeRate) || 1.0;
@@ -7693,7 +7795,15 @@ ${chauffeurHtml}
       });
 
       if (res.success) {
-        alert("Advance payment recorded successfully!");
+        const advEmailNote = await sendPaymentConfirmationForPo({
+          poId,
+          invoiceId: null,
+          paymentId: (res as any).id,
+          amount,
+          slipPath: advancePaymentPayslipUrl
+        });
+        setPayEmailTo(null);
+        alert("Advance payment recorded successfully!" + advEmailNote);
         setPaymentAmount('');
         setPaymentRef('');
         setPaymentNotes('');
@@ -7782,7 +7892,14 @@ ${chauffeurHtml}
       });
 
       if (res.success) {
-        alert("Payment recorded successfully!");
+        const emailNote = await sendPaymentConfirmationForPo({
+          poId,
+          invoiceId,
+          paymentId: (res as any).id,
+          amount,
+          slipPath: invoicePaymentPayslipUrl
+        });
+        alert("Payment recorded successfully!" + emailNote);
         setPaymentAmount('');
         setPaymentRef('');
         setPaymentNotes('');
@@ -7790,6 +7907,7 @@ ${chauffeurHtml}
         setPaymentCurrency('USD');
         setPaymentExchangeRate('1.0');
         setInvoicePaymentPayslipUrl('');
+        setPayEmailTo(null);
         setPayingInvoiceId(null);
         loadProcurementData(tourId);
       } else {
@@ -10186,6 +10304,7 @@ ${chauffeurHtml}
                         dailyDriverAssignments={dailyDriverAssignments}
                         dailyVehicleAssignments={dailyVehicleAssignments}
                         accommodations={tripData?.accommodations}
+                        conciergeTotal={computeConciergeDisplayTotal(selectedTourConcierges, availableConciergeCostItems, touristData, itinerary)}
                         tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
                           const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
                           return {
@@ -10203,16 +10322,7 @@ ${chauffeurHtml}
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Estimated Concierge Total:</span>
                           {(() => {
-                            const tourDaysCount = touristData?.preferences?.duration_days || itinerary.length || 5;
-                            let totalUSD = 0;
-                            selectedTourConcierges.forEach((val, itemId) => {
-                              if (!val.selected) return;
-                              const costObj = availableConciergeCostItems.find(c => c.id === val.concierge_cost_item_id || c.id === itemId);
-                              const cb = (costObj?.costing_basis || '').toLowerCase();
-                              const isDaily = cb.includes('day') || cb.includes('daily');
-                              const lineCost = (val.quantity || 0) * (val.cost || 0);
-                              totalUSD += isDaily && !val.tour_itinerary_id ? lineCost * tourDaysCount : lineCost;
-                            });
+                            const totalUSD = computeConciergeDisplayTotal(selectedTourConcierges, availableConciergeCostItems, touristData, itinerary);
 
                             return (
                               <>
@@ -15807,6 +15917,34 @@ ${chauffeurHtml}
                                         </p>
                                       )}
 
+                                      {/* Payment confirmation email to the hotel team (recipients = the PO email recipients) */}
+                                      <div className="space-y-2 p-3 bg-white border border-neutral-200 rounded-xl">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={payEmailEnabled}
+                                            onChange={(e) => setPayEmailEnabled(e.target.checked)}
+                                            className="accent-emerald-800"
+                                          />
+                                          Email payment confirmation to the hotel team (slip attached)
+                                        </label>
+                                        {payEmailEnabled && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Recipients (loaded from the PO email)</label>
+                                            <input
+                                              type="text"
+                                              value={payEmailTo ?? (po.sent_email || '')}
+                                              onChange={(e) => setPayEmailTo(e.target.value)}
+                                              placeholder="hotel@example.com, team@example.com"
+                                              className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                            />
+                                            {!po.sent_email && (
+                                              <span className="text-[9px] text-amber-600 block">No PO email recipients on record for this PO. Enter them manually.</span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+
                                       <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100">
                                         <button
                                           onClick={() => handleRecordAdvancePayment(po.id)}
@@ -16703,6 +16841,34 @@ ${chauffeurHtml}
                                                         </div>
                                                       )}
                                                     </div>
+                                                  </div>
+
+                                                  {/* Payment confirmation email to the hotel team (recipients = the PO email recipients) */}
+                                                  <div className="space-y-2 p-3 bg-white border border-neutral-200 rounded-xl">
+                                                    <label className="flex items-center gap-2 text-xs font-bold text-neutral-700 cursor-pointer">
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={payEmailEnabled}
+                                                        onChange={(e) => setPayEmailEnabled(e.target.checked)}
+                                                        className="accent-emerald-800"
+                                                      />
+                                                      Email payment confirmation to the hotel team (slip attached)
+                                                    </label>
+                                                    {payEmailEnabled && (
+                                                      <div className="space-y-1">
+                                                        <label className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Recipients (loaded from the PO email)</label>
+                                                        <input
+                                                          type="text"
+                                                          value={payEmailTo ?? (po.sent_email || '')}
+                                                          onChange={(e) => setPayEmailTo(e.target.value)}
+                                                          placeholder="hotel@example.com, team@example.com"
+                                                          className="w-full bg-white border border-neutral-200 rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-800"
+                                                        />
+                                                        {!po.sent_email && (
+                                                          <span className="text-[9px] text-amber-600 block">No PO email recipients on record for this PO. Enter them manually.</span>
+                                                        )}
+                                                      </div>
+                                                    )}
                                                   </div>
 
                                                   <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
@@ -27257,6 +27423,7 @@ function AIItineraryBuilder({
             dailyDriverAssignments={dailyDriverAssignments}
             dailyVehicleAssignments={dailyVehicleAssignments}
             accommodations={tripData?.accommodations}
+            conciergeTotal={computeConciergeDisplayTotal(selectedTourConcierges, availableConciergeCostItems, touristData, itinerary)}
             tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
               const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
               return {
@@ -27284,6 +27451,7 @@ function AIItineraryBuilder({
           dailyDriverAssignments={dailyDriverAssignments}
           dailyVehicleAssignments={dailyVehicleAssignments}
           accommodations={tripData?.accommodations}
+          conciergeTotal={computeConciergeDisplayTotal(selectedTourConcierges, availableConciergeCostItems, touristData, itinerary)}
           tourConcierges={Array.from(selectedTourConcierges.values()).filter(v => v.selected).map((v: any) => {
             const costObj = availableConciergeCostItems.find(c => c.id === v.concierge_cost_item_id);
             return {

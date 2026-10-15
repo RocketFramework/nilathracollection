@@ -24,6 +24,8 @@ export interface PdfCostSummaryInput {
   dbActivities?: any[];
   tourConcierges?: any[];
   accommodations?: any[];
+  /** Concierge total exactly as displayed on the concierge-config page; used as-is. */
+  conciergeTotal?: number;
 }
 
 export interface PdfCostSummary {
@@ -100,6 +102,7 @@ export function computePdfCostSummary(input: PdfCostSummaryInput): PdfCostSummar
     dailyVehicleAssignments: dailyVehicleAssignments || {},
     dbActivities: dbActivities || [],
     tourConcierges: enrichedTourConcierges,
+    conciergeTotalOverride: input.conciergeTotal,
     accommodations: accommodations || []
   });
 

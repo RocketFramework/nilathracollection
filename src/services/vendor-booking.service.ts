@@ -341,9 +341,31 @@ export class VendorBookingService {
             }
         }
 
-        const poNumber = bookingData.po_number || `PO-${bookingData.vendor_type.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const poPrefix = `PO-${bookingData.vendor_type.substring(0, 3).toUpperCase()}-`;
+        let poNumber = bookingData.po_number || `${poPrefix}${Date.now().toString().slice(-6)}`;
+        let poRecordId = crypto.randomUUID();
+
+        // po_number is unique. A retry (e.g. after a failed email send) reuses the number:
+        // re-use the same tour's unsent Draft PO, otherwise issue a fresh unique number.
+        const { data: existingPo } = await supabase
+            .from('purchase_orders')
+            .select('id, tour_id, status')
+            .eq('po_number', poNumber)
+            .maybeSingle();
+        if (existingPo) {
+            if (existingPo.tour_id === bookingData.tour_id && existingPo.status === 'Draft') {
+                poRecordId = existingPo.id;
+            } else {
+                do {
+                    poNumber = `${poPrefix}${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
+                    const { data: clash } = await supabase.from('purchase_orders').select('id').eq('po_number', poNumber).maybeSingle();
+                    if (!clash) break;
+                } while (true);
+            }
+        }
+
         const poPayload: any = {
-            id: crypto.randomUUID(),
+            id: poRecordId,
             tour_id: bookingData.tour_id,
             po_number: poNumber,
             po_date: new Date().toISOString().split('T')[0],

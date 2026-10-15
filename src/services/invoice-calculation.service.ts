@@ -37,6 +37,8 @@ export interface InvoiceCalculationParams {
   dailyVehicleAssignments?: Record<number, any[]>;
   dbActivities?: any[];
   tourConcierges?: any[];
+  /** When set, used as the concierge total as-is (no recalculation). */
+  conciergeTotalOverride?: number;
   accommodations?: any[];
 }
 
@@ -140,6 +142,11 @@ export class InvoiceCalculationService {
         conciergeTotal = calculatedCustomConcierge;
         hasCustomConcierge = true;
       }
+    }
+
+    if (params.conciergeTotalOverride !== undefined && params.conciergeTotalOverride !== null) {
+      conciergeTotal = Number(params.conciergeTotalOverride) || 0;
+      hasCustomConcierge = conciergeTotal > 0;
     }
 
     const conciergeCostKey = `${styleKey}_concierge_cost`;

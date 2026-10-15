@@ -24,6 +24,7 @@ interface ItineraryPdfTemplateNewProps {
   dbActivities?: any[];
   tourConcierges?: any[];
   accommodations?: any[];
+  conciergeTotal?: number;
 }
 
 export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, ItineraryPdfTemplateNewProps>(
@@ -45,7 +46,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     dailyVehicleAssignments,
     dbActivities,
     tourConcierges,
-    accommodations
+    accommodations,
+    conciergeTotal
   }, ref) => {
 
     const getAbsoluteUrl = (path: string) => {
@@ -68,7 +70,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
     const departureDate = touristData.preferences?.departure_date || '';
     const costSummary = computePdfCostSummary({
       itinerary, touristData, travelStyle, guideNeeded, chauffeurNeeded, appSettings, masterData,
-      dayCostOverrides, dailyDriverAssignments, dailyVehicleAssignments, dbActivities, tourConcierges, accommodations
+      dayCostOverrides, dailyDriverAssignments, dailyVehicleAssignments, dbActivities, tourConcierges, accommodations, conciergeTotal
     });
     const { durationDays } = costSummary;
 

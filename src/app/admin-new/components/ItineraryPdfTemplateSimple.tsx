@@ -18,6 +18,7 @@ interface ItineraryPdfTemplateSimpleProps {
   dbActivities?: any[];
   tourConcierges?: any[];
   accommodations?: any[];
+  conciergeTotal?: number;
   // Accepted for prop-compatibility with the detailed template
   singleRoomsCount?: number;
   doubleRoomsCount?: number;
@@ -50,6 +51,7 @@ export const ItineraryPdfTemplateSimple = React.forwardRef<HTMLDivElement, Itine
       dailyVehicleAssignments: props.dailyVehicleAssignments,
       dbActivities: props.dbActivities,
       tourConcierges: props.tourConcierges,
+      conciergeTotal: props.conciergeTotal,
       accommodations: props.accommodations
     });
     const { durationDays, totalPax } = costSummary;

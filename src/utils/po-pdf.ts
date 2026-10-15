@@ -67,6 +67,7 @@ export const generateHotelPoPdf = async (
         tax?: number;
         mealProvided?: boolean;
         accommodationProvided?: boolean;
+        roomNames?: Record<string, string>;
     }
 ): Promise<any> => {
     const jspdfModule = await loadJsPDF();
@@ -265,9 +266,12 @@ export const generateHotelPoPdf = async (
     } else if (poGuestPassport) {
         poGuestLine = `Passport No: ${poGuestPassport}`;
     }
+    const poGuestEmail = touristData?.profile?.email || '';
+    const poGuestEmailLine = poGuestEmail ? `Email: ${poGuestEmail}` : '';
+    const poGuestExtraLines = (poGuestLine ? 1 : 0) + (poGuestEmailLine ? 1 : 0);
 
     doc.setFillColor(245, 243, 239);
-    doc.rect(20, topY, 170, poGuestLine ? 20 : 15, 'F');
+    doc.rect(20, topY, 170, 15 + poGuestExtraLines * 5, 'F');
     
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -282,9 +286,13 @@ export const generateHotelPoPdf = async (
         doc.text(poGuestLine, 24, guestTextY);
         guestTextY += 5;
     }
+    if (poGuestEmailLine) {
+        doc.text(poGuestEmailLine, 24, guestTextY);
+        guestTextY += 5;
+    }
     doc.text(occupancyStr, 24, guestTextY);
 
-    topY += poGuestLine ? 26 : 21;
+    topY += 21 + poGuestExtraLines * 5;
 
     const sleepStays = sortedStays.filter(s => s && !s.isCustomPO && (s.activity_type === 'sleep' || s.type === 'sleep'));
     const customStays = sortedStays.filter(s => s && (s.isCustomPO || (s.activity_type !== 'sleep' && s.type !== 'sleep')));
@@ -330,11 +338,12 @@ export const generateHotelPoPdf = async (
             let totalQty = 0;
             let mealPlanText = act.meal_plan || 'BB';
 
+            const resolvedRoomName = act?.id ? options.roomNames?.[act.id] : '';
             if (activeRooms.length === 0) {
-                roomDesc = room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD';
+                roomDesc = resolvedRoomName || (room?.room_name ? (room.room_standard ? `${room.room_name} (${room.room_standard})` : room.room_name) : 'Room Details TBD');
                 totalQty = act.quantity || 1;
             } else {
-                roomDesc = activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
+                roomDesc = resolvedRoomName || activeRooms.map(r => `${r.count} x ${r.type}`).join(', ');
                 totalQty = activeRooms.reduce((acc, r) => acc + r.count, 0);
             }
 

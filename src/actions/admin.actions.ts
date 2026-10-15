@@ -1372,6 +1372,120 @@ export async function saveSupplierPaymentAction(payment: Partial<DBSupplierPayme
     }
 }
 
+async function deliverPaymentConfirmationEmail(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+    slipPath?: string;
+}): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { to, from, subject, body, slipPath } = options;
+
+        const recipients: string[] = [];
+        for (const part of (to || '').split(/[;\n]|,(?=(?:[^"]*"[^"]*")*[^"]*$)/)) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+            const m = trimmed.match(/<\s*([^<>\s@]+@[^<>\s@]+)\s*>/) || trimmed.match(/([^<>\s,;"']+@[^<>\s,;"']+)/);
+            const addr = m ? m[1].trim() : '';
+            if (addr && !recipients.some(r => r.toLowerCase() === addr.toLowerCase())) recipients.push(addr);
+        }
+        if (recipients.length === 0) {
+            return { success: false, error: "Recipient email is required." };
+        }
+
+        const apiKey = process.env.RESEND_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: "Resend API key is not configured in .env.local" };
+        }
+
+        const contentHtml = `
+              <div style="font-size:15px;color:#4a4a4a;line-height:1.7;">${body}</div>
+              <p style="margin:32px 0 0;font-size:15px;color:#4a4a4a;line-height:1.7;">
+                For any further assistance, please contact us at <a href="mailto:concierge@nilathra.com" style="color:#C9A84C;text-decoration:none;font-weight:600;">concierge@nilathra.com</a>.
+              </p>
+        `;
+        const html = emailService.generateEmailHtml('Payment Confirmation', 'Payment Confirmation', contentHtml);
+
+        const emailPayload: any = {
+            from: from || process.env.EMAIL_FROM || 'concierge@nilathra.com',
+            to: recipients,
+            subject,
+            html
+        };
+
+        if (slipPath) {
+            const adminSupabase = createAdminClient();
+            const { data: blob, error: dlError } = await adminSupabase.storage.from('payslips').download(slipPath);
+            if (dlError || !blob) {
+                return { success: false, error: "Could not load the payment slip for attachment: " + (dlError?.message || 'file not found') };
+            }
+            const ext = (slipPath.split('.').pop() || 'webp').toLowerCase();
+            emailPayload.attachments = [{
+                filename: `Payment-Slip.${ext}`,
+                content: Buffer.from(await blob.arrayBuffer()).toString('base64')
+            }];
+        }
+
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailPayload)
+        });
+        const resJson = await res.json();
+        if (!res.ok) {
+            console.error("Resend payment confirmation failed:", resJson);
+            return { success: false, error: resJson.message || "Failed to send email via Resend." };
+        }
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in sendPaymentConfirmationEmailAction:", error);
+        return { success: false, error: error.message || "An unexpected error occurred." };
+    }
+}
+
+export async function sendPaymentConfirmationEmailAction(options: {
+    to: string;
+    from?: string;
+    subject: string;
+    body: string;
+    slipPath?: string;
+    tourId?: string;
+    purchaseOrderId: string;
+    supplierInvoiceId?: string | null;
+    supplierPaymentId?: string | null;
+}) {
+    const result = await deliverPaymentConfirmationEmail(options);
+
+    // Track the communication (sent or failed). Logging problems never fail the send.
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const { SupplierPaymentEmailService } = await import('@/services/supplier-payment-email.service');
+        await SupplierPaymentEmailService.logEmail({
+            tour_id: options.tourId || null,
+            purchase_order_id: options.purchaseOrderId,
+            supplier_invoice_id: options.supplierInvoiceId || null,
+            supplier_payment_id: options.supplierPaymentId || null,
+            recipient_email: options.to,
+            sender_email: options.from || 'concierge@nilathra.com',
+            subject: options.subject,
+            body_html: options.body,
+            attachment_path: options.slipPath || null,
+            status: result.success ? 'Sent' : 'Failed',
+            error_message: result.success ? null : (result.error || null),
+            sent_by: user ? user.id : null
+        });
+    } catch (logErr) {
+        console.error("Failed to log payment confirmation email:", logErr);
+    }
+
+    return result;
+}
+
 export async function deleteSupplierPaymentAction(id: string) {
     try {
         await FinanceService.deleteSupplierPayment(id);
@@ -1840,7 +1954,16 @@ export async function sendPurchaseOrderEmailAction(options: {
     try {
         const { to, from, subject, body, pdfBase64, pdfFilename, poId, sentToName } = options;
         
-        const recipients = (to || '').split(/[,;]/).map(e => e.trim()).filter(Boolean);
+        // Accepts "Name <a@b.com>; Name <c@d.com>" as well as "a@b.com, c@d.com":
+        // pull out the actual addresses (angle-bracket form wins) and de-duplicate.
+        const recipients: string[] = [];
+        for (const part of (to || '').split(/[;\n]|,(?=(?:[^"]*"[^"]*")*[^"]*$)/)) {
+            const trimmed = part.trim();
+            if (!trimmed) continue;
+            const m = trimmed.match(/<\s*([^<>\s@]+@[^<>\s@]+)\s*>/) || trimmed.match(/([^<>\s,;"']+@[^<>\s,;"']+)/);
+            const addr = m ? m[1].trim() : '';
+            if (addr && !recipients.some(r => r.toLowerCase() === addr.toLowerCase())) recipients.push(addr);
+        }
         if (recipients.length === 0) {
             return { success: false, error: "Recipient email is required." };
         }
