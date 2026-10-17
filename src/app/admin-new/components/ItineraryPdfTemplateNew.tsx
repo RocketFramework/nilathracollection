@@ -581,7 +581,87 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                       </div>
                     </div>
 
-                    {/* What Your Package Includes & Excludes */}
+                    {/* PRIVATE TRANSPORT & LOGISTICS SUMMARY */}
+                    <div className="print-avoid-break">
+                  <div className="text-center mb-4 mt-2">
+                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Transport & Logistics</span>
+                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Private Chauffeur & Fleet Experience</h3>
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
+                    <div className="text-center max-w-lg mx-auto mb-2">
+                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
+                        Private Chauffeur Fleet Services
+                      </span>
+                      <p className="text-xs text-neutral-500 font-serif italic">
+                        Dedicated private executive vehicle, licensed tourist chauffeur, and full travel logistics for {clientName}.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Vehicle & Chauffeur Main Summary Card */}
+                      <div className="bg-white p-6 rounded-xl border border-[#E8DFD1] space-y-4 shadow-sm text-left">
+                        <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
+                          <div>
+                            <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block">Assigned Transport Class</span>
+                            <h4 className="text-lg font-serif font-bold text-[#111827] mt-0.5">
+                              {totalPax <= 2
+                                ? 'Executive Luxury Sedan (Toyota Premier / Mercedes Class)'
+                                : totalPax <= 4
+                                  ? 'Luxury VIP Mini-Van (Toyota KDH Luxury VIP Edition)'
+                                  : 'Luxury Executive Passenger Coach / VIP Van'}
+                            </h4>
+                          </div>
+                          <span className="px-3 py-1 bg-emerald-50 border border-emerald-200/60 text-emerald-800 rounded-full text-[10px] font-bold font-mono">
+                            Full Trip Duration ({durationDays} Days)
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-xs font-sans text-neutral-600 pt-1">
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">Vehicle Features</span>
+                            <p className="text-neutral-800 font-medium">Fully Air-Conditioned, Leather Reclining Seating, High-Speed Wi-Fi Router, Extra Luggage Space.</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">Chauffeur Service</span>
+                            <p className="text-neutral-800 font-medium">Tourist Board Certified, English-Speaking, Experienced in Sri Lanka Travel Routes & VIP Hospitality.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inclusions Banner */}
+                      <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-5 rounded-xl text-left space-y-3">
+                        <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block">
+                          Transport Package Inclusions
+                        </span>
+                        <div className="grid grid-cols-2 gap-3 text-[11px] text-neutral-700 font-medium">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>All Fuel & Unlimited Mileage for Itinerary Program</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>All Express Highway Tolls & Airport Parking Charges</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>Chauffeur Meals, Lodging & Daily Allowances Covered</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                            <span>Chilled King Coconuts & Bottled Water on Transfer Days</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* What Your Package Includes & Excludes - NEW PAGE */}
+                <div className="print-page-break w-full px-8 py-6 box-border">
+                  <div className="space-y-6">
                     <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-6 space-y-4">
                       <div className="text-center">
                         <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
@@ -1332,82 +1412,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                     </div>
                   ));
                 })()}
-
-                {/* 3.5 PRIVATE TRANSPORT & LOGISTICS SUMMARY PAGE */}
-                <div className="print-page-break w-full px-8 py-6 box-border">
-                  <div className="text-center mb-6">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-[0.4em] block mb-1">Transport & Logistics</span>
-                    <h3 className="text-3xl font-serif text-[#111827] font-light italic">Private Chauffeur & Fleet Experience</h3>
-                  </div>
-
-                  <div className="bg-[#FAF9F6] border border-[#EBE6DC] rounded-2xl p-8 space-y-6">
-                    <div className="text-center max-w-lg mx-auto mb-2">
-                      <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block mb-1">
-                        Private Chauffeur Fleet Services
-                      </span>
-                      <p className="text-xs text-neutral-500 font-serif italic">
-                        Dedicated private executive vehicle, licensed tourist chauffeur, and full travel logistics for {clientName}.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Vehicle & Chauffeur Main Summary Card */}
-                      <div className="bg-white p-6 rounded-xl border border-[#E8DFD1] space-y-4 shadow-sm text-left">
-                        <div className="flex justify-between items-center border-b border-neutral-100 pb-3">
-                          <div>
-                            <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block">Assigned Transport Class</span>
-                            <h4 className="text-lg font-serif font-bold text-[#111827] mt-0.5">
-                              {totalPax <= 2
-                                ? 'Executive Luxury Sedan (Toyota Premier / Mercedes Class)'
-                                : totalPax <= 4
-                                  ? 'Luxury VIP Mini-Van (Toyota KDH Luxury VIP Edition)'
-                                  : 'Luxury Executive Passenger Coach / VIP Van'}
-                            </h4>
-                          </div>
-                          <span className="px-3 py-1 bg-emerald-50 border border-emerald-200/60 text-emerald-800 rounded-full text-[10px] font-bold font-mono">
-                            Full Trip Duration ({durationDays} Days)
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 text-xs font-sans text-neutral-600 pt-1">
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">Vehicle Features</span>
-                            <p className="text-neutral-800 font-medium">Fully Air-Conditioned, Leather Reclining Seating, High-Speed Wi-Fi Router, Extra Luggage Space.</p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">Chauffeur Service</span>
-                            <p className="text-neutral-800 font-medium">Tourist Board Certified, English-Speaking, Experienced in Sri Lanka Travel Routes & VIP Hospitality.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Inclusions Banner */}
-                      <div className="bg-[#FAF8F5] border border-[#E8DFD1] p-5 rounded-xl text-left space-y-3">
-                        <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#8C6D3F] font-bold block">
-                          Transport Package Inclusions
-                        </span>
-                        <div className="grid grid-cols-2 gap-3 text-[11px] text-neutral-700 font-medium">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                            <span>All Fuel & Unlimited Mileage for Itinerary Program</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                            <span>All Express Highway Tolls & Airport Parking Charges</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                            <span>Chauffeur Meals, Lodging & Daily Allowances Covered</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                            <span>Chilled King Coconuts & Bottled Water on Transfer Days</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* 3.6 FINANCIAL BLUEPRINT / ESTIMATED PACKAGE COST OVERVIEW PAGE */}
                 <PdfCostSummaryBlock summary={costSummary} clientName={clientName} />
