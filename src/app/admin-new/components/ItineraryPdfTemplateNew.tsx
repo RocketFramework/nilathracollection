@@ -1498,10 +1498,10 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                           </div>
 
                           {/* Itinerary Events Flow */}
-                          <div className="space-y-3">
+                          <div>
                             {dayBlocks.map((block) => {
                               return (
-                                <div key={block.id} className="print-avoid-break bg-white p-4 rounded-xl border border-[#E8DFD1] shadow-xs hover:shadow-sm transition-all space-y-2 text-left">
+                                <div key={block.id} className="print-avoid-break py-2 border-b border-[#E8DFD1] last:border-b-0 space-y-1 text-left">
 
                                   {/* Event Image */}
                                   {(() => {
@@ -1534,18 +1534,18 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                     if (!imgUrl) return null;
                                     return (
-                                      <div className="w-full mb-2 overflow-hidden rounded-lg">
+                                      <div className="w-full mb-1 overflow-hidden rounded-lg">
                                         <img
                                           src={imgUrl}
                                           alt={block.name}
-                                          className="w-full object-cover max-h-[45mm]"
+                                          className="w-full object-cover max-h-[35mm]"
                                         />
                                       </div>
                                     );
                                   })()}
 
                                   {/* Title & Time Header */}
-                                  <div className="flex justify-between items-start gap-4 border-b border-neutral-100 pb-2">
+                                  <div className="flex justify-between items-start gap-4">
                                     <div>
                                       <div className="flex items-center gap-2 mb-0.5">
                                         <span className="text-[7.5px] font-sans uppercase tracking-[0.2em] text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded font-bold">
@@ -1571,7 +1571,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                   {/* Notes & Description */}
                                   {block.internalNotes && block.internalNotes.trim() !== '' && (
-                                    <p className="text-[11px] text-neutral-600 font-sans leading-relaxed font-light">
+                                    <p className="text-[10.5px] text-neutral-600 font-sans leading-snug font-light">
                                       {block.internalNotes}
                                     </p>
                                   )}
