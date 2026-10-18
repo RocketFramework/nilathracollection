@@ -244,6 +244,19 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Address</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.address || ''} onChange={e => handleChange('address', e.target.value)} />
                             </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Latest Activity Review Score</label>
+                                <div className="flex items-center gap-1 mt-1">
+                                    {[1, 2, 3, 4, 5].map(n => (
+                                        <button key={n} type="button" onClick={() => handleChange('review_score', formData.review_score === n ? undefined : n)} className={`text-2xl leading-none ${(formData.review_score || 0) >= n ? 'text-amber-400' : 'text-neutral-300'} hover:text-amber-500 transition-colors`} aria-label={`${n} star`}>★</button>
+                                    ))}
+                                    {formData.review_score ? <span className="ml-2 text-xs font-bold text-neutral-500">{formData.review_score}/5</span> : null}
+                                </div>
+                            </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Review Note</label>
+                                <textarea rows={3} className="w-full outline-none text-brand-charcoal font-medium resize-none" value={formData.review_note || ''} onChange={e => handleChange('review_note', e.target.value)} />
+                            </div>
                             <div className="col-span-2 mt-2 flex flex-wrap items-center justify-between bg-neutral-50 p-3 rounded-xl border border-neutral-100 gap-4">
                                 <label className="flex items-center gap-2 cursor-pointer group">
                                     <input type="checkbox" className="w-5 h-5 accent-red-500 rounded border-neutral-300" checked={formData.is_suspended || false} onChange={e => handleChange('is_suspended', e.target.checked)} />

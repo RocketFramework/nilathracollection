@@ -145,6 +145,19 @@ export default function DriverFormModal({ isOpen, onClose, driver, onSave, userR
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">NIC Number</label>
                                 <input type="text" className="w-full outline-none text-brand-charcoal font-medium" value={formData.nic_number || ''} onChange={e => handleChange('nic_number', e.target.value)} />
                             </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Latest Activity Review Score</label>
+                                <div className="flex items-center gap-1 mt-1">
+                                    {[1, 2, 3, 4, 5].map(n => (
+                                        <button key={n} type="button" onClick={() => handleChange('review_score', formData.review_score === n ? undefined : n)} className={`text-2xl leading-none ${(formData.review_score || 0) >= n ? 'text-amber-400' : 'text-neutral-300'} hover:text-amber-500 transition-colors`} aria-label={`${n} star`}>★</button>
+                                    ))}
+                                    {formData.review_score ? <span className="ml-2 text-xs font-bold text-neutral-500">{formData.review_score}/5</span> : null}
+                                </div>
+                            </div>
+                            <div className="col-span-2 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Review Note</label>
+                                <textarea rows={3} className="w-full outline-none text-brand-charcoal font-medium resize-none" value={formData.review_note || ''} onChange={e => handleChange('review_note', e.target.value)} />
+                            </div>
                             <div className="col-span-2 sm:col-span-1 border border-neutral-200 rounded-xl px-4 py-2 focus-within:border-brand-green focus-within:ring-1 focus-within:ring-brand-green transition-all">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Per Day Rate ($)</label>
                                 <input type="number" className="w-full outline-none text-brand-charcoal font-medium" value={formData.per_day_rate ?? 15} onChange={e => handleChange('per_day_rate', e.target.value === '' ? undefined : parseFloat(e.target.value))} />

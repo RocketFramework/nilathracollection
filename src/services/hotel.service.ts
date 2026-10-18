@@ -85,6 +85,8 @@ export interface Hotel {
     rooms?: HotelRoom[];
     recreations?: HotelRecreation[];
     photo_url?: string;
+    review_score?: number | null; // 1-5, latest activity review only
+    review_note?: string | null;
 }
 
 export class HotelService {

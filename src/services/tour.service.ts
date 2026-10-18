@@ -1140,13 +1140,11 @@ export class TourService {
                             basePayload.contracted_total_price = totalContractedPrice > 0 ? totalContractedPrice : null;
                         }
 
-                        const effectiveMealPlan = b.mealPlan || mealPlan || acc.mealPlan || null;
+                        const effectiveMealPlan = mealPlan || b.mealPlan || acc.mealPlan || null;
                         basePayload.meal_plan = effectiveMealPlan;
-                        if (b.mealPlan && acc) {
-                            acc.mealPlan = b.mealPlan;
-                            if (acc.selectedRooms) {
-                                acc.selectedRooms.forEach((r: any) => r.mealPlan = b.mealPlan);
-                            }
+                        if (effectiveMealPlan) {
+                            acc.mealPlan = effectiveMealPlan;
+                            b.mealPlan = effectiveMealPlan;
                         }
 
                         if (acc.customRateNote) {

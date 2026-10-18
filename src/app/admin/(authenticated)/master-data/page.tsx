@@ -695,7 +695,7 @@ export default function MasterDataPage() {
                                                         )}
                                                         <div>
                                                             <div className="font-bold text-brand-charcoal">{row.first_name} {row.last_name || ''}</div>
-                                                            {row.sltda_registration_number && <div className="text-[11px] text-neutral-400 font-mono">SLTDA: {row.sltda_registration_number}</div>}
+                                                            {row.address && <div className="text-[11px] text-neutral-500 whitespace-normal break-words max-w-[260px]">{row.address}</div>}
                                                         </div>
                                                     </div>
                                                 </td>

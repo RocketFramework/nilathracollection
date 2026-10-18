@@ -67,7 +67,8 @@ export interface Driver {
     has_contracted_price?: boolean;
     per_day_rate?: number;
     payment_detail_id?: string;
-    payment_details?: PaymentDetails;
+    payment_details?: PaymentDetails;    review_score?: number | null; // 1-5, latest activity review only
+    review_note?: string | null;
 }
 
 export interface TransportVehicle {
@@ -109,7 +110,8 @@ export interface TransportProvider {
     has_contracted_price?: boolean;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
-    transport_vehicles?: TransportVehicle[];
+    transport_vehicles?: TransportVehicle[];    review_score?: number | null; // 1-5, latest activity review only
+    review_note?: string | null;
 }
 
 export interface TourGuide {
@@ -138,6 +140,8 @@ export interface TourGuide {
     per_day_rate?: number;
     payment_detail_id?: string;
     payment_details?: PaymentDetails;
+    review_score?: number | null; // 1-5, latest activity review only
+    review_note?: string | null;
 }
 export interface Restaurant {
     id?: string;
@@ -168,7 +172,8 @@ export interface Restaurant {
     is_suspended?: boolean;
     has_contracted_price?: boolean;
     payment_detail_id?: string;
-    payment_details?: PaymentDetails;
+    payment_details?: PaymentDetails;    review_score?: number | null; // 1-5, latest activity review only
+    review_note?: string | null;
 }
 
 export interface SeamlessConciergeCostItem {
