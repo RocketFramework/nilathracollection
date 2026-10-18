@@ -87,7 +87,7 @@ export class TourDailyTransportService {
                 const dayNum = Number(p.day_number);
                 const validItinIds = new Set((itineraries || []).map((it: any) => it.id));
                 const clientItinId = p.tour_itinerary_id && validItinIds.has(p.tour_itinerary_id) ? p.tour_itinerary_id : undefined;
-                let tourItinId = dayToItinIdMap[dayNum] || clientItinId;
+                let tourItinId = (dayToItinIdMap[dayNum] || clientItinId) as string;
 
                 if (!tourItinId) {
                     const { data: newItin, error: createItinErr } = await sb

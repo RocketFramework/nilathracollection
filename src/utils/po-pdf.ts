@@ -53,6 +53,27 @@ const getBase64OrLoad = async (src: string): Promise<string> => {
     return getBase64ImageFromUrl(src);
 };
 
+const drawVendorNotes = (doc: any, notes: string | undefined, topY: number, primaryColor: number[], charcoalColor: number[]): number => {
+    const text = (notes || '').trim();
+    if (!text) return topY;
+    const lines: string[] = doc.splitTextToSize(text, 165);
+    if (topY + 12 > 270) { doc.addPage(); topY = 20; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("VENDOR NOTES:", 20, topY);
+    topY += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(charcoalColor[0], charcoalColor[1], charcoalColor[2]);
+    lines.forEach((line: string) => {
+        if (topY > 270) { doc.addPage(); topY = 20; }
+        doc.text(line, 24, topY);
+        topY += 4.5;
+    });
+    return topY + 6;
+};
+
 export const generateHotelPoPdf = async (
     hotel: any,
     stays: any[],
@@ -63,6 +84,7 @@ export const generateHotelPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        vendorNotes?: string;
         discount?: number;
         tax?: number;
         mealProvided?: boolean;
@@ -506,6 +528,8 @@ export const generateHotelPoPdf = async (
         topY += (agreedInclusions.length * 4.5) + 6;
     }
 
+    topY = drawVendorNotes(doc, options.vendorNotes, topY, primaryColor, charcoalColor);
+
     if (topY > 230) {
         doc.addPage();
         topY = 20;
@@ -608,6 +632,7 @@ export const generateTransportPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        vendorNotes?: string;
         discount?: number;
         tax?: number;
         transportRequirement?: any;
@@ -1287,6 +1312,8 @@ export const generateTransportPoPdf = async (
         topY += 12;
     }
 
+    topY = drawVendorNotes(doc, options.vendorNotes, topY, primaryColor, charcoalColor);
+
     // ─── Terms Note ──────────────────────────────────────────────────────────
     if (topY + 20 > 270) { doc.addPage(); topY = 20; }
     doc.setFont('helvetica', 'italic');
@@ -1352,6 +1379,7 @@ export const generateDriverPoPdf = async (
         requireSignature: boolean;
         signatureImage: string;
         poNumber?: string;
+        vendorNotes?: string;
         discount?: number;
         tax?: number;
         mealProvided?: boolean;
@@ -1606,6 +1634,8 @@ export const generateDriverPoPdf = async (
         });
         topY += (agreedInclusions.length * 4.5) + 6;
     }
+
+    topY = drawVendorNotes(doc, options.vendorNotes, topY, primaryColor, charcoalColor);
 
     if (topY > 230) {
         doc.addPage();

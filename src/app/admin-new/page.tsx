@@ -2085,6 +2085,43 @@ function PlannerWizardWorkspace() {
       }),
     })));
 
+    // Vehicle day rate lives in tour_itinerary_vehicles.contracted_per_day_rate and is what the
+    // transport-provider step displays. Write the override there (contracted side only).
+    if (editingCustomRateAct.activity_type === 'travel' && tourId) {
+      const rateDay = Number(editingCustomRateAct.tour_itineraries?.day_number || editingCustomRateAct.day_number || 0);
+      const rateBlock = poBlocks.find((pb: any) => (pb.daily_activities || []).some((da: any) => da.id === editingCustomRateAct.id));
+      const rateProviderId = rateBlock?.transport_provider_id || (rateBlock?.name?.includes(' | ID: ') ? rateBlock.name.split(' | ID: ')[1] : null);
+      const rateTransports = (dailyTransportAssignments[rateDay] || []).filter((t: any) => !rateProviderId || t.transport_provider_id === rateProviderId);
+      const rateVehicleIds = new Set(rateTransports.map((t: any) => t.vehicle_id).filter(Boolean));
+      const dayVehicles = dailyVehicleAssignments[rateDay] || [];
+      const matchesBlock = (vAss: any) => {
+        if (rateVehicleIds.size > 0) return rateVehicleIds.has(vAss.vehicle_id);
+        if (rateProviderId) {
+          const vObj = masterData.transportVehicles?.find((mv: any) => mv.id === vAss.vehicle_id) || vAss.vehicles || vAss.vehicle;
+          return (vAss.transport_provider_id || vObj?.transport_provider_id) === rateProviderId;
+        }
+        return false;
+      };
+      const matched = dayVehicles.filter(matchesBlock);
+      const dayRate = totalPrice !== undefined ? totalPrice : unitPrice;
+      if (matched.length > 0 && dayRate !== undefined) {
+        const perVehicle = parseFloat((dayRate / matched.length).toFixed(2));
+        const firstVehicle = parseFloat((dayRate - perVehicle * (matched.length - 1)).toFixed(2));
+        let mIdx = 0;
+        const updatedDay = dayVehicles.map((v: any) => {
+          if (!matchesBlock(v)) return v;
+          const share = mIdx === 0 ? firstVehicle : perVehicle;
+          mIdx++;
+          return { ...v, contracted_per_day_rate: share };
+        });
+        const nextVehicleAssignments = { ...dailyVehicleAssignments, [rateDay]: updatedDay };
+        setDailyVehicleAssignments(nextVehicleAssignments);
+        saveTourDailyVehiclesAction(tourId, JSON.parse(JSON.stringify(Object.values(nextVehicleAssignments).flat())))
+          .then((res: any) => { if (!res?.success) alert('Failed to save vehicle day rate: ' + (res?.error || 'Unknown error')); })
+          .catch((err: any) => alert('Failed to save vehicle day rate: ' + (err?.message || err)));
+      }
+    }
+
     setEditingCustomRateAct(null);
 
     // Persist to DB — update each leg with its share of the total
@@ -2348,6 +2385,33 @@ function PlannerWizardWorkspace() {
   const handleAddActivity = (id: number) => {
     if (!selectedActivityIds.includes(id)) {
       setSelectedActivityIds(prev => [...prev, id]);
+    }
+  };
+
+  const handleUnassignActivitiesFromBlocks = async (activityIds: string[]) => {
+    if (!tourId || activityIds.length === 0) return;
+    const affected = poBlocks.filter((b: any) => (b.daily_activities || []).some((x: any) => activityIds.includes(x.id)));
+    const skipped = affected.filter((b: any) => b.has_finalized === true);
+    const editable = affected.filter((b: any) => b.has_finalized !== true);
+    if (editable.length === 0) {
+      alert(skipped.length > 0
+        ? `The selected activities are only in finalized block(s) (${skipped.map((b: any) => b.name).join(', ')}), which cannot be changed.`
+        : 'None of the selected activities are assigned to a block.');
+      return;
+    }
+    for (const b of editable) {
+      const remaining = (b.daily_activities || []).map((x: any) => x.id).filter((id: string) => !activityIds.includes(id));
+      const res = await updatePOBlockAction(b.id, b.name, b.block_type, remaining);
+      if (!res.success) {
+        alert(`Failed to update block "${b.name}": ${res.error}`);
+        break;
+      }
+    }
+    const refreshRes = await getPOBlocksAction(tourId);
+    if (refreshRes.success && refreshRes.blocks) setPoBlocks(refreshRes.blocks);
+    setPoSelectedActivityIds([]);
+    if (skipped.length > 0) {
+      alert(`Finalized block(s) were left unchanged: ${skipped.map((b: any) => b.name).join(', ')}.`);
     }
   };
 
@@ -6987,6 +7051,7 @@ ${chauffeurHtml}
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
             poNumber: poNum,
+            vendorNotes: poVendorNotes,
             discount: poDiscount,
             tax: poTax,
             transportRequirement: tpReq,
@@ -7008,6 +7073,7 @@ ${chauffeurHtml}
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
             poNumber: poNum,
+            vendorNotes: poVendorNotes,
             discount: poDiscount,
             tax: poTax,
             mealProvided: poMealProvided,
@@ -7025,6 +7091,7 @@ ${chauffeurHtml}
             requireSignature: poRequireSignature,
             signatureImage: poSignatureImage,
             poNumber: poNum,
+            vendorNotes: poVendorNotes,
             discount: poDiscount,
             tax: poTax,
             mealProvided: poMealProvided,
@@ -7157,6 +7224,7 @@ ${chauffeurHtml}
               requireSignature: poRequireSignature,
               signatureImage: poSignatureImage,
               poNumber: poNum,
+              vendorNotes: poVendorNotes,
               discount: poDiscount,
               tax: poTax,
               transportRequirement: tpReq,
@@ -7178,6 +7246,7 @@ ${chauffeurHtml}
               requireSignature: poRequireSignature,
               signatureImage: poSignatureImage,
               poNumber: poNum,
+              vendorNotes: poVendorNotes,
               discount: poDiscount,
               tax: poTax,
               mealProvided: poMealProvided,
@@ -7195,6 +7264,7 @@ ${chauffeurHtml}
               requireSignature: poRequireSignature,
               signatureImage: poSignatureImage,
               poNumber: poNum,
+              vendorNotes: poVendorNotes,
               discount: poDiscount,
               tax: poTax,
               mealProvided: poMealProvided,
@@ -10854,6 +10924,19 @@ ${chauffeurHtml}
                                   </div>
                                 </div>
                               )}
+
+                              {/* Option C: Remove from their (non-finalized) blocks */}
+                              <div className="space-y-3 p-3 bg-white rounded-xl border border-neutral-200">
+                                <span className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider block">Option 3: Remove Selected From Their Blocks</span>
+                                <p className="text-[10px] text-neutral-400">Finalized blocks are never changed.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnassignActivitiesFromBlocks(poSelectedActivityIds)}
+                                  className="w-full py-2 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-all"
+                                >
+                                  Unassign Selected
+                                </button>
+                              </div>
                             </div>
                           )}
 
@@ -10910,6 +10993,16 @@ ${chauffeurHtml}
                                         <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-neutral-100 text-neutral-400 border border-neutral-200 block">
                                           Unassigned
                                         </span>
+                                      )}
+                                      {assignedBlock && assignedBlock.has_finalized !== true && (
+                                        <button
+                                          type="button"
+                                          title="Remove from this block"
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnassignActivitiesFromBlocks([act.id]); }}
+                                          className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full text-rose-600 hover:bg-rose-50 border border-rose-200"
+                                        >
+                                          ✕
+                                        </button>
                                       )}
                                     </div>
                                   </label>
@@ -11651,7 +11744,7 @@ ${chauffeurHtml}
 
                     <div className="space-y-6">
                       {(() => {
-                        const mealBlocks = poBlocks.filter((b: any) => b.block_type === 'meal');
+                        const mealBlocks = poBlocks.filter((b: any) => b.block_type === 'meal' || b.block_type === 'restaurant');
                         const sortedBlocks = [...mealBlocks].sort((a: any, b: any) => {
                           const firstA = a.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
                           const firstB = b.daily_activities?.[0]?.tour_itineraries?.day_number || 0;
@@ -13548,10 +13641,10 @@ ${chauffeurHtml}
                                                 setEditingCustomRateAct({
                                                   ...firstLeg,
                                                   _allLegIds: legs.map((l: any) => l.id),
-                                                  contracted_price: firstLeg.contracted_price ?? firstLeg.charged_unit_price,
+                                                  contracted_price: firstLeg.contracted_price,
                                                   contracted_total_price: totalDayPrice || null,
                                                 });
-                                                setCustomRateUnit(String(firstLeg.contracted_price ?? firstLeg.charged_unit_price ?? ''));
+                                                setCustomRateUnit(String(firstLeg.contracted_price ?? ''));
                                                 setCustomRateTotal(String(totalDayPrice || ''));
                                                 setCustomRateNote(firstLeg.description || '');
                                               }}
@@ -21214,11 +21307,11 @@ ${chauffeurHtml}
                 <div className="text-[10px] text-neutral-400 bg-neutral-50 p-3 rounded-xl border border-neutral-200 flex flex-col gap-1">
                   <div className="flex justify-between">
                     <span>Standard Unit Rate (Cost):</span>
-                    <span className="font-mono">${Number(editingCustomRateAct.contracted_price ?? editingCustomRateAct.charged_unit_price ?? 0).toFixed(2)}</span>
+                    <span className="font-mono">{editingCustomRateAct.contracted_price != null ? `$${Number(editingCustomRateAct.contracted_price).toFixed(2)}` : 'Not negotiated'}</span>
                   </div>
                   <div className="flex justify-between font-bold">
                     <span>Standard Total Rate (Cost):</span>
-                    <span className="font-mono">${Number(editingCustomRateAct.contracted_total_price ?? editingCustomRateAct.charged_total_price ?? 0).toFixed(2)}</span>
+                    <span className="font-mono">{editingCustomRateAct.contracted_total_price != null ? `$${Number(editingCustomRateAct.contracted_total_price).toFixed(2)}` : 'Not negotiated'}</span>
                   </div>
                   <div className="flex justify-between mt-1 pt-1 border-t border-neutral-200 text-emerald-855 font-semibold">
                     <span>Room Quantity (Qty):</span>
