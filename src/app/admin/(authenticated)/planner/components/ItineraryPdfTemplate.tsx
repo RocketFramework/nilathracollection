@@ -626,7 +626,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                 const acc = accommodations.find(a => a.nightIndex === block.dayNumber);
                                                 const hName = acc?.hotelName || block.hotelName || block.name || 'Pending Assignment';
                                                 const starClass = acc?.stayClass || (profile.travelStyle === 'Ultra VIP' ? '5 Star Super Luxury' : '5 Star Luxury');
-                                                const mealPlan = acc?.mealPlan || block.mealPlan || 'HB';
+                                                const mealPlan = acc?.selectedRooms?.find((r: any) => r.mealPlan)?.mealPlan || acc?.mealPlan || block.mealPlan || '';
                                                 const dateFormatted = getShortFormattedDate(block.dayNumber);
 
                                                 return (
@@ -895,10 +895,10 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                                                                             <span className="font-sans text-[#4B5563] font-medium">{acc.roomName || acc.roomStandard}</span>
                                                                                                         </div>
                                                                                                     ) : null}
-                                                                                                    {acc.mealPlan ? (
+                                                                                                    {(acc.selectedRooms?.find((r: any) => r.mealPlan)?.mealPlan || acc.mealPlan) ? (
                                                                                                         <div className="flex flex-col">
                                                                                                             <span className="text-[8px] text-[#8C6D3F] uppercase tracking-[0.15em] font-bold mb-0.5">Meal Arrangement</span>
-                                                                                                            <span className="font-sans text-[#4B5563] font-medium">{acc.mealPlan}</span>
+                                                                                                            <span className="font-sans text-[#4B5563] font-medium">{acc.selectedRooms?.find((r: any) => r.mealPlan)?.mealPlan || acc.mealPlan}</span>
                                                                                                         </div>
                                                                                                     ) : null}
                                                                                                 </>

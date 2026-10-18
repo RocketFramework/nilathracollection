@@ -1732,7 +1732,7 @@ export function ItineraryBuilder({
                                                                                                 disabled={readOnly}
                                                                                                 onChange={(e) => {
                                                                                                     const newSelected = (acc.selectedRooms || []).map((sr: any) => sr.reqId === rType ? { ...sr, mealPlan: e.target.value } : sr);
-                                                                                                    updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected } : a) });
+                                                                                                    updateData({ accommodations: tripData.accommodations.map((a: any) => a.nightIndex === block.dayNumber ? { ...a, selectedRooms: newSelected, mealPlan: e.target.value } : a) });
                                                                                                 }}
                                                                                                 className="w-14 text-[10px] font-bold bg-white border border-indigo-200 rounded py-1 outline-none focus:border-indigo-500 disabled:bg-neutral-50"
                                                                                             >
@@ -2538,7 +2538,7 @@ export function ItineraryBuilder({
                                                                                                                     if (assignedRoom) {
                                                                                                                         const newSelected = selectedRooms.map((sr: any) => sr.reqId === reqId ? { ...sr, mealPlan: mp } : sr);
                                                                                                                         updateData({
-                                                                                                                            accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? { ...a, selectedRooms: newSelected } : a)
+                                                                                                                            accommodations: tripData.accommodations.map(a => a.nightIndex === activeBlock?.dayNumber ? { ...a, selectedRooms: newSelected, mealPlan: mp } : a)
                                                                                                                         });
                                                                                                                     } else {
                                                                                                                         // Save pending meal plan

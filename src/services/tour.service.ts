@@ -1410,6 +1410,51 @@ export class TourService {
             }
         }
 
+        // Builder is the source of truth for hotel meal plan: rewrite the stored
+        // copy on existing PO items and flag POs that were already sent.
+        try {
+            const sleepActs = allInsertedActivities.filter(a => a.hotel_id && a.activity_type === 'sleep' && a.meal_plan);
+            if (sleepActs.length > 0) {
+                const { data: hotelPos } = await supabaseAdmin
+                    .from('purchase_orders')
+                    .select('id, status, hotel_id, internal_notes, items:purchase_order_items(id, daily_activity_id, service_date, service_details)')
+                    .eq('tour_id', tourId)
+                    .not('hotel_id', 'is', null)
+                    .neq('status', 'Cancelled');
+
+                const dayKey = (d: any) => (d ? String(d).split('T')[0] : '');
+                for (const po of hotelPos || []) {
+                    const changedItems: string[] = [];
+                    for (const item of (po as any).items || []) {
+                        const act = sleepActs.find(a =>
+                            a.hotel_id === po.hotel_id &&
+                            (a.id === item.daily_activity_id || (dayKey(a.service_date) && dayKey(a.service_date) === dayKey(item.service_date)))
+                        );
+                        if (!act) continue;
+                        const oldPlan = item.service_details?.meal_plan;
+                        if (oldPlan === act.meal_plan) continue;
+                        await supabaseAdmin
+                            .from('purchase_order_items')
+                            .update({ service_details: { ...(item.service_details || {}), meal_plan: act.meal_plan } })
+                            .eq('id', item.id);
+                        changedItems.push(`${dayKey(item.service_date) || 'n/a'}: ${oldPlan || 'none'} -> ${act.meal_plan}`);
+                    }
+                    if (changedItems.length > 0 && po.status !== 'Draft') {
+                        const note = `[MEAL PLAN CHANGED ${new Date().toISOString().split('T')[0]} after PO was ${po.status}] ${changedItems.join('; ')}. Review and re-issue if required.`;
+                        await supabaseAdmin
+                            .from('purchase_orders')
+                            .update({
+                                internal_notes: po.internal_notes ? `${po.internal_notes}\n${note}` : note,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', po.id);
+                    }
+                }
+            }
+        } catch (syncErr) {
+            console.error("Failed to sync hotel meal plan to POs:", syncErr);
+        }
+
         // Final update for total_cost AND fully enriched planner_data JSON
         await supabaseAdmin.from('tours').update({ 
             total_cost: grandTotalCost,
