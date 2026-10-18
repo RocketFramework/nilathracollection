@@ -882,7 +882,7 @@ export const ItineraryPdfTemplate = React.forwardRef<HTMLDivElement, { tripData:
                                                                                                     <div className="space-y-0.5">
                                                                                                         {acc.selectedRooms?.map((sr: any, idx: number) => (
                                                                                                             <div key={idx} className="font-sans text-[#4B5563] text-[9px] font-medium">
-                                                                                                                {sr.quantity}x {sr.roomName || sr.roomStandard} ({sr.mealPlan || acc.mealPlan || 'BB'})
+                                                                                                                {sr.quantity}x {sr.roomName || sr.roomStandard} {(sr.mealPlan || acc.mealPlan) ? `(${sr.mealPlan || acc.mealPlan})` : ''}
                                                                                                             </div>
                                                                                                         ))}
                                                                                                     </div>

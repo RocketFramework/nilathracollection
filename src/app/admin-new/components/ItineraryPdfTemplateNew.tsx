@@ -1197,7 +1197,8 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                 const hName = block.hotelName || block.name || hotelDetail?.name || 'Bespoke Selection';
                                 const starClass = hotelDetail?.hotel_class || hotelDetail?.star_rating || (travelStyle === 'Ultra VIP' ? '5 Star Super Luxury' : '5 Star Luxury');
-                                const mealPlan = block.mealPlan || 'HB (Half Board)';
+                                const accForMeal = accommodations?.find((a: any) => Number(a.nightIndex) === Number(block.dayNumber));
+                                const mealPlan = accForMeal?.selectedRooms?.find((r: any) => r.mealPlan)?.mealPlan || accForMeal?.mealPlan || block.mealPlan || '';
                                 const dateFormatted = getShortFormattedDate(block.dayNumber);
 
                                 return (
@@ -1238,7 +1239,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       if (selectedRooms.length > 0) {
                                         roomRows = selectedRooms.map((sr: any) => ({
                                           category: [sr.reqId, sr.roomName].filter(Boolean).join(' - ') || 'Standard Room',
-                                          mealPlan: sr.mealPlan || acc?.mealPlan || block.mealPlan || mealPlan || 'HB',
+                                          mealPlan: sr.mealPlan || acc?.mealPlan || block.mealPlan || mealPlan || '',
                                           qty: sr.quantity || 1,
                                         }));
                                       } else {
@@ -1365,7 +1366,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                 const actName = block.name || activityDetail?.activity_name || block.title || 'Curated Excursion';
                                 const actLoc = block.locationName || activityDetail?.location_name || 'Sri Lanka';
-                                const actCat = activityDetail?.category || block.category || 'Sightseeing';
                                 const dateFormatted = getShortFormattedDate(block.dayNumber);
 
                                 return (
@@ -1377,9 +1377,6 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
 
                                     <div className="col-span-3 space-y-0.5 pr-2">
                                       <span className="font-serif font-bold text-sm text-[#111827] block">{actLoc}</span>
-                                      <span className="text-[8.5px] font-sans uppercase tracking-wider font-semibold text-[#8C6D3F] bg-[#FAF8F5] border border-[#E8DFD1] px-1.5 py-0.5 rounded inline-block">
-                                        {actCat}
-                                      </span>
                                     </div>
 
                                     <div className="col-span-6 space-y-0.5 pr-4">
@@ -1493,7 +1490,7 @@ export const ItineraryPdfTemplateNew = React.forwardRef<HTMLDivElement, Itinerar
                                       🏨 {sleepBlock.hotelName || sleepBlock.name} {starClass ? `• ${starClass}` : ''}
                                     </div>
                                     <div className="text-neutral-500 font-medium text-[9px] mt-0.5">
-                                      {sleepBlock.locationName ? `${sleepBlock.locationName} • ` : ''}{sleepBlock.mealPlan || 'HB (Half Board)'} Basis
+                                      {sleepBlock.locationName ? `${sleepBlock.locationName} • ` : ''}{(() => { const accM = accommodations?.find((a: any) => Number(a.nightIndex) === Number(sleepBlock.dayNumber)); const mp = accM?.selectedRooms?.find((r: any) => r.mealPlan)?.mealPlan || accM?.mealPlan || sleepBlock.mealPlan || ''; return mp ? `${mp} Basis` : ''; })()}
                                     </div>
                                   </div>
                                 );

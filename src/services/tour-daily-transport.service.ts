@@ -85,7 +85,9 @@ export class TourDailyTransportService {
                 });
             } else {
                 const dayNum = Number(p.day_number);
-                let tourItinId = p.tour_itinerary_id || dayToItinIdMap[dayNum];
+                const validItinIds = new Set((itineraries || []).map((it: any) => it.id));
+                const clientItinId = p.tour_itinerary_id && validItinIds.has(p.tour_itinerary_id) ? p.tour_itinerary_id : undefined;
+                let tourItinId = dayToItinIdMap[dayNum] || clientItinId;
 
                 if (!tourItinId) {
                     const { data: newItin, error: createItinErr } = await sb
