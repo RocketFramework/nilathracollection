@@ -392,7 +392,7 @@ export class VendorBookingService {
         else if (bookingData.vendor_type === 'vendor') poPayload.activity_vendor_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'transport_provider') poPayload.transport_provider_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'tour_guide') poPayload.guide_id = bookingData.vendor_id;
-        else if (bookingData.vendor_type === 'driver') poPayload.activity_vendor_id = bookingData.vendor_id;
+        else if (bookingData.vendor_type === 'driver') poPayload.driver_id = bookingData.vendor_id;
         else if (bookingData.vendor_type === 'restaurant') poPayload.restaurant_id = bookingData.vendor_id;
 
         const savedPOId = await FinanceService.savePurchaseOrder(poPayload, poItems);

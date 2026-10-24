@@ -6354,6 +6354,9 @@ function PlannerWizardWorkspace() {
       const mealTime = firstMeal?.time_start ? `${firstMeal.time_start}${firstMeal.time_end ? ' – ' + firstMeal.time_end : ''}` : 'To be confirmed';
       const mealTitle = firstMeal?.title || 'Dining Arrangement';
 
+      // The generic stay/custom-service builders above already added these same meal
+      // activities to calculatedSubtotal; reset so the restaurant rows aren't counted twice.
+      calculatedSubtotal = 0;
       const mealRows = sortedStays.map(act => {
         const qty = act.quantity || paxTotal || 1;
         const unitCost = Number(act.contracted_price ?? act.charged_unit_price ?? 0);
