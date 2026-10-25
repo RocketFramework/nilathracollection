@@ -18,7 +18,7 @@ export class CustomerInvoiceService {
     /**
      * Preview consolidated experience category invoice items for a tour
      */
-    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO> = {}, extra: { conciergeTotalOverride?: number } = {}): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
+    static async previewInvoiceItems(tourId: string, options: Partial<GenerateCustomerInvoiceDTO> = {}): Promise<{ description: string; amount: number; dailyActivityIds: string[] }[]> {
         const supabaseAdmin = createAdminClient();
 
         // 1. Fetch tour details
@@ -174,6 +174,16 @@ export class CustomerInvoiceService {
           });
         }
 
+        // 7.5 Concierge total: same formula as computeConciergeDisplayTotal (admin-new concierge-config footer / customer PDF)
+        const conciergeTourDays = touristProfile?.duration_days || plannerItinerary.length || 5;
+        const conciergeTotal = (conciergeRows || []).reduce((sum: number, row: any) => {
+            const costItem = Array.isArray(row.cost_item) ? row.cost_item[0] : row.cost_item;
+            const cb = (costItem?.costing_basis || '').toLowerCase();
+            const isDaily = cb.includes('day') || cb.includes('daily');
+            const lineCost = (Number(row.quantity) || 0) * (Number(row.cost) || 0);
+            return sum + (isDaily && !row.tour_itinerary_id ? lineCost * conciergeTourDays : lineCost);
+        }, 0);
+
         // 8. Calculate unified invoice items
         const rawItems = InvoiceCalculationService.calculateInvoiceItems({
             itinerary: simplifiedItinerary,
@@ -192,7 +202,7 @@ export class CustomerInvoiceService {
             dailyVehicleAssignments: options.dailyVehicleAssignments || dailyVehicleAssignments,
             dbActivities: [],
             tourConcierges: conciergeRows || [],
-            conciergeTotalOverride: extra.conciergeTotalOverride
+            conciergeTotalOverride: conciergeTotal
         });
 
         // Map back to expected structure (ensure dailyActivityIds is strictly string[])
