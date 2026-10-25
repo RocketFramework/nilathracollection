@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { TripData } from '@/app/admin/(authenticated)/planner/types';
 import { TouristDataDTO, TouristTeamMemberDTO } from '@/dtos/tourist-data.dto';
@@ -12,7 +12,7 @@ export class TouristService {
      * Draft tours are hidden.
      */
     static async getMyTours() {
-        const supabase = createClient();
+        const supabase = await createClient();
 
         // 1. Get current user
         const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -78,7 +78,7 @@ export class TouristService {
      * Get a specific tour details for the tourist.
      */
     static async getTourDetails(tourId: string) {
-        const supabase = createClient();
+        const supabase = await createClient();
 
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -241,7 +241,7 @@ export class TouristService {
         };
     }
     static async addCommentToBlock(tourId: string, blockId: string, role: 'agent' | 'tourist', text: string) {
-        const supabase = createClient();
+        const supabase = await createClient();
         
         // Ensure user is authenticated
         const { data: { user } } = await supabase.auth.getUser();
