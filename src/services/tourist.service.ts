@@ -179,19 +179,7 @@ export class TouristService {
         const paxCount = Math.max(1, (tripData.profile?.adults || 0) + (tripData.profile?.children || 0));
         const expectedBudgetPerPerson = Number(tripData.profile?.budgetPerPerson || (expectedBudgetTotal > 0 ? expectedBudgetTotal / paxCount : 0));
 
-        const rawDraftCosts = tripData.financials?.draftCosts || [];
-        const costBreakdown = (rawDraftCosts && rawDraftCosts.length > 0)
-            ? rawDraftCosts.map((item: any) => ({
-                category: item.category,
-                vendorName: item.vendorName,
-                serviceName: item.serviceName,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                totalPrice: item.totalPrice,
-                description: `${item.category ? `[${item.category}] ` : ''}${item.vendorName ? item.vendorName + ' – ' : ''}${item.serviceName}`,
-                amount: Number(item.totalPrice) || 0
-              }))
-            : previewItems;
+        const costBreakdown = previewItems;
 
         const draftTotal = costBreakdown.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
         const officialTotal = (customerInvoices || []).reduce((sum: number, inv: any) => sum + (Number(inv.amount) || 0), 0);
