@@ -5,7 +5,7 @@ import { Search, Plus, Edit2, Trash2, X, ChevronLeft, ChevronRight, Building2, C
 import { MasterDataService, Vendor, Driver, TourGuide, TransportProvider, Restaurant, Activity, SeamlessConciergeCostItem } from "@/services/master-data.service";
 import type { ApprovalRequest } from "@/services/master-data-approvals.service";
 import { HotelService, Hotel } from "@/services/hotel.service";
-import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, deleteVendorAction, getVendorAction, getRestaurantsAction, deleteRestaurantAction, getTransportProvidersAction, getTransportProviderAction, deleteTransportProviderAction, getDriversAction, deleteDriverAction, getTourGuidesAction, deleteTourGuideAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
+import { getUserRoleAction, getPendingApprovalsAction, getActivitiesAction, getHotelAction, getHotelsAction, deleteHotelAction, getVendorsAction, deleteVendorAction, getVendorAction, getRestaurantsAction, getRestaurantAction, getDriverAction, getTourGuideAction, deleteRestaurantAction, getTransportProvidersAction, getTransportProviderAction, deleteTransportProviderAction, getDriversAction, deleteDriverAction, getTourGuidesAction, deleteTourGuideAction, getSeamlessConciergeCostItemsAction, getSeamlessConciergeCostItemAction, deleteSeamlessConciergeCostItemAction } from "@/actions/admin.actions";
 import HotelFormModal from "./components/HotelFormModal";
 import VendorFormModal from "./components/VendorFormModal";
 import DriverFormModal from "./components/DriverFormModal";
@@ -270,9 +270,13 @@ export default function MasterDataPage() {
                     console.error("Failed to load vendor:", result.error);
                 }
             } else if (activeTab === 'restaurants') {
-                const fullItem = await MasterDataService.getRestaurant(id as string);
-                setSelectedRestaurant(fullItem);
-                setIsRestaurantModalOpen(true);
+                const result = await getRestaurantAction(id as string);
+                if (result.success && result.restaurant) {
+                    setSelectedRestaurant(result.restaurant);
+                    setIsRestaurantModalOpen(true);
+                } else {
+                    console.error("Failed to load restaurant:", result.error);
+                }
             } else if (activeTab === 'transports') {
                 const result = await getTransportProviderAction(id as string);
                 if (result.success && result.provider) {
@@ -282,13 +286,21 @@ export default function MasterDataPage() {
                     console.error("Failed to load transport provider:", result.error);
                 }
             } else if (activeTab === 'drivers') {
-                const fullItem = await MasterDataService.getDriver(id as string);
-                setSelectedDriver(fullItem);
-                setIsDriverModalOpen(true);
+                const result = await getDriverAction(id as string);
+                if (result.success && result.driver) {
+                    setSelectedDriver(result.driver);
+                    setIsDriverModalOpen(true);
+                } else {
+                    console.error("Failed to load driver:", result.error);
+                }
             } else if (activeTab === 'guides') {
-                const fullItem = await MasterDataService.getTourGuide(id as string);
-                setSelectedGuide(fullItem);
-                setIsGuideModalOpen(true);
+                const result = await getTourGuideAction(id as string);
+                if (result.success && result.guide) {
+                    setSelectedGuide(result.guide);
+                    setIsGuideModalOpen(true);
+                } else {
+                    console.error("Failed to load tour guide:", result.error);
+                }
             } else if (activeTab === 'concierge_costs') {
                 const res = await getSeamlessConciergeCostItemAction(id as string);
                 if (res.success && res.item) {

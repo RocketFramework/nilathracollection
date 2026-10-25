@@ -713,8 +713,9 @@ export class MasterDataService {
         return { data: data as Driver[], count: count || 0 };
     }
 
-    static async getDriver(id: string) {
-        const { data, error } = await supabase.from('drivers').select('*, payment_details(*)').eq('id', id).single();
+    static async getDriver(id: string, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
+        const { data, error } = await dbClient.from('drivers').select('*, payment_details(*)').eq('id', id).single();
         if (error) throw error;
         return data as Driver;
     }
@@ -793,8 +794,9 @@ export class MasterDataService {
         return { data: mappedData as TourGuide[], count: count || 0 };
     }
 
-    static async getTourGuide(id: string) {
-        const { data, error } = await supabase.from('tour_guides').select('*, payment_details(*)').eq('id', id).single();
+    static async getTourGuide(id: string, options?: { client?: any }) {
+        const dbClient = options?.client || supabase;
+        const { data, error } = await dbClient.from('tour_guides').select('*, payment_details(*)').eq('id', id).single();
         if (error) throw error;
         return {
             ...data,

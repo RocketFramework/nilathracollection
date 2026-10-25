@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check, Upload, ExternalLink, ShieldCheck, Clock, UserCheck } from "lucide-react";
 import { MasterDataService, TourGuide } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveTourGuideAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
+import { saveTourGuideAction, getTourGuideAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
 
 interface TourGuideFormModalProps {
     isOpen: boolean;
@@ -162,8 +162,10 @@ export default function TourGuideFormModal({ isOpen, onClose, guide, onSave, use
                 onSave();
 
                 if (savedId) {
-                    const updated = await MasterDataService.getTourGuide(savedId);
-                    setFormData({ ...updated, payment_details: updated.payment_details || {} });
+                    const refetched = await getTourGuideAction(savedId);
+                    if (refetched.success && refetched.guide) {
+                        setFormData({ ...refetched.guide, payment_details: refetched.guide.payment_details || {} });
+                    }
                 }
                 alert("Tour Guide saved successfully.");
             }

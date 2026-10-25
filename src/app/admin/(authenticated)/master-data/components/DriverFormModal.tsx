@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, Driver } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveDriverAction } from "@/actions/admin.actions";
+import { saveDriverAction, getDriverAction } from "@/actions/admin.actions";
 
 interface DriverFormModalProps {
     isOpen: boolean;
@@ -83,8 +83,10 @@ export default function DriverFormModal({ isOpen, onClose, driver, onSave, userR
                 onSave();
 
                 if (savedId) {
-                    const updated = await MasterDataService.getDriver(savedId);
-                    setFormData({ ...updated, payment_details: updated.payment_details || {} });
+                    const refetched = await getDriverAction(savedId);
+                    if (refetched.success && refetched.driver) {
+                        setFormData({ ...refetched.driver, payment_details: refetched.driver.payment_details || {} });
+                    }
                 }
                 alert("Driver saved successfully.");
             }

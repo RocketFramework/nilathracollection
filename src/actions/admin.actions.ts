@@ -670,6 +670,28 @@ export async function getRestaurantAction(id: string) {
     }
 }
 
+export async function getDriverAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const driver = await MasterDataService.getDriver(id, { client: supabase });
+        return { success: true, driver };
+    } catch (error: any) {
+        console.error("Error fetching driver:", error);
+        return { error: error.message || "Failed to fetch driver." };
+    }
+}
+
+export async function getTourGuideAction(id: string) {
+    try {
+        const supabase = createAdminClient();
+        const guide = await MasterDataService.getTourGuide(id, { client: supabase });
+        return { success: true, guide };
+    } catch (error: any) {
+        console.error("Error fetching tour guide:", error);
+        return { error: error.message || "Failed to fetch tour guide." };
+    }
+}
+
 export async function deleteRestaurantAction(id: string) {
     try {
         await MasterDataService.deleteRestaurant(id);
