@@ -990,6 +990,26 @@ export async function approvePartnerAction(entityType: 'guide' | 'transport' | '
     }
 }
 
+export async function uploadPaymentProofAction(formData: FormData) {
+    try {
+        const file = formData.get("file") as File;
+        if (!file) return { error: "No file provided" };
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const adminSupabase = createAdminClient();
+        const fileExt = file.name.split(".").pop() || "bin";
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const { error } = await adminSupabase.storage
+            .from("payment-proofs")
+            .upload(fileName, buffer, { contentType: file.type || undefined });
+        if (error) return { error: error.message };
+        const { data } = adminSupabase.storage.from("payment-proofs").getPublicUrl(fileName);
+        return { success: true, url: data.publicUrl };
+    } catch (error: any) {
+        console.error("Error uploading payment proof:", error);
+        return { error: error.message || "Failed to upload payment proof." };
+    }
+}
+
 export async function uploadPartnerImageAction(formData: FormData) {
     try {
         const file = formData.get("file") as File;

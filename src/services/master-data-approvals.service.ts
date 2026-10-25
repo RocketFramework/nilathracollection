@@ -88,7 +88,10 @@ export class MasterDataApprovalsService {
 
         // 2. If approved, apply the proposed_data to the relevant entity table
         if (status === 'APPROVED' && approvalData) {
-            const { entity_type, proposed_data } = approvalData;
+            const { entity_type, proof_image_url } = approvalData;
+            const proposed_data = proof_image_url && approvalData.proposed_data?.payment_details
+                ? { ...approvalData.proposed_data, payment_details: { ...approvalData.proposed_data.payment_details, proof_url: proof_image_url } }
+                : approvalData.proposed_data;
 
             try {
                 switch (entity_type) {

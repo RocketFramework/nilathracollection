@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check, Trash2, Plus, Upload, ExternalLink, ShieldCheck, Clock, UserCheck } from "lucide-react";
 import { MasterDataService, TransportProvider, TransportVehicle } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveTransportProviderAction, getTransportProviderAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
+import { saveTransportProviderAction, uploadPaymentProofAction, getTransportProviderAction, approvePartnerAction, uploadPartnerImageAction } from "@/actions/admin.actions";
 
 interface TransportProviderFormModalProps {
     isOpen: boolean;
@@ -196,7 +196,15 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const res = await saveTransportProviderAction(formData as TransportProvider);
+                let payloadWithProof: any = formData;
+                if (proofImage) {
+                    const proofFd = new FormData();
+                    proofFd.append("file", proofImage);
+                    const proofRes = await uploadPaymentProofAction(proofFd);
+                    if (proofRes.error || !proofRes.url) throw new Error(proofRes.error || "Failed to upload bank slip");
+                    payloadWithProof = { ...formData, payment_details: { ...(formData.payment_details || {}), proof_url: proofRes.url } };
+                }
+                const res = await saveTransportProviderAction(payloadWithProof as TransportProvider);
                 if (!res.success) {
                     throw new Error(res.error || "Failed to save transport provider");
                 }
@@ -561,6 +569,9 @@ export default function TransportProviderFormModal({ isOpen, onClose, provider, 
                                     className="w-full text-sm outline-none text-brand-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-green/10 file:text-brand-green hover:file:bg-brand-green/20 cursor-pointer"
                                     onChange={e => setProofImage(e.target.files?.[0] || null)}
                                 />
+                                {formData.payment_details?.proof_url && (
+                                    <a href={formData.payment_details.proof_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green font-bold hover:underline block mt-2">View current bank slip/document</a>
+                                )}
                                 <p className="text-[10px] text-neutral-400 mt-2">Required if adding or updating payment details to ensure accuracy.</p>
                             </div>
                         </div>

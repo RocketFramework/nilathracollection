@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Check } from "lucide-react";
 import { MasterDataService, Vendor, Activity } from "@/services/master-data.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { saveVendorAction, getVendorAction } from "@/actions/admin.actions";
+import { saveVendorAction, uploadPaymentProofAction, getVendorAction } from "@/actions/admin.actions";
 
 interface VendorFormModalProps {
     isOpen: boolean;
@@ -130,7 +130,15 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const res = await saveVendorAction(formData as Vendor);
+                let payloadWithProof: any = formData;
+                if (proofImage) {
+                    const proofFd = new FormData();
+                    proofFd.append("file", proofImage);
+                    const proofRes = await uploadPaymentProofAction(proofFd);
+                    if (proofRes.error || !proofRes.url) throw new Error(proofRes.error || "Failed to upload bank slip");
+                    payloadWithProof = { ...formData, payment_details: { ...(formData.payment_details || {}), proof_url: proofRes.url } };
+                }
+                const res = await saveVendorAction(payloadWithProof as Vendor);
                 if (res.error) throw new Error(res.error);
                 const savedId = res.savedId;
                 onSave();
@@ -307,6 +315,9 @@ export default function VendorFormModal({ isOpen, onClose, vendor, onSave, userR
                                     className="w-full text-sm outline-none text-brand-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-green/10 file:text-brand-green hover:file:bg-brand-green/20 cursor-pointer"
                                     onChange={e => setProofImage(e.target.files?.[0] || null)}
                                 />
+                                {formData.payment_details?.proof_url && (
+                                    <a href={formData.payment_details.proof_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green font-bold hover:underline block mt-2">View current bank slip/document</a>
+                                )}
                                 <p className="text-[10px] text-neutral-400 mt-2">Required if adding or updating payment details to ensure accuracy.</p>
                             </div>
                         </div>

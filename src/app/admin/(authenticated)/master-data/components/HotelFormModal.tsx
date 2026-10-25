@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { Hotel, HotelRoom, RoomRate, HotelService } from "@/services/hotel.service";
 import { MasterDataApprovalsService } from "@/services/master-data-approvals.service";
-import { getHotelAction, refreshPlannerCacheAction, saveHotelAction, uploadHotelPhotoAction } from "@/actions/admin.actions";
+import { getHotelAction, refreshPlannerCacheAction, saveHotelAction, uploadPaymentProofAction, uploadHotelPhotoAction } from "@/actions/admin.actions";
 
 interface HotelFormModalProps {
     isOpen: boolean;
@@ -243,7 +243,15 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                 alert("Request sent for Admin approval.");
                 onClose();
             } else {
-                const response = await saveHotelAction(submissionData as Hotel);
+                let payloadWithProof: any = submissionData;
+                if (proofImage) {
+                    const proofFd = new FormData();
+                    proofFd.append("file", proofImage);
+                    const proofRes = await uploadPaymentProofAction(proofFd);
+                    if (proofRes.error || !proofRes.url) throw new Error(proofRes.error || "Failed to upload bank slip");
+                    payloadWithProof = { ...submissionData, payment_details: { ...(submissionData.payment_details || {}), proof_url: proofRes.url } };
+                }
+                const response = await saveHotelAction(payloadWithProof as Hotel);
                 if (response.error) {
                     throw new Error(response.error);
                 }
@@ -793,6 +801,9 @@ export default function HotelFormModal({ isOpen, onClose, hotel, onSave, userRol
                                     className="w-full text-sm outline-none text-brand-charcoal file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-green/10 file:text-brand-green hover:file:bg-brand-green/20 cursor-pointer"
                                     onChange={e => setProofImage(e.target.files?.[0] || null)}
                                 />
+                                {formData.payment_details?.proof_url && (
+                                    <a href={formData.payment_details.proof_url} target="_blank" rel="noreferrer" className="text-xs text-brand-green font-bold hover:underline block mt-2">View current bank slip/document</a>
+                                )}
                                 <p className="text-[10px] text-neutral-400 mt-2">Required if adding or updating payment details to ensure accuracy.</p>
                             </div>
                         </div>

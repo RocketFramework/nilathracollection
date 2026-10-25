@@ -10,6 +10,7 @@ export interface PaymentDetails {
     account_name?: string;
     account_number?: string;
     swift_code?: string;
+    proof_url?: string | null;
 }
 
 export interface VendorActivity {
